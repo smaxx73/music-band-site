@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types'
 	import { untrack } from 'svelte'
+	import { formatDateOnly } from '$lib/date'
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte'
 	import CommentsPanel from '$lib/components/CommentsPanel.svelte'
 
@@ -46,8 +47,8 @@
 		return `${m}:${String(sec).padStart(2, '0')}`
 	}
 
-	function formatDate(d: string) {
-		return new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', {
+	function formatDate(d: string | Date) {
+		return formatDateOnly(d, {
 			day: 'numeric', month: 'long', year: 'numeric'
 		})
 	}

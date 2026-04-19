@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types'
+	import { formatDateOnly } from '$lib/date'
 	import SessionEditor from '$lib/components/SessionEditor.svelte'
 
 	let { data }: { data: PageData } = $props()
@@ -54,8 +55,8 @@ async function saveSession(patch: {
 		repertoire: 'Répertoire'
 	}
 
-	function formatDate(d: string) {
-		return new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', {
+	function formatDate(d: string | Date) {
+		return formatDateOnly(d, {
 			weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
 		})
 	}
@@ -123,7 +124,7 @@ async function saveSession(patch: {
 </script>
 
 <svelte:head>
-	<title>Session du {session.date}</title>
+	<title>Session du {formatDate(session.date)}</title>
 </svelte:head>
 
 <main>

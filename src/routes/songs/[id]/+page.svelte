@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types'
+	import { formatDateOnly } from '$lib/date'
 
 	let { data }: { data: PageData } = $props()
 
@@ -29,8 +30,8 @@
 		repertoire: 'Répertoire'
 	}
 
-	function formatDate(d: string) {
-		return new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', {
+	function formatDate(d: string | Date) {
+		return formatDateOnly(d, {
 			day: 'numeric', month: 'long', year: 'numeric'
 		})
 	}

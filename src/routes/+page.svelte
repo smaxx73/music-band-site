@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types'
+	import { formatDateOnly, toDateOnly } from '$lib/date'
 
 	let { data }: { data: PageData } = $props()
 
@@ -12,14 +13,14 @@
 	const sessions = $derived(data.sessions as unknown as SessionRow[])
 	const playlists = $derived(data.playlists as unknown as PlaylistRow[])
 
-	function formatDate(d: string) {
-		return new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', {
+	function formatDate(d: string | Date) {
+		return formatDateOnly(d, {
 			weekday: 'short', day: 'numeric', month: 'short'
 		})
 	}
 
-	function formatUpdatedAt(d: string) {
-		return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
+	function formatUpdatedAt(d: string | Date) {
+		return new Date(toDateOnly(d) || d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
 	}
 </script>
 

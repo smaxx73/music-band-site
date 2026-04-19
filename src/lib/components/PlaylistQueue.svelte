@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { formatDateOnly } from '$lib/date'
+
 	type PlaylistItem = {
 		id: number
 		position: number
@@ -41,8 +43,8 @@
 		return `${m}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 	}
 
-	function formatDate(d: string) {
-		return new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', {
+	function formatDate(d: string | Date) {
+		return formatDateOnly(d, {
 			day: 'numeric',
 			month: 'short',
 			year: 'numeric'

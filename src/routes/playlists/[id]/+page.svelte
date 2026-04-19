@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types'
 	import { untrack } from 'svelte'
+	import { formatDateOnly } from '$lib/date'
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte'
 	import PlaylistQueue from '$lib/components/PlaylistQueue.svelte'
 
@@ -38,8 +39,8 @@
 	let toggleToken = $state(0)
 	let toggleRequest = $state<{ token: number } | null>(null)
 
-	function formatDate(d: string) {
-		return new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', {
+	function formatDate(d: string | Date) {
+		return formatDateOnly(d, {
 			day: 'numeric', month: 'short', year: 'numeric'
 		})
 	}
