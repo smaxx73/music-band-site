@@ -2,6 +2,7 @@
 	import type { PageData } from './$types'
 	import { untrack } from 'svelte'
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte'
+	import PlaylistQueue from '$lib/components/PlaylistQueue.svelte'
 
 	let { data }: { data: PageData } = $props()
 
@@ -37,16 +38,6 @@
 	let toggleToken = $state(0)
 	let toggleRequest = $state<{ token: number } | null>(null)
 
-	// Drag & drop
-	let draggedIdx = $state<number | null>(null)
-	let dropTargetIdx = $state<number | null>(null)
-
-	function formatTime(s: number) {
-		if (!isFinite(s) || !s) return '0:00'
-		const m = Math.floor(s / 60)
-		return `${m}:${String(Math.floor(s % 60)).padStart(2, '0')}`
-	}
-
 	function formatDate(d: string) {
 		return new Date(d + 'T00:00:00').toLocaleDateString('fr-FR', {
 			day: 'numeric', month: 'short', year: 'numeric'
@@ -68,23 +59,9 @@
 		autoplayTrack = true
 	}
 
-	// Drag & drop
 	let saveError = $state<string | null>(null)
 
-	function onDragStart(e: DragEvent, idx: number) {
-		draggedIdx = idx
-		// Nécessaire pour que ondrop se déclenche sur Firefox
-		e.dataTransfer?.setData('text/plain', String(idx))
-	}
-	function onDragOver(e: DragEvent, idx: number) { e.preventDefault(); dropTargetIdx = idx }
-	function onDragLeave() { dropTargetIdx = null }
-	function onDragEnd() { draggedIdx = null; dropTargetIdx = null }
-
-	async function onDrop(e: DragEvent, toIdx: number) {
-		e.preventDefault()
-		if (draggedIdx === null || draggedIdx === toIdx) { draggedIdx = null; dropTargetIdx = null; return }
-
-		const fromIdx = draggedIdx
+	async function reorderItems(fromIdx: number, toIdx: number) {
 		const newItems = [...items]
 		const [moved] = newItems.splice(fromIdx, 1)
 		newItems.splice(toIdx, 0, moved)
@@ -95,8 +72,6 @@
 		else if (fromIdx > currentIdx && toIdx <= currentIdx) currentIdx++
 
 		items = newItems
-		draggedIdx = null
-		dropTargetIdx = null
 
 		await savePositions()
 	}
@@ -185,44 +160,14 @@
 			{/if}
 		</div>
 
-		<!-- Liste des items avec drag & drop -->
-		{#if saveError}
-			<p class="save-error">{saveError}</p>
-		{/if}
-		<ul class="items-list">
-			{#each items as item, i (item.id)}
-				<li
-					class="item"
-					class:active={i === currentIdx}
-					class:drag-over={dropTargetIdx === i && draggedIdx !== i}
-					draggable={true}
-					ondragstart={(e) => onDragStart(e, i)}
-					ondragover={(e) => onDragOver(e, i)}
-					ondragleave={onDragLeave}
-					ondragend={onDragEnd}
-					ondrop={(e) => onDrop(e, i)}
-				>
-					<span class="drag-handle" aria-hidden="true">⠿</span>
-					<button class="item-body" onclick={() => jumpTo(i)}>
-						<span class="item-pos">{i + 1}</span>
-						<span class="item-info">
-							<span class="item-title">{item.song_title}</span>
-							<span class="item-meta">
-								prise #{item.take} · {formatDate(item.session_date)}
-								{#if item.session_location} · {item.session_location}{/if}
-								{#if item.duration_s} · {formatTime(item.duration_s)}{/if}
-							</span>
-							{#if item.note}<span class="item-note">{item.note}</span>{/if}
-						</span>
-					</button>
-					<button
-						class="remove-btn"
-						onclick={() => removeItem(item.id, i)}
-						title="Retirer de la playlist"
-					>✕</button>
-				</li>
-			{/each}
-		</ul>
+		<PlaylistQueue
+			items={items}
+			currentIndex={currentIdx}
+			error={saveError}
+			onSelect={jumpTo}
+			onReorder={reorderItems}
+			onRemove={removeItem}
+		/>
 	{/if}
 </main>
 
@@ -249,40 +194,6 @@
 		font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
 		background: #1a1a1a; color: white; padding: 0.1rem 0.4rem; border-radius: 3px;
 	}
-
-	/* Liste items */
-	.items-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; }
-
-	.item {
-		display: flex; align-items: center; gap: 0.5rem;
-		border: 1px solid #f0f0f0; border-radius: 6px; padding: 0.5rem 0.75rem;
-		transition: background 0.1s, border-color 0.1s;
-		cursor: default;
-	}
-	.item.active { background: #f0f7ff; border-color: #bfdbfe; }
-	.item.drag-over { border-color: #1a1a1a; border-style: dashed; }
-	.item:hover:not(.active) { background: #fafafa; }
-
-	.drag-handle { color: #ccc; cursor: grab; font-size: 1rem; user-select: none; }
-	.drag-handle:active { cursor: grabbing; }
-
-	.item-body {
-		flex: 1; background: none; border: none; padding: 0; cursor: pointer;
-		text-align: left; display: flex; align-items: center; gap: 0.6rem;
-	}
-
-	.item-pos { font-size: 0.75rem; color: #bbb; width: 1.5rem; text-align: right; flex-shrink: 0; }
-	.item-info { display: flex; flex-direction: column; gap: 0.1rem; }
-	.item-title { font-weight: 600; font-size: 0.875rem; }
-	.item-meta { font-size: 0.75rem; color: #999; }
-	.item-note { font-size: 0.75rem; color: #888; font-style: italic; }
-
-	.remove-btn {
-		background: none; border: none; color: #ccc; cursor: pointer;
-		font-size: 0.8rem; padding: 0.2rem 0.3rem; border-radius: 3px;
-		line-height: 1;
-	}
-	.remove-btn:hover { color: #c0392b; background: #fef2f2; }
 
 	.empty { color: #bbb; font-style: italic; }
 </style>
