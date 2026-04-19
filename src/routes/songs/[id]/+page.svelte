@@ -68,7 +68,7 @@
 
 <main>
 	<nav class="breadcrumb">
-		<a href="/admin/songs">Morceaux</a> /
+		<a href="/songs">Morceaux</a> /
 		<span>{song.title}</span>
 	</nav>
 

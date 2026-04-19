@@ -29,10 +29,7 @@
 </svelte:head>
 
 <main>
-	<div class="header">
-		<h1>Sessions</h1>
-		<a href="/upload" class="btn-primary">+ Uploader</a>
-	</div>
+	<h1>Sessions</h1>
 
 	{#if sessions.length === 0}
 		<p class="empty">Aucune session pour l'instant. <a href="/upload">Uploader une première prise →</a></p>
@@ -67,30 +64,9 @@
 		font-family: sans-serif;
 	}
 
-	.header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		margin-bottom: 1.5rem;
-	}
-
 	h1 {
 		font-size: 1.5rem;
-		margin: 0;
-	}
-
-	.btn-primary {
-		padding: 0.45rem 1rem;
-		background: #1a1a1a;
-		color: white;
-		border-radius: 4px;
-		text-decoration: none;
-		font-size: 0.875rem;
-		font-weight: 600;
-	}
-
-	.btn-primary:hover {
-		background: #333;
+		margin: 0 0 1.5rem;
 	}
 
 	.sessions-list {

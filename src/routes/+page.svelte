@@ -28,10 +28,7 @@
 </svelte:head>
 
 <main>
-	<div class="top-bar">
-		<h1>Répétitions</h1>
-		<a href="/upload" class="btn-primary">+ Uploader</a>
-	</div>
+	<h1>Répétitions</h1>
 
 	<div class="dashboard">
 		<!-- Colonne gauche : dernières sessions -->
@@ -104,26 +101,7 @@
 		font-family: sans-serif;
 	}
 
-	.top-bar {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		margin-bottom: 2rem;
-	}
-
-	h1 { font-size: 1.5rem; margin: 0; }
-
-	.btn-primary {
-		padding: 0.45rem 1rem;
-		background: #1a1a1a;
-		color: white;
-		border-radius: 4px;
-		text-decoration: none;
-		font-size: 0.875rem;
-		font-weight: 600;
-	}
-
-	.btn-primary:hover { background: #333; }
+	h1 { font-size: 1.5rem; margin: 0 0 2rem; }
 
 	.dashboard {
 		display: grid;
