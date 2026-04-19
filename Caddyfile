@@ -1,0 +1,14 @@
+{$DOMAIN} {
+	request_body {
+		max_size 200MB
+	}
+
+	handle_path /audio/* {
+		root * /data/audio
+		file_server
+	}
+
+	handle {
+		reverse_proxy app:3000
+	}
+}

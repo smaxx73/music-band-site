@@ -38,25 +38,29 @@ services:
       timeout: 5s
       retries: 10
 
-  nginx:
-    image: nginx:alpine
+  caddy:
+    image: caddy:alpine
     restart: unless-stopped
     depends_on:
       - app
+    environment:
+      DOMAIN: ${DOMAIN}
     ports:
       - "80:80"
       - "443:443"
     volumes:
       - audio_data:/data/audio:ro
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
-      - letsencrypt:/etc/letsencrypt:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
     networks:
       - internal
 
 volumes:
   pg_data:
   audio_data:
-  letsencrypt:
+  caddy_data:
+  caddy_config:
 
 networks:
   internal:

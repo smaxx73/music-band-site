@@ -24,7 +24,7 @@ Accès restreint, tout le monde a les mêmes droits, tout le contenu est partag�
 - `ffmpeg` pour conversion et traitement audio
 - WaveSurfer.js pour le lecteur
 - Cookie signé pour l'auth (mot de passe partagé)
-- Docker Compose (app + postgres + nginx) + Let's Encrypt
+- Docker Compose (app + postgres + caddy) avec HTTPS automatique
 
 ## Commandes
 ```bash
@@ -51,7 +51,7 @@ NODE_ENV=production
 - Ne jamais exposer `AUTH_PASSWORD` dans le code ou les logs
 - `$lib/server/` ne doit jamais être importé dans un composant client
 - WaveSurfer.js doit être importé dynamiquement (`import()`) — accès à `window`
-- Nginx sert les fichiers audio directement depuis `/audio/` — pas Node
+- En production, Caddy sert les fichiers audio directement depuis `/audio/` — pas Node
 
 ## Navigation
 ```
