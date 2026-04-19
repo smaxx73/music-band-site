@@ -1,0 +1,62 @@
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://band:secret@db:5432/bandapp
+      AUDIO_DIR: /data/audio
+      AUTH_PASSWORD: ${AUTH_PASSWORD}
+      AUTH_SECRET: ${AUTH_SECRET}
+      NODE_ENV: production
+      PORT: 3000
+      ORIGIN: ${ORIGIN:-http://localhost}
+    volumes:
+      - audio_data:/data/audio
+    networks:
+      - internal
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: band
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: bandapp
+    ports:
+      - "5432:5432"   # exposé à l'hôte pour pnpm dev
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U band -d bandapp"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - audio_data:/data/audio:ro
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - letsencrypt:/etc/letsencrypt:ro
+    networks:
+      - internal
+
+volumes:
+  pg_data:
+  audio_data:
+  letsencrypt:
+
+networks:
+  internal:
