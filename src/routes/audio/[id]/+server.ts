@@ -7,8 +7,8 @@ import { join } from 'path'
 import { AUDIO_DIR } from '$env/static/private'
 
 export const GET: RequestHandler = async ({ params, request, locals }) => {
-	// En production, Nginx sert directement les fichiers audio
-	if (!dev) return new Response('Not found', { status: 404 })
+	// En production, Caddy sert directement les fichiers audio
+	if (!dev) return new Response('Ce fichier doit être servi par Caddy', { status: 404 })
 
 	if (!locals.user) return new Response('Non autorisé', { status: 401 })
 

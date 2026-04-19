@@ -243,7 +243,7 @@
 </script>
 
 <svelte:head>
-	<title>{recording.song_title} — prise #{recording.take}</title>
+	<title>{recording.song_title} — Prise {recording.take}</title>
 </svelte:head>
 
 <svelte:window onkeydown={(e) => { if (e.key === 'Escape') showPlaylistModal = false }} />
@@ -253,7 +253,7 @@
 	<nav class="breadcrumb">
 		<a href="/sessions">Sessions</a> /
 		<a href="/sessions/{recording.session_id}">{formatDate(recording.session_date)}</a> /
-		<span>{recording.song_title} — prise #{recording.take}</span>
+		<span>{recording.song_title} — Prise {recording.take}</span>
 	</nav>
 
 	<!-- En-tête -->
@@ -264,7 +264,7 @@
 				{#if recording.song_key}<span class="key">{recording.song_key}</span>{/if}
 			</h1>
 			<div class="meta">
-				Prise #{recording.take} · {formatDate(recording.session_date)}
+				Prise {recording.take} · {formatDate(recording.session_date)}
 				{#if recording.session_location} · {recording.session_location}{/if}
 				· {recording.uploaded_by}
 			</div>

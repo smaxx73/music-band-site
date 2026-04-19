@@ -14,7 +14,7 @@
 		id: number; date: string; location: string | null
 		notes: string | null; members: string[]
 	})
-	const groups = $derived(data.groups as unknown as Group[])
+	let groups = $state(data.groups as unknown as Group[])
 
 	const STATUS_LABELS: Record<string, string> = {
 		en_cours: 'En cours',
@@ -33,6 +33,60 @@
 		const m = Math.floor(s / 60)
 		const sec = s % 60
 		return `${m}:${String(sec).padStart(2, '0')}`
+	}
+
+	// Inline editing
+	let editingNotes = $state<Record<number, string>>({})
+	let savingId = $state<number | null>(null)
+	let saveError = $state<Record<number, string>>({})
+
+	function startEditNotes(r: RecordingRow) {
+		editingNotes[r.id] = r.notes ?? ''
+	}
+
+	function cancelEditNotes(id: number) {
+		delete editingNotes[id]
+		editingNotes = { ...editingNotes }
+	}
+
+	async function patchRecording(id: number, patch: Record<string, unknown>) {
+		savingId = id
+		delete saveError[id]
+		saveError = { ...saveError }
+		try {
+			const res = await fetch(`/api/recordings/${id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(patch)
+			})
+			const json = await res.json()
+			if (!res.ok) {
+				saveError = { ...saveError, [id]: json.error ?? 'Erreur.' }
+				return
+			}
+			// Update local state
+			groups = groups.map((g) => ({
+				...g,
+				recordings: g.recordings.map((r) =>
+					r.id === id ? { ...r, status: json.status, notes: json.notes } : r
+				)
+			}))
+		} catch {
+			saveError = { ...saveError, [id]: 'Erreur réseau.' }
+		} finally {
+			savingId = null
+		}
+	}
+
+	async function onStatusChange(r: RecordingRow, e: Event) {
+		const value = (e.target as HTMLSelectElement).value
+		await patchRecording(r.id, { status: value })
+	}
+
+	async function saveNotes(id: number) {
+		const notes = editingNotes[id] ?? ''
+		await patchRecording(id, { notes: notes.trim() || null })
+		cancelEditNotes(id)
 	}
 </script>
 
@@ -79,6 +133,7 @@
 							<th>Prise</th>
 							<th>Durée</th>
 							<th>Statut</th>
+							<th>Notes</th>
 							<th>Commentaires</th>
 							<th>Par</th>
 							<th></th>
@@ -90,9 +145,56 @@
 								<td class="take">#{r.take}</td>
 								<td>{formatDuration(r.duration_s)}</td>
 								<td>
-									<span class="badge badge-{r.status}">
-										{STATUS_LABELS[r.status] ?? r.status}
-									</span>
+									<select
+										class="status-select status-{r.status}"
+										value={r.status}
+										disabled={savingId === r.id}
+										onchange={(e) => onStatusChange(r, e)}
+									>
+										<option value="en_cours">En cours</option>
+										<option value="au_point">Au point</option>
+										<option value="repertoire">Répertoire</option>
+									</select>
+									{#if saveError[r.id]}
+										<span class="save-error">{saveError[r.id]}</span>
+									{/if}
+								</td>
+								<td class="notes-cell">
+									{#if r.id in editingNotes}
+										<div class="notes-edit">
+											<textarea
+												rows="2"
+												bind:value={editingNotes[r.id]}
+												disabled={savingId === r.id}
+											></textarea>
+											<div class="notes-actions">
+												<button
+													class="btn-save"
+													onclick={() => saveNotes(r.id)}
+													disabled={savingId === r.id}
+												>
+													{savingId === r.id ? '…' : 'OK'}
+												</button>
+												<button
+													class="btn-cancel"
+													onclick={() => cancelEditNotes(r.id)}
+													disabled={savingId === r.id}
+												>✕</button>
+											</div>
+										</div>
+									{:else}
+										<button
+											class="notes-display"
+											onclick={() => startEditNotes(r)}
+											title="Cliquer pour modifier"
+										>
+											{#if r.notes}
+												{r.notes}
+											{:else}
+												<span class="muted">—</span>
+											{/if}
+										</button>
+									{/if}
 								</td>
 								<td class="center">
 									{#if r.comment_count > 0}
@@ -284,4 +386,82 @@
 	.btn-secondary:hover {
 		background: #f4f4f4;
 	}
+
+	/* Inline status select */
+	.status-select {
+		border: 1px solid #e0e0e0;
+		border-radius: 3px;
+		font-size: 0.72rem;
+		font-weight: 700;
+		padding: 0.18rem 0.45rem;
+		cursor: pointer;
+		background: white;
+		appearance: none;
+	}
+
+	.status-select:disabled { opacity: 0.6; cursor: not-allowed; }
+
+	.status-select.status-en_cours   { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+	.status-select.status-au_point   { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
+	.status-select.status-repertoire { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+
+	.save-error { display: block; font-size: 0.72rem; color: #c0392b; margin-top: 0.2rem; }
+
+	/* Inline notes editing */
+	.notes-cell { min-width: 140px; max-width: 220px; }
+
+	.notes-display {
+		background: none;
+		border: 1px solid transparent;
+		border-radius: 3px;
+		padding: 0.2rem 0.35rem;
+		font-size: 0.85rem;
+		color: #444;
+		cursor: pointer;
+		text-align: left;
+		width: 100%;
+		white-space: pre-wrap;
+		word-break: break-word;
+	}
+
+	.notes-display:hover { border-color: #ddd; background: #fafafa; }
+
+	.notes-edit { display: flex; flex-direction: column; gap: 0.25rem; }
+
+	.notes-edit textarea {
+		font-size: 0.85rem;
+		font-family: inherit;
+		padding: 0.3rem 0.4rem;
+		border: 1px solid #bbb;
+		border-radius: 3px;
+		resize: vertical;
+		width: 100%;
+		box-sizing: border-box;
+	}
+
+	.notes-actions { display: flex; gap: 0.25rem; }
+
+	.btn-save {
+		padding: 0.15rem 0.5rem;
+		background: #1a1a1a;
+		color: white;
+		border: none;
+		border-radius: 3px;
+		font-size: 0.78rem;
+		cursor: pointer;
+	}
+
+	.btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
+	.btn-cancel {
+		padding: 0.15rem 0.4rem;
+		background: none;
+		border: 1px solid #ccc;
+		border-radius: 3px;
+		font-size: 0.78rem;
+		cursor: pointer;
+		color: #888;
+	}
+
+	.btn-cancel:hover:not(:disabled) { background: #f4f4f4; }
 </style>
