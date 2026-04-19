@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types'
-	import { onMount, onDestroy, untrack } from 'svelte'
+	import { untrack } from 'svelte'
+	import AudioPlayer from '$lib/components/AudioPlayer.svelte'
 
 	let { data }: { data: PageData } = $props()
 
@@ -15,16 +16,26 @@
 
 	const playlist = $derived(data.playlist as unknown as Playlist)
 	let items = $state(untrack(() => data.items as unknown as Item[]))
+	const peaks = $derived((data as unknown as { peaks: Record<number, number[]> }).peaks)
+	const durations = $derived((data as unknown as { durations: Record<number, number | null> }).durations)
 
-	// Lecteur
-	let waveformEl = $state<HTMLElement | undefined>(undefined)
-	let wavesurfer: import('wavesurfer.js').default | null = null
+	type PlayerState = {
+		currentTime: number
+		duration: number
+		isPlaying: boolean
+		ready: boolean
+	}
+
 	let currentIdx = $state(0)
-	let isPlaying = $state(false)
-	let currentTime = $state(0)
-	let duration = $state(0)
-	let volume = $state(1)
-	let wsReady = $state(false)
+	let playerState = $state<PlayerState>({
+		currentTime: 0,
+		duration: 0,
+		isPlaying: false,
+		ready: false
+	})
+	let autoplayTrack = $state(false)
+	let toggleToken = $state(0)
+	let toggleRequest = $state<{ token: number } | null>(null)
 
 	// Drag & drop
 	let draggedIdx = $state<number | null>(null)
@@ -46,57 +57,15 @@
 		return `/audio/${item.recording_id}.mp3`
 	}
 
-	onMount(async () => {
-		if (items.length === 0 || !waveformEl) return
-
-		const WaveSurfer = (await import('wavesurfer.js')).default
-		wavesurfer = WaveSurfer.create({
-			container: waveformEl,
-			waveColor: '#c0c0c0',
-			progressColor: '#1a1a1a',
-			cursorColor: '#1a1a1a',
-			barWidth: 2, barGap: 1, barRadius: 2,
-			height: 70,
-			url: audioUrl(items[0])
-		})
-
-		const ws = wavesurfer
-
-		ws.on('ready', (dur) => { duration = dur; wsReady = true })
-		ws.on('timeupdate', (t) => { currentTime = t })
-		ws.on('play', () => { isPlaying = true })
-		ws.on('pause', () => { isPlaying = false })
-		ws.on('finish', () => {
-			isPlaying = false
-			if (currentIdx < items.length - 1) {
-				currentIdx++
-				wsReady = false
-				ws.load(audioUrl(items[currentIdx]))
-				ws.once('ready', () => ws.play())
-			}
-		})
-	})
-
-	onDestroy(() => wavesurfer?.destroy())
-
 	// Charger la piste quand currentIdx change manuellement
 	function jumpTo(idx: number) {
-		if (idx === currentIdx && wsReady) { wavesurfer?.playPause(); return }
+		if (idx === currentIdx && playerState.ready) {
+			toggleToken += 1
+			toggleRequest = { token: toggleToken }
+			return
+		}
 		currentIdx = idx
-		wsReady = false
-		wavesurfer?.load(audioUrl(items[idx]))
-		wavesurfer?.once('ready', () => wavesurfer?.play())
-	}
-
-	function togglePlay() { wavesurfer?.playPause() }
-	function seekStart() { wavesurfer?.seekTo(0) }
-	function skipForward() {
-		if (!wavesurfer || !duration) return
-		wavesurfer.seekTo(Math.min(currentTime + 10, duration) / duration)
-	}
-	function setVolume(e: Event) {
-		volume = parseFloat((e.target as HTMLInputElement).value)
-		wavesurfer?.setVolume(volume)
+		autoplayTrack = true
 	}
 
 	// Drag & drop
@@ -151,8 +120,28 @@
 		const newItems = items.filter((_, i) => i !== idx)
 		if (currentIdx >= newItems.length) currentIdx = Math.max(0, newItems.length - 1)
 		items = newItems
-		if (newItems.length === 0) { wavesurfer?.pause(); wsReady = false }
+		if (newItems.length === 0) {
+			playerState = { currentTime: 0, duration: 0, isPlaying: false, ready: false }
+			autoplayTrack = false
+		}
 	}
+
+	function playNext() {
+		if (currentIdx >= items.length - 1) {
+			autoplayTrack = false
+			return
+		}
+
+		currentIdx += 1
+		autoplayTrack = true
+	}
+
+	const currentTrack = $derived(items[currentIdx] ? {
+		id: items[currentIdx].recording_id,
+		src: audioUrl(items[currentIdx]),
+		peaks: peaks[items[currentIdx].recording_id] ?? [],
+		duration: (items[currentIdx].duration_s ?? durations[items[currentIdx].recording_id]) ?? undefined
+	} : null)
 </script>
 
 <svelte:head>
@@ -182,25 +171,18 @@
 				</div>
 			{/if}
 
-			<div bind:this={waveformEl} class="waveform"></div>
-
-			<div class="controls">
-				<div class="controls-left">
-					<button class="ctrl-btn" onclick={seekStart}>⏮</button>
-					<button class="ctrl-btn play-btn" onclick={togglePlay} disabled={!wsReady}>
-						{isPlaying ? '⏸' : '▶'}
-					</button>
-					<button class="ctrl-btn" onclick={skipForward} disabled={!wsReady}>⏭</button>
-				</div>
-				<div class="time">
-					<span class="cur">{formatTime(currentTime)}</span>
-					<span class="sep">/</span>
-					<span>{formatTime(duration)}</span>
-				</div>
-				<label class="volume-label">
-					🔊<input type="range" min="0" max="1" step="0.05" value={volume} oninput={setVolume} class="vol" />
-				</label>
-			</div>
+			{#if currentTrack}
+				<AudioPlayer
+					track={currentTrack}
+					height={70}
+					autoplay={autoplayTrack}
+					toggleRequest={toggleRequest}
+					onStateChange={(state) => {
+						playerState = state
+					}}
+					onEnded={playNext}
+				/>
+			{/if}
 		</div>
 
 		<!-- Liste des items avec drag & drop -->
@@ -267,32 +249,6 @@
 		font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
 		background: #1a1a1a; color: white; padding: 0.1rem 0.4rem; border-radius: 3px;
 	}
-
-	.waveform { margin-bottom: 0.75rem; }
-
-	.controls { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
-	.controls-left { display: flex; gap: 0.4rem; }
-
-	.ctrl-btn {
-		background: none; border: 1px solid #ddd; border-radius: 6px;
-		width: 34px; height: 34px; font-size: 0.95rem; cursor: pointer;
-		display: flex; align-items: center; justify-content: center;
-	}
-	.ctrl-btn:hover:not(:disabled) { background: #f0f0f0; }
-	.ctrl-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-	.play-btn {
-		width: 42px; height: 42px; font-size: 1.1rem;
-		background: #1a1a1a; color: white; border-color: #1a1a1a;
-	}
-	.play-btn:hover:not(:disabled) { background: #333; }
-
-	.time { font-size: 0.875rem; font-variant-numeric: tabular-nums; color: #444; display: flex; gap: 0.2rem; }
-	.cur { font-weight: 700; }
-	.sep { color: #bbb; }
-
-	.volume-label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; }
-	.vol { width: 72px; accent-color: #1a1a1a; }
 
 	/* Liste items */
 	.items-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 2px; }

@@ -1,6 +1,27 @@
 import type { PageServerLoad } from './$types'
 import { error, redirect } from '@sveltejs/kit'
+import { readFile, writeFile } from 'fs/promises'
 import sql from '$lib/server/db'
+import { extractPeaks, getDuration } from '$lib/server/ffmpeg'
+import { env } from '$env/dynamic/private'
+
+type PeaksCache = { peaks: number[]; duration: number | null }
+
+async function loadPeaks(recordingId: number, filePath: string): Promise<PeaksCache> {
+	const audioDir = env.AUDIO_DIR ?? '/data/audio'
+	const peaksPath = `${audioDir}/${recordingId}.peaks.json`
+	try {
+		return JSON.parse(await readFile(peaksPath, 'utf-8')) as PeaksCache
+	} catch {
+		const fullPath = `${audioDir}/${filePath}`
+		const [peaks, duration] = await Promise.all([
+			extractPeaks(fullPath),
+			getDuration(fullPath)
+		])
+		if (peaks.length > 0) writeFile(peaksPath, JSON.stringify({ peaks, duration })).catch(() => {})
+		return { peaks, duration }
+	}
+}
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!locals.user) redirect(302, '/login')
@@ -33,5 +54,17 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		ORDER BY pi.position ASC
 	`
 
-	return { playlist, items }
+	const peaksArr = await Promise.all(
+		(items as { recording_id: number; file_path: string }[]).map(
+			(item) => loadPeaks(item.recording_id, item.file_path)
+		)
+	)
+	const peaks: Record<number, number[]> = {}
+	const durations: Record<number, number | null> = {}
+	;(items as { recording_id: number }[]).forEach((item, i) => {
+		peaks[item.recording_id] = peaksArr[i].peaks
+		durations[item.recording_id] = peaksArr[i].duration
+	})
+
+	return { playlist, items, peaks, durations }
 }

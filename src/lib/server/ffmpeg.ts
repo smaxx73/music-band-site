@@ -34,6 +34,52 @@ export function convertToMp3(inputPath: string, outputPath: string): Promise<voi
 	})
 }
 
+/**
+ * Extrait les pics d'amplitude d'un fichier audio.
+ * Retourne un tableau de `numPoints` valeurs entre 0 et 1.
+ */
+export function extractPeaks(filePath: string, numPoints = 1000): Promise<number[]> {
+	return new Promise((resolve) => {
+		const ff = spawn('ffmpeg', [
+			'-i', filePath,
+			'-ac', '1',
+			'-filter:a', 'aresample=200',
+			'-map', '0:a',
+			'-c:a', 'pcm_f32le',
+			'-f', 'f32le',
+			'pipe:1'
+		])
+
+		const chunks: Buffer[] = []
+		ff.stdout.on('data', (chunk: Buffer) => chunks.push(chunk))
+
+		ff.on('close', (code) => {
+			if (code !== 0) { resolve([]); return }
+
+			const buffer = Buffer.concat(chunks)
+			const count = Math.floor(buffer.length / 4)
+			const samples = new Float32Array(buffer.buffer, buffer.byteOffset, count)
+
+			const blockSize = Math.max(1, Math.floor(count / numPoints))
+			const peaks: number[] = []
+
+			for (let i = 0; i < numPoints; i++) {
+				let max = 0
+				const start = i * blockSize
+				for (let j = 0; j < blockSize && start + j < count; j++) {
+					const abs = Math.abs(samples[start + j])
+					if (abs > max) max = abs
+				}
+				peaks.push(max)
+			}
+
+			resolve(peaks)
+		})
+
+		ff.on('error', () => resolve([]))
+	})
+}
+
 /** Retourne la durée en secondes entières via ffprobe, ou null si indisponible. */
 export function getDuration(filePath: string): Promise<number | null> {
 	return new Promise((resolve) => {
