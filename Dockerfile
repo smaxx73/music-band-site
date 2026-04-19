@@ -13,6 +13,8 @@ RUN pnpm build
 
 FROM node:22-alpine
 
+RUN apk add --no-cache postgresql16-client
+
 WORKDIR /app
 
 COPY --from=builder /app/build ./build

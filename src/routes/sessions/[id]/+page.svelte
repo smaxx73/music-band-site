@@ -10,11 +10,69 @@
 	}
 	type Group = { song: Song; recordings: RecordingRow[] }
 
-	const session = $derived(data.session as unknown as {
+	type SessionData = {
 		id: number; date: string; location: string | null
 		notes: string | null; members: string[]
-	})
+	}
+
+	let session = $state(data.session as unknown as SessionData)
 	let groups = $state(data.groups as unknown as Group[])
+
+	// Édition de la session
+	let editing = $state(false)
+	let editDate = $state('')
+	let editLocation = $state('')
+	let editMembers = $state('')
+	let editNotes = $state('')
+	let sessionSaving = $state(false)
+	let sessionError = $state<string | null>(null)
+
+	function startEditSession() {
+		editDate = session.date
+		editLocation = session.location ?? ''
+		editMembers = (session.members ?? []).join(', ')
+		editNotes = session.notes ?? ''
+		sessionError = null
+		editing = true
+	}
+
+	function cancelEditSession() {
+		editing = false
+	}
+
+	async function saveSession(e: SubmitEvent) {
+		e.preventDefault()
+		if (!editDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+			sessionError = 'Date invalide (YYYY-MM-DD attendu).'
+			return
+		}
+		sessionSaving = true
+		sessionError = null
+		try {
+			const members = editMembers
+				.split(',')
+				.map((m) => m.trim())
+				.filter(Boolean)
+			const res = await fetch(`/api/sessions/${session.id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					date: editDate,
+					location: editLocation.trim() || null,
+					members,
+					notes: editNotes.trim() || null
+				})
+			})
+			const json = await res.json()
+			if (!res.ok) { sessionError = json.error ?? 'Erreur.'; return }
+			session = json as SessionData
+			editing = false
+		} catch {
+			sessionError = 'Erreur réseau.'
+		} finally {
+			sessionSaving = false
+		}
+	}
 
 	const STATUS_LABELS: Record<string, string> = {
 		en_cours: 'En cours',
@@ -102,15 +160,67 @@
 
 	<!-- En-tête session -->
 	<div class="session-header">
-		<h1>{formatDate(session.date)}</h1>
-		{#if session.location}
-			<p class="meta">{session.location}</p>
-		{/if}
-		{#if session.members?.length}
-			<p class="meta">Présents : {session.members.join(', ')}</p>
-		{/if}
-		{#if session.notes}
-			<p class="notes">{session.notes}</p>
+		{#if editing}
+			<form class="edit-form" onsubmit={saveSession}>
+				{#if sessionError}
+					<p class="form-error">{sessionError}</p>
+				{/if}
+				<div class="form-row">
+					<label class="form-label">
+						Date
+						<input
+							type="date"
+							bind:value={editDate}
+							required
+							disabled={sessionSaving}
+						/>
+					</label>
+					<label class="form-label">
+						Lieu
+						<input
+							type="text"
+							placeholder="ex : Studio, Salle des fêtes…"
+							bind:value={editLocation}
+							disabled={sessionSaving}
+						/>
+					</label>
+				</div>
+				<label class="form-label">
+					Membres présents <span class="hint">(séparés par des virgules)</span>
+					<input
+						type="text"
+						placeholder="Marc, Julie, Thomas"
+						bind:value={editMembers}
+						disabled={sessionSaving}
+					/>
+				</label>
+				<label class="form-label">
+					Notes
+					<textarea rows="3" bind:value={editNotes} disabled={sessionSaving}></textarea>
+				</label>
+				<div class="form-actions">
+					<button type="submit" class="btn-primary" disabled={sessionSaving}>
+						{sessionSaving ? 'Enregistrement…' : 'Enregistrer'}
+					</button>
+					<button type="button" class="btn-ghost" onclick={cancelEditSession} disabled={sessionSaving}>
+						Annuler
+					</button>
+				</div>
+			</form>
+		{:else}
+			<div class="header-top">
+				<h1>{formatDate(session.date)}</h1>
+				<button class="btn-edit" onclick={startEditSession}>Modifier</button>
+			</div>
+			{#if session.location}
+				<p class="meta">{session.location}</p>
+			{/if}
+			{#if session.members?.length}
+				<p class="meta">Présents : {session.members.join(', ')}</p>
+			{/if}
+			{#if session.notes}
+				<p class="notes">{session.notes}</p>
+			{/if}
 		{/if}
 	</div>
 
@@ -247,11 +357,31 @@
 		margin-bottom: 2rem;
 	}
 
+	.header-top {
+		display: flex;
+		align-items: baseline;
+		gap: 0.75rem;
+		margin-bottom: 0.4rem;
+	}
+
 	h1 {
 		font-size: 1.5rem;
-		margin: 0 0 0.4rem;
+		margin: 0;
 		text-transform: capitalize;
 	}
+
+	.btn-edit {
+		font-size: 0.78rem;
+		color: #888;
+		background: none;
+		border: 1px solid #ddd;
+		border-radius: 3px;
+		padding: 0.15rem 0.5rem;
+		cursor: pointer;
+		white-space: nowrap;
+	}
+
+	.btn-edit:hover { background: #f4f4f4; color: #444; }
 
 	.meta {
 		font-size: 0.9rem;
@@ -268,6 +398,87 @@
 		margin-top: 0.75rem;
 		border-radius: 0 4px 4px 0;
 	}
+
+	/* Formulaire d'édition session */
+	.edit-form {
+		background: #f8f8f8;
+		border: 1px solid #e0e0e0;
+		border-radius: 8px;
+		padding: 1.25rem;
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+	}
+
+	.form-row {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 0.75rem;
+	}
+
+	.form-label {
+		display: flex;
+		flex-direction: column;
+		gap: 0.25rem;
+		font-size: 0.82rem;
+		font-weight: 600;
+		color: #444;
+	}
+
+	.hint {
+		font-weight: 400;
+		color: #aaa;
+		font-size: 0.78rem;
+	}
+
+	.form-label input,
+	.form-label textarea {
+		padding: 0.4rem 0.6rem;
+		border: 1px solid #ddd;
+		border-radius: 4px;
+		font-size: 0.875rem;
+		font-family: inherit;
+		background: white;
+	}
+
+	.form-label textarea { resize: vertical; }
+
+	.form-label input:disabled,
+	.form-label textarea:disabled { opacity: 0.6; }
+
+	.form-actions {
+		display: flex;
+		gap: 0.5rem;
+		align-items: center;
+	}
+
+	.btn-primary {
+		padding: 0.45rem 1rem;
+		background: #1a1a1a;
+		color: white;
+		border: none;
+		border-radius: 4px;
+		font-size: 0.875rem;
+		cursor: pointer;
+	}
+
+	.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+	.btn-primary:hover:not(:disabled) { background: #333; }
+
+	.btn-ghost {
+		padding: 0.45rem 0.75rem;
+		background: none;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+		font-size: 0.875rem;
+		cursor: pointer;
+		color: #555;
+	}
+
+	.btn-ghost:hover:not(:disabled) { background: #f0f0f0; }
+	.btn-ghost:disabled { opacity: 0.5; cursor: not-allowed; }
+
+	.form-error { color: #c0392b; font-size: 0.85rem; margin: 0; }
 
 	.song-section {
 		margin-bottom: 2rem;
