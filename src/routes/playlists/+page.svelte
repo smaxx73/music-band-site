@@ -40,23 +40,23 @@
 <main>
 	<div class="header">
 		<h1>Playlists</h1>
-		<button class="btn-primary" onclick={() => (showForm = !showForm)}>
+		<button class="btn btn-primary" onclick={() => (showForm = !showForm)}>
 			{showForm ? 'Annuler' : '+ Nouvelle playlist'}
 		</button>
 	</div>
 
 	{#if showForm}
-		<form class="create-form" onsubmit={create}>
-			{#if error}<p class="error">{error}</p>{/if}
-			<label>
+		<form class="form-section create-form" onsubmit={create}>
+			{#if error}<p class="message-error">{error}</p>{/if}
+			<label class="form-label">
 				Nom <span class="req">*</span>
-				<input type="text" bind:value={name} required disabled={creating} />
+				<input class="form-input" type="text" bind:value={name} required disabled={creating} />
 			</label>
-			<label>
+			<label class="form-label">
 				Description
-				<input type="text" bind:value={description} disabled={creating} />
+				<input class="form-input" type="text" bind:value={description} disabled={creating} />
 			</label>
-			<button type="submit" class="btn-primary" disabled={creating}>
+			<button type="submit" class="btn btn-primary" disabled={creating}>
 				{creating ? 'Création…' : 'Créer'}
 			</button>
 		</form>
@@ -80,32 +80,19 @@
 </main>
 
 <style>
-	main { max-width: 640px; margin: 2rem auto; padding: 0 1rem; font-family: sans-serif; }
+	main { max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
 
 	.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
-	h1 { font-size: 1.5rem; margin: 0; }
+	h1 { font-size: var(--text-xl); margin: 0; }
 
-	.btn-primary {
-		padding: 0.45rem 1rem; background: #1a1a1a; color: white;
-		border: none; border-radius: 4px; font-size: 0.875rem; font-weight: 600; cursor: pointer;
-	}
-	.btn-primary:hover:not(:disabled) { background: #333; }
-	.btn-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+	.create-form { margin-bottom: 1.5rem; }
 
-	.create-form {
-		background: #f8f8f8; border: 1px solid #e0e0e0; border-radius: 6px;
-		padding: 1rem; margin-bottom: 1.5rem;
-		display: flex; flex-direction: column; gap: 0.75rem;
-	}
-
-	label { display: flex; flex-direction: column; gap: 0.25rem; font-size: 0.82rem; font-weight: 600; }
-	input { padding: 0.4rem 0.6rem; border: 1px solid #ddd; border-radius: 4px; font-size: 0.875rem; }
-	.req { color: #c0392b; }
+	.req { color: var(--color-error); }
 
 	.list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 
 	.card {
-		display: block; border: 1px solid #e8e8e8; border-radius: 6px;
+		display: block; border: 1px solid var(--color-border-light); border-radius: var(--radius-lg);
 		padding: 0.9rem 1rem; text-decoration: none; color: inherit; transition: border-color 0.15s;
 	}
 	.card:hover { border-color: #bbb; }
@@ -113,7 +100,4 @@
 	.name { font-weight: 700; font-size: 0.95rem; }
 	.desc { font-size: 0.82rem; color: #666; margin-top: 0.15rem; }
 	.meta { font-size: 0.78rem; color: #aaa; margin-top: 0.3rem; }
-
-	.error { color: #c0392b; font-size: 0.82rem; margin: 0; }
-	.empty { color: #bbb; font-style: italic; }
 </style>

@@ -83,7 +83,7 @@
 </script>
 
 {#if error}
-	<p class="save-error">{error}</p>
+	<p class="message-error" style="margin-bottom: 0.75rem;">{error}</p>
 {/if}
 
 <ul class="items-list">
@@ -136,7 +136,7 @@
 		align-items: center;
 		gap: 0.5rem;
 		border: 1px solid #f0f0f0;
-		border-radius: 6px;
+		border-radius: var(--radius-lg);
 		padding: 0.5rem 0.75rem;
 		transition: background 0.1s, border-color 0.1s;
 		cursor: default;
@@ -148,12 +148,12 @@
 	}
 
 	.item.drag-over {
-		border-color: #1a1a1a;
+		border-color: var(--color-primary);
 		border-style: dashed;
 	}
 
 	.item:hover:not(.active) {
-		background: #fafafa;
+		background: var(--color-bg-subtle);
 	}
 
 	.drag-handle {
@@ -163,9 +163,7 @@
 		user-select: none;
 	}
 
-	.drag-handle:active {
-		cursor: grabbing;
-	}
+	.drag-handle:active { cursor: grabbing; }
 
 	.item-body {
 		flex: 1;
@@ -180,7 +178,7 @@
 	}
 
 	.item-pos {
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		color: #bbb;
 		width: 1.5rem;
 		text-align: right;
@@ -193,21 +191,9 @@
 		gap: 0.1rem;
 	}
 
-	.item-title {
-		font-weight: 600;
-		font-size: 0.875rem;
-	}
-
-	.item-meta {
-		font-size: 0.75rem;
-		color: #999;
-	}
-
-	.item-note {
-		font-size: 0.75rem;
-		color: #888;
-		font-style: italic;
-	}
+	.item-title { font-weight: 600; font-size: var(--text-sm); }
+	.item-meta { font-size: var(--text-xs); color: #999; }
+	.item-note { font-size: var(--text-xs); color: var(--color-text-muted); font-style: italic; }
 
 	.remove-btn {
 		background: none;
@@ -216,18 +202,12 @@
 		cursor: pointer;
 		font-size: 0.8rem;
 		padding: 0.2rem 0.3rem;
-		border-radius: 3px;
+		border-radius: var(--radius-sm);
 		line-height: 1;
 	}
 
 	.remove-btn:hover {
-		color: #c0392b;
+		color: var(--color-error);
 		background: #fef2f2;
-	}
-
-	.save-error {
-		color: #c0392b;
-		font-size: 0.82rem;
-		margin: 0 0 0.75rem;
 	}
 </style>

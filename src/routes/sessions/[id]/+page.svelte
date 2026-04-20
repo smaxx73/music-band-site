@@ -23,7 +23,7 @@
 	let sessionSaving = $state(false)
 	let sessionError = $state<string | null>(null)
 
-async function saveSession(patch: {
+	async function saveSession(patch: {
 		date: string
 		location: string | null
 		members: string[]
@@ -49,12 +49,6 @@ async function saveSession(patch: {
 		}
 	}
 
-	const STATUS_LABELS: Record<string, string> = {
-		en_cours: 'En cours',
-		au_point: 'Au point',
-		repertoire: 'Répertoire'
-	}
-
 	function formatDate(d: string | Date) {
 		return formatDateOnly(d, {
 			weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
@@ -68,7 +62,6 @@ async function saveSession(patch: {
 		return `${m}:${String(sec).padStart(2, '0')}`
 	}
 
-	// Inline editing
 	let editingNotes = $state<Record<number, string>>({})
 	let savingId = $state<number | null>(null)
 	let saveError = $state<Record<number, string>>({})
@@ -97,7 +90,6 @@ async function saveSession(patch: {
 				saveError = { ...saveError, [id]: json.error ?? 'Erreur.' }
 				return
 			}
-			// Update local state
 			groups = groups.map((g) => ({
 				...g,
 				recordings: g.recordings.map((r) =>
@@ -153,7 +145,7 @@ async function saveSession(patch: {
 					{/if}
 				</h2>
 
-				<table>
+				<table class="data-table">
 					<thead>
 						<tr>
 							<th>Prise</th>
@@ -231,7 +223,7 @@ async function saveSession(patch: {
 								</td>
 								<td class="muted">{r.uploaded_by}</td>
 								<td>
-									<a href="/recording/{r.id}" class="btn-listen">Écouter</a>
+									<a href="/recording/{r.id}" class="btn btn-secondary btn-sm">Écouter</a>
 								</td>
 							</tr>
 						{/each}
@@ -242,7 +234,7 @@ async function saveSession(patch: {
 	{/if}
 
 	<div class="footer-actions">
-		<a href="/upload" class="btn-secondary">+ Ajouter une prise</a>
+		<a href="/upload" class="btn btn-secondary">+ Ajouter une prise</a>
 	</div>
 </main>
 
@@ -251,175 +243,63 @@ async function saveSession(patch: {
 		max-width: 760px;
 		margin: 2rem auto;
 		padding: 0 1rem;
-		font-family: sans-serif;
 	}
 
-	.breadcrumb {
-		font-size: 0.85rem;
-		color: #888;
-		margin-bottom: 1.25rem;
-	}
+	.song-section { margin-bottom: 2rem; }
 
-	.breadcrumb a {
-		color: inherit;
-		text-decoration: none;
-	}
+	h2 { font-size: var(--text-lg); margin: 0 0 0.75rem; }
+	h2 a { color: inherit; text-decoration: none; }
+	h2 a:hover { text-decoration: underline; }
 
-	.breadcrumb a:hover {
-		text-decoration: underline;
-	}
+	h2 a { color: inherit; text-decoration: none; }
+	h2 a:hover { text-decoration: underline; }
 
-	h1 {
-		font-size: 1.5rem;
-		margin: 0;
-		text-transform: capitalize;
-	}
+	.composer { font-weight: 400; color: #777; font-size: 0.9rem; }
 
-	.song-section {
-		margin-bottom: 2rem;
-	}
+	td.take { font-weight: 700; color: var(--color-text-secondary); }
+	td.center { text-align: center; }
 
-	h2 {
-		font-size: 1.1rem;
-		margin: 0 0 0.75rem;
-	}
-
-	h2 a {
-		color: inherit;
-		text-decoration: none;
-	}
-
-	h2 a:hover {
-		text-decoration: underline;
-	}
-
-	.composer {
-		font-weight: 400;
-		color: #777;
-		font-size: 0.9rem;
-	}
-
-	table {
-		width: 100%;
-		border-collapse: collapse;
-		font-size: 0.875rem;
-	}
-
-	th {
-		text-align: left;
-		padding: 0.4rem 0.75rem;
-		border-bottom: 2px solid #e0e0e0;
-		font-size: 0.72rem;
-		text-transform: uppercase;
-		color: #666;
-	}
-
-	td {
-		padding: 0.55rem 0.75rem;
-		border-bottom: 1px solid #f0f0f0;
-		vertical-align: middle;
-	}
-
-	td.take {
-		font-weight: 700;
-		color: #555;
-	}
-
-	td.center {
-		text-align: center;
-	}
-
-	.muted {
-		color: #aaa;
-		font-size: 0.8rem;
-	}
-
-	.badge {
-		display: inline-block;
-		padding: 0.18rem 0.45rem;
-		border-radius: 3px;
-		font-size: 0.72rem;
-		font-weight: 700;
-	}
-
-	.badge-en_cours   { background: #fef3c7; color: #92400e; }
-	.badge-au_point   { background: #dbeafe; color: #1e40af; }
-	.badge-repertoire { background: #dcfce7; color: #166534; }
+	.muted { color: #aaa; font-size: 0.8rem; }
 
 	.comment-count {
 		display: inline-block;
-		background: #f3f4f6;
+		background: var(--color-abandoned-bg);
 		color: #444;
 		border-radius: 10px;
 		padding: 0.1rem 0.5rem;
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		font-weight: 600;
 	}
 
-	.btn-listen {
-		display: inline-block;
-		padding: 0.25rem 0.6rem;
-		border: 1px solid #ccc;
-		border-radius: 4px;
-		font-size: 0.78rem;
-		text-decoration: none;
-		color: inherit;
-	}
+	.footer-actions { margin-top: 2rem; }
 
-	.btn-listen:hover {
-		background: #f4f4f4;
-	}
-
-	.empty {
-		color: #888;
-		font-style: italic;
-	}
-
-	.footer-actions {
-		margin-top: 2rem;
-	}
-
-	.btn-secondary {
-		display: inline-block;
-		padding: 0.5rem 1rem;
-		border: 1px solid #ccc;
-		border-radius: 4px;
-		text-decoration: none;
-		color: inherit;
-		font-size: 0.875rem;
-	}
-
-	.btn-secondary:hover {
-		background: #f4f4f4;
-	}
-
-	/* Inline status select */
+	/* Select de statut coloré inline */
 	.status-select {
-		border: 1px solid #e0e0e0;
-		border-radius: 3px;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
 		font-size: 0.72rem;
 		font-weight: 700;
 		padding: 0.18rem 0.45rem;
 		cursor: pointer;
-		background: white;
+		background: var(--color-bg);
 		appearance: none;
 	}
 
-	.status-select:disabled { opacity: 0.6; cursor: not-allowed; }
+	.status-select:disabled { opacity: var(--disabled-opacity); cursor: not-allowed; }
 
-	.status-select.status-en_cours   { background: #fef3c7; color: #92400e; border-color: #fde68a; }
-	.status-select.status-au_point   { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
-	.status-select.status-repertoire { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
+	.status-select.status-en_cours   { background: var(--color-progress-bg); color: var(--color-progress-text); border-color: #fde68a; }
+	.status-select.status-au_point   { background: var(--color-learning-bg); color: var(--color-learning-text); border-color: #bfdbfe; }
+	.status-select.status-repertoire { background: var(--color-repertoire-bg); color: var(--color-repertoire-text); border-color: #bbf7d0; }
 
-	.save-error { display: block; font-size: 0.72rem; color: #c0392b; margin-top: 0.2rem; }
+	.save-error { display: block; font-size: 0.72rem; color: var(--color-error); margin-top: 0.2rem; }
 
-	/* Inline notes editing */
+	/* Édition inline des notes */
 	.notes-cell { min-width: 140px; max-width: 220px; }
 
 	.notes-display {
 		background: none;
 		border: 1px solid transparent;
-		border-radius: 3px;
+		border-radius: var(--radius-sm);
 		padding: 0.2rem 0.35rem;
 		font-size: 0.85rem;
 		color: #444;
@@ -430,44 +310,44 @@ async function saveSession(patch: {
 		word-break: break-word;
 	}
 
-	.notes-display:hover { border-color: #ddd; background: #fafafa; }
+	.notes-display:hover { border-color: #ddd; background: var(--color-bg-subtle); }
 
-	.notes-edit { display: flex; flex-direction: column; gap: 0.25rem; }
+	.notes-edit { display: flex; flex-direction: column; gap: var(--space-1); }
 
 	.notes-edit textarea {
 		font-size: 0.85rem;
 		font-family: inherit;
 		padding: 0.3rem 0.4rem;
 		border: 1px solid #bbb;
-		border-radius: 3px;
+		border-radius: var(--radius-sm);
 		resize: vertical;
 		width: 100%;
 		box-sizing: border-box;
 	}
 
-	.notes-actions { display: flex; gap: 0.25rem; }
+	.notes-actions { display: flex; gap: var(--space-1); }
 
 	.btn-save {
 		padding: 0.15rem 0.5rem;
-		background: #1a1a1a;
+		background: var(--color-primary);
 		color: white;
 		border: none;
-		border-radius: 3px;
+		border-radius: var(--radius-sm);
 		font-size: 0.78rem;
 		cursor: pointer;
 	}
 
-	.btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+	.btn-save:disabled { opacity: var(--disabled-opacity); cursor: not-allowed; }
 
 	.btn-cancel {
 		padding: 0.15rem 0.4rem;
 		background: none;
-		border: 1px solid #ccc;
-		border-radius: 3px;
+		border: 1px solid var(--color-border-input);
+		border-radius: var(--radius-sm);
 		font-size: 0.78rem;
 		cursor: pointer;
-		color: #888;
+		color: var(--color-text-muted);
 	}
 
-	.btn-cancel:hover:not(:disabled) { background: #f4f4f4; }
+	.btn-cancel:hover:not(:disabled) { background: var(--color-bg-muted); }
 </style>

@@ -62,11 +62,10 @@
 		max-width: 680px;
 		margin: 2rem auto;
 		padding: 0 1rem;
-		font-family: sans-serif;
 	}
 
 	h1 {
-		font-size: 1.5rem;
+		font-size: var(--text-xl);
 		margin: 0 0 1.5rem;
 	}
 
@@ -81,8 +80,8 @@
 
 	.session-card {
 		display: block;
-		border: 1px solid #e0e0e0;
-		border-radius: 8px;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-xl);
 		padding: 1rem 1.25rem;
 		text-decoration: none;
 		color: inherit;
@@ -96,24 +95,19 @@
 
 	.session-date {
 		font-weight: 700;
-		font-size: 1rem;
+		font-size: var(--text-base);
 		text-transform: capitalize;
 	}
 
 	.session-location {
-		font-size: 0.875rem;
-		color: #555;
+		font-size: var(--text-sm);
+		color: var(--color-text-secondary);
 		margin-top: 0.15rem;
 	}
 
 	.session-meta {
 		font-size: 0.8rem;
-		color: #888;
+		color: var(--color-text-muted);
 		margin-top: 0.4rem;
-	}
-
-	.empty {
-		color: #888;
-		font-style: italic;
 	}
 </style>

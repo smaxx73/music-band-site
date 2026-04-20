@@ -49,7 +49,6 @@
 		return `/audio/${item.recording_id}.mp3`
 	}
 
-	// Charger la piste quand currentIdx change manuellement
 	function jumpTo(idx: number) {
 		if (idx === currentIdx && playerState.ready) {
 			toggleToken += 1
@@ -67,13 +66,11 @@
 		const [moved] = newItems.splice(fromIdx, 1)
 		newItems.splice(toIdx, 0, moved)
 
-		// Réajuster currentIdx si la piste en cours a bougé
 		if (currentIdx === fromIdx) currentIdx = toIdx
 		else if (fromIdx < currentIdx && toIdx >= currentIdx) currentIdx--
 		else if (fromIdx > currentIdx && toIdx <= currentIdx) currentIdx++
 
 		items = newItems
-
 		await savePositions()
 	}
 
@@ -107,7 +104,6 @@
 			autoplayTrack = false
 			return
 		}
-
 		currentIdx += 1
 		autoplayTrack = true
 	}
@@ -173,28 +169,25 @@
 </main>
 
 <style>
-	main { max-width: 720px; margin: 2rem auto; padding: 0 1rem; font-family: sans-serif; }
-
-	.breadcrumb { font-size: 0.82rem; color: #888; margin-bottom: 1rem; }
-	.breadcrumb a { color: inherit; text-decoration: none; }
-	.breadcrumb a:hover { text-decoration: underline; }
+	main { max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
 
 	h1 { font-size: 1.4rem; margin: 0 0 0.3rem; }
-	.desc { font-size: 0.875rem; color: #666; margin: 0 0 1.5rem; }
+	.desc { font-size: var(--text-sm); color: #666; margin: 0 0 1.5rem; }
 
 	.player-card {
-		background: #fafafa; border: 1px solid #e0e0e0;
-		border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 1.5rem;
+		background: var(--color-bg-subtle);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-xl);
+		padding: 1rem 1.25rem;
+		margin-bottom: 1.5rem;
 	}
 
 	.now-playing {
-		font-size: 0.82rem; color: #555; margin-bottom: 0.6rem;
+		font-size: 0.82rem; color: var(--color-text-secondary); margin-bottom: 0.6rem;
 		display: flex; align-items: baseline; gap: 0.4rem; flex-wrap: wrap;
 	}
 	.np-label {
 		font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
-		background: #1a1a1a; color: white; padding: 0.1rem 0.4rem; border-radius: 3px;
+		background: var(--color-primary); color: white; padding: 0.1rem 0.4rem; border-radius: var(--radius-sm);
 	}
-
-	.empty { color: #bbb; font-style: italic; }
 </style>

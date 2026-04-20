@@ -43,7 +43,6 @@
 		return `${m}:${String(sec).padStart(2, '0')}`
 	}
 
-	// Group recordings by session date for display
 	type SessionGroup = { session_id: number; session_date: string; session_location: string | null; recordings: RecordingRow[] }
 
 	const sessionGroups = $derived(() => {
@@ -83,7 +82,7 @@
 				<p class="composer">{song.composer}</p>
 			{/if}
 		</div>
-		<span class="status-badge status-{song.status}">
+		<span class="badge badge-{song.status}">
 			{SONG_STATUS_LABELS[song.status] ?? song.status}
 		</span>
 	</div>
@@ -102,7 +101,7 @@
 					{/if}
 				</h2>
 
-				<table>
+				<table class="data-table">
 					<thead>
 						<tr>
 							<th>Prise</th>
@@ -132,7 +131,7 @@
 								</td>
 								<td class="muted">{r.uploaded_by}</td>
 								<td>
-									<a href="/recording/{r.id}" class="btn-listen">Écouter</a>
+									<a href="/recording/{r.id}" class="btn btn-secondary btn-sm">Écouter</a>
 								</td>
 							</tr>
 						{/each}
@@ -148,17 +147,7 @@
 		max-width: 760px;
 		margin: 2rem auto;
 		padding: 0 1rem;
-		font-family: sans-serif;
 	}
-
-	.breadcrumb {
-		font-size: 0.85rem;
-		color: #888;
-		margin-bottom: 1.25rem;
-	}
-
-	.breadcrumb a { color: inherit; text-decoration: none; }
-	.breadcrumb a:hover { text-decoration: underline; }
 
 	.song-header {
 		display: flex;
@@ -169,7 +158,7 @@
 	}
 
 	h1 {
-		font-size: 1.5rem;
+		font-size: var(--text-xl);
 		margin: 0 0 0.25rem;
 		display: flex;
 		align-items: center;
@@ -179,114 +168,35 @@
 	.key {
 		font-size: 0.85rem;
 		font-weight: 400;
-		background: #f3f4f6;
-		color: #555;
+		background: var(--color-abandoned-bg);
+		color: var(--color-text-secondary);
 		padding: 0.15rem 0.45rem;
-		border-radius: 3px;
+		border-radius: var(--radius-sm);
 	}
 
-	.composer {
-		font-size: 0.9rem;
-		color: #666;
-		margin: 0;
-	}
+	.composer { font-size: 0.9rem; color: #666; margin: 0; }
 
-	.status-badge {
-		flex-shrink: 0;
-		display: inline-block;
-		padding: 0.25rem 0.6rem;
-		border-radius: 4px;
-		font-size: 0.75rem;
-		font-weight: 700;
-	}
+	.summary { font-size: var(--text-sm); color: var(--color-text-muted); margin: 0 0 1.5rem; }
 
-	.status-en_apprentissage { background: #fef3c7; color: #92400e; }
-	.status-au_repertoire    { background: #dcfce7; color: #166534; }
-	.status-abandonne        { background: #f3f4f6; color: #888; }
+	.session-section { margin-bottom: 2rem; }
 
-	.summary {
-		font-size: 0.875rem;
-		color: #888;
-		margin: 0 0 1.5rem;
-	}
-
-	.session-section {
-		margin-bottom: 2rem;
-	}
-
-	h2 {
-		font-size: 1.05rem;
-		margin: 0 0 0.75rem;
-	}
-
+	h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
 	h2 a { color: inherit; text-decoration: none; }
 	h2 a:hover { text-decoration: underline; }
 
-	.location {
-		font-weight: 400;
-		color: #777;
-		font-size: 0.9rem;
-	}
+	.location { font-weight: 400; color: #777; font-size: 0.9rem; }
 
-	table {
-		width: 100%;
-		border-collapse: collapse;
-		font-size: 0.875rem;
-	}
-
-	th {
-		text-align: left;
-		padding: 0.4rem 0.75rem;
-		border-bottom: 2px solid #e0e0e0;
-		font-size: 0.72rem;
-		text-transform: uppercase;
-		color: #666;
-	}
-
-	td {
-		padding: 0.55rem 0.75rem;
-		border-bottom: 1px solid #f0f0f0;
-		vertical-align: middle;
-	}
-
-	td.take { font-weight: 600; color: #555; }
+	td.take { font-weight: 600; color: var(--color-text-secondary); }
 	td.center { text-align: center; }
-
 	.muted { color: #aaa; font-size: 0.8rem; }
-
-	.badge {
-		display: inline-block;
-		padding: 0.18rem 0.45rem;
-		border-radius: 3px;
-		font-size: 0.72rem;
-		font-weight: 700;
-	}
-
-	.badge-en_cours   { background: #fef3c7; color: #92400e; }
-	.badge-au_point   { background: #dbeafe; color: #1e40af; }
-	.badge-repertoire { background: #dcfce7; color: #166534; }
 
 	.comment-count {
 		display: inline-block;
-		background: #f3f4f6;
+		background: var(--color-abandoned-bg);
 		color: #444;
 		border-radius: 10px;
 		padding: 0.1rem 0.5rem;
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		font-weight: 600;
 	}
-
-	.btn-listen {
-		display: inline-block;
-		padding: 0.25rem 0.6rem;
-		border: 1px solid #ccc;
-		border-radius: 4px;
-		font-size: 0.78rem;
-		text-decoration: none;
-		color: inherit;
-	}
-
-	.btn-listen:hover { background: #f4f4f4; }
-
-	.empty { color: #888; font-style: italic; }
 </style>

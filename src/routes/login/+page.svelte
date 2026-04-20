@@ -13,20 +13,20 @@
 
 	<form method="POST">
 		{#if form?.error}
-			<p class="error">{form.error}</p>
+			<p class="message-error">{form.error}</p>
 		{/if}
 
-		<label>
+		<label class="form-label">
 			Prénom
-			<input type="text" name="name" required autocomplete="given-name" />
+			<input class="form-input" type="text" name="name" required autocomplete="given-name" />
 		</label>
 
-		<label>
+		<label class="form-label">
 			Mot de passe
-			<input type="password" name="password" required autocomplete="current-password" />
+			<input class="form-input" type="password" name="password" required autocomplete="current-password" />
 		</label>
 
-		<button type="submit">Se connecter</button>
+		<button type="submit" class="btn btn-primary">Se connecter</button>
 	</form>
 </div>
 
@@ -37,12 +37,11 @@
 		align-items: center;
 		justify-content: center;
 		min-height: 100vh;
-		font-family: sans-serif;
 	}
 
 	h1 {
 		margin-bottom: 2rem;
-		font-size: 1.5rem;
+		font-size: var(--text-xl);
 	}
 
 	form {
@@ -52,38 +51,8 @@
 		width: 280px;
 	}
 
-	label {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-		font-size: 0.875rem;
-		font-weight: 600;
-	}
-
-	input {
-		padding: 0.5rem 0.75rem;
-		border: 1px solid #ccc;
-		border-radius: 4px;
-		font-size: 1rem;
-	}
-
-	button {
+	.btn {
 		padding: 0.625rem;
-		background: #1a1a1a;
-		color: white;
-		border: none;
-		border-radius: 4px;
-		font-size: 1rem;
-		cursor: pointer;
-	}
-
-	button:hover {
-		background: #333;
-	}
-
-	.error {
-		color: #c0392b;
-		font-size: 0.875rem;
-		margin: 0;
+		font-size: var(--text-base);
 	}
 </style>

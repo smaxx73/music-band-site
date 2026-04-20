@@ -10,7 +10,7 @@
 	const sessions = $derived(data.sessions as unknown as SessionRow[])
 	const songs = $derived(data.songs as unknown as SongRow[])
 
-	let selectedSession = $state<string>('') // 'new' | session id as string
+	let selectedSession = $state<string>('')
 	let newDate = $state('')
 	let newLocation = $state('')
 	let selectedSong = $state<string>('')
@@ -58,7 +58,6 @@
 				if (isNaN(sessionId)) { error = 'Session invalide.'; uploading = false; return }
 			}
 
-			// Upload via XHR pour suivre la progression
 			const result = await uploadWithProgress(sessionId, parseInt(selectedSong), file)
 			successId = result.id
 			file = null
@@ -112,23 +111,23 @@
 	<h1>Uploader une prise</h1>
 
 	{#if successId}
-		<div class="success">
+		<div class="message-success" style="margin-bottom: 1rem;">
 			Prise uploadée avec succès !
 			<a href="/recording/{successId}">Écouter la prise →</a>
 		</div>
 	{/if}
 
 	{#if error}
-		<p class="error">{error}</p>
+		<p class="message-error" style="margin-bottom: 0.75rem;">{error}</p>
 	{/if}
 
 	<form onsubmit={handleSubmit}>
 		<!-- Session -->
 		<fieldset>
 			<legend>Session</legend>
-			<label>
+			<label class="form-label">
 				Sélectionner une session
-				<select bind:value={selectedSession} required disabled={uploading}>
+				<select class="form-input" bind:value={selectedSession} required disabled={uploading}>
 					<option value="" disabled>— Choisir —</option>
 					<option value="new">+ Nouvelle session</option>
 					{#each sessions as s}
@@ -141,13 +140,13 @@
 
 			{#if selectedSession === 'new'}
 				<div class="new-session-fields">
-					<label>
+					<label class="form-label">
 						Date <span class="required">*</span>
-						<input type="date" bind:value={newDate} required disabled={uploading} />
+						<input class="form-input" type="date" bind:value={newDate} required disabled={uploading} />
 					</label>
-					<label>
+					<label class="form-label">
 						Lieu
-						<input type="text" bind:value={newLocation} placeholder="Studio, salle…" disabled={uploading} />
+						<input class="form-input" type="text" bind:value={newLocation} placeholder="Studio, salle…" disabled={uploading} />
 					</label>
 				</div>
 			{/if}
@@ -162,9 +161,9 @@
 					<a href="/admin/songs">Ajouter des morceaux →</a>
 				</p>
 			{:else}
-				<label>
+				<label class="form-label">
 					Sélectionner un morceau
-					<select bind:value={selectedSong} required disabled={uploading}>
+					<select class="form-input" bind:value={selectedSong} required disabled={uploading}>
 						<option value="" disabled>— Choisir —</option>
 						{#each songs as s}
 							<option value={String(s.id)}>{s.title}</option>
@@ -177,7 +176,7 @@
 		<!-- Fichier -->
 		<fieldset>
 			<legend>Fichier audio</legend>
-			<label>
+			<label class="form-label">
 				Fichier (mp3, wav, m4a, ogg… — max 200 Mo)
 				<input
 					type="file"
@@ -208,7 +207,7 @@
 			</p>
 		{/if}
 
-		<button type="submit" class="btn-primary" disabled={uploading || !file || !selectedSession || !selectedSong}>
+		<button type="submit" class="btn btn-primary submit-btn" disabled={uploading || !file || !selectedSession || !selectedSong}>
 			{uploading ? 'Upload en cours…' : 'Uploader'}
 		</button>
 	</form>
@@ -219,11 +218,10 @@
 		max-width: 580px;
 		margin: 2rem auto;
 		padding: 0 1rem;
-		font-family: sans-serif;
 	}
 
 	h1 {
-		font-size: 1.5rem;
+		font-size: var(--text-xl);
 		margin-bottom: 1.5rem;
 	}
 
@@ -234,8 +232,8 @@
 	}
 
 	fieldset {
-		border: 1px solid #e0e0e0;
-		border-radius: 6px;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
 		padding: 1rem;
 	}
 
@@ -243,30 +241,8 @@
 		font-weight: 700;
 		font-size: 0.85rem;
 		text-transform: uppercase;
-		color: #555;
+		color: var(--color-text-secondary);
 		padding: 0 0.25rem;
-	}
-
-	label {
-		display: flex;
-		flex-direction: column;
-		gap: 0.3rem;
-		font-size: 0.875rem;
-		font-weight: 600;
-	}
-
-	select,
-	input[type='date'],
-	input[type='text'] {
-		padding: 0.45rem 0.6rem;
-		border: 1px solid #ccc;
-		border-radius: 4px;
-		font-size: 0.9rem;
-		background: white;
-	}
-
-	input[type='file'] {
-		font-size: 0.875rem;
 	}
 
 	.new-session-fields {
@@ -276,9 +252,7 @@
 		margin-top: 0.75rem;
 	}
 
-	.required {
-		color: #c0392b;
-	}
+	.required { color: var(--color-error); }
 
 	.hint {
 		font-size: 0.8rem;
@@ -286,64 +260,24 @@
 		margin: 0.4rem 0 0;
 	}
 
-	.hint.center {
-		text-align: center;
-	}
+	.hint.center { text-align: center; }
 
 	.progress-bar {
 		height: 8px;
-		background: #e0e0e0;
-		border-radius: 4px;
+		background: var(--color-border);
+		border-radius: var(--radius-md);
 		overflow: hidden;
 	}
 
 	.progress-bar-fill {
 		height: 100%;
-		background: #1a1a1a;
+		background: var(--color-primary);
 		transition: width 0.2s;
 	}
 
-	.btn-primary {
+	.submit-btn {
+		font-size: var(--text-base);
 		padding: 0.65rem 1.5rem;
-		background: #1a1a1a;
-		color: white;
-		border: none;
-		border-radius: 4px;
-		font-size: 1rem;
-		cursor: pointer;
 		align-self: flex-start;
-	}
-
-	.btn-primary:disabled {
-		opacity: 0.45;
-		cursor: not-allowed;
-	}
-
-	.btn-primary:hover:not(:disabled) {
-		background: #333;
-	}
-
-	.success {
-		background: #dcfce7;
-		color: #166534;
-		border: 1px solid #bbf7d0;
-		border-radius: 6px;
-		padding: 0.75rem 1rem;
-		margin-bottom: 1rem;
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
-		font-size: 0.9rem;
-	}
-
-	.success a {
-		color: #166534;
-		font-weight: 600;
-	}
-
-	.error {
-		color: #c0392b;
-		font-size: 0.875rem;
-		margin: 0;
 	}
 </style>

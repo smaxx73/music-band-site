@@ -99,10 +99,9 @@
 		max-width: 880px;
 		margin: 2rem auto;
 		padding: 0 1rem;
-		font-family: sans-serif;
 	}
 
-	h1 { font-size: 1.5rem; margin: 0 0 2rem; }
+	h1 { font-size: var(--text-xl); margin: 0 0 2rem; }
 
 	.dashboard {
 		display: grid;
@@ -121,17 +120,17 @@
 		margin-bottom: 0.75rem;
 	}
 
-	h2 { font-size: 1rem; margin: 0; text-transform: uppercase; letter-spacing: 0.04em; color: #555; }
+	h2 { font-size: var(--text-base); margin: 0; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-secondary); }
 
-	.link-more { font-size: 0.8rem; color: #888; text-decoration: none; }
-	.link-more:hover { color: #333; }
+	.link-more { font-size: 0.8rem; color: var(--color-text-muted); text-decoration: none; }
+	.link-more:hover { color: var(--color-primary-hover); }
 
 	.card-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.5rem; }
 
 	.card {
 		display: block;
-		border: 1px solid #e8e8e8;
-		border-radius: 6px;
+		border: 1px solid var(--color-border-light);
+		border-radius: var(--radius-lg);
 		padding: 0.75rem 1rem;
 		text-decoration: none;
 		color: inherit;
@@ -141,8 +140,7 @@
 	.card:hover { border-color: #bbb; }
 
 	.card-date { font-weight: 700; font-size: 0.9rem; text-transform: capitalize; }
-	.card-sub { font-size: 0.78rem; color: #888; margin-top: 0.1rem; }
-	.card-songs { font-size: 0.8rem; color: #555; margin-top: 0.3rem; }
+	.card-sub { font-size: 0.78rem; color: var(--color-text-muted); margin-top: 0.1rem; }
+	.card-songs { font-size: 0.8rem; color: var(--color-text-secondary); margin-top: 0.3rem; }
 	.muted { color: #aaa; }
-	.empty { color: #bbb; font-style: italic; font-size: 0.875rem; }
 </style>

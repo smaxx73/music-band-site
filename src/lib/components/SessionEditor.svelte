@@ -87,18 +87,19 @@
 
 <div class="session-header">
 	{#if editing}
-		<form class="edit-form" onsubmit={submitSession}>
+		<form class="form-section edit-form" onsubmit={submitSession}>
 			{#if localError ?? error}
-				<p class="form-error">{localError ?? error}</p>
+				<p class="message-error">{localError ?? error}</p>
 			{/if}
 			<div class="form-row">
 				<label class="form-label">
 					Date
-					<input type="date" bind:value={editDate} required disabled={saving} />
+					<input class="form-input" type="date" bind:value={editDate} required disabled={saving} />
 				</label>
 				<label class="form-label">
 					Lieu
 					<input
+						class="form-input"
 						type="text"
 						placeholder="ex : Studio, Salle des fêtes…"
 						bind:value={editLocation}
@@ -109,6 +110,7 @@
 			<label class="form-label">
 				Membres présents <span class="hint">(séparés par des virgules)</span>
 				<input
+					class="form-input"
 					type="text"
 					placeholder="Marc, Julie, Thomas"
 					bind:value={editMembers}
@@ -117,13 +119,13 @@
 			</label>
 			<label class="form-label">
 				Notes
-				<textarea rows="3" bind:value={editNotes} disabled={saving}></textarea>
+				<textarea class="form-input" rows="3" bind:value={editNotes} disabled={saving}></textarea>
 			</label>
 			<div class="form-actions">
-				<button type="submit" class="btn-primary" disabled={saving}>
+				<button type="submit" class="btn btn-primary" disabled={saving}>
 					{saving ? 'Enregistrement…' : 'Enregistrer'}
 				</button>
-				<button type="button" class="btn-ghost" onclick={cancelEditSession} disabled={saving}>
+				<button type="button" class="btn btn-ghost" onclick={cancelEditSession} disabled={saving}>
 					Annuler
 				</button>
 			</div>
@@ -158,66 +160,49 @@
 	}
 
 	h1 {
-		font-size: 1.5rem;
+		font-size: var(--text-xl);
 		margin: 0;
 		text-transform: capitalize;
 	}
 
 	.btn-edit {
 		font-size: 0.78rem;
-		color: #888;
+		color: var(--color-text-muted);
 		background: none;
-		border: 1px solid #ddd;
-		border-radius: 3px;
+		border: 1px solid var(--color-border-light);
+		border-radius: var(--radius-sm);
 		padding: 0.15rem 0.5rem;
 		cursor: pointer;
 		white-space: nowrap;
 	}
 
 	.btn-edit:hover {
-		background: #f4f4f4;
+		background: var(--color-bg-muted);
 		color: #444;
 	}
 
 	.meta {
 		font-size: 0.9rem;
-		color: #555;
+		color: var(--color-text-secondary);
 		margin: 0.15rem 0;
 	}
 
 	.notes {
-		font-size: 0.875rem;
+		font-size: var(--text-sm);
 		color: #444;
-		background: #f8f8f8;
-		border-left: 3px solid #ddd;
+		background: var(--color-bg-subtle);
+		border-left: 3px solid var(--color-border-light);
 		padding: 0.5rem 0.75rem;
 		margin-top: 0.75rem;
-		border-radius: 0 4px 4px 0;
+		border-radius: 0 var(--radius-md) var(--radius-md) 0;
 	}
 
-	.edit-form {
-		background: #f8f8f8;
-		border: 1px solid #e0e0e0;
-		border-radius: 8px;
-		padding: 1.25rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-	}
+	.edit-form { margin-top: 0; }
 
 	.form-row {
 		display: grid;
 		grid-template-columns: 1fr 1fr;
 		gap: 0.75rem;
-	}
-
-	.form-label {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-		font-size: 0.82rem;
-		font-weight: 600;
-		color: #444;
 	}
 
 	.hint {
@@ -226,72 +211,9 @@
 		font-size: 0.78rem;
 	}
 
-	.form-label input,
-	.form-label textarea {
-		padding: 0.4rem 0.6rem;
-		border: 1px solid #ddd;
-		border-radius: 4px;
-		font-size: 0.875rem;
-		font-family: inherit;
-		background: white;
-	}
-
-	.form-label textarea {
-		resize: vertical;
-	}
-
-	.form-label input:disabled,
-	.form-label textarea:disabled {
-		opacity: 0.6;
-	}
-
 	.form-actions {
 		display: flex;
 		gap: 0.5rem;
 		align-items: center;
-	}
-
-	.btn-primary {
-		padding: 0.45rem 1rem;
-		background: #1a1a1a;
-		color: white;
-		border: none;
-		border-radius: 4px;
-		font-size: 0.875rem;
-		cursor: pointer;
-	}
-
-	.btn-primary:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.btn-primary:hover:not(:disabled) {
-		background: #333;
-	}
-
-	.btn-ghost {
-		padding: 0.45rem 0.75rem;
-		background: none;
-		border: 1px solid #ccc;
-		border-radius: 4px;
-		font-size: 0.875rem;
-		cursor: pointer;
-		color: #555;
-	}
-
-	.btn-ghost:hover:not(:disabled) {
-		background: #f0f0f0;
-	}
-
-	.btn-ghost:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.form-error {
-		color: #c0392b;
-		font-size: 0.85rem;
-		margin: 0;
 	}
 </style>

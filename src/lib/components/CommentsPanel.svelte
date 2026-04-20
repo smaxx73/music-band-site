@@ -167,21 +167,21 @@
 		</ul>
 	{/if}
 
-	<form class="comment-form" onsubmit={submitComment}>
+	<form class="form-section comment-form" onsubmit={submitComment}>
 		<h3>Ajouter un commentaire</h3>
 
 		{#if formError}
-			<p class="error">{formError}</p>
+			<p class="message-error">{formError}</p>
 		{/if}
 
-		<label>
+		<label class="form-label">
 			Prénom
-			<input type="text" bind:value={author} required disabled={submitting} />
+			<input class="form-input" type="text" bind:value={author} required disabled={submitting} />
 		</label>
 
-		<label>
+		<label class="form-label">
 			Commentaire
-			<textarea rows="3" bind:value={content} required disabled={submitting}></textarea>
+			<textarea class="form-input" rows="3" bind:value={content} required disabled={submitting}></textarea>
 		</label>
 
 		<label class="checkbox-label">
@@ -189,7 +189,7 @@
 			Ancrer au timestamp {anchorTimestamp && currentTime > 0 ? `(${formatTime(currentTime)})` : ''}
 		</label>
 
-		<button type="submit" class="btn-primary" disabled={submitting}>
+		<button type="submit" class="btn btn-primary" disabled={submitting}>
 			{submitting ? 'Envoi…' : 'Envoyer'}
 		</button>
 	</form>
@@ -202,7 +202,7 @@
 	}
 
 	h2 {
-		font-size: 1.1rem;
+		font-size: var(--text-lg);
 		margin: 0 0 1rem;
 	}
 
@@ -217,7 +217,7 @@
 
 	.comment {
 		border: 1px solid #f0f0f0;
-		border-radius: 6px;
+		border-radius: var(--radius-lg);
 		padding: 0.75rem 1rem;
 		transition: background 0.6s;
 	}
@@ -234,22 +234,20 @@
 		background: #fff7ed;
 		border: 1px solid #fed7aa;
 		color: #c2410c;
-		border-radius: 4px;
+		border-radius: var(--radius-md);
 		padding: 0.1rem 0.4rem;
 		font-size: 0.78rem;
 		cursor: pointer;
 		font-weight: 600;
 	}
 
-	.timestamp-link:hover {
-		background: #ffedd5;
-	}
+	.timestamp-link:hover { background: #ffedd5; }
 
 	.global-badge {
 		font-size: 0.72rem;
 		color: #aaa;
 		border: 1px solid #e5e5e5;
-		border-radius: 3px;
+		border-radius: var(--radius-sm);
 		padding: 0.1rem 0.35rem;
 	}
 
@@ -266,80 +264,18 @@
 		color: #333;
 	}
 
-	.comment-form {
-		background: #f8f8f8;
-		border: 1px solid #e8e8e8;
-		border-radius: 8px;
-		padding: 1.25rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.75rem;
-	}
+	.comment-form { margin-top: 0; }
 
-	h3 {
-		font-size: 0.95rem;
-		margin: 0;
-	}
-
-	label {
-		display: flex;
-		flex-direction: column;
-		gap: 0.25rem;
-		font-size: 0.82rem;
-		font-weight: 600;
-	}
-
-	input[type='text'],
-	textarea {
-		padding: 0.45rem 0.6rem;
-		border: 1px solid #ddd;
-		border-radius: 4px;
-		font-size: 0.9rem;
-		font-family: inherit;
-		background: white;
-	}
-
-	textarea {
-		resize: vertical;
-	}
+	h3 { font-size: 0.95rem; margin: 0; }
 
 	.checkbox-label {
+		display: flex;
 		flex-direction: row;
 		align-items: center;
 		gap: 0.5rem;
+		font-size: var(--text-sm);
 		font-weight: 500;
 	}
 
-	.btn-primary {
-		align-self: flex-start;
-		padding: 0.5rem 1rem;
-		background: #1a1a1a;
-		color: white;
-		border: none;
-		border-radius: 4px;
-		font-size: 0.875rem;
-		font-weight: 600;
-		cursor: pointer;
-	}
-
-	.btn-primary:hover:not(:disabled) {
-		background: #333;
-	}
-
-	.btn-primary:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.error {
-		font-size: 0.82rem;
-		color: #c0392b;
-		margin: 0;
-	}
-
-	.empty {
-		color: #999;
-		font-style: italic;
-		margin: 0 0 1.5rem;
-	}
+	.btn { align-self: flex-start; }
 </style>

@@ -1,4 +1,5 @@
 <script lang="ts">
+	import '../app.css'
 	import type { LayoutData } from './$types'
 	import favicon from '$lib/assets/favicon.svg'
 	import { page } from '$app/state'
@@ -37,9 +38,8 @@
 		position: sticky;
 		top: 0;
 		z-index: 100;
-		background: #fff;
-		border-bottom: 1px solid #e8e8e8;
-		font-family: sans-serif;
+		background: var(--color-bg);
+		border-bottom: 1px solid var(--color-border-light);
 	}
 
 	.nav-inner {
@@ -54,8 +54,8 @@
 
 	.nav-brand {
 		font-weight: 700;
-		font-size: 1rem;
-		color: #1a1a1a;
+		font-size: var(--text-base);
+		color: var(--color-text);
 		text-decoration: none;
 		white-space: nowrap;
 		flex-shrink: 0;
@@ -73,20 +73,20 @@
 	.nav-links a {
 		display: block;
 		padding: 0.3rem 0.65rem;
-		border-radius: 4px;
-		font-size: 0.875rem;
-		color: #555;
+		border-radius: var(--radius-md);
+		font-size: var(--text-sm);
+		color: var(--color-text-secondary);
 		text-decoration: none;
 		transition: color 0.1s, background 0.1s;
 	}
 
 	.nav-links a:hover {
-		color: #1a1a1a;
+		color: var(--color-text);
 		background: #f5f5f5;
 	}
 
 	.nav-links a.active {
-		color: #1a1a1a;
+		color: var(--color-text);
 		font-weight: 600;
 	}
 
@@ -97,28 +97,28 @@
 
 	.nav-admin.active,
 	.nav-admin:hover {
-		color: #555 !important;
+		color: var(--color-text-secondary) !important;
 	}
 
 	.nav-upload {
 		flex-shrink: 0;
 		padding: 0.4rem 0.9rem;
-		background: #1a1a1a;
+		background: var(--color-primary);
 		color: #fff;
-		border-radius: 4px;
+		border-radius: var(--radius-md);
 		text-decoration: none;
-		font-size: 0.875rem;
+		font-size: var(--text-sm);
 		font-weight: 600;
 		white-space: nowrap;
 		transition: background 0.1s;
 	}
 
 	.nav-upload:hover {
-		background: #333;
+		background: var(--color-primary-hover);
 	}
 
 	.nav-upload.active {
-		background: #333;
+		background: var(--color-primary-hover);
 	}
 
 	@media (max-width: 540px) {

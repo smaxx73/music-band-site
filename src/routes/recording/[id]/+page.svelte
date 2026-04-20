@@ -147,7 +147,7 @@
 				· {recording.uploaded_by}
 			</div>
 		</div>
-		<button class="btn-playlist" onclick={openPlaylistModal}>+ Playlist</button>
+		<button class="btn btn-secondary" onclick={openPlaylistModal}>+ Playlist</button>
 	</div>
 
 	<!-- Modale playlist -->
@@ -223,17 +223,9 @@
 		max-width: 720px;
 		margin: 2rem auto;
 		padding: 0 1rem;
-		font-family: sans-serif;
 	}
 
 	.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
-
-	.btn-playlist {
-		flex-shrink: 0; padding: 0.4rem 0.8rem; background: white;
-		border: 1px solid #ccc; border-radius: 4px; font-size: 0.8rem;
-		cursor: pointer; white-space: nowrap;
-	}
-	.btn-playlist:hover { background: #f8f8f8; border-color: #999; }
 
 	/* Modale */
 	.modal-backdrop {
@@ -242,16 +234,16 @@
 		z-index: 100;
 	}
 	.modal {
-		background: white; border-radius: 8px; width: 360px; max-width: 95vw;
-		box-shadow: 0 8px 30px rgba(0,0,0,0.15); overflow: hidden;
+		background: var(--color-bg); border-radius: var(--radius-xl); width: 360px; max-width: 95vw;
+		box-shadow: var(--shadow-modal); overflow: hidden;
 	}
 	.modal-header {
 		display: flex; align-items: center; justify-content: space-between;
 		padding: 1rem 1.25rem 0.75rem; border-bottom: 1px solid #f0f0f0;
 	}
 	.modal-header h3 { margin: 0; font-size: 0.95rem; }
-	.modal-close { background: none; border: none; font-size: 1rem; cursor: pointer; color: #888; padding: 0; }
-	.modal-close:hover { color: #333; }
+	.modal-close { background: none; border: none; font-size: 1rem; cursor: pointer; color: var(--color-text-muted); padding: 0; }
+	.modal-close:hover { color: var(--color-primary-hover); }
 
 	.modal-list { list-style: none; padding: 0.5rem 0; margin: 0; max-height: 320px; overflow-y: auto; }
 	.modal-item {
@@ -259,24 +251,15 @@
 		display: flex; align-items: center; gap: 0.75rem; cursor: pointer; text-align: left;
 		transition: background 0.1s;
 	}
-	.modal-item:hover:not(:disabled) { background: #f8f8f8; }
+	.modal-item:hover:not(:disabled) { background: var(--color-bg-subtle); }
 	.modal-item:disabled { cursor: default; }
 	.modal-item.added { background: #f0fdf4; }
-	.modal-name { flex: 1; font-size: 0.875rem; font-weight: 600; }
-	.modal-count { font-size: 0.75rem; color: #aaa; }
-	.modal-check { font-size: 0.75rem; color: #16a34a; font-weight: 700; }
+	.modal-name { flex: 1; font-size: var(--text-sm); font-weight: 600; }
+	.modal-count { font-size: var(--text-xs); color: #aaa; }
+	.modal-check { font-size: var(--text-xs); color: var(--color-repertoire-text); font-weight: 700; }
 
-	.modal-hint { padding: 1rem 1.25rem; font-size: 0.875rem; color: #888; margin: 0; }
-	.modal-error { padding: 0.75rem 1.25rem; font-size: 0.875rem; color: #c0392b; margin: 0; }
-
-	.breadcrumb {
-		font-size: 0.82rem;
-		color: #888;
-		margin-bottom: 1.25rem;
-	}
-
-	.breadcrumb a { color: inherit; text-decoration: none; }
-	.breadcrumb a:hover { text-decoration: underline; }
+	.modal-hint { padding: 1rem 1.25rem; font-size: var(--text-sm); color: var(--color-text-muted); margin: 0; }
+	.modal-error { padding: 0.75rem 1.25rem; font-size: var(--text-sm); color: var(--color-error); margin: 0; }
 
 	h1 {
 		font-size: 1.4rem;
@@ -289,19 +272,19 @@
 	.key {
 		font-size: 0.85rem;
 		font-weight: 400;
-		background: #f3f4f6;
-		color: #555;
+		background: var(--color-abandoned-bg);
+		color: var(--color-text-secondary);
 		padding: 0.15rem 0.45rem;
-		border-radius: 3px;
+		border-radius: var(--radius-sm);
 	}
 
 	.meta { font-size: 0.85rem; color: #666; }
 
 	/* Lecteur */
 	.player-card {
-		background: #fafafa;
-		border: 1px solid #e0e0e0;
-		border-radius: 8px;
+		background: var(--color-bg-subtle);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-xl);
 		padding: 1rem 1.25rem;
 		margin-bottom: 2rem;
 	}
