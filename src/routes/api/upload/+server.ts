@@ -11,15 +11,9 @@ import sql from '$lib/server/db'
 import { convertToMp3, getDuration } from '$lib/server/ffmpeg'
 import { audioPath, ensureAudioDir } from '$lib/server/storage'
 
-const ALLOWED_MIME = new Set([
-	'audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/ogg',
-	'audio/mp4', 'audio/m4a', 'audio/x-m4a', 'audio/aac', 'audio/flac',
-	'audio/webm', 'audio/opus', 'audio/x-flac', 'video/mp4', 'video/webm'
-])
-
 const MAX_SIZE = 200 * 1024 * 1024
 
-export const POST: RequestHandler = ({ locals, request }) => {
+export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
 
 	const contentType = request.headers.get('content-type') ?? ''
@@ -27,7 +21,12 @@ export const POST: RequestHandler = ({ locals, request }) => {
 		return json({ error: 'Content-Type multipart/form-data attendu.' }, { status: 400 })
 	}
 
-	const user = locals.user!.name
+	const rows = await sql<{ mime_types: string[] }[]>`
+		SELECT mime_types FROM audio_formats WHERE enabled = true
+	`
+	const allowedMime = new Set(rows.flatMap((r) => r.mime_types))
+
+	const user = locals.user.name
 
 	return new Promise<Response>((resolve) => {
 		const bb = busboy({
@@ -51,7 +50,7 @@ export const POST: RequestHandler = ({ locals, request }) => {
 			if (name !== 'audio') { stream.resume(); return }
 
 			const mime = info.mimeType.toLowerCase()
-			if (!ALLOWED_MIME.has(mime) && !mime.startsWith('audio/')) {
+			if (!allowedMime.has(mime)) {
 				mimeError = `Type de fichier non supporté : ${info.mimeType}`
 				stream.resume()
 				return

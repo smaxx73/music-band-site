@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types'
-	import { onMount } from 'svelte'
+	import { onMount, untrack } from 'svelte'
 	import { formatDateOnly } from '$lib/date'
 
 	let { data }: { data: PageData } = $props()
@@ -17,7 +17,7 @@
 		disk: { used: number; available: number; total: number }
 	}
 
-	let recentRecordings = $state(data.recentRecordings as unknown as RecentRecording[])
+	let recentRecordings = $state(untrack(() => data.recentRecordings as unknown as RecentRecording[]))
 	let stats = $state<Stats | null>(null)
 	let statsError = $state<string | null>(null)
 
@@ -91,6 +91,7 @@
 		<div class="actions-row">
 			<a href="/admin/songs" class="btn-secondary">Gérer les morceaux</a>
 			<a href="/admin/users" class="btn-secondary">Gérer les utilisateurs</a>
+			<a href="/admin/settings" class="btn-secondary">Paramètres</a>
 			<a href="/api/admin/backup" class="btn-secondary" download>
 				Télécharger la sauvegarde SQL
 			</a>
