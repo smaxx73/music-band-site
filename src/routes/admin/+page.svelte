@@ -90,6 +90,7 @@
 		<h2>Actions</h2>
 		<div class="actions-row">
 			<a href="/admin/songs" class="btn-secondary">Gérer les morceaux</a>
+			<a href="/admin/users" class="btn-secondary">Gérer les utilisateurs</a>
 			<a href="/api/admin/backup" class="btn-secondary" download>
 				Télécharger la sauvegarde SQL
 			</a>

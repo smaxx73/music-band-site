@@ -1,7 +1,8 @@
 import type { Actions, PageServerLoad } from './$types'
 import { fail, redirect } from '@sveltejs/kit'
-import { AUTH_PASSWORD, AUTH_SECRET } from '$env/static/private'
-import { signCookie } from '$lib/server/auth'
+import { AUTH_SECRET } from '$env/static/private'
+import { signCookie, verifyPassword } from '$lib/server/auth'
+import sql from '$lib/server/db'
 
 export const load: PageServerLoad = ({ locals }) => {
 	if (locals.user) redirect(302, '/')
@@ -16,8 +17,13 @@ export const actions: Actions = {
 		if (!name || !password) {
 			return fail(400, { error: 'Champs manquants.' })
 		}
-		if (password !== AUTH_PASSWORD) {
-			return fail(401, { error: 'Mot de passe incorrect.' })
+
+		const [user] = await sql<{ name: string; password_hash: string }[]>`
+			SELECT name, password_hash FROM users WHERE name = ${name} AND active = true
+		`
+
+		if (!user || !(await verifyPassword(password, user.password_hash))) {
+			return fail(401, { error: 'Identifiants incorrects.' })
 		}
 
 		const signed = signCookie(name, AUTH_SECRET)

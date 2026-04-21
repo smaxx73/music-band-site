@@ -59,6 +59,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		comments,
 		peaks: peaksData.peaks,
 		peaksDuration: peaksData.duration,
-		user: locals.user
+		user: locals.user?.name ?? null
 	}
 }

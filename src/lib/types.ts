@@ -1,3 +1,13 @@
+export type UserRole = 'admin' | 'user'
+
+export type User = {
+	id: number
+	name: string
+	role: UserRole
+	active: boolean
+	created_at: Date
+}
+
 export type SongStatus = 'en_apprentissage' | 'au_repertoire' | 'abandonne'
 
 export type Song = {

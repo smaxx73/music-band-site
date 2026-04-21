@@ -1,4 +1,24 @@
-import { createHmac, timingSafeEqual } from 'crypto'
+import { createHmac, timingSafeEqual, randomBytes, scrypt } from 'crypto'
+import { promisify } from 'util'
+
+const scryptAsync = promisify(scrypt)
+
+export async function hashPassword(password: string): Promise<string> {
+	const salt = randomBytes(16).toString('hex')
+	const hash = (await scryptAsync(password, salt, 64)) as Buffer
+	return `${salt}:${hash.toString('hex')}`
+}
+
+export async function verifyPassword(password: string, stored: string): Promise<boolean> {
+	const sep = stored.indexOf(':')
+	if (sep === -1) return false
+	const salt = stored.slice(0, sep)
+	const hash = stored.slice(sep + 1)
+	const hashBuffer = Buffer.from(hash, 'hex')
+	const derived = (await scryptAsync(password, salt, 64)) as Buffer
+	if (hashBuffer.length !== derived.length) return false
+	return timingSafeEqual(hashBuffer, derived)
+}
 
 export function signCookie(value: string, secret: string): string {
 	const sig = createHmac('sha256', secret).update(value).digest('base64url')

@@ -48,7 +48,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			${typeof location === 'string' && location.trim() ? location.trim() : null},
 			${typeof notes === 'string' && notes.trim() ? notes.trim() : null},
 			${sql.array(membersArray)},
-			${locals.user}
+			${locals.user!.name}
 		)
 		RETURNING *
 	`

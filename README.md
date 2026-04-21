@@ -1,6 +1,6 @@
 # Band Rehearsal App
 
-Application web privée pour partager et archiver les enregistrements de répétitions d'un groupe de musique. Accès restreint par mot de passe partagé — tous les membres ont les mêmes droits.
+Application web privée pour partager et archiver les enregistrements de répétitions d'un groupe de musique. Accès restreint par compte individuel — deux rôles : **admin** (gestion des morceaux et des utilisateurs) et **utilisateur** (accès complet au contenu).
 
 ## Fonctionnalités
 
@@ -39,6 +39,12 @@ Application web privée pour partager et archiver les enregistrements de répét
 - 5 dernières sessions avec résumé des morceaux travaillés
 - Playlists triées par dernière modification
 
+### Administration (rôle admin uniquement)
+
+- Gestion des morceaux (`/admin/songs`) : ajout, modification, statut, suppression
+- Gestion des utilisateurs (`/admin/users`) : création, modification du rôle, réinitialisation du mot de passe, désactivation, suppression
+- Statistiques et 10 dernières prises avec suppression
+
 ---
 
 ## Tester en local
@@ -49,6 +55,12 @@ Application web privée pour partager et archiver les enregistrements de répét
 - [pnpm](https://pnpm.io) — `npm install -g pnpm`
 - [Docker](https://www.docker.com) et Docker Compose
 - [ffmpeg](https://ffmpeg.org) installé sur la machine
+
+### 0. Installer tsx (nécessaire pour les scripts)
+
+```bash
+pnpm add -D tsx
+```
 
 ### 1. Cloner et installer
 
@@ -69,7 +81,6 @@ Contenu minimal pour le dev local :
 ```env
 DATABASE_URL=postgresql://band:secret@localhost:5432/bandapp
 AUDIO_DIR=/tmp/audio-dev
-AUTH_PASSWORD=motdepasse
 AUTH_SECRET=une_chaine_aleatoire_longue
 NODE_ENV=development
 ```
@@ -88,7 +99,15 @@ docker compose up db -d
 
 La base est initialisée automatiquement via les fichiers `migrations/` au premier démarrage.
 
-### 4. Lancer le serveur de développement
+### 4. Créer le premier compte admin
+
+```bash
+npx tsx scripts/create-user.ts --name=TonPrénom --password=tonmotdepasse --role=admin
+```
+
+Le script peut aussi créer des comptes `user` (rôle par défaut). Les comptes suivants se gèrent depuis `/admin/users`.
+
+### 5. Lancer le serveur de développement
 
 ```bash
 pnpm dev
@@ -134,9 +153,6 @@ nano .env
 # Domaine public (sans https://)
 DOMAIN=rehearsal.mongroupe.fr
 
-# Mot de passe d'accès à l'application
-AUTH_PASSWORD=motdepassedugroupe
-
 # Clé secrète pour les cookies — générer avec : openssl rand -hex 32
 AUTH_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
@@ -165,6 +181,17 @@ Vérifier que tout est lancé :
 docker compose ps
 docker compose logs -f
 ```
+
+### 4. Créer le premier compte administrateur
+
+À faire une fois la stack démarrée :
+
+```bash
+docker compose exec app node_modules/.bin/tsx scripts/create-user.ts \
+  --name=TonPrénom --password=tonmotdepasse --role=admin
+```
+
+Les comptes suivants se gèrent depuis l'interface `/admin/users`.
 
 ### 4. Mises à jour
 

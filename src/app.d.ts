@@ -4,10 +4,10 @@ declare global {
 	namespace App {
 		// interface Error {}
 		interface Locals {
-			user: string | null
+			user: { name: string; role: 'admin' | 'user' } | null
 		}
 		interface PageData {
-			user?: string | null
+			user?: { name: string; role: 'admin' | 'user' } | null
 		}
 		// interface PageState {}
 		// interface Platform {}

@@ -8,7 +8,6 @@ services:
     environment:
       DATABASE_URL: postgresql://band:secret@db:5432/bandapp
       AUDIO_DIR: /data/audio
-      AUTH_PASSWORD: ${AUTH_PASSWORD}
       AUTH_SECRET: ${AUTH_SECRET}
       NODE_ENV: production
       PORT: 3000

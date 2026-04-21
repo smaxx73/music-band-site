@@ -1,10 +1,8 @@
 import type { PageServerLoad, Actions } from './$types'
-import { error, fail, redirect } from '@sveltejs/kit'
+import { error, fail } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 
-export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) redirect(302, '/login')
-
+export const load: PageServerLoad = async () => {
 	const songs = await sql`
 		SELECT s.*, COUNT(r.id)::int AS take_count
 		FROM songs s
@@ -20,7 +18,7 @@ const VALID_STATUSES = ['en_apprentissage', 'au_repertoire', 'abandonne']
 
 export const actions: Actions = {
 	create: async ({ request, locals }) => {
-		if (!locals.user) error(401, 'Non autorisé')
+		if (locals.user?.role !== 'admin') error(403, 'Accès réservé aux administrateurs')
 
 		const data = await request.formData()
 		const title = (data.get('title') as string | null)?.trim()
@@ -45,7 +43,7 @@ export const actions: Actions = {
 	},
 
 	update: async ({ request, locals }) => {
-		if (!locals.user) error(401, 'Non autorisé')
+		if (locals.user?.role !== 'admin') error(403, 'Accès réservé aux administrateurs')
 
 		const data = await request.formData()
 		const id = parseInt(data.get('id') as string)
@@ -74,7 +72,7 @@ export const actions: Actions = {
 	},
 
 	delete: async ({ request, locals }) => {
-		if (!locals.user) error(401, 'Non autorisé')
+		if (locals.user?.role !== 'admin') error(403, 'Accès réservé aux administrateurs')
 
 		const data = await request.formData()
 		const id = parseInt(data.get('id') as string)

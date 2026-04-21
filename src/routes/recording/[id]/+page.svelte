@@ -20,7 +20,7 @@
 
 	const recording = $derived(data.recording as unknown as Recording)
 	let comments = $state(untrack(() => data.comments as unknown as Comment[]))
-	const user = $derived((data as { user: string }).user)
+	const user = $derived(data.user as string | null)
 
 	type PlayerState = {
 		currentTime: number

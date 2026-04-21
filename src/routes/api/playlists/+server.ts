@@ -31,7 +31,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		VALUES (
 			${name.trim()},
 			${typeof description === 'string' && description.trim() ? description.trim() : null},
-			${locals.user},
+			${locals.user!.name},
 			now()
 		)
 		RETURNING *

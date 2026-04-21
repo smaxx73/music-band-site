@@ -27,7 +27,7 @@ export const POST: RequestHandler = ({ locals, request }) => {
 		return json({ error: 'Content-Type multipart/form-data attendu.' }, { status: 400 })
 	}
 
-	const user = locals.user
+	const user = locals.user!.name
 
 	return new Promise<Response>((resolve) => {
 		const bb = busboy({

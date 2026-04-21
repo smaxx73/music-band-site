@@ -24,7 +24,9 @@
 				<li><a href="/sessions" class:active={isActive('/sessions')}>Sessions</a></li>
 				<li><a href="/songs" class:active={isActive('/songs')}>Morceaux</a></li>
 				<li><a href="/playlists" class:active={isActive('/playlists')}>Playlists</a></li>
-				<li><a href="/admin" class:active={isActive('/admin')} class="nav-admin">Admin</a></li>
+				{#if data.user?.role === 'admin'}
+					<li><a href="/admin" class:active={isActive('/admin')} class="nav-admin">Admin</a></li>
+				{/if}
 			</ul>
 			<a href="/upload" class="nav-upload" class:active={isActive('/upload')}>+ Uploader</a>
 		</div>

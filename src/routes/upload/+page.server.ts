@@ -10,5 +10,5 @@ export const load: PageServerLoad = async ({ locals }) => {
 		sql`SELECT id, title FROM songs WHERE status != 'abandonne' ORDER BY title`
 	])
 
-	return { sessions, songs, user: locals.user }
+	return { sessions, songs }
 }
