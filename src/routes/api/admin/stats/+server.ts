@@ -12,15 +12,28 @@ const execFileAsync = promisify(execFile)
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
 
-	// Comptages en base
-	const [counts] = await sql`
-		SELECT
-			(SELECT COUNT(*)::int FROM songs)      AS songs,
-			(SELECT COUNT(*)::int FROM sessions)   AS sessions,
-			(SELECT COUNT(*)::int FROM recordings) AS recordings,
-			(SELECT COUNT(*)::int FROM comments)   AS comments,
-			(SELECT COUNT(*)::int FROM playlists)  AS playlists
-	`
+	const groupId = locals.user.current_group_id
+
+	const [counts] = groupId
+		? await sql`
+			SELECT
+				(SELECT COUNT(*)::int FROM songs     WHERE group_id = ${groupId}) AS songs,
+				(SELECT COUNT(*)::int FROM sessions  WHERE group_id = ${groupId}) AS sessions,
+				(SELECT COUNT(*)::int FROM recordings r
+				 JOIN sessions s ON s.id = r.session_id WHERE s.group_id = ${groupId}) AS recordings,
+				(SELECT COUNT(*)::int FROM comments c
+				 JOIN recordings r ON r.id = c.recording_id
+				 JOIN sessions s   ON s.id = r.session_id WHERE s.group_id = ${groupId}) AS comments,
+				(SELECT COUNT(*)::int FROM playlists  WHERE group_id = ${groupId}) AS playlists
+		`
+		: await sql`
+			SELECT
+				(SELECT COUNT(*)::int FROM songs)      AS songs,
+				(SELECT COUNT(*)::int FROM sessions)   AS sessions,
+				(SELECT COUNT(*)::int FROM recordings) AS recordings,
+				(SELECT COUNT(*)::int FROM comments)   AS comments,
+				(SELECT COUNT(*)::int FROM playlists)  AS playlists
+		`
 
 	// Taille totale des fichiers audio
 	let audioBytes = 0
