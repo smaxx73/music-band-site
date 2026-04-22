@@ -2,19 +2,31 @@ import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 
-export const GET: RequestHandler = async ({ locals }) => {
+export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
+	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
 
-	const songs = await sql`
-		SELECT * FROM songs
-		WHERE status != 'abandonne'
-		ORDER BY title
-	`
+	const groupId = locals.user.current_group_id
+	const all = url.searchParams.get('all') === 'true'
+
+	const songs = all
+		? await sql`
+			SELECT * FROM songs
+			WHERE group_id = ${groupId}
+			ORDER BY title
+		`
+		: await sql`
+			SELECT * FROM songs
+			WHERE group_id = ${groupId} AND status != 'abandonne'
+			ORDER BY title
+		`
+
 	return json(songs)
 }
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
+	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
 
 	const body = await request.json()
 	const title: unknown = body.title
@@ -33,8 +45,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 	try {
 		const [song] = await sql`
-			INSERT INTO songs (title, composer, key, status)
+			INSERT INTO songs (group_id, title, composer, key, status)
 			VALUES (
+				${locals.user.current_group_id},
 				${title.trim()},
 				${typeof composer === 'string' && composer.trim() ? composer.trim() : null},
 				${typeof key === 'string' && key.trim() ? key.trim() : null},
@@ -45,7 +58,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		return json(song, { status: 201 })
 	} catch (err) {
 		if (isUniqueViolation(err)) {
-			return json({ error: 'Ce titre existe déjà.' }, { status: 409 })
+			return json({ error: 'Ce titre existe déjà dans ce groupe.' }, { status: 409 })
 		}
 		throw err
 	}

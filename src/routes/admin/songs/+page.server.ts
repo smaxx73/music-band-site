@@ -2,11 +2,16 @@ import type { PageServerLoad, Actions } from './$types'
 import { error, fail } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
+	if (!locals.user?.current_group_id) return { songs: [] }
+
+	const groupId = locals.user.current_group_id
+
 	const songs = await sql`
 		SELECT s.*, COUNT(r.id)::int AS take_count
 		FROM songs s
 		LEFT JOIN recordings r ON r.song_id = s.id
+		WHERE s.group_id = ${groupId}
 		GROUP BY s.id
 		ORDER BY s.title
 	`
@@ -19,6 +24,8 @@ const VALID_STATUSES = ['en_apprentissage', 'au_repertoire', 'abandonne']
 export const actions: Actions = {
 	create: async ({ request, locals }) => {
 		if (locals.user?.role !== 'admin') error(403, 'Accès réservé aux administrateurs')
+		if (!locals.user.current_group_id)
+			return fail(400, { action: 'create', error: 'Aucun groupe actif.' })
 
 		const data = await request.formData()
 		const title = (data.get('title') as string | null)?.trim()
@@ -32,18 +39,20 @@ export const actions: Actions = {
 
 		try {
 			await sql`
-				INSERT INTO songs (title, composer, key, status)
-				VALUES (${title}, ${composer}, ${key}, ${status})
+				INSERT INTO songs (group_id, title, composer, key, status)
+				VALUES (${locals.user.current_group_id}, ${title}, ${composer}, ${key}, ${status})
 			`
 		} catch (err) {
 			if (isUniqueViolation(err))
-				return fail(409, { action: 'create', error: 'Ce titre existe déjà.' })
+				return fail(409, { action: 'create', error: 'Ce titre existe déjà dans ce groupe.' })
 			throw err
 		}
 	},
 
 	update: async ({ request, locals }) => {
 		if (locals.user?.role !== 'admin') error(403, 'Accès réservé aux administrateurs')
+		if (!locals.user.current_group_id)
+			return fail(400, { action: 'update', error: 'Aucun groupe actif.' })
 
 		const data = await request.formData()
 		const id = parseInt(data.get('id') as string)
@@ -60,19 +69,21 @@ export const actions: Actions = {
 		try {
 			const [song] = await sql`
 				UPDATE songs SET title = ${title}, composer = ${composer}, key = ${key}, status = ${status}
-				WHERE id = ${id}
+				WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
 				RETURNING id
 			`
 			if (!song) return fail(404, { action: 'update', id, error: 'Morceau introuvable.' })
 		} catch (err) {
 			if (isUniqueViolation(err))
-				return fail(409, { action: 'update', id, error: 'Ce titre existe déjà.' })
+				return fail(409, { action: 'update', id, error: 'Ce titre existe déjà dans ce groupe.' })
 			throw err
 		}
 	},
 
 	delete: async ({ request, locals }) => {
 		if (locals.user?.role !== 'admin') error(403, 'Accès réservé aux administrateurs')
+		if (!locals.user.current_group_id)
+			return fail(400, { action: 'delete', error: 'Aucun groupe actif.' })
 
 		const data = await request.formData()
 		const id = parseInt(data.get('id') as string)
@@ -89,7 +100,10 @@ export const actions: Actions = {
 			})
 		}
 
-		const [deleted] = await sql`DELETE FROM songs WHERE id = ${id} RETURNING id`
+		const [deleted] = await sql`
+			DELETE FROM songs WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
+			RETURNING id
+		`
 		if (!deleted) return fail(404, { action: 'delete', id, error: 'Morceau introuvable.' })
 	}
 }

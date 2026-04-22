@@ -8,10 +8,27 @@ export type User = {
 	created_at: Date
 }
 
+export type GroupRole = 'admin' | 'member'
+
+export type Group = {
+	id: number
+	name: string
+	created_by: number | null
+	created_at: Date
+}
+
+export type UserGroup = {
+	user_id: number
+	group_id: number
+	role: GroupRole
+	joined_at: Date
+}
+
 export type SongStatus = 'en_apprentissage' | 'au_repertoire' | 'abandonne'
 
 export type Song = {
 	id: number
+	group_id: number
 	title: string
 	composer: string | null
 	key: string | null
@@ -21,6 +38,7 @@ export type Song = {
 
 export type Session = {
 	id: number
+	group_id: number
 	date: string // DATE — ISO string "YYYY-MM-DD"
 	location: string | null
 	notes: string | null
@@ -55,10 +73,12 @@ export type Comment = {
 
 export type Playlist = {
 	id: number
+	group_id: number
 	name: string
 	description: string | null
 	created_by: string
 	created_at: Date
+	updated_at: Date | null
 }
 
 export type PlaylistItem = {

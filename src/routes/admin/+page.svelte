@@ -89,6 +89,7 @@
 	<section class="section">
 		<h2>Actions</h2>
 		<div class="actions-row">
+			<a href="/admin/groups" class="btn-secondary">Gérer les groupes</a>
 			<a href="/admin/songs" class="btn-secondary">Gérer les morceaux</a>
 			<a href="/admin/users" class="btn-secondary">Gérer les utilisateurs</a>
 			<a href="/admin/settings" class="btn-secondary">Paramètres</a>

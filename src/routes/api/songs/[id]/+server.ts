@@ -4,6 +4,7 @@ import sql from '$lib/server/db'
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
+	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
 
 	const id = parseInt(params.id)
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
@@ -12,7 +13,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		SELECT s.*, COUNT(r.id)::int AS take_count
 		FROM songs s
 		LEFT JOIN recordings r ON r.song_id = s.id
-		WHERE s.id = ${id}
+		WHERE s.id = ${id} AND s.group_id = ${locals.user.current_group_id}
 		GROUP BY s.id
 	`
 
@@ -23,6 +24,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
+	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
 
 	const id = parseInt(params.id)
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
@@ -52,13 +54,15 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
 	try {
 		const [song] = await sql`
-			UPDATE songs SET ${sql(updates)} WHERE id = ${id} RETURNING *
+			UPDATE songs SET ${sql(updates)}
+			WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
+			RETURNING *
 		`
 		if (!song) return json({ error: 'Morceau introuvable.' }, { status: 404 })
 		return json(song)
 	} catch (err) {
 		if (isUniqueViolation(err)) {
-			return json({ error: 'Ce titre existe déjà.' }, { status: 409 })
+			return json({ error: 'Ce titre existe déjà dans ce groupe.' }, { status: 409 })
 		}
 		throw err
 	}
@@ -66,6 +70,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
 export const DELETE: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
+	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
 
 	const id = parseInt(params.id)
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
@@ -80,7 +85,10 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 		)
 	}
 
-	const [deleted] = await sql`DELETE FROM songs WHERE id = ${id} RETURNING id`
+	const [deleted] = await sql`
+		DELETE FROM songs WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
+		RETURNING id
+	`
 	if (!deleted) return json({ error: 'Morceau introuvable.' }, { status: 404 })
 
 	return json({ success: true })

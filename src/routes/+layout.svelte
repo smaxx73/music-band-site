@@ -3,6 +3,7 @@
 	import type { LayoutData } from './$types'
 	import favicon from '$lib/assets/favicon.svg'
 	import { page } from '$app/state'
+	import { goto } from '$app/navigation'
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props()
 
@@ -10,6 +11,21 @@
 		if (prefix === '/') return page.url.pathname === '/'
 		return page.url.pathname === prefix || page.url.pathname.startsWith(prefix + '/')
 	}
+
+	async function switchGroup(e: Event) {
+		const select = e.target as HTMLSelectElement
+		const groupId = parseInt(select.value)
+		await fetch('/api/groups/switch', {
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify({ group_id: groupId })
+		})
+		goto('/', { invalidateAll: true })
+	}
+
+	const currentGroup = $derived(
+		data.user?.groups.find((g) => g.id === data.user?.current_group_id)
+	)
 </script>
 
 <svelte:head>
@@ -20,6 +36,17 @@
 	<nav>
 		<div class="nav-inner">
 			<a href="/" class="nav-brand">Répétitions</a>
+
+			{#if data.user.groups.length > 1}
+				<select class="group-select" onchange={switchGroup}>
+					{#each data.user.groups as g}
+						<option value={g.id} selected={g.id === data.user.current_group_id}>{g.name}</option>
+					{/each}
+				</select>
+			{:else if currentGroup}
+				<span class="group-name">{currentGroup.name}</span>
+			{/if}
+
 			<ul class="nav-links">
 				<li><a href="/sessions" class:active={isActive('/sessions')}>Sessions</a></li>
 				<li><a href="/songs" class:active={isActive('/songs')}>Morceaux</a></li>
@@ -31,6 +58,16 @@
 			<a href="/upload" class="nav-upload" class:active={isActive('/upload')}>+ Uploader</a>
 		</div>
 	</nav>
+{/if}
+
+{#if data.user && data.user.groups.length === 0}
+	<div class="no-group-banner">
+		{#if data.user.role === 'admin'}
+			Aucun groupe configuré. <a href="/admin/groups">Créer un groupe</a>
+		{:else}
+			Vous n'appartenez à aucun groupe. Contactez un administrateur.
+		{/if}
+	</div>
 {/if}
 
 {@render children()}
@@ -51,7 +88,7 @@
 		height: 52px;
 		display: flex;
 		align-items: center;
-		gap: 2rem;
+		gap: 1rem;
 	}
 
 	.nav-brand {
@@ -61,6 +98,28 @@
 		text-decoration: none;
 		white-space: nowrap;
 		flex-shrink: 0;
+	}
+
+	.group-select {
+		font-size: var(--text-sm);
+		color: var(--color-text-secondary);
+		border: 1px solid var(--color-border-light);
+		border-radius: var(--radius-md);
+		padding: 0.2rem 0.5rem;
+		background: transparent;
+		cursor: pointer;
+		max-width: 160px;
+		flex-shrink: 0;
+	}
+
+	.group-name {
+		font-size: var(--text-sm);
+		color: var(--color-text-secondary);
+		white-space: nowrap;
+		flex-shrink: 0;
+		max-width: 160px;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
 	.nav-links {
@@ -123,9 +182,23 @@
 		background: var(--color-primary-hover);
 	}
 
+	.no-group-banner {
+		background: #fff8e1;
+		border-bottom: 1px solid #ffe082;
+		padding: 0.6rem 1rem;
+		font-size: var(--text-sm);
+		text-align: center;
+		color: #6d4c00;
+	}
+
+	.no-group-banner a {
+		color: inherit;
+		font-weight: 600;
+	}
+
 	@media (max-width: 540px) {
 		.nav-inner {
-			gap: 0.75rem;
+			gap: 0.5rem;
 			height: auto;
 			flex-wrap: wrap;
 			padding: 0.5rem 1rem;
@@ -135,6 +208,11 @@
 			order: 3;
 			width: 100%;
 			padding-bottom: 0.25rem;
+		}
+
+		.group-select,
+		.group-name {
+			max-width: 120px;
 		}
 	}
 </style>

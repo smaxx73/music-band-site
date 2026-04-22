@@ -4,11 +4,14 @@ import sql from '$lib/server/db'
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
+	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
 
 	const id = parseInt(params.id)
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
 
-	const [session] = await sql`SELECT * FROM sessions WHERE id = ${id}`
+	const [session] = await sql`
+		SELECT * FROM sessions WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
+	`
 	if (!session) return json({ error: 'Session introuvable.' }, { status: 404 })
 
 	const rows = await sql`
@@ -60,6 +63,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
+	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
 
 	const id = parseInt(params.id)
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
@@ -88,7 +92,11 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		return json({ error: 'Aucun champ à modifier.' }, { status: 400 })
 	}
 
-	const [session] = await sql`UPDATE sessions SET ${sql(updates)} WHERE id = ${id} RETURNING *`
+	const [session] = await sql`
+		UPDATE sessions SET ${sql(updates)}
+		WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
+		RETURNING *
+	`
 	if (!session) return json({ error: 'Session introuvable.' }, { status: 404 })
 
 	return json(session)

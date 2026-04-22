@@ -4,11 +4,14 @@ import sql from '$lib/server/db'
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
+	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
 
 	const id = parseInt(params.id)
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
 
-	const [playlist] = await sql`SELECT * FROM playlists WHERE id = ${id}`
+	const [playlist] = await sql`
+		SELECT * FROM playlists WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
+	`
 	if (!playlist) return json({ error: 'Playlist introuvable.' }, { status: 404 })
 
 	const items = await sql`

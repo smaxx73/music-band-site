@@ -4,6 +4,9 @@ import sql from '$lib/server/db'
 
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
+	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
+
+	const groupId = locals.user.current_group_id
 
 	const sessions = await sql`
 		SELECT
@@ -12,6 +15,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 			COUNT(r.id)::int             AS recording_count
 		FROM sessions s
 		LEFT JOIN recordings r ON r.session_id = s.id
+		WHERE s.group_id = ${groupId}
 		GROUP BY s.id
 		ORDER BY s.date DESC
 	`
@@ -20,6 +24,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
+	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
 
 	const body = await request.json()
 	const date: unknown = body.date
@@ -42,13 +47,14 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		: []
 
 	const [session] = await sql`
-		INSERT INTO sessions (date, location, notes, members, created_by)
+		INSERT INTO sessions (group_id, date, location, notes, members, created_by)
 		VALUES (
+			${locals.user.current_group_id},
 			${date.trim()},
 			${typeof location === 'string' && location.trim() ? location.trim() : null},
 			${typeof notes === 'string' && notes.trim() ? notes.trim() : null},
 			${sql.array(membersArray)},
-			${locals.user!.name}
+			${locals.user.name}
 		)
 		RETURNING *
 	`

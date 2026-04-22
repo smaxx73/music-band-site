@@ -15,6 +15,7 @@ const MAX_SIZE = 200 * 1024 * 1024
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
+	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
 
 	const contentType = request.headers.get('content-type') ?? ''
 	if (!contentType.includes('multipart/form-data')) {
@@ -111,12 +112,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				const duration = await getDuration(mp3TmpPath)
 
 				// Transaction : calcul du take + insertion
+				const groupId = locals.user!.current_group_id!
 				const recording = await sql.begin(async (tx) => {
-					// Vérifier que session et morceau existent
-					const [song] = await tx`SELECT id FROM songs WHERE id = ${songId}`
+					// Vérifier que session et morceau existent et appartiennent au groupe actif
+					const [song] = await tx`SELECT id FROM songs WHERE id = ${songId} AND group_id = ${groupId}`
 					if (!song) throw Object.assign(new Error('song_not_found'), { code: 'song_not_found' })
 
-					const [session] = await tx`SELECT id FROM sessions WHERE id = ${sessionId}`
+					const [session] = await tx`SELECT id FROM sessions WHERE id = ${sessionId} AND group_id = ${groupId}`
 					if (!session) throw Object.assign(new Error('session_not_found'), { code: 'session_not_found' })
 
 					const [{ take }] = await tx`

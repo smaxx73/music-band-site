@@ -4,14 +4,26 @@ declare global {
 	namespace App {
 		// interface Error {}
 		interface Locals {
-			user: { name: string; role: 'admin' | 'user' } | null
+			user: {
+				id: number
+				name: string
+				role: 'admin' | 'user'
+				current_group_id: number | null
+				groups: { id: number; name: string; role: 'admin' | 'member' }[]
+			} | null
 		}
 		interface PageData {
-			user?: { name: string; role: 'admin' | 'user' } | null
+			user?: {
+				id: number
+				name: string
+				role: 'admin' | 'user'
+				current_group_id: number | null
+				groups: { id: number; name: string; role: 'admin' | 'member' }[]
+			} | null
 		}
 		// interface PageState {}
 		// interface Platform {}
 	}
 }
 
-export {};
+export {}
