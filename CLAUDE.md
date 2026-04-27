@@ -33,6 +33,11 @@ docker compose up --build            # stack complète
 docker compose logs -f app           # logs app
 docker compose exec db psql -U band -d bandapp   # accès BDD
 docker compose up --build app        # rebuild app seule
+
+# Appliquer une migration (dev et prod — même commande)
+docker compose exec -T db psql -U band -d bandapp < migrations/006_calendar.sql
+# Remplacer le nom du fichier par la migration à appliquer.
+# Les migrations sont cumulatives et numérotées ; les appliquer dans l'ordre.
 ```
 
 ## Variables d'environnement (.env, ne jamais commiter)
@@ -62,6 +67,7 @@ NODE_ENV=production
 /playlists/[id]     lecture en continu d'une playlist
 /upload             formulaire d'upload
 /admin/songs        gestion du référentiel de morceaux
+/agenda             agenda partagé du groupe (indisponibilités, répétitions, concerts)
 ```
 
 ## Non implémenté — ne pas inventer

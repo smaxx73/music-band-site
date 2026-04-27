@@ -88,3 +88,17 @@ export type PlaylistItem = {
 	position: number
 	note: string | null
 }
+
+export type CalendarEventType = 'indisponibilite' | 'repetition' | 'concert'
+
+export type CalendarEvent = {
+	id: number
+	group_id: number
+	date: string
+	type: CalendarEventType
+	author: string
+	title: string | null
+	notes: string | null
+	session_id: number | null
+	created_at: Date
+}

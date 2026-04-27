@@ -52,6 +52,18 @@
 - Statut `abandonne` → masqué dans le sélecteur d'upload, prises existantes conservées
 - Suppression bloquée si des prises existent pour ce morceau
 
+## Agenda partagé (`/agenda`)
+
+- Vue mensuelle en grille 7 colonnes (lundi → dimanche), navigation mois par mois
+- Chaque membre peut ajouter sur n'importe quel jour un événement de trois types :
+  - `indisponibilite` — indisponibilité personnelle ; seul l'auteur peut la supprimer
+  - `repetition` — répétition de groupe ; tout membre peut la supprimer
+  - `concert` — concert ; tout membre peut le supprimer
+- Répétition et concert peuvent être liés à une `session` existante (optionnel)
+- Clic sur un jour → panneau détail : liste des événements du jour + formulaire d'ajout
+- Badges colorés : rouge = indisponible, bleu = répétition, vert = concert
+- `author` = prénom du cookie de session (comme partout)
+
 ## Tableau de bord (`/`)
 
 - Colonne gauche : 5 dernières sessions (date, morceaux travaillés en résumé)
