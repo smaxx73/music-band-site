@@ -34,6 +34,13 @@ Application web privée pour partager et archiver les enregistrements de répét
 - Réorganisation par drag & drop
 - Ajout d'une prise à une playlist depuis le lecteur
 
+### Agenda partagé
+
+- Vue mensuelle avec navigation mois par mois
+- Trois types d'événements : **Indisponibilité** (personnelle), **Répétition**, **Concert**
+- Les répétitions et concerts peuvent être liés à une session existante
+- Suppression : chacun ne peut supprimer que sa propre indisponibilité ; répétitions et concerts sont supprimables par tous
+
 ### Tableau de bord
 
 - 5 dernières sessions avec résumé des morceaux travaillés
@@ -208,9 +215,10 @@ Seul le conteneur `app` est reconstruit. La base de données et les fichiers aud
 Les fichiers `migrations/` sont appliqués automatiquement au **premier démarrage** de la base (quand le volume est vide). Pour appliquer une migration sur une base existante, l'exécuter manuellement :
 
 ```bash
-docker compose exec db psql -U band -d bandapp \
-  -f /docker-entrypoint-initdb.d/002_playlists_updated_at.sql
+docker compose exec -T db psql -U band -d bandapp < migrations/006_calendar.sql
 ```
+
+Remplacer le nom du fichier par la migration à appliquer. Les appliquer dans l'ordre numérique.
 
 ### 6. Commandes utiles
 
