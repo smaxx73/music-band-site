@@ -31,6 +31,8 @@ CREATE TABLE songs (
     title       TEXT NOT NULL,
     composer    TEXT,
     key         TEXT,                        -- ex: "Dm", "Bb"
+    lyrics      TEXT,
+    music_notes TEXT,                        -- accords, structure, tempo, remarques musicales
     status      TEXT DEFAULT 'en_apprentissage',
                                              -- en_apprentissage | au_repertoire | abandonne
     created_at  TIMESTAMPTZ DEFAULT now(),

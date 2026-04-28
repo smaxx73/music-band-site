@@ -4,6 +4,7 @@
 	import { formatDateOnly } from '$lib/date'
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte'
 	import PlaylistQueue from '$lib/components/PlaylistQueue.svelte'
+	import SongDetails from '$lib/components/SongDetails.svelte'
 
 	let { data }: { data: PageData } = $props()
 
@@ -12,6 +13,7 @@
 		recording_id: number; take: number; duration_s: number | null
 		recording_status: string; file_path: string
 		song_id: number; song_title: string; song_composer: string | null
+		song_lyrics: string | null; song_music_notes: string | null
 		session_id: number; session_date: string; session_location: string | null
 	}
 	type Playlist = { id: number; name: string; description: string | null }
@@ -141,6 +143,14 @@
 					· {formatDate(items[currentIdx].session_date)}
 					{#if items[currentIdx].note}<em>({items[currentIdx].note})</em>{/if}
 				</div>
+			{/if}
+
+			{#if items[currentIdx]}
+				<SongDetails
+					lyrics={items[currentIdx].song_lyrics}
+					musicNotes={items[currentIdx].song_music_notes}
+					compact
+				/>
 			{/if}
 
 			{#if currentTrack}

@@ -1,14 +1,16 @@
 <script lang="ts">
 	import type { PageData } from './$types'
 	import { formatDateOnly } from '$lib/date'
+	import SongDetails from '$lib/components/SongDetails.svelte'
 
 	let { data }: { data: PageData } = $props()
 
 	type SessionRow = { id: number; date: string; location: string | null }
-	type SongRow = { id: number; title: string }
+	type SongRow = { id: number; title: string; lyrics: string | null; music_notes: string | null }
 
 	const sessions = $derived(data.sessions as unknown as SessionRow[])
 	const songs = $derived(data.songs as unknown as SongRow[])
+	const selectedSongData = $derived(songs.find((song) => String(song.id) === selectedSong) ?? null)
 
 	let selectedSession = $state<string>('')
 	let newDate = $state('')
@@ -170,6 +172,13 @@
 						{/each}
 					</select>
 				</label>
+				{#if selectedSongData}
+					<SongDetails
+						lyrics={selectedSongData.lyrics}
+						musicNotes={selectedSongData.music_notes}
+						compact
+					/>
+				{/if}
 			{/if}
 		</fieldset>
 

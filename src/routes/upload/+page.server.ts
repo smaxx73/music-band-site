@@ -7,7 +7,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const [sessions, songs] = await Promise.all([
 		sql`SELECT id, date, location FROM sessions ORDER BY date DESC`,
-		sql`SELECT id, title FROM songs WHERE status != 'abandonne' ORDER BY title`
+		sql`
+			SELECT id, title, lyrics, music_notes
+			FROM songs
+			WHERE status != 'abandonne'
+			ORDER BY title
+		`
 	])
 
 	return { sessions, songs }

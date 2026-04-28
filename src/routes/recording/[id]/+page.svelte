@@ -4,6 +4,7 @@
 	import { formatDateOnly } from '$lib/date'
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte'
 	import CommentsPanel from '$lib/components/CommentsPanel.svelte'
+	import SongDetails from '$lib/components/SongDetails.svelte'
 
 	let { data }: { data: PageData } = $props()
 
@@ -11,6 +12,7 @@
 		id: number; take: number; status: string; notes: string | null
 		duration_s: number | null; uploaded_by: string; session_id: number; song_id: number
 		song_title: string; song_composer: string | null; song_key: string | null
+		song_lyrics: string | null; song_music_notes: string | null
 		session_date: string; session_location: string | null
 	}
 	type Comment = {
@@ -149,6 +151,8 @@
 		</div>
 		<button class="btn btn-secondary" onclick={openPlaylistModal}>+ Playlist</button>
 	</div>
+
+	<SongDetails lyrics={recording.song_lyrics} musicNotes={recording.song_music_notes} compact />
 
 	<!-- Modale playlist -->
 	{#if showPlaylistModal}

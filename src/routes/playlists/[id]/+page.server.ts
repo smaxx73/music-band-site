@@ -43,6 +43,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			s.id         AS song_id,
 			s.title      AS song_title,
 			s.composer   AS song_composer,
+			s.lyrics     AS song_lyrics,
+			s.music_notes AS song_music_notes,
 			ses.id       AS session_id,
 			ses.date     AS session_date,
 			ses.location AS session_location
@@ -55,13 +57,13 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	`
 
 	const peaksArr = await Promise.all(
-		(items as { recording_id: number; file_path: string }[]).map(
+		(items as unknown as { recording_id: number; file_path: string }[]).map(
 			(item) => loadPeaks(item.recording_id, item.file_path)
 		)
 	)
 	const peaks: Record<number, number[]> = {}
 	const durations: Record<number, number | null> = {}
-	;(items as { recording_id: number }[]).forEach((item, i) => {
+	;(items as unknown as { recording_id: number }[]).forEach((item, i) => {
 		peaks[item.recording_id] = peaksArr[i].peaks
 		durations[item.recording_id] = peaksArr[i].duration
 	})

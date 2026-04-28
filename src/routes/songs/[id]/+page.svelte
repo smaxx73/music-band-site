@@ -1,12 +1,14 @@
 <script lang="ts">
 	import type { PageData } from './$types'
 	import { formatDateOnly } from '$lib/date'
+	import SongDetails from '$lib/components/SongDetails.svelte'
 
 	let { data }: { data: PageData } = $props()
 
 	type Song = {
 		id: number; title: string; composer: string | null
-		key: string | null; status: string
+		key: string | null; lyrics: string | null
+		music_notes: string | null; status: string
 	}
 	type RecordingRow = {
 		id: number; take: number; status: string; notes: string | null
@@ -86,6 +88,8 @@
 			{SONG_STATUS_LABELS[song.status] ?? song.status}
 		</span>
 	</div>
+
+	<SongDetails lyrics={song.lyrics} musicNotes={song.music_notes} />
 
 	{#if recordings.length === 0}
 		<p class="empty">Aucune prise pour ce morceau. <a href="/upload">Uploader →</a></p>

@@ -48,6 +48,19 @@
 						<option value="abandonne">Abandonné</option>
 					</select>
 				</label>
+				<label class="form-label wide">
+					Paroles
+					<textarea class="form-input" name="lyrics" rows="6"></textarea>
+				</label>
+				<label class="form-label wide">
+					Accords / infos musicales
+					<textarea
+						class="form-input"
+						name="music_notes"
+						rows="6"
+						placeholder="Accords, structure, tempo, remarques..."
+					></textarea>
+				</label>
 			</div>
 			<button type="submit" class="btn btn-primary">Ajouter</button>
 		</form>
@@ -117,6 +130,19 @@
 														<option {value} selected={song.status === value}>{label}</option>
 													{/each}
 												</select>
+											</label>
+											<label class="form-label wide">
+												Paroles
+												<textarea class="form-input" name="lyrics" rows="6" value={song.lyrics ?? ''}></textarea>
+											</label>
+											<label class="form-label wide">
+												Accords / infos musicales
+												<textarea
+													class="form-input"
+													name="music_notes"
+													rows="6"
+													value={song.music_notes ?? ''}
+												></textarea>
 											</label>
 										</div>
 										<div class="inline-actions">
@@ -206,6 +232,15 @@
 		grid-template-columns: 2fr 1.5fr 1fr 1.5fr;
 		gap: 0.75rem;
 		margin-bottom: 0.75rem;
+	}
+
+	.fields .wide {
+		grid-column: span 2;
+	}
+
+	textarea.form-input {
+		resize: vertical;
+		min-height: 8rem;
 	}
 
 	.required { color: var(--color-error); }

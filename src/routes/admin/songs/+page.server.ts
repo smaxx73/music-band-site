@@ -31,6 +31,8 @@ export const actions: Actions = {
 		const title = (data.get('title') as string | null)?.trim()
 		const composer = (data.get('composer') as string | null)?.trim() || null
 		const key = (data.get('key') as string | null)?.trim() || null
+		const lyrics = (data.get('lyrics') as string | null)?.trim() || null
+		const music_notes = (data.get('music_notes') as string | null)?.trim() || null
 		const status = (data.get('status') as string | null) ?? 'en_apprentissage'
 
 		if (!title) return fail(400, { action: 'create', error: 'Le titre est obligatoire.' })
@@ -39,8 +41,16 @@ export const actions: Actions = {
 
 		try {
 			await sql`
-				INSERT INTO songs (group_id, title, composer, key, status)
-				VALUES (${locals.user.current_group_id}, ${title}, ${composer}, ${key}, ${status})
+				INSERT INTO songs (group_id, title, composer, key, lyrics, music_notes, status)
+				VALUES (
+					${locals.user.current_group_id},
+					${title},
+					${composer},
+					${key},
+					${lyrics},
+					${music_notes},
+					${status}
+				)
 			`
 		} catch (err) {
 			if (isUniqueViolation(err))
@@ -59,6 +69,8 @@ export const actions: Actions = {
 		const title = (data.get('title') as string | null)?.trim()
 		const composer = (data.get('composer') as string | null)?.trim() || null
 		const key = (data.get('key') as string | null)?.trim() || null
+		const lyrics = (data.get('lyrics') as string | null)?.trim() || null
+		const music_notes = (data.get('music_notes') as string | null)?.trim() || null
 		const status = data.get('status') as string | null
 
 		if (isNaN(id)) return fail(400, { action: 'update', id, error: 'ID invalide.' })
@@ -68,7 +80,13 @@ export const actions: Actions = {
 
 		try {
 			const [song] = await sql`
-				UPDATE songs SET title = ${title}, composer = ${composer}, key = ${key}, status = ${status}
+				UPDATE songs
+				SET title = ${title},
+					composer = ${composer},
+					key = ${key},
+					lyrics = ${lyrics},
+					music_notes = ${music_notes},
+					status = ${status}
 				WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
 				RETURNING id
 			`

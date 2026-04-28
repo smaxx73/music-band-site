@@ -4,11 +4,15 @@ import sql from '$lib/server/db'
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!locals.user) redirect(302, '/login')
+	if (!locals.user.current_group_id) error(403, 'Aucun groupe actif')
 
 	const id = parseInt(params.id)
 	if (isNaN(id)) error(400, 'ID invalide')
 
-	const [song] = await sql`SELECT * FROM songs WHERE id = ${id}`
+	const [song] = await sql`
+		SELECT * FROM songs
+		WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
+	`
 	if (!song) error(404, 'Morceau introuvable')
 
 	const recordings = await sql`
@@ -21,7 +25,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		FROM recordings r
 		JOIN sessions ses ON ses.id = r.session_id
 		LEFT JOIN comments c ON c.recording_id = r.id
-		WHERE r.song_id = ${id}
+		WHERE r.song_id = ${id} AND ses.group_id = ${locals.user.current_group_id}
 		GROUP BY r.id, ses.id
 		ORDER BY ses.date DESC, r.take ASC
 	`

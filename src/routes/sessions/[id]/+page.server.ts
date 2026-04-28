@@ -17,6 +17,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			s.id       AS song_id,
 			s.title    AS song_title,
 			s.composer AS song_composer,
+			s.lyrics   AS song_lyrics,
+			s.music_notes AS song_music_notes,
 			s.status   AS song_status,
 			COUNT(c.id)::int AS comment_count
 		FROM recordings r
@@ -29,7 +31,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	// Grouper par morceau côté serveur
 	const groupMap = new Map<number, {
-		song: { id: number; title: string; composer: string | null; status: string }
+		song: {
+			id: number
+			title: string
+			composer: string | null
+			lyrics: string | null
+			music_notes: string | null
+			status: string
+		}
 		recordings: {
 			id: number; take: number; status: string; notes: string | null
 			duration_s: number | null; uploaded_by: string; comment_count: number; file_path: string
@@ -44,6 +53,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 					id: row.song_id,
 					title: row.song_title,
 					composer: row.song_composer,
+					lyrics: row.song_lyrics,
+					music_notes: row.song_music_notes,
 					status: row.song_status
 				},
 				recordings: []

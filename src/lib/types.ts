@@ -32,6 +32,8 @@ export type Song = {
 	title: string
 	composer: string | null
 	key: string | null
+	lyrics: string | null
+	music_notes: string | null
 	status: SongStatus
 	created_at: Date
 }

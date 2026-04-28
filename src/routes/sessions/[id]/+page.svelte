@@ -2,10 +2,14 @@
 	import type { PageData } from './$types'
 	import { formatDateOnly } from '$lib/date'
 	import SessionEditor from '$lib/components/SessionEditor.svelte'
+	import SongDetails from '$lib/components/SongDetails.svelte'
 
 	let { data }: { data: PageData } = $props()
 
-	type Song = { id: number; title: string; composer: string | null; status: string }
+	type Song = {
+		id: number; title: string; composer: string | null
+		lyrics: string | null; music_notes: string | null; status: string
+	}
 	type RecordingRow = {
 		id: number; take: number; status: string; notes: string | null
 		duration_s: number | null; uploaded_by: string; comment_count: number; file_path: string
@@ -144,6 +148,12 @@
 						<span class="composer">— {group.song.composer}</span>
 					{/if}
 				</h2>
+
+				<SongDetails
+					lyrics={group.song.lyrics}
+					musicNotes={group.song.music_notes}
+					compact
+				/>
 
 				<table class="data-table">
 					<thead>

@@ -35,6 +35,8 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			s.title      AS song_title,
 			s.composer   AS song_composer,
 			s.key        AS song_key,
+			s.lyrics     AS song_lyrics,
+			s.music_notes AS song_music_notes,
 			ses.date     AS session_date,
 			ses.location AS session_location
 		FROM recordings r

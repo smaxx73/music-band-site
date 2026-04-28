@@ -32,6 +32,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const title: unknown = body.title
 	const composer: unknown = body.composer
 	const key: unknown = body.key
+	const lyrics: unknown = body.lyrics
+	const music_notes: unknown = body.music_notes
 	const status: unknown = body.status
 
 	if (typeof title !== 'string' || !title.trim()) {
@@ -45,12 +47,14 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 	try {
 		const [song] = await sql`
-			INSERT INTO songs (group_id, title, composer, key, status)
+			INSERT INTO songs (group_id, title, composer, key, lyrics, music_notes, status)
 			VALUES (
 				${locals.user.current_group_id},
 				${title.trim()},
 				${typeof composer === 'string' && composer.trim() ? composer.trim() : null},
 				${typeof key === 'string' && key.trim() ? key.trim() : null},
+				${typeof lyrics === 'string' && lyrics.trim() ? lyrics.trim() : null},
+				${typeof music_notes === 'string' && music_notes.trim() ? music_notes.trim() : null},
 				${typeof status === 'string' && status ? status : 'en_apprentissage'}
 			)
 			RETURNING *

@@ -46,6 +46,11 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			typeof body.composer === 'string' && body.composer.trim() ? body.composer.trim() : null
 	if ('key' in body)
 		updates.key = typeof body.key === 'string' && body.key.trim() ? body.key.trim() : null
+	if ('lyrics' in body)
+		updates.lyrics = typeof body.lyrics === 'string' && body.lyrics.trim() ? body.lyrics.trim() : null
+	if ('music_notes' in body)
+		updates.music_notes =
+			typeof body.music_notes === 'string' && body.music_notes.trim() ? body.music_notes.trim() : null
 	if (body.status !== undefined) updates.status = body.status as string
 
 	if (Object.keys(updates).length === 0) {
