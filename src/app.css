@@ -1,33 +1,46 @@
 /* ─── Design tokens ──────────────────────────────────── */
 :root {
-  /* Couleurs de base */
-  --color-primary:        #1a1a1a;
-  --color-primary-hover:  #333;
-  --color-bg:             #fff;
-  --color-bg-subtle:      #f8f8f8;
-  --color-bg-muted:       #f4f4f4;
-  --color-border:         #e0e0e0;
-  --color-border-light:   #e8e8e8;
-  --color-border-input:   #ccc;
-  --color-text:           #1a1a1a;
-  --color-text-secondary: #555;
-  --color-text-muted:     #888;
+  /* Palette chaude */
+  --color-ink:          #2C2B28;
+  --color-paper:        #F5F3EE;
+  --color-mid:          #9B9489;
+  --color-accent:       #E07B3A;
+  --color-accent-light: #FDE9D5;
+  --color-green:        #5A9E6F;
+  --color-green-light:  #D8EFE0;
+  --color-blue:         #4A7DB5;
+  --color-blue-light:   #D5E6F5;
+  --color-red:          #C05050;
+  --color-red-light:    #F5DADA;
 
-  /* Statuts — couleurs uniformisées */
-  --color-learning-bg:      #dbeafe;
-  --color-learning-text:    #1e40af;
-  --color-repertoire-bg:    #dcfce7;
-  --color-repertoire-text:  #166534;
-  --color-progress-bg:      #fef3c7;
-  --color-progress-text:    #92400e;
-  --color-abandoned-bg:     #f3f4f6;
-  --color-abandoned-text:   #6b7280;
+  /* Couleurs de base (mappées sur la palette chaude) */
+  --color-primary:        var(--color-ink);
+  --color-primary-hover:  #3F3E3A;
+  --color-bg:             #FAFAF7;
+  --color-bg-subtle:      var(--color-paper);
+  --color-bg-muted:       #EEE9DF;
+  --color-border:         #C8C4BB;
+  --color-border-light:   #D8D4CC;
+  --color-border-input:   #C0BCB3;
+  --color-text:           var(--color-ink);
+  --color-text-secondary: #6B6660;
+  --color-text-muted:     var(--color-mid);
+
+  /* Statuts — palette chaude */
+  --color-learning-bg:      var(--color-accent-light);
+  --color-learning-text:    #C06020;
+  --color-repertoire-bg:    var(--color-green-light);
+  --color-repertoire-text:  #3D7A50;
+  --color-progress-bg:      var(--color-blue-light);
+  --color-progress-text:    #2E5E8A;
+  --color-abandoned-bg:     var(--color-red-light);
+  --color-abandoned-text:   var(--color-red);
 
   /* Feedback */
-  --color-error:          #c0392b;
-  --color-success-bg:     #dcfce7;
-  --color-success-border: #bbf7d0;
-  --color-success-text:   #166534;
+  --color-error:          var(--color-red);
+  --color-success-bg:     var(--color-green-light);
+  --color-success-border: #B8DFC8;
+  --color-success-text:   #3D7A50;
 
   /* Espacement */
   --space-1: 0.25rem;
@@ -147,33 +160,33 @@ body {
 
 /* Statuts morceau */
 .badge-en_apprentissage {
-  background: var(--color-learning-bg);
+  background: var(--color-accent-light);
   color: var(--color-learning-text);
 }
 
 .badge-au_repertoire {
-  background: var(--color-repertoire-bg);
+  background: var(--color-green-light);
   color: var(--color-repertoire-text);
 }
 
 .badge-abandonne {
-  background: var(--color-abandoned-bg);
-  color: var(--color-abandoned-text);
+  background: var(--color-red-light);
+  color: var(--color-red);
 }
 
 /* Statuts prise */
 .badge-en_cours {
-  background: var(--color-progress-bg);
+  background: var(--color-blue-light);
   color: var(--color-progress-text);
 }
 
 .badge-au_point {
-  background: var(--color-learning-bg);
-  color: var(--color-learning-text);
+  background: var(--color-blue-light);
+  color: var(--color-progress-text);
 }
 
 .badge-repertoire {
-  background: var(--color-repertoire-bg);
+  background: var(--color-green-light);
   color: var(--color-repertoire-text);
 }
 
@@ -300,6 +313,54 @@ body {
   transform: translateX(-50%);
   width: 8px;
   height: 8px;
-  background: #e67e22;
+  background: var(--color-accent);
   border-radius: 50%;
+}
+
+/* ─── Shell d'application (sidebar layout) ───────────── */
+html, body {
+  height: 100%;
+}
+
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-top-bar {
+  flex-shrink: 0;
+  height: 44px;
+  background: var(--color-ink);
+  display: flex;
+  align-items: center;
+  padding: 0 1rem;
+  gap: 1rem;
+  z-index: 100;
+}
+
+.app-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.app-sidebar {
+  width: 188px;
+  flex-shrink: 0;
+  background: var(--color-ink);
+  display: flex;
+  flex-direction: column;
+  padding: 12px 10px;
+  gap: 2px;
+  overflow-y: auto;
+  border-right: 1px solid rgba(255,255,255,0.06);
+}
+
+.app-content {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--color-bg);
+  min-width: 0;
 }

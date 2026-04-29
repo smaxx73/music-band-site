@@ -26,6 +26,23 @@
 	const currentGroup = $derived(
 		data.user?.groups.find((g) => g.id === data.user?.current_group_id)
 	)
+
+	const userInitials = $derived(
+		data.user?.name
+			.split(' ')
+			.map((n) => n[0])
+			.join('')
+			.slice(0, 2)
+			.toUpperCase() ?? ''
+	)
+
+	const navItems = [
+		{ href: '/', label: 'Tableau de bord', icon: '⊞' },
+		{ href: '/sessions', label: 'Sessions', icon: '◎' },
+		{ href: '/songs', label: 'Morceaux', icon: '♪' },
+		{ href: '/playlists', label: 'Playlists', icon: '≡' },
+		{ href: '/agenda', label: 'Agenda', icon: '◻' },
+	]
 </script>
 
 <svelte:head>
@@ -33,10 +50,11 @@
 </svelte:head>
 
 {#if data.user}
-	<nav>
-		<div class="nav-inner">
-			<a href="/" class="nav-brand">Répétitions</a>
-
+	<div class="app-shell">
+		<!-- Top bar -->
+		<header class="app-top-bar">
+			<a href="/" class="brand">🎸 BandApp</a>
+			<div class="top-spacer"></div>
 			{#if data.user.groups.length > 1}
 				<select class="group-select" onchange={switchGroup}>
 					{#each data.user.groups as g}
@@ -44,150 +62,226 @@
 					{/each}
 				</select>
 			{:else if currentGroup}
-				<span class="group-name">{currentGroup.name}</span>
+				<span class="group-chip">{currentGroup.name}</span>
 			{/if}
+			<div class="user-avatar" title={data.user.name}>{userInitials}</div>
+		</header>
 
-			<ul class="nav-links">
-				<li><a href="/sessions" class:active={isActive('/sessions')}>Sessions</a></li>
-				<li><a href="/songs" class:active={isActive('/songs')}>Morceaux</a></li>
-				<li><a href="/playlists" class:active={isActive('/playlists')}>Playlists</a></li>
-				<li><a href="/agenda" class:active={isActive('/agenda')}>Agenda</a></li>
-				{#if data.user?.role === 'admin'}
-					<li><a href="/admin" class:active={isActive('/admin')} class="nav-admin">Admin</a></li>
+		<div class="app-body">
+			<!-- Sidebar -->
+			<nav class="app-sidebar">
+				<ul class="sidebar-nav">
+					{#each navItems as item}
+						<li>
+							<a href={item.href} class="sidebar-link" class:active={isActive(item.href)}>
+								<span class="nav-icon">{item.icon}</span>
+								{item.label}
+							</a>
+						</li>
+					{/each}
+					{#if data.user?.role === 'admin'}
+						<li class="sidebar-sep"></li>
+						<li>
+							<a href="/admin" class="sidebar-link sidebar-link--admin" class:active={isActive('/admin')}>
+								<span class="nav-icon">⚙</span>
+								Admin
+							</a>
+						</li>
+					{/if}
+				</ul>
+
+				<div class="sidebar-spacer"></div>
+
+				<a href="/upload" class="sidebar-upload" class:active={isActive('/upload')}>
+					+ Uploader
+				</a>
+
+				<div class="sidebar-user">
+					<div class="sidebar-avatar">{userInitials}</div>
+					<span class="sidebar-username">{data.user.name}</span>
+				</div>
+			</nav>
+
+			<!-- Page content -->
+			<div class="app-content">
+				{#if data.user.groups.length === 0}
+					<div class="no-group-banner">
+						{#if data.user.role === 'admin'}
+							Aucun groupe configuré. <a href="/admin/groups">Créer un groupe</a>
+						{:else}
+							Vous n'appartenez à aucun groupe. Contactez un administrateur.
+						{/if}
+					</div>
 				{/if}
-			</ul>
-			<a href="/upload" class="nav-upload" class:active={isActive('/upload')}>+ Uploader</a>
+				{@render children()}
+			</div>
 		</div>
-	</nav>
-{/if}
-
-{#if data.user && data.user.groups.length === 0}
-	<div class="no-group-banner">
-		{#if data.user.role === 'admin'}
-			Aucun groupe configuré. <a href="/admin/groups">Créer un groupe</a>
-		{:else}
-			Vous n'appartenez à aucun groupe. Contactez un administrateur.
-		{/if}
 	</div>
+{:else}
+	{@render children()}
 {/if}
-
-{@render children()}
 
 <style>
-	nav {
-		position: sticky;
-		top: 0;
-		z-index: 100;
-		background: var(--color-bg);
-		border-bottom: 1px solid var(--color-border-light);
-	}
-
-	.nav-inner {
-		max-width: 960px;
-		margin: 0 auto;
-		padding: 0 1rem;
-		height: 52px;
-		display: flex;
-		align-items: center;
-		gap: 1rem;
-	}
-
-	.nav-brand {
+	/* ─── Top bar ────────────────────────────────── */
+	.brand {
 		font-weight: 700;
-		font-size: var(--text-base);
-		color: var(--color-text);
+		font-size: 1rem;
+		color: #fff;
 		text-decoration: none;
 		white-space: nowrap;
 		flex-shrink: 0;
+		letter-spacing: -0.01em;
 	}
+
+	.top-spacer { flex: 1; }
 
 	.group-select {
-		font-size: var(--text-sm);
-		color: var(--color-text-secondary);
-		border: 1px solid var(--color-border-light);
+		font-size: 0.78rem;
+		color: var(--color-mid);
+		border: 1px solid rgba(255,255,255,0.15);
 		border-radius: var(--radius-md);
 		padding: 0.2rem 0.5rem;
-		background: transparent;
+		background: rgba(255,255,255,0.07);
 		cursor: pointer;
-		max-width: 160px;
+		max-width: 150px;
 		flex-shrink: 0;
+		color-scheme: dark;
 	}
 
-	.group-name {
-		font-size: var(--text-sm);
-		color: var(--color-text-secondary);
+	.group-chip {
+		font-size: 0.78rem;
+		color: var(--color-mid);
 		white-space: nowrap;
 		flex-shrink: 0;
-		max-width: 160px;
+		max-width: 150px;
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
 
-	.nav-links {
+	.user-avatar {
+		width: 30px;
+		height: 30px;
+		border-radius: 50%;
+		background: var(--color-accent-light);
+		color: var(--color-accent);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 0.7rem;
+		font-weight: 700;
+		flex-shrink: 0;
+		border: 1.5px solid var(--color-accent);
+	}
+
+	/* ─── Sidebar ────────────────────────────────── */
+	.sidebar-nav {
 		list-style: none;
 		margin: 0;
 		padding: 0;
 		display: flex;
-		gap: 0.25rem;
-		flex: 1;
+		flex-direction: column;
+		gap: 1px;
 	}
 
-	.nav-links a {
-		display: block;
-		padding: 0.3rem 0.65rem;
+	.sidebar-link {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 7px 10px;
 		border-radius: var(--radius-md);
-		font-size: var(--text-sm);
-		color: var(--color-text-secondary);
+		font-size: 0.82rem;
+		color: var(--color-mid);
 		text-decoration: none;
-		transition: color 0.1s, background 0.1s;
+		transition: background 0.1s, color 0.1s;
 	}
 
-	.nav-links a:hover {
-		color: var(--color-text);
-		background: #f5f5f5;
+	.sidebar-link:hover {
+		background: rgba(255,255,255,0.07);
+		color: #d8d4cc;
 	}
 
-	.nav-links a.active {
-		color: var(--color-text);
-		font-weight: 600;
+	.sidebar-link.active {
+		background: var(--color-accent);
+		color: #fff;
 	}
 
-	.nav-admin {
-		color: #999 !important;
-		font-size: 0.8rem !important;
+	.sidebar-link--admin {
+		font-size: 0.76rem;
 	}
 
-	.nav-admin.active,
-	.nav-admin:hover {
-		color: var(--color-text-secondary) !important;
-	}
-
-	.nav-upload {
+	.nav-icon {
+		font-size: 0.85rem;
+		opacity: 0.8;
 		flex-shrink: 0;
-		padding: 0.4rem 0.9rem;
-		background: var(--color-primary);
+	}
+
+	.sidebar-sep {
+		height: 1px;
+		background: rgba(255,255,255,0.08);
+		margin: 6px 4px;
+	}
+
+	.sidebar-spacer { flex: 1; }
+
+	.sidebar-upload {
+		display: block;
+		margin: 0 0 10px;
+		padding: 7px 10px;
+		background: var(--color-accent);
 		color: #fff;
 		border-radius: var(--radius-md);
 		text-decoration: none;
-		font-size: var(--text-sm);
+		font-size: 0.82rem;
 		font-weight: 600;
+		text-align: center;
+		transition: opacity 0.1s;
+	}
+
+	.sidebar-upload:hover {
+		opacity: 0.88;
+	}
+
+	.sidebar-upload.active {
+		opacity: 0.75;
+	}
+
+	.sidebar-user {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		padding: 6px 4px;
+		border-top: 1px solid rgba(255,255,255,0.08);
+	}
+
+	.sidebar-avatar {
+		width: 24px;
+		height: 24px;
+		border-radius: 50%;
+		border: 1.5px solid var(--color-mid);
+		background: transparent;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 0.6rem;
+		font-weight: 700;
+		color: var(--color-mid);
+		flex-shrink: 0;
+	}
+
+	.sidebar-username {
+		font-size: 0.75rem;
+		color: var(--color-mid);
 		white-space: nowrap;
-		transition: background 0.1s;
+		overflow: hidden;
+		text-overflow: ellipsis;
 	}
 
-	.nav-upload:hover {
-		background: var(--color-primary-hover);
-	}
-
-	.nav-upload.active {
-		background: var(--color-primary-hover);
-	}
-
+	/* ─── No-group banner ────────────────────────── */
 	.no-group-banner {
 		background: #fff8e1;
 		border-bottom: 1px solid #ffe082;
-		padding: 0.6rem 1rem;
-		font-size: var(--text-sm);
+		padding: 0.5rem 1rem;
+		font-size: 0.82rem;
 		text-align: center;
 		color: #6d4c00;
 	}
@@ -197,23 +291,57 @@
 		font-weight: 600;
 	}
 
-	@media (max-width: 540px) {
-		.nav-inner {
-			gap: 0.5rem;
+	/* ─── Mobile: replaces sidebar with compact top nav ─ */
+	@media (max-width: 640px) {
+		.app-shell {
 			height: auto;
-			flex-wrap: wrap;
-			padding: 0.5rem 1rem;
+			overflow: visible;
 		}
 
-		.nav-links {
-			order: 3;
+		.app-body {
+			flex-direction: column;
+			overflow: visible;
+		}
+
+		.app-sidebar {
 			width: 100%;
-			padding-bottom: 0.25rem;
+			flex-direction: row;
+			padding: 0 8px;
+			gap: 0;
+			overflow-x: auto;
+			overflow-y: visible;
+			border-right: none;
+			border-bottom: 1px solid rgba(255,255,255,0.08);
 		}
 
-		.group-select,
-		.group-name {
-			max-width: 120px;
+		.sidebar-nav {
+			flex-direction: row;
+			gap: 2px;
+		}
+
+		.sidebar-link {
+			white-space: nowrap;
+			padding: 8px 10px;
+			gap: 5px;
+		}
+
+		.nav-icon { display: none; }
+
+		.sidebar-sep { display: none; }
+
+		.sidebar-spacer { display: none; }
+
+		.sidebar-upload {
+			margin: 4px 0 4px 6px;
+			padding: 6px 12px;
+			white-space: nowrap;
+			flex-shrink: 0;
+		}
+
+		.sidebar-user { display: none; }
+
+		.app-content {
+			overflow-y: visible;
 		}
 	}
 </style>
