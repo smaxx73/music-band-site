@@ -11,6 +11,7 @@
 		author: string
 		title: string | null
 		notes: string | null
+		location: string | null
 		session_id: number | null
 		session_date: string | null
 		session_location: string | null
@@ -99,6 +100,7 @@
 	let formType: 'indisponibilite' | 'repetition' | 'concert' = $state('indisponibilite')
 	let formTitle = $state('')
 	let formNotes = $state('')
+	let formLocation = $state('')
 	let formSessionId = $state('')
 	let submitting = $state(false)
 	let formError = $state('')
@@ -118,6 +120,7 @@
 			formType = 'indisponibilite'
 			formTitle = ''
 			formNotes = ''
+			formLocation = ''
 			formSessionId = ''
 			formError = ''
 		}
@@ -136,6 +139,7 @@
 					type: formType,
 					title: formTitle || null,
 					notes: formNotes || null,
+					location: formLocation || null,
 					session_id: formSessionId ? parseInt(formSessionId) : null
 				})
 			})
@@ -145,6 +149,7 @@
 			} else {
 				formTitle = ''
 				formNotes = ''
+				formLocation = ''
 				formSessionId = ''
 				await invalidateAll()
 			}
@@ -252,6 +257,9 @@
 									</a>
 								{/if}
 							{/if}
+							{#if event.location}
+								<span class="panel-event-location">📍 {event.location}</span>
+							{/if}
 							{#if event.notes}
 								<span class="panel-event-notes">{event.notes}</span>
 							{/if}
@@ -301,6 +309,15 @@
 						</select>
 					</div>
 				{/if}
+
+				<div class="form-row">
+					<input
+						class="form-input"
+						type="text"
+						placeholder="Lieu (optionnel)"
+						bind:value={formLocation}
+					/>
+				</div>
 
 				<div class="form-row">
 					<input
@@ -520,6 +537,11 @@
 
 	.panel-event-session:hover {
 		text-decoration: underline;
+	}
+
+	.panel-event-location {
+		font-size: var(--text-xs);
+		color: var(--color-text-secondary);
 	}
 
 	.panel-event-notes {

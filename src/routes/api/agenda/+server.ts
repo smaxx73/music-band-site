@@ -19,7 +19,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 	const events = await sql`
 		SELECT
-			e.id, e.group_id, e.type, e.author, e.title, e.notes, e.session_id, e.created_at,
+			e.id, e.group_id, e.type, e.author, e.title, e.notes, e.location, e.session_id, e.created_at,
 			to_char(e.date, 'YYYY-MM-DD') AS date,
 			to_char(s.date, 'YYYY-MM-DD') AS session_date,
 			s.location AS session_location
@@ -39,7 +39,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
 
 	const body = await request.json()
-	const { date, type, title, notes, session_id } = body
+	const { date, type, title, notes, location, session_id } = body
 
 	if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
 		return json({ error: 'Date invalide.' }, { status: 400 })
@@ -58,7 +58,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	const [event] = await sql`
-		INSERT INTO calendar_events (group_id, date, type, author, title, notes, session_id)
+		INSERT INTO calendar_events (group_id, date, type, author, title, notes, location, session_id)
 		VALUES (
 			${locals.user.current_group_id},
 			${date}::date,
@@ -66,6 +66,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			${locals.user.name},
 			${typeof title === 'string' && title.trim() ? title.trim() : null},
 			${typeof notes === 'string' && notes.trim() ? notes.trim() : null},
+			${typeof location === 'string' && location.trim() ? location.trim() : null},
 			${resolvedSessionId}
 		)
 		RETURNING *
