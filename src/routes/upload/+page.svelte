@@ -21,7 +21,9 @@
 	let uploading = $state(false)
 	let progress = $state(0)
 	let successId = $state<number | null>(null)
+	let successSessionId = $state<number | null>(null)
 	let error = $state<string | null>(null)
+	let duplicate = $state<{ id: number; take: number; session_date: string; song_title: string } | null>(null)
 
 	function formatDate(d: string | Date) {
 		return formatDateOnly(d, {
@@ -33,8 +35,10 @@
 
 	async function handleSubmit(e: SubmitEvent) {
 		e.preventDefault()
+		if (uploading) return
 		error = null
 		successId = null
+		duplicate = null
 		progress = 0
 
 		if (!selectedSong) { error = 'Sélectionne un morceau.'; return }
@@ -62,15 +66,28 @@
 
 			const result = await uploadWithProgress(sessionId, parseInt(selectedSong), file)
 			successId = result.id
+			successSessionId = sessionId
 			file = null
 			selectedSession = ''
 			selectedSong = ''
 			newDate = ''
 			newLocation = ''
 		} catch (err) {
-			error = err instanceof Error ? err.message : 'Erreur inattendue.'
+			if (err instanceof DuplicateError) {
+				duplicate = err.duplicate
+			} else {
+				error = err instanceof Error ? err.message : 'Erreur inattendue.'
+			}
 		} finally {
 			uploading = false
+		}
+	}
+
+	class DuplicateError extends Error {
+		duplicate: { id: number; take: number; session_date: string; song_title: string }
+		constructor(d: DuplicateError['duplicate']) {
+			super('doublon')
+			this.duplicate = d
 		}
 	}
 
@@ -90,8 +107,13 @@
 			xhr.onload = () => {
 				try {
 					const data = JSON.parse(xhr.responseText)
-					if (xhr.status >= 200 && xhr.status < 300) resolve(data)
-					else reject(new Error(data.error ?? `Erreur ${xhr.status}`))
+					if (xhr.status === 409 && data.duplicate) {
+						reject(new DuplicateError(data.duplicate))
+					} else if (xhr.status >= 200 && xhr.status < 300) {
+						resolve(data)
+					} else {
+						reject(new Error(data.error ?? `Erreur ${xhr.status}`))
+					}
 				} catch {
 					reject(new Error('Réponse invalide du serveur.'))
 				}
@@ -116,6 +138,17 @@
 		<div class="message-success" style="margin-bottom: 1rem;">
 			Prise uploadée avec succès !
 			<a href="/recording/{successId}">Écouter la prise →</a>
+			{#if successSessionId}
+				· <a href="/sessions/{successSessionId}">Retour à la session →</a>
+			{/if}
+		</div>
+	{/if}
+
+	{#if duplicate}
+		<div class="message-error" style="margin-bottom: 0.75rem;">
+			Ce fichier a déjà été uploadé : <strong>{duplicate.song_title}</strong>,
+			prise #{duplicate.take} ({formatDate(duplicate.session_date)}).
+			<a href="/recording/{duplicate.id}">Voir la prise →</a>
 		</div>
 	{/if}
 

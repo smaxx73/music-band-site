@@ -117,6 +117,30 @@
 		await patchRecording(id, { notes: notes.trim() || null })
 		cancelEditNotes(id)
 	}
+
+	let deleting = $state(false)
+	let deleteError = $state<string | null>(null)
+
+	async function deleteSession() {
+		const recordingCount = groups.reduce((n, g) => n + g.recordings.length, 0)
+		const msg = recordingCount > 0
+			? `Supprimer cette session et ses ${recordingCount} prise(s) ? Cette action est irréversible.`
+			: 'Supprimer cette session ? Cette action est irréversible.'
+		if (!confirm(msg)) return
+
+		deleting = true
+		deleteError = null
+		try {
+			const res = await fetch(`/api/sessions/${session.id}`, { method: 'DELETE' })
+			const json = await res.json()
+			if (!res.ok) { deleteError = json.error ?? 'Erreur.'; return }
+			window.location.href = '/sessions'
+		} catch {
+			deleteError = 'Erreur réseau.'
+		} finally {
+			deleting = false
+		}
+	}
 </script>
 
 <svelte:head>
@@ -245,7 +269,13 @@
 
 	<div class="footer-actions">
 		<a href="/upload" class="btn btn-secondary">+ Ajouter une prise</a>
+		<button class="btn btn-danger" onclick={deleteSession} disabled={deleting}>
+			{deleting ? 'Suppression…' : 'Supprimer la session'}
+		</button>
 	</div>
+	{#if deleteError}
+		<p class="message-error" style="margin-top: 0.5rem;">{deleteError}</p>
+	{/if}
 </main>
 
 <style>
@@ -281,7 +311,7 @@
 		font-weight: 600;
 	}
 
-	.footer-actions { margin-top: 2rem; }
+	.footer-actions { margin-top: 2rem; display: flex; gap: 0.75rem; align-items: center; }
 
 	/* Select de statut coloré inline */
 	.status-select {

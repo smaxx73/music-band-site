@@ -1,6 +1,8 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
+import { unlink } from 'fs/promises'
 import sql from '$lib/server/db'
+import { audioPath } from '$lib/server/storage'
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -100,4 +102,30 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	if (!session) return json({ error: 'Session introuvable.' }, { status: 404 })
 
 	return json(session)
+}
+
+export const DELETE: RequestHandler = async ({ locals, params }) => {
+	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
+	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
+
+	const id = parseInt(params.id)
+	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
+
+	const recordings = await sql`
+		SELECT r.id FROM recordings r
+		JOIN sessions s ON s.id = r.session_id
+		WHERE r.session_id = ${id} AND s.group_id = ${locals.user.current_group_id}
+	`
+
+	const [deleted] = await sql`
+		DELETE FROM sessions WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
+		RETURNING id
+	`
+	if (!deleted) return json({ error: 'Session introuvable.' }, { status: 404 })
+
+	for (const r of recordings) {
+		await unlink(audioPath(r.id as number)).catch(() => {})
+	}
+
+	return json({ success: true })
 }

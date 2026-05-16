@@ -1,11 +1,11 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
-import { Readable } from 'stream'
+import { Readable, Transform } from 'stream'
 import { createWriteStream } from 'fs'
 import { unlink, rename } from 'fs/promises'
 import { join } from 'path'
 import { tmpdir } from 'os'
-import { randomUUID } from 'crypto'
+import { randomUUID, createHash } from 'crypto'
 import busboy from 'busboy'
 import sql from '$lib/server/db'
 import { convertToMp3, getDuration } from '$lib/server/ffmpeg'
@@ -41,6 +41,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		let fileWritePromise: Promise<void> | null = null
 		let fileTooLarge = false
 		let mimeError: string | null = null
+		let fileHash = ''
 
 		bb.on('field', (name, val) => {
 			if (name === 'session_id') sessionId = parseInt(val)
@@ -59,6 +60,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 			rawTmpPath = join(tmpdir(), `band-raw-${randomUUID()}.tmp`)
 			const ws = createWriteStream(rawTmpPath)
+			const sha256 = createHash('sha256')
+			const hashTransform = new Transform({
+				transform(chunk: Buffer, _enc, cb) { sha256.update(chunk); this.push(chunk); cb() },
+				flush(cb) { fileHash = sha256.digest('hex'); cb() }
+			})
 
 			stream.on('limit', () => {
 				fileTooLarge = true
@@ -72,7 +78,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			})
 
 			// Streaming vers le disque — jamais en mémoire Node
-			stream.pipe(ws)
+			stream.pipe(hashTransform).pipe(ws)
 		})
 
 		bb.on('finish', async () => {
@@ -104,6 +110,20 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				// Attendre que l'écriture sur disque soit terminée
 				await fileWritePromise
 
+				// Détection de doublon par hash SHA-256
+				const [duplicate] = await sql`
+					SELECT r.id, r.take, ses.date AS session_date, s.title AS song_title
+					FROM recordings r
+					JOIN sessions ses ON ses.id = r.session_id
+					JOIN songs s ON s.id = r.song_id
+					WHERE r.file_hash = ${fileHash} AND ses.group_id = ${locals.user!.current_group_id}
+				`
+				if (duplicate) {
+					await unlink(rawTmpPath)
+					resolve(json({ error: 'doublon', duplicate }, { status: 409 }))
+					return
+				}
+
 				// Conversion ffmpeg : disk → disk, jamais en mémoire Node
 				await convertToMp3(rawTmpPath, mp3TmpPath)
 				await unlink(rawTmpPath)
@@ -127,8 +147,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 						WHERE session_id = ${sessionId} AND song_id = ${songId}
 					`
 					const [rec] = await tx`
-						INSERT INTO recordings (session_id, song_id, take, file_path, duration_s, uploaded_by)
-						VALUES (${sessionId}, ${songId}, ${take}, ${'pending'}, ${duration}, ${user})
+						INSERT INTO recordings (session_id, song_id, take, file_path, duration_s, uploaded_by, file_hash)
+						VALUES (${sessionId}, ${songId}, ${take}, ${'pending'}, ${duration}, ${user}, ${fileHash})
 						RETURNING *
 					`
 					return rec
