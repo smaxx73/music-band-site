@@ -61,9 +61,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		`
 	])
 
-	const siblingIdx = (siblings as { id: number; take: number }[]).findIndex((r) => r.id === id)
-	const prevRecording = siblingIdx > 0 ? siblings[siblingIdx - 1] : null
-	const nextRecording = siblingIdx < siblings.length - 1 ? siblings[siblingIdx + 1] : null
+	const siblingList = siblings as { id: number; take: number }[]
+	const siblingIdx = siblingList.findIndex((r) => Number(r.id) === id)
+	const prevRecording = siblingIdx > 0
+		? { id: Number(siblingList[siblingIdx - 1].id), take: Number(siblingList[siblingIdx - 1].take) }
+		: null
+	const nextRecording = siblingIdx !== -1 && siblingIdx < siblingList.length - 1
+		? { id: Number(siblingList[siblingIdx + 1].id), take: Number(siblingList[siblingIdx + 1].take) }
+		: null
 
 	return {
 		recording,
