@@ -7,20 +7,24 @@ Application web privée pour partager et archiver les enregistrements de répét
 ### Enregistrements
 
 - **Upload** de fichiers audio (jusqu'à 200 Mo) avec conversion automatique en MP3 128 kbps via ffmpeg et suppression des silences en début/fin
+- Détection des doublons par empreinte SHA-256 avant conversion
 - **Numérotation automatique des prises** par morceau et par session (Prise 1, 2, 3…)
 - **Lecteur audio** avec visualisation de la forme d'onde (WaveSurfer.js), contrôles ⏮ ▶/⏸ ⏭ +10s et réglage du volume
-- **Statut par prise** : En cours / Au point / Répertoire — modifiable directement dans la vue session
+- **Qualité par prise** : À revoir / Moyen / Bon / Référence ou libellé court personnalisé — modifiable directement dans la vue session
 
 ### Sessions
 
-- Création de sessions (date, lieu, membres présents, notes)
-- Vue session : prises groupées par morceau, statut et notes éditables inline
+- Création de sessions avec type (répétition, concert, studio, autre), titre optionnel, date, lieu, membres présents et notes
+- Vue session : prises groupées par morceau, qualité et notes éditables inline
 - Ajout de prises à une session passée
+- Mode édition pour supprimer des prises, réordonner les prises d'un morceau et renuméroter
+- Suppression d'une session avec suppression des fichiers audio associés
 
 ### Morceaux
 
 - Référentiel de morceaux avec titre, compositeur, tonalité et statut (En apprentissage / Au répertoire / Abandonné)
 - Historique complet d'un morceau : toutes ses prises toutes sessions confondues, triées par date décroissante
+- Liste des morceaux avec nombre de prises disponibles
 
 ### Commentaires
 
@@ -38,8 +42,10 @@ Application web privée pour partager et archiver les enregistrements de répét
 
 - Vue mensuelle avec navigation mois par mois
 - Trois types d'événements : **Indisponibilité** (personnelle), **Répétition**, **Concert**
-- Les répétitions et concerts peuvent être liés à une session existante
-- Suppression : chacun ne peut supprimer que sa propre indisponibilité ; répétitions et concerts sont supprimables par tous
+- Les événements peuvent avoir un lieu et des notes
+- Les répétitions et concerts appartiennent au groupe actif et peuvent être liés à une session existante
+- Les indisponibilités sont personnelles : elles suivent l'utilisateur et restent visibles par les membres de ses groupes
+- Modification / suppression : chacun ne peut modifier ou supprimer que sa propre indisponibilité ; répétitions et concerts sont modifiables et supprimables par les membres du groupe
 
 ### Tableau de bord
 

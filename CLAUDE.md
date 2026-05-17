@@ -9,7 +9,7 @@
 # CLAUDE.md — Band Rehearsal App
 
 Application web privée pour partager les enregistrements de répétitions d'un groupe de musique.
-Accès restreint, tout le monde a les mêmes droits, tout le contenu est partagé.
+Accès restreint par comptes individuels. Les contenus sont isolés par groupe actif ; les admins gèrent les morceaux, utilisateurs et groupes.
 
 ## Références
 - Schéma SQL complet : @schema.sql
@@ -23,7 +23,7 @@ Accès restreint, tout le monde a les mêmes droits, tout le contenu est partag�
 - Fichiers audio locaux dans `/data/audio/` (volume Docker)
 - `ffmpeg` pour conversion et traitement audio
 - WaveSurfer.js pour le lecteur
-- Cookie signé pour l'auth (mot de passe partagé)
+- Cookie signé pour l'auth, mots de passe individuels hashés en base
 - Docker Compose (app + postgres + caddy) avec HTTPS automatique
 
 ## Commandes
@@ -44,7 +44,6 @@ docker compose exec -T db psql -U band -d bandapp < migrations/006_calendar.sql
 ```
 DATABASE_URL=postgresql://band:secret@db:5432/bandapp
 AUDIO_DIR=/data/audio
-AUTH_PASSWORD=motdepassedugroupe
 AUTH_SECRET=chaine_aleatoire_pour_cookies
 NODE_ENV=production
 ```
@@ -53,7 +52,8 @@ NODE_ENV=production
 - IMPORTANT : ne jamais charger un fichier audio en mémoire Node entièrement
 - IMPORTANT : le calcul du `take` doit se faire dans une transaction
 - IMPORTANT : les morceaux avec statut `abandonne` n'apparaissent pas dans le sélecteur d'upload
-- Ne jamais exposer `AUTH_PASSWORD` dans le code ou les logs
+- IMPORTANT : toutes les données groupe-scopées doivent être filtrées par `locals.user.current_group_id`
+- Ne jamais exposer de mot de passe ou hash de mot de passe dans le code client ou les logs
 - `$lib/server/` ne doit jamais être importé dans un composant client
 - WaveSurfer.js doit être importé dynamiquement (`import()`) — accès à `window`
 - En production, Caddy sert les fichiers audio directement depuis `/audio/` — pas Node
@@ -67,6 +67,8 @@ NODE_ENV=production
 /playlists/[id]     lecture en continu d'une playlist
 /upload             formulaire d'upload
 /admin/songs        gestion du référentiel de morceaux
+/admin/users        gestion des comptes
+/admin/groups       gestion des groupes et membres
 /agenda             agenda partagé du groupe (indisponibilités, répétitions, concerts)
 ```
 

@@ -61,6 +61,7 @@ CREATE TABLE recordings (
     file_path   TEXT NOT NULL,               -- "{id}.mp3"
     duration_s  INTEGER,
     status      TEXT DEFAULT 'À revoir',      -- qualité libre : 'À revoir' | 'Moyen' | 'Bon' | 'Référence' | texte court personnalisé
+    file_hash   TEXT,
     notes       TEXT,
     uploaded_by TEXT NOT NULL,
     created_at  TIMESTAMPTZ DEFAULT now(),
@@ -105,8 +106,27 @@ CREATE TABLE audio_formats (
     enabled     BOOLEAN NOT NULL DEFAULT true
 );
 
+CREATE TABLE calendar_events (
+    id          SERIAL PRIMARY KEY,
+    group_id    INTEGER REFERENCES groups(id) ON DELETE CASCADE,
+                                             -- NULL pour les indisponibilités personnelles
+    user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                                             -- auteur réel des indisponibilités
+    date        DATE NOT NULL,
+    type        TEXT NOT NULL CHECK (type IN ('indisponibilite', 'repetition', 'concert')),
+    author      TEXT NOT NULL,
+    title       TEXT,
+    notes       TEXT,
+    location    TEXT,
+    session_id  INTEGER REFERENCES sessions(id) ON DELETE SET NULL,
+    created_at  TIMESTAMPTZ DEFAULT now()
+);
+
 CREATE INDEX idx_songs_group_id     ON songs(group_id);
 CREATE INDEX idx_sessions_group_id  ON sessions(group_id);
 CREATE INDEX idx_playlists_group_id ON playlists(group_id);
 CREATE INDEX idx_user_groups_user   ON user_groups(user_id);
 CREATE INDEX idx_user_groups_group  ON user_groups(group_id);
+CREATE INDEX idx_recordings_file_hash ON recordings(file_hash);
+CREATE INDEX idx_calendar_events_group_date ON calendar_events(group_id, date);
+CREATE INDEX idx_calendar_events_user ON calendar_events(user_id) WHERE user_id IS NOT NULL;

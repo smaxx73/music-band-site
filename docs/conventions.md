@@ -10,11 +10,11 @@ src/
 │   │   ├── storage.ts     # lecture/écriture fichiers audio
 │   │   └── ffmpeg.ts      # conversion mp3, découpe silence, durée
 │   └── components/
-│       ├── Player.svelte          # lecteur WaveSurfer.js
-│       ├── CommentPin.svelte      # marqueur sur waveform
-│       ├── RecordingCard.svelte
-│       ├── SessionCard.svelte
-│       └── PlaylistPlayer.svelte
+│       ├── AudioPlayer.svelte     # lecteur WaveSurfer.js
+│       ├── CommentsPanel.svelte   # commentaires globaux et timestampés
+│       ├── PlaylistQueue.svelte   # file de lecture playlist
+│       ├── SessionEditor.svelte   # édition des métadonnées de session
+│       └── SongDetails.svelte     # paroles et notes musicales
 ├── routes/
 │   ├── +layout.svelte     # layout global + vérif auth
 │   ├── +page.svelte       # tableau de bord
@@ -42,7 +42,8 @@ type Recording = {
   take: number
   file_path: string
   duration_s: number | null
-  status: 'en_cours' | 'au_point' | 'repertoire'
+  status: string // qualité libre : 'À revoir' | 'Moyen' | 'Bon' | 'Référence' | texte court
+  file_hash: string | null
   notes: string | null
   uploaded_by: string
   created_at: Date
@@ -56,17 +57,20 @@ type Recording = {
 - Toute modification du schéma = nouveau fichier numéroté dans `migrations/`
 
 ## Auth
-- Cookie signé `band_session` vérifié dans `+layout.server.ts`
+- Cookie signé `band_session` vérifié dans `hooks.server.ts`
+- Mot de passe individuel stocké en hash `scrypt` dans `users.password_hash`
 - Si absent ou invalide → redirect `/login`
-- Le prénom saisi au login est dans le cookie → utilisé comme `author` / `uploaded_by`
-- `AUTH_PASSWORD` et `AUTH_SECRET` dans `.env` uniquement
+- L'utilisateur connecté fournit `author` / `uploaded_by`
+- Le groupe actif est persisté dans le cookie `band_group`
+- `AUTH_SECRET` dans `.env` uniquement
 
 ## Fichiers audio
 - Stockés dans `/data/audio/{recording_id}.mp3`
 - Convertis en mp3 128kbps à l'upload via ffmpeg
-- Nginx les sert depuis `/audio/` — jamais Node
+- Caddy les sert depuis `/audio/` en production ; Node ne les sert qu'en développement
 - `BODY_SIZE_LIMIT` configuré dans `svelte.config.js` pour les gros uploads
 - Ne jamais les charger entièrement en mémoire Node
+- Les doublons sont détectés par `recordings.file_hash` avant conversion
 
 ## Données
 - `recordings` est le nœud central — il appartient à une session ET à un morceau
@@ -74,3 +78,4 @@ type Recording = {
 - Vue morceau = requête sur `recordings` filtrée par `song_id`, toutes sessions
 - Une playlist pointe vers des `recordings` spécifiques (pas des morceaux)
 - Le `take` est toujours calculé automatiquement — jamais saisi manuellement
+- Les entités métier visibles sont filtrées par `current_group_id`, sauf les indisponibilités personnelles qui sont filtrées par appartenance utilisateur au groupe actif
