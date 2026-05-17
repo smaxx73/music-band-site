@@ -16,19 +16,26 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	const nextY = m === 12 ? y + 1 : y
 	const nextM = m === 12 ? 1 : m + 1
 	const end = `${nextY}-${String(nextM).padStart(2, '0')}-01`
+	const groupId = locals.user.current_group_id
 
 	const events = await sql`
 		SELECT
-			e.id, e.group_id, e.type, e.author, e.title, e.notes, e.location, e.session_id, e.created_at,
+			e.id, e.group_id, e.user_id, e.type, e.author, e.title, e.notes, e.location, e.session_id, e.created_at,
 			to_char(e.date, 'YYYY-MM-DD') AS date,
 			to_char(s.date, 'YYYY-MM-DD') AS session_date,
 			s.location AS session_location
 		FROM calendar_events e
 		LEFT JOIN sessions s ON s.id = e.session_id
-		WHERE e.group_id = ${locals.user.current_group_id}
-			AND e.date >= ${start}::date
+		WHERE e.date >= ${start}::date
 			AND e.date < ${end}::date
-		ORDER BY e.date, e.created_at
+			AND (
+				(e.group_id = ${groupId} AND e.type IN ('repetition', 'concert'))
+				OR
+				(e.type = 'indisponibilite' AND e.user_id IN (
+					SELECT user_id FROM user_groups WHERE group_id = ${groupId}
+				))
+			)
+		ORDER BY e.date, e.type, e.created_at
 	`
 
 	return json(events)
@@ -48,8 +55,25 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		return json({ error: 'Type invalide.' }, { status: 400 })
 	}
 
+	if (type === 'indisponibilite') {
+		const [event] = await sql`
+			INSERT INTO calendar_events (user_id, group_id, date, type, author, notes, location)
+			VALUES (
+				${locals.user.id},
+				NULL,
+				${date}::date,
+				'indisponibilite',
+				${locals.user.name},
+				${typeof notes === 'string' && notes.trim() ? notes.trim() : null},
+				${typeof location === 'string' && location.trim() ? location.trim() : null}
+			)
+			RETURNING *
+		`
+		return json(event, { status: 201 })
+	}
+
 	let resolvedSessionId: number | null = null
-	if (type !== 'indisponibilite' && typeof session_id === 'number') {
+	if (typeof session_id === 'number') {
 		const [session] = await sql`
 			SELECT id FROM sessions WHERE id = ${session_id} AND group_id = ${locals.user.current_group_id}
 		`
@@ -58,9 +82,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	const [event] = await sql`
-		INSERT INTO calendar_events (group_id, date, type, author, title, notes, location, session_id)
+		INSERT INTO calendar_events (group_id, user_id, date, type, author, title, notes, location, session_id)
 		VALUES (
 			${locals.user.current_group_id},
+			NULL,
 			${date}::date,
 			${type},
 			${locals.user.name},

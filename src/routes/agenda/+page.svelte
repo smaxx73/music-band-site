@@ -9,6 +9,7 @@
 		date: string
 		type: 'indisponibilite' | 'repetition' | 'concert'
 		author: string
+		user_id: number | null
 		title: string | null
 		notes: string | null
 		location: string | null
@@ -26,6 +27,7 @@
 	const events = $derived(data.events as unknown as CalendarEventRow[])
 	const sessions = $derived(data.sessions as unknown as SessionRow[])
 	const userName = $derived(data.userName as string)
+	const userId = $derived(data.userId as number)
 
 	const calYear = $derived(Number(data.month.split('-')[0]))
 	const calMonth = $derived(Number(data.month.split('-')[1]))
@@ -58,6 +60,16 @@
 	function eventsForDay(day: number) {
 		const d = dateStr(day)
 		return events.filter((e) => e.date === d)
+	}
+
+	function groupEventsForDay(day: number) {
+		const d = dateStr(day)
+		return events.filter((e) => e.date === d && e.type !== 'indisponibilite')
+	}
+
+	function unavailsForDay(day: number) {
+		const d = dateStr(day)
+		return events.filter((e) => e.date === d && e.type === 'indisponibilite')
 	}
 
 	const today = new Date().toISOString().slice(0, 10)
@@ -166,7 +178,7 @@
 	}
 
 	function canDelete(event: CalendarEventRow) {
-		if (event.type === 'indisponibilite') return event.author === userName
+		if (event.type === 'indisponibilite') return event.user_id === userId
 		return true
 	}
 
@@ -220,11 +232,14 @@
 				{#if day !== null}
 					<button class="day-number" onclick={() => selectDay(day)}>{day}</button>
 					<div class="day-events">
-						{#each eventsForDay(day) as event}
+						{#each groupEventsForDay(day) as event}
 							<div class="event-badge event-{event.type}">
-								{event.type === 'indisponibilite'
-									? event.author
-									: (event.title || TYPE_LABELS[event.type])}
+								{event.title || TYPE_LABELS[event.type]}
+							</div>
+						{/each}
+						{#each unavailsForDay(day) as event}
+							<div class="event-badge event-indisponibilite">
+								{event.author}
 							</div>
 						{/each}
 					</div>
@@ -234,6 +249,9 @@
 	</div>
 
 	{#if selectedDay !== null}
+		{@const dayGroupEvents = groupEventsForDay(selectedDay)}
+		{@const dayUnavails = unavailsForDay(selectedDay)}
+
 		<div class="day-panel">
 			<div class="panel-header">
 				<h2 class="panel-title">{selectedDayLabel}</h2>
@@ -241,41 +259,71 @@
 			</div>
 
 			<div class="panel-events">
-				{#each eventsForDay(selectedDay) as event}
-					<div class="panel-event">
-						<span class="event-badge event-{event.type} panel-event-type">
-							{TYPE_LABELS[event.type]}
-						</span>
-						<div class="panel-event-body">
-							{#if event.type === 'indisponibilite'}
-								<span class="panel-event-name">{event.author}</span>
-							{:else}
-								<span class="panel-event-name">{event.title || TYPE_LABELS[event.type]}</span>
-								{#if event.session_id && event.session_date}
-									<a href="/sessions/{event.session_id}" class="panel-event-session">
-										Session du {fmtDate(event.session_date)}{event.session_location ? ` — ${event.session_location}` : ''}
-									</a>
-								{/if}
-							{/if}
-							{#if event.location}
-								<span class="panel-event-location">📍 {event.location}</span>
-							{/if}
-							{#if event.notes}
-								<span class="panel-event-notes">{event.notes}</span>
-							{/if}
-							<span class="panel-event-meta">par {event.author}</span>
-						</div>
-						{#if canDelete(event)}
-							<button
-								class="btn btn-ghost btn-sm delete-btn"
-								onclick={() => deleteEvent(event.id)}
-								title="Supprimer"
-							>✕</button>
-						{/if}
+				<!-- Événements du groupe -->
+				{#if dayGroupEvents.length > 0}
+					<div class="panel-section">
+						<span class="panel-section-label">Événements du groupe</span>
+						{#each dayGroupEvents as event}
+							<div class="panel-event">
+								<span class="event-badge event-{event.type} panel-event-type">
+									{TYPE_LABELS[event.type]}
+								</span>
+								<div class="panel-event-body">
+									<span class="panel-event-name">{event.title || TYPE_LABELS[event.type]}</span>
+									{#if event.session_id && event.session_date}
+										<a href="/sessions/{event.session_id}" class="panel-event-session">
+											Session du {fmtDate(event.session_date)}{event.session_location ? ` — ${event.session_location}` : ''}
+										</a>
+									{/if}
+									{#if event.location}
+										<span class="panel-event-location">📍 {event.location}</span>
+									{/if}
+									{#if event.notes}
+										<span class="panel-event-notes">{event.notes}</span>
+									{/if}
+									<span class="panel-event-meta">par {event.author}</span>
+								</div>
+								<button
+									class="btn btn-ghost btn-sm delete-btn"
+									onclick={() => deleteEvent(event.id)}
+									title="Supprimer"
+								>✕</button>
+							</div>
+						{/each}
 					</div>
-				{:else}
+				{/if}
+
+				<!-- Indisponibilités -->
+				{#if dayUnavails.length > 0}
+					<div class="panel-section">
+						<span class="panel-section-label">Indisponibilités</span>
+						{#each dayUnavails as event}
+							<div class="panel-event">
+								<span class="event-badge event-indisponibilite panel-event-type">Indispo</span>
+								<div class="panel-event-body">
+									<span class="panel-event-name">{event.author}</span>
+									{#if event.location}
+										<span class="panel-event-location">📍 {event.location}</span>
+									{/if}
+									{#if event.notes}
+										<span class="panel-event-notes">{event.notes}</span>
+									{/if}
+								</div>
+								{#if canDelete(event)}
+									<button
+										class="btn btn-ghost btn-sm delete-btn"
+										onclick={() => deleteEvent(event.id)}
+										title="Supprimer"
+									>✕</button>
+								{/if}
+							</div>
+						{/each}
+					</div>
+				{/if}
+
+				{#if dayGroupEvents.length === 0 && dayUnavails.length === 0}
 					<p class="empty">Aucun événement ce jour.</p>
-				{/each}
+				{/if}
 			</div>
 
 			<div class="panel-form">
@@ -283,7 +331,7 @@
 
 				<div class="form-row">
 					<select class="form-input" bind:value={formType}>
-						<option value="indisponibilite">Indisponible</option>
+						<option value="indisponibilite">Indisponible (personnel)</option>
 						<option value="repetition">Répétition</option>
 						<option value="concert">Concert</option>
 					</select>
@@ -397,10 +445,6 @@
 		background: var(--color-bg);
 	}
 
-	.day-cell:nth-child(7n + 1) {
-		/* Monday column — no special style */
-	}
-
 	/* Remove right border on last column */
 	.day-cell:nth-child(7n) {
 		border-right: none;
@@ -501,7 +545,27 @@
 		padding: 0.75rem 1rem;
 		display: flex;
 		flex-direction: column;
-		gap: 0.6rem;
+		gap: 0.75rem;
+	}
+
+	.panel-section {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+	}
+
+	.panel-section + .panel-section {
+		padding-top: 0.5rem;
+		border-top: 1px solid var(--color-border-light);
+	}
+
+	.panel-section-label {
+		font-size: var(--text-xs);
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--color-text-secondary);
+		margin-bottom: 0.1rem;
 	}
 
 	.panel-event {

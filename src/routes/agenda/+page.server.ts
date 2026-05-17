@@ -27,16 +27,22 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const [events, sessions] = await Promise.all([
 		sql`
 			SELECT
-				e.id, e.group_id, e.type, e.author, e.title, e.notes, e.session_id, e.created_at,
+				e.id, e.group_id, e.user_id, e.type, e.author, e.title, e.notes, e.location, e.session_id, e.created_at,
 				to_char(e.date, 'YYYY-MM-DD') AS date,
 				to_char(s.date, 'YYYY-MM-DD') AS session_date,
 				s.location AS session_location
 			FROM calendar_events e
 			LEFT JOIN sessions s ON s.id = e.session_id
-			WHERE e.group_id = ${groupId}
-				AND e.date >= ${start}::date
+			WHERE e.date >= ${start}::date
 				AND e.date < ${end}::date
-			ORDER BY e.date, e.created_at
+				AND (
+					(e.group_id = ${groupId} AND e.type IN ('repetition', 'concert'))
+					OR
+					(e.type = 'indisponibilite' AND e.user_id IN (
+						SELECT user_id FROM user_groups WHERE group_id = ${groupId}
+					))
+				)
+			ORDER BY e.date, e.type, e.created_at
 		`,
 		sql`
 			SELECT id, to_char(date, 'YYYY-MM-DD') AS date, location
@@ -47,5 +53,5 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		`
 	])
 
-	return { events, sessions, month, userName: locals.user.name }
+	return { events, sessions, month, userName: locals.user.name, userId: locals.user.id }
 }

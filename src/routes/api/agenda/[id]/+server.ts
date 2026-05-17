@@ -2,6 +2,24 @@ import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 
+async function getAccessibleEvent(id: number, locals: App.Locals) {
+	if (!locals.user || !locals.user.current_group_id) return null
+	const groupId = locals.user.current_group_id
+
+	const [event] = await sql`
+		SELECT * FROM calendar_events
+		WHERE id = ${id}
+			AND (
+				(group_id = ${groupId} AND type IN ('repetition', 'concert'))
+				OR
+				(type = 'indisponibilite' AND user_id IN (
+					SELECT user_id FROM user_groups WHERE group_id = ${groupId}
+				))
+			)
+	`
+	return event ?? null
+}
+
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
 	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
@@ -9,12 +27,10 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	const id = parseInt(params.id)
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
 
-	const [event] = await sql`
-		SELECT * FROM calendar_events WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
-	`
+	const event = await getAccessibleEvent(id, locals)
 	if (!event) return json({ error: 'Événement introuvable.' }, { status: 404 })
 
-	if (event.type === 'indisponibilite' && event.author !== locals.user.name) {
+	if (event.type === 'indisponibilite' && event.user_id !== locals.user.id) {
 		return json({ error: 'Vous ne pouvez modifier que votre propre indisponibilité.' }, { status: 403 })
 	}
 
@@ -48,12 +64,10 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 	const id = parseInt(params.id)
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
 
-	const [event] = await sql`
-		SELECT * FROM calendar_events WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
-	`
+	const event = await getAccessibleEvent(id, locals)
 	if (!event) return json({ error: 'Événement introuvable.' }, { status: 404 })
 
-	if (event.type === 'indisponibilite' && event.author !== locals.user.name) {
+	if (event.type === 'indisponibilite' && event.user_id !== locals.user.id) {
 		return json({ error: 'Vous ne pouvez supprimer que votre propre indisponibilité.' }, { status: 403 })
 	}
 
