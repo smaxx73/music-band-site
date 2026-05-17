@@ -14,6 +14,8 @@
 
 	let selectedSession = $state<string>('')
 	let newDate = $state('')
+	let newType = $state('repetition')
+	let newTitle = $state('')
 	let newLocation = $state('')
 	let selectedSong = $state<string>('')
 	let file = $state<File | null>(null)
@@ -54,7 +56,13 @@
 				const res = await fetch('/api/sessions', {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ date: newDate, location: newLocation || undefined, members: [] })
+					body: JSON.stringify({
+						date: newDate,
+						type: newType,
+						title: newTitle.trim() || undefined,
+						location: newLocation.trim() || undefined,
+						members: []
+					})
 				})
 				const json = await res.json()
 				if (!res.ok) { error = json.error ?? 'Erreur création session.'; uploading = false; return }
@@ -71,6 +79,8 @@
 			selectedSession = ''
 			selectedSong = ''
 			newDate = ''
+			newType = 'repetition'
+			newTitle = ''
 			newLocation = ''
 		} catch (err) {
 			if (err instanceof DuplicateError) {
@@ -176,8 +186,21 @@
 			{#if selectedSession === 'new'}
 				<div class="new-session-fields">
 					<label class="form-label">
+						Type
+						<select class="form-input" bind:value={newType} disabled={uploading}>
+							<option value="repetition">Répétition</option>
+							<option value="concert">Concert</option>
+							<option value="studio">Studio</option>
+							<option value="autre">Autre</option>
+						</select>
+					</label>
+					<label class="form-label">
 						Date <span class="required">*</span>
 						<input class="form-input" type="date" bind:value={newDate} required disabled={uploading} />
+					</label>
+					<label class="form-label" style="grid-column: 1 / -1">
+						Titre <span class="hint">(optionnel)</span>
+						<input class="form-input" type="text" bind:value={newTitle} placeholder="ex : Répète avant Ducasse" disabled={uploading} />
 					</label>
 					<label class="form-label">
 						Lieu
@@ -293,6 +316,8 @@
 		gap: 0.75rem;
 		margin-top: 0.75rem;
 	}
+
+	.hint { font-weight: 400; color: #aaa; font-size: 0.78rem; }
 
 	.required { color: var(--color-error); }
 

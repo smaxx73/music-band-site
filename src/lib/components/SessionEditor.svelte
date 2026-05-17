@@ -1,9 +1,13 @@
 <script lang="ts">
 	import { formatDateOnly, toDateOnly } from '$lib/date'
 
+	type SessionType = 'repetition' | 'concert' | 'studio' | 'autre'
+
 	type SessionData = {
 		id: number
 		date: string
+		type: SessionType
+		title: string | null
 		location: string | null
 		notes: string | null
 		members: string[]
@@ -11,9 +15,18 @@
 
 	type SessionPatch = {
 		date: string
+		type: SessionType
+		title: string | null
 		location: string | null
 		members: string[]
 		notes: string | null
+	}
+
+	const typeLabels: Record<SessionType, string> = {
+		repetition: 'Répétition',
+		concert: 'Concert',
+		studio: 'Studio',
+		autre: 'Autre',
 	}
 
 	let {
@@ -30,6 +43,8 @@
 
 	let editing = $state(false)
 	let editDate = $state('')
+	let editType = $state<SessionType>('repetition')
+	let editTitle = $state('')
 	let editLocation = $state('')
 	let editMembers = $state('')
 	let editNotes = $state('')
@@ -46,6 +61,8 @@
 
 	function startEditSession() {
 		editDate = toDateOnly(session.date)
+		editType = session.type ?? 'repetition'
+		editTitle = session.title ?? ''
 		editLocation = session.location ?? ''
 		editMembers = (session.members ?? []).join(', ')
 		editNotes = session.notes ?? ''
@@ -74,6 +91,8 @@
 
 		const saved = await onSave({
 			date: editDate,
+			type: editType,
+			title: editTitle.trim() || null,
 			location: editLocation.trim() || null,
 			members,
 			notes: editNotes.trim() || null
@@ -91,6 +110,21 @@
 			{#if localError ?? error}
 				<p class="message-error">{localError ?? error}</p>
 			{/if}
+			<div class="form-row">
+				<label class="form-label">
+					Type
+					<select class="form-input" bind:value={editType} disabled={saving}>
+						<option value="repetition">Répétition</option>
+						<option value="concert">Concert</option>
+						<option value="studio">Studio</option>
+						<option value="autre">Autre</option>
+					</select>
+				</label>
+				<label class="form-label">
+					Titre <span class="hint">(optionnel)</span>
+					<input class="form-input" type="text" placeholder="ex : Répète avant Ducasse" bind:value={editTitle} disabled={saving} />
+				</label>
+			</div>
 			<div class="form-row">
 				<label class="form-label">
 					Date
@@ -132,9 +166,11 @@
 		</form>
 	{:else}
 		<div class="header-top">
-			<h1>{formatDate(session.date)}</h1>
+			<span class="type-badge type-{session.type ?? 'repetition'}">{typeLabels[session.type ?? 'repetition']}</span>
+			<h1>{session.title ?? formatDate(session.date)}</h1>
 			<button class="btn-edit" onclick={startEditSession}>Modifier</button>
 		</div>
+		<p class="meta date-meta">{formatDate(session.date)}</p>
 		{#if session.location}
 			<p class="meta">{session.location}</p>
 		{/if}
@@ -156,14 +192,30 @@
 		display: flex;
 		align-items: baseline;
 		gap: 0.75rem;
-		margin-bottom: 0.4rem;
+		margin-bottom: 0.25rem;
 	}
 
 	h1 {
 		font-size: var(--text-xl);
 		margin: 0;
-		text-transform: capitalize;
 	}
+
+	.type-badge {
+		font-size: 0.7rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		padding: 0.15rem 0.5rem;
+		border-radius: var(--radius-sm);
+		white-space: nowrap;
+	}
+
+	.type-badge.type-repetition { background: var(--color-accent-light); color: var(--color-accent); }
+	.type-badge.type-concert    { background: var(--color-green-light);  color: var(--color-green); }
+	.type-badge.type-studio     { background: #f3e8ff; color: #7c3aed; }
+	.type-badge.type-autre      { background: var(--color-bg-subtle);    color: var(--color-text-secondary); }
+
+	.date-meta { margin-top: 0; }
 
 	.btn-edit {
 		font-size: 0.78rem;

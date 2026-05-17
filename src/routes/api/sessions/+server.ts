@@ -28,15 +28,22 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 	const body = await request.json()
 	const date: unknown = body.date
+	const type: unknown = body.type
+	const title: unknown = body.title
 	const location: unknown = body.location
 	const notes: unknown = body.notes
 	const members: unknown = body.members
+
+	const validTypes = ['repetition', 'concert', 'studio', 'autre']
 
 	if (typeof date !== 'string' || !date.trim()) {
 		return json({ error: 'La date est obligatoire.' }, { status: 400 })
 	}
 	if (!/^\d{4}-\d{2}-\d{2}$/.test(date.trim())) {
 		return json({ error: 'Format de date invalide (YYYY-MM-DD attendu).' }, { status: 400 })
+	}
+	if (type !== undefined && (typeof type !== 'string' || !validTypes.includes(type))) {
+		return json({ error: 'Type de session invalide.' }, { status: 400 })
 	}
 	if (members !== undefined && !Array.isArray(members)) {
 		return json({ error: 'members doit être un tableau.' }, { status: 400 })
@@ -47,10 +54,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		: []
 
 	const [session] = await sql`
-		INSERT INTO sessions (group_id, date, location, notes, members, created_by)
+		INSERT INTO sessions (group_id, date, type, title, location, notes, members, created_by)
 		VALUES (
 			${locals.user.current_group_id},
 			${date.trim()},
+			${typeof type === 'string' ? type : 'repetition'},
+			${typeof title === 'string' && title.trim() ? title.trim() : null},
 			${typeof location === 'string' && location.trim() ? location.trim() : null},
 			${typeof notes === 'string' && notes.trim() ? notes.trim() : null},
 			${sql.array(membersArray)},

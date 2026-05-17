@@ -71,9 +71,13 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
 
 	const body = await request.json()
+	const validTypes = ['repetition', 'concert', 'studio', 'autre']
 
 	if (body.date !== undefined && (typeof body.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(body.date))) {
 		return json({ error: 'Format de date invalide (YYYY-MM-DD attendu).' }, { status: 400 })
+	}
+	if (body.type !== undefined && !validTypes.includes(body.type)) {
+		return json({ error: 'Type de session invalide.' }, { status: 400 })
 	}
 	if (body.members !== undefined && !Array.isArray(body.members)) {
 		return json({ error: 'members doit être un tableau.' }, { status: 400 })
@@ -81,6 +85,10 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
 	const updates: Record<string, unknown> = {}
 	if (body.date !== undefined) updates.date = body.date
+	if (body.type !== undefined) updates.type = body.type
+	if ('title' in body)
+		updates.title =
+			typeof body.title === 'string' && body.title.trim() ? body.title.trim() : null
 	if ('location' in body)
 		updates.location =
 			typeof body.location === 'string' && body.location.trim() ? body.location.trim() : null

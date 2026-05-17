@@ -1,6 +1,8 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
+import { unlink } from 'fs/promises'
 import sql from '$lib/server/db'
+import { audioPath } from '$lib/server/storage'
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -55,4 +57,26 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	if (!recording) return json({ error: 'Prise introuvable.' }, { status: 404 })
 
 	return json(recording)
+}
+
+export const DELETE: RequestHandler = async ({ locals, params }) => {
+	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
+	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
+
+	const id = parseInt(params.id)
+	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
+
+	const [deleted] = await sql`
+		DELETE FROM recordings r
+		USING sessions s
+		WHERE r.id = ${id}
+		  AND r.session_id = s.id
+		  AND s.group_id = ${locals.user.current_group_id}
+		RETURNING r.id
+	`
+	if (!deleted) return json({ error: 'Prise introuvable.' }, { status: 404 })
+
+	await unlink(audioPath(id)).catch(() => {})
+
+	return json({ success: true })
 }

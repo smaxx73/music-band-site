@@ -17,8 +17,8 @@
 	type Group = { song: Song; recordings: RecordingRow[] }
 
 	type SessionData = {
-		id: number; date: string; location: string | null
-		notes: string | null; members: string[]
+		id: number; date: string; type: string; title: string | null
+		location: string | null; notes: string | null; members: string[]
 	}
 
 	let session = $state(data.session as unknown as SessionData)
@@ -29,6 +29,8 @@
 
 	async function saveSession(patch: {
 		date: string
+		type: string
+		title: string | null
 		location: string | null
 		members: string[]
 		notes: string | null
@@ -118,6 +120,65 @@
 		cancelEditNotes(id)
 	}
 
+	let editMode = $state(false)
+	let deletingRecordingId = $state<number | null>(null)
+	let renumbering = $state(false)
+
+	async function deleteRecording(id: number) {
+		deletingRecordingId = id
+		try {
+			const res = await fetch(`/api/recordings/${id}`, { method: 'DELETE' })
+			const json = await res.json()
+			if (!res.ok) { alert(json.error ?? 'Erreur.'); return }
+			groups = groups
+				.map((g) => ({ ...g, recordings: g.recordings.filter((r) => r.id !== id) }))
+				.filter((g) => g.recordings.length > 0)
+		} catch {
+			alert('Erreur réseau.')
+		} finally {
+			deletingRecordingId = null
+		}
+	}
+
+	function moveRecording(songId: number, recordingId: number, direction: -1 | 1) {
+		groups = groups.map((g) => {
+			if (g.song.id !== songId) return g
+			const idx = g.recordings.findIndex((r) => r.id === recordingId)
+			if (idx === -1) return g
+			const newIdx = idx + direction
+			if (newIdx < 0 || newIdx >= g.recordings.length) return g
+			const recs = [...g.recordings]
+			;[recs[idx], recs[newIdx]] = [recs[newIdx], recs[idx]]
+			return { ...g, recordings: recs }
+		})
+	}
+
+	async function renumber() {
+		renumbering = true
+		try {
+			const res = await fetch(`/api/sessions/${session.id}/reorder`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					groups: groups.map((g) => ({
+						song_id: g.song.id,
+						recording_ids: g.recordings.map((r) => r.id)
+					}))
+				})
+			})
+			const json = await res.json()
+			if (!res.ok) { alert(json.error ?? 'Erreur.'); return }
+			groups = groups.map((g) => ({
+				...g,
+				recordings: g.recordings.map((r, i) => ({ ...r, take: i + 1 }))
+			}))
+		} catch {
+			alert('Erreur réseau.')
+		} finally {
+			renumbering = false
+		}
+	}
+
 	let deleting = $state(false)
 	let deleteError = $state<string | null>(null)
 
@@ -144,7 +205,7 @@
 </script>
 
 <svelte:head>
-	<title>Session du {formatDate(session.date)}</title>
+	<title>{session.title ?? formatDate(session.date)}</title>
 </svelte:head>
 
 <main>
@@ -189,6 +250,7 @@
 							<th>Commentaires</th>
 							<th>Par</th>
 							<th></th>
+							{#if editMode}<th></th><th></th>{/if}
 						</tr>
 					</thead>
 					<tbody>
@@ -259,6 +321,29 @@
 								<td>
 									<a href="/recording/{r.id}" class="btn btn-secondary btn-sm">Écouter</a>
 								</td>
+								{#if editMode}
+								<td class="reorder-cell">
+									<button
+										class="btn-reorder"
+										disabled={group.recordings.indexOf(r) === 0}
+										onclick={() => moveRecording(group.song.id, r.id, -1)}
+										title="Monter">↑</button>
+									<button
+										class="btn-reorder"
+										disabled={group.recordings.indexOf(r) === group.recordings.length - 1}
+										onclick={() => moveRecording(group.song.id, r.id, 1)}
+										title="Descendre">↓</button>
+								</td>
+								<td>
+									<button
+										class="btn btn-danger btn-sm"
+										disabled={deletingRecordingId === r.id}
+										onclick={() => deleteRecording(r.id)}
+									>
+										{deletingRecordingId === r.id ? '…' : 'Supprimer'}
+									</button>
+								</td>
+								{/if}
 							</tr>
 						{/each}
 					</tbody>
@@ -269,6 +354,14 @@
 
 	<div class="footer-actions">
 		<a href="/upload" class="btn btn-secondary">+ Ajouter une prise</a>
+		<button class="btn btn-secondary" onclick={() => { editMode = !editMode }}>
+			{editMode ? 'Terminer' : 'Modifier les prises'}
+		</button>
+		{#if editMode}
+		<button class="btn btn-secondary" onclick={renumber} disabled={renumbering}>
+			{renumbering ? '…' : 'Renuméroter'}
+		</button>
+		{/if}
 		<button class="btn btn-danger" onclick={deleteSession} disabled={deleting}>
 			{deleting ? 'Suppression…' : 'Supprimer la session'}
 		</button>
@@ -390,4 +483,20 @@
 	}
 
 	.btn-cancel:hover:not(:disabled) { background: var(--color-bg-muted); }
+
+	.reorder-cell { white-space: nowrap; }
+
+	.btn-reorder {
+		background: none;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-sm);
+		padding: 0.1rem 0.35rem;
+		font-size: 0.78rem;
+		cursor: pointer;
+		color: var(--color-text-secondary);
+		line-height: 1;
+	}
+
+	.btn-reorder:hover:not(:disabled) { background: var(--color-bg-subtle); }
+	.btn-reorder:disabled { opacity: var(--disabled-opacity); cursor: not-allowed; }
 </style>

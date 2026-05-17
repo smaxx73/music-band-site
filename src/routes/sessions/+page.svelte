@@ -7,10 +7,19 @@
 	type SessionRow = {
 		id: number
 		date: string
+		type: string
+		title: string | null
 		location: string | null
 		members: string[]
 		song_count: number
 		recording_count: number
+	}
+
+	const typeLabels: Record<string, string> = {
+		repetition: 'Répétition',
+		concert: 'Concert',
+		studio: 'Studio',
+		autre: 'Autre',
 	}
 
 	const sessions = $derived(data.sessions as unknown as SessionRow[])
@@ -39,8 +48,13 @@
 			{#each sessions as s}
 				<li>
 					<a href="/sessions/{s.id}" class="session-card">
-						<div class="session-date">{formatDate(s.date)}</div>
-						{#if s.location}
+						<div class="session-top">
+							<span class="type-badge type-{s.type ?? 'repetition'}">{typeLabels[s.type] ?? s.type}</span>
+							<div class="session-date">{s.title ?? formatDate(s.date)}</div>
+						</div>
+						{#if s.title}
+							<div class="session-location">{formatDate(s.date)}</div>
+						{:else if s.location}
 							<div class="session-location">{s.location}</div>
 						{/if}
 						<div class="session-meta">
@@ -93,10 +107,32 @@
 		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.07);
 	}
 
+	.session-top {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		margin-bottom: 0.1rem;
+	}
+
+	.type-badge {
+		font-size: 0.68rem;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		padding: 0.1rem 0.45rem;
+		border-radius: var(--radius-sm);
+		white-space: nowrap;
+		flex-shrink: 0;
+	}
+
+	.type-badge.type-repetition { background: var(--color-accent-light); color: var(--color-accent); }
+	.type-badge.type-concert    { background: var(--color-green-light);  color: var(--color-green); }
+	.type-badge.type-studio     { background: #f3e8ff; color: #7c3aed; }
+	.type-badge.type-autre      { background: var(--color-bg-subtle);    color: var(--color-text-secondary); }
+
 	.session-date {
 		font-weight: 700;
 		font-size: var(--text-base);
-		text-transform: capitalize;
 	}
 
 	.session-location {

@@ -43,6 +43,9 @@ CREATE TABLE sessions (
     id          SERIAL PRIMARY KEY,
     group_id    INTEGER NOT NULL REFERENCES groups(id),
     date        DATE NOT NULL,
+    type        TEXT NOT NULL DEFAULT 'repetition',
+                                             -- repetition | concert | studio | autre
+    title       TEXT,
     location    TEXT,
     notes       TEXT,
     members     TEXT[],                      -- ["Marc", "Julie", "Thomas"]
