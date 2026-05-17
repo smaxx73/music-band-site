@@ -239,7 +239,7 @@
 						{/each}
 						{#each unavailsForDay(day) as event}
 							<div class="event-badge event-indisponibilite">
-								{event.author}
+								<span class="unavail-cross">✕</span>{event.author}
 							</div>
 						{/each}
 					</div>
@@ -505,6 +505,12 @@
 	.event-indisponibilite {
 		background: #fecdd3;
 		color: #be123c;
+	}
+
+	.unavail-cross {
+		margin-right: 2px;
+		font-weight: 700;
+		opacity: 0.8;
 	}
 
 	.event-repetition {
