@@ -26,6 +26,7 @@
 					<th>Compositeur</th>
 					<th>Tonalité</th>
 					<th>Statut</th>
+					<th>Prises</th>
 				</tr>
 			</thead>
 			<tbody>
@@ -41,6 +42,7 @@
 								{STATUS_LABELS[song.status] ?? song.status}
 							</span>
 						</td>
+						<td class="center">{song.take_count}</td>
 					</tr>
 				{/each}
 			</tbody>
@@ -68,5 +70,9 @@
 
 	td.title a:hover {
 		text-decoration: underline;
+	}
+
+	td.center {
+		text-align: center;
 	}
 </style>
