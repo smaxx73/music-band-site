@@ -109,8 +109,19 @@
 		}
 	}
 
-	async function onStatusChange(r: RecordingRow, e: Event) {
-		const value = (e.target as HTMLSelectElement).value
+	const QUALITY_CLASS: Record<string, string> = {
+		'À revoir': 'a-revoir', 'à revoir': 'a-revoir',
+		'Moyen': 'moyen', 'moyen': 'moyen',
+		'Bon': 'bon', 'bon': 'bon',
+		'Référence': 'reference', 'référence': 'reference',
+		'en_cours': 'a-revoir', 'au_point': 'bon', 'repertoire': 'reference',
+	}
+
+	function qualityClass(q: string) { return QUALITY_CLASS[q] ?? 'custom' }
+
+	async function onQualityBlur(r: RecordingRow, e: FocusEvent) {
+		const value = (e.target as HTMLInputElement).value.trim()
+		if (!value || value === r.status) return
 		await patchRecording(r.id, { status: value })
 	}
 
@@ -245,7 +256,7 @@
 						<tr>
 							<th>Prise</th>
 							<th>Durée</th>
-							<th>Statut</th>
+							<th>Qualité</th>
 							<th>Notes</th>
 							<th>Commentaires</th>
 							<th>Par</th>
@@ -259,16 +270,21 @@
 								<td class="take">#{r.take}</td>
 								<td>{formatDuration(r.duration_s)}</td>
 								<td>
-									<select
-										class="status-select status-{r.status}"
+									<datalist id="quality-opts-{r.id}">
+										<option value="À revoir"></option>
+										<option value="Moyen"></option>
+										<option value="Bon"></option>
+										<option value="Référence"></option>
+									</datalist>
+									<input
+										type="text"
+										list="quality-opts-{r.id}"
+										class="quality-input quality-{qualityClass(r.status)}"
 										value={r.status}
 										disabled={savingId === r.id}
-										onchange={(e) => onStatusChange(r, e)}
-									>
-										<option value="en_cours">En cours</option>
-										<option value="au_point">Au point</option>
-										<option value="repertoire">Répertoire</option>
-									</select>
+										onblur={(e) => onQualityBlur(r, e)}
+										onkeydown={(e) => { if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur() }}
+									/>
 									{#if saveError[r.id]}
 										<span class="save-error">{saveError[r.id]}</span>
 									{/if}
@@ -381,10 +397,7 @@
 	.song-section { margin-bottom: 2rem; }
 
 	h2 { font-size: var(--text-lg); margin: 0 0 0.75rem; }
-	h2 a { color: inherit; text-decoration: none; }
-	h2 a:hover { text-decoration: underline; }
-
-	h2 a { color: inherit; text-decoration: none; }
+	h2 a { color: var(--color-primary); text-decoration: none; }
 	h2 a:hover { text-decoration: underline; }
 
 	.composer { font-weight: 400; color: #777; font-size: 0.9rem; }
@@ -406,23 +419,25 @@
 
 	.footer-actions { margin-top: 2rem; display: flex; gap: 0.75rem; align-items: center; }
 
-	/* Select de statut coloré inline */
-	.status-select {
+	/* Input qualité coloré inline */
+	.quality-input {
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-sm);
 		font-size: 0.72rem;
 		font-weight: 700;
+		font-family: inherit;
 		padding: 0.18rem 0.45rem;
-		cursor: pointer;
 		background: var(--color-bg);
-		appearance: none;
+		width: 7.5rem;
 	}
 
-	.status-select:disabled { opacity: var(--disabled-opacity); cursor: not-allowed; }
+	.quality-input:disabled { opacity: var(--disabled-opacity); cursor: not-allowed; }
 
-	.status-select.status-en_cours   { background: var(--color-progress-bg); color: var(--color-progress-text); border-color: #fde68a; }
-	.status-select.status-au_point   { background: var(--color-learning-bg); color: var(--color-learning-text); border-color: #bfdbfe; }
-	.status-select.status-repertoire { background: var(--color-repertoire-bg); color: var(--color-repertoire-text); border-color: #bbf7d0; }
+	.quality-input.quality-a-revoir  { background: #fff3cd; color: #7c5a00; border-color: #fde68a; }
+	.quality-input.quality-moyen     { background: var(--color-progress-bg); color: var(--color-progress-text); border-color: #fde68a; }
+	.quality-input.quality-bon       { background: var(--color-learning-bg); color: var(--color-learning-text); border-color: #bfdbfe; }
+	.quality-input.quality-reference { background: var(--color-repertoire-bg); color: var(--color-repertoire-text); border-color: #bbf7d0; }
+	.quality-input.quality-custom    { background: var(--color-bg-subtle); color: var(--color-text-secondary); }
 
 	.save-error { display: block; font-size: 0.72rem; color: var(--color-error); margin-top: 0.2rem; }
 

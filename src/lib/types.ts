@@ -49,8 +49,6 @@ export type Session = {
 	created_at: Date
 }
 
-export type RecordingStatus = 'en_cours' | 'au_point' | 'repertoire'
-
 export type Recording = {
 	id: number
 	session_id: number
@@ -58,7 +56,7 @@ export type Recording = {
 	take: number
 	file_path: string
 	duration_s: number | null
-	status: RecordingStatus
+	status: string  // qualité libre : 'À revoir' | 'Moyen' | 'Bon' | 'Référence' | texte court
 	notes: string | null
 	uploaded_by: string
 	created_at: Date

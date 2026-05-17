@@ -60,7 +60,7 @@ CREATE TABLE recordings (
     take        INTEGER NOT NULL DEFAULT 1,  -- calculé automatiquement, jamais saisi manuellement
     file_path   TEXT NOT NULL,               -- "{id}.mp3"
     duration_s  INTEGER,
-    status      TEXT DEFAULT 'en_cours',     -- en_cours | au_point | repertoire
+    status      TEXT DEFAULT 'À revoir',      -- qualité libre : 'À revoir' | 'Moyen' | 'Bon' | 'Référence' | texte court personnalisé
     notes       TEXT,
     uploaded_by TEXT NOT NULL,
     created_at  TIMESTAMPTZ DEFAULT now(),

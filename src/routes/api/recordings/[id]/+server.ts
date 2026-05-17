@@ -37,14 +37,13 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
 
 	const body = await request.json()
-	const validStatuses = ['en_cours', 'au_point', 'repertoire']
 
-	if (body.status !== undefined && !validStatuses.includes(body.status)) {
-		return json({ error: 'Statut invalide.' }, { status: 400 })
+	if (body.status !== undefined && (typeof body.status !== 'string' || !body.status.trim() || body.status.length > 50)) {
+		return json({ error: 'Qualité invalide (texte non vide, 50 caractères max).' }, { status: 400 })
 	}
 
 	const updates: Record<string, unknown> = {}
-	if (body.status !== undefined) updates.status = body.status
+	if (body.status !== undefined) updates.status = body.status.trim()
 	if ('notes' in body)
 		updates.notes =
 			typeof body.notes === 'string' && body.notes.trim() ? body.notes.trim() : null

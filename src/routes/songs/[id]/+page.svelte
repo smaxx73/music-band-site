@@ -26,11 +26,15 @@
 		abandonne: 'Abandonné'
 	}
 
-	const REC_STATUS_LABELS: Record<string, string> = {
-		en_cours: 'En cours',
-		au_point: 'Au point',
-		repertoire: 'Répertoire'
+	const QUALITY_CLASS: Record<string, string> = {
+		'À revoir': 'a-revoir', 'à revoir': 'a-revoir',
+		'Moyen': 'moyen', 'moyen': 'moyen',
+		'Bon': 'bon', 'bon': 'bon',
+		'Référence': 'reference', 'référence': 'reference',
+		'en_cours': 'a-revoir', 'au_point': 'bon', 'repertoire': 'reference',
 	}
+
+	function qualityClass(q: string) { return QUALITY_CLASS[q] ?? 'custom' }
 
 	function formatDate(d: string | Date) {
 		return formatDateOnly(d, {
@@ -110,7 +114,7 @@
 						<tr>
 							<th>Prise</th>
 							<th>Durée</th>
-							<th>Statut</th>
+							<th>Qualité</th>
 							<th>Commentaires</th>
 							<th>Par</th>
 							<th></th>
@@ -122,8 +126,8 @@
 								<td class="take">Prise {r.take}</td>
 								<td>{formatDuration(r.duration_s)}</td>
 								<td>
-									<span class="badge badge-{r.status}">
-										{REC_STATUS_LABELS[r.status] ?? r.status}
+									<span class="badge badge-quality-{qualityClass(r.status)}">
+										{r.status}
 									</span>
 								</td>
 								<td class="center">

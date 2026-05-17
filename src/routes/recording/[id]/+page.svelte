@@ -104,6 +104,10 @@
 		}
 	}
 
+	type SiblingRecording = { id: number; take: number } | null
+	const prevRecording = $derived(data.prevRecording as SiblingRecording)
+	const nextRecording = $derived(data.nextRecording as SiblingRecording)
+
 	const playerTrack = $derived({
 		id: recording.id,
 		src: `/audio/${recording.id}.mp3`,
@@ -133,14 +137,15 @@
 	<nav class="breadcrumb">
 		<a href="/sessions">Sessions</a> /
 		<a href="/sessions/{recording.session_id}">{formatDate(recording.session_date)}</a> /
-		<span>{recording.song_title} — Prise {recording.take}</span>
+		<a href="/songs/{recording.song_id}">{recording.song_title}</a> /
+		<span>Prise {recording.take}</span>
 	</nav>
 
 	<!-- En-tête -->
 	<div class="header">
 		<div>
 			<h1>
-				{recording.song_title}
+				<a href="/songs/{recording.song_id}" class="song-link">{recording.song_title}</a>
 				{#if recording.song_key}<span class="key">{recording.song_key}</span>{/if}
 			</h1>
 			<div class="meta">
@@ -149,7 +154,15 @@
 				· {recording.uploaded_by}
 			</div>
 		</div>
-		<button class="btn btn-secondary" onclick={openPlaylistModal}>+ Playlist</button>
+		<div class="header-actions">
+			{#if prevRecording}
+				<a href="/recording/{prevRecording.id}" class="btn btn-secondary btn-sm" title="Prise précédente">← Prise {prevRecording.take}</a>
+			{/if}
+			{#if nextRecording}
+				<a href="/recording/{nextRecording.id}" class="btn btn-secondary btn-sm" title="Prise suivante">Prise {nextRecording.take} →</a>
+			{/if}
+			<button class="btn btn-secondary" onclick={openPlaylistModal}>+ Playlist</button>
+		</div>
 	</div>
 
 	<SongDetails lyrics={recording.song_lyrics} musicNotes={recording.song_music_notes} compact />
@@ -230,6 +243,7 @@
 	}
 
 	.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
+	.header-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
 
 	/* Modale */
 	.modal-backdrop {
@@ -272,6 +286,12 @@
 		align-items: center;
 		gap: 0.5rem;
 	}
+
+	.song-link {
+		color: inherit;
+		text-decoration: none;
+	}
+	.song-link:hover { text-decoration: underline; }
 
 	.key {
 		font-size: 0.85rem;

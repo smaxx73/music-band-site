@@ -174,20 +174,30 @@ body {
   color: var(--color-red);
 }
 
-/* Statuts prise */
-.badge-en_cours {
+/* Qualités prise */
+.badge-quality-a-revoir {
+  background: #fff3cd;
+  color: #7c5a00;
+}
+
+.badge-quality-moyen {
   background: var(--color-blue-light);
   color: var(--color-progress-text);
 }
 
-.badge-au_point {
+.badge-quality-bon {
   background: var(--color-blue-light);
-  color: var(--color-progress-text);
+  color: var(--color-learning-text);
 }
 
-.badge-repertoire {
+.badge-quality-reference {
   background: var(--color-green-light);
   color: var(--color-repertoire-text);
+}
+
+.badge-quality-custom {
+  background: var(--color-bg-subtle);
+  color: var(--color-text-secondary);
 }
 
 /* ─── Formulaires ────────────────────────────────────── */

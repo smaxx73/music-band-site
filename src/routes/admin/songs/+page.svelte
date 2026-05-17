@@ -20,6 +20,11 @@
 </svelte:head>
 
 <main>
+	<nav class="breadcrumb">
+		<a href="/admin">Admin</a> /
+		<span>Morceaux</span>
+	</nav>
+
 	<h1>Référentiel de morceaux</h1>
 
 	<!-- Formulaire d'ajout -->

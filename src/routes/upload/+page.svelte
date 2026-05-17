@@ -142,7 +142,10 @@
 </svelte:head>
 
 <main>
-	<h1>Uploader une prise</h1>
+	<div class="page-header">
+		<h1>Uploader une prise</h1>
+		<a href="/sessions" class="btn btn-ghost btn-sm back-link" onclick={(e) => { if (history.length > 1) { e.preventDefault(); history.back() } }}>← Retour</a>
+	</div>
 
 	{#if successId}
 		<div class="message-success" style="margin-bottom: 1rem;">
@@ -285,10 +288,19 @@
 		padding: 0 1rem;
 	}
 
-	h1 {
-		font-size: var(--text-xl);
+	.page-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
 		margin-bottom: 1.5rem;
 	}
+
+	h1 {
+		font-size: var(--text-xl);
+		margin: 0;
+	}
+
+	.back-link { color: var(--color-text-muted); }
 
 	form {
 		display: flex;

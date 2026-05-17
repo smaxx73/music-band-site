@@ -47,20 +47,31 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	if (!recording) error(404, 'Prise introuvable')
 
-	const [comments, peaksData] = await Promise.all([
+	const [comments, peaksData, siblings] = await Promise.all([
 		sql`
 			SELECT * FROM comments
 			WHERE recording_id = ${id}
 			ORDER BY timestamp_s ASC NULLS LAST, created_at ASC
 		`,
-		loadPeaks(id, recording.file_path as string)
+		loadPeaks(id, recording.file_path as string),
+		sql`
+			SELECT id, take FROM recordings
+			WHERE session_id = ${recording.session_id} AND song_id = ${recording.song_id}
+			ORDER BY take ASC
+		`
 	])
+
+	const siblingIdx = (siblings as { id: number; take: number }[]).findIndex((r) => r.id === id)
+	const prevRecording = siblingIdx > 0 ? siblings[siblingIdx - 1] : null
+	const nextRecording = siblingIdx < siblings.length - 1 ? siblings[siblingIdx + 1] : null
 
 	return {
 		recording,
 		comments,
 		peaks: peaksData.peaks,
 		peaksDuration: peaksData.duration,
-		user: locals.user?.name ?? null
+		user: locals.user?.name ?? null,
+		prevRecording,
+		nextRecording
 	}
 }
