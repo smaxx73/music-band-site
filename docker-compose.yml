@@ -5,8 +5,10 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    ports:
+      - "127.0.0.1:3000:3000"
     environment:
-      DATABASE_URL: postgresql://band:secret@db:5432/bandapp
+      DATABASE_URL: postgresql://band:${POSTGRES_PASSWORD}@db:5432/bandapp
       AUDIO_DIR: /data/audio
       AUTH_SECRET: ${AUTH_SECRET}
       NODE_ENV: production
@@ -22,10 +24,10 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: band
-      POSTGRES_PASSWORD: secret
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: bandapp
     ports:
-      - "5432:5432"   # exposé à l'hôte pour pnpm dev
+      - "127.0.0.1:5432:5432"   # exposé à l'hôte pour pnpm dev
     volumes:
       - pg_data:/var/lib/postgresql/data
       - ./migrations:/docker-entrypoint-initdb.d:ro
@@ -37,29 +39,9 @@ services:
       timeout: 5s
       retries: 10
 
-  caddy:
-    image: caddy:alpine
-    restart: unless-stopped
-    depends_on:
-      - app
-    environment:
-      DOMAIN: ${DOMAIN}
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - audio_data:/data/audio:ro
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - caddy_data:/data
-      - caddy_config:/config
-    networks:
-      - internal
-
 volumes:
   pg_data:
   audio_data:
-  caddy_data:
-  caddy_config:
 
 networks:
   internal:
