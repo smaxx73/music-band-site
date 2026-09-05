@@ -7,7 +7,9 @@ const config = {
 		runes: ({ filename }) => (filename.split(/[/\\]/).includes('node_modules') ? undefined : true)
 	},
 	kit: {
-		adapter: adapter({ bodyLimit: 200 * 1024 * 1024 }),
+		// `bodySizeLimit` est la limite réellement lue par @sveltejs/adapter-node.
+		// Sans cette option, l'adaptateur bloque les uploads au-delà de 512 Ko.
+		adapter: adapter({ bodySizeLimit: 200 * 1024 * 1024 }),
 		env: {
 			publicPrefix: 'PUBLIC_'
 		}

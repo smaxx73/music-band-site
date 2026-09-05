@@ -125,7 +125,11 @@
 						reject(new Error(data.error ?? `Erreur ${xhr.status}`))
 					}
 				} catch {
-					reject(new Error('Réponse invalide du serveur.'))
+					if (xhr.status === 413) {
+						reject(new Error('Fichier trop volumineux (maximum 200 Mo).'))
+					} else {
+						reject(new Error(`Réponse invalide du serveur (HTTP ${xhr.status}).`))
+					}
 				}
 			}
 
