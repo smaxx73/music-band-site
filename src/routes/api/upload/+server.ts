@@ -2,7 +2,7 @@ import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import { Readable, Transform } from 'stream'
 import { createWriteStream } from 'fs'
-import { unlink, rename } from 'fs/promises'
+import { copyFile, unlink } from 'fs/promises'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import { randomUUID, createHash } from 'crypto'
@@ -154,10 +154,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 					return rec
 				})
 
-				// Déplacer le mp3 vers AUDIO_DIR/{id}.mp3
+				// /tmp et AUDIO_DIR sont sur des systèmes de fichiers Docker distincts :
+				// copier avant de supprimer le fichier temporaire plutôt que d'utiliser rename.
 				await ensureAudioDir()
 				const finalPath = audioPath(recording.id as number)
-				await rename(mp3TmpPath, finalPath)
+				await copyFile(mp3TmpPath, finalPath)
+				await unlink(mp3TmpPath)
 
 				// Mettre à jour file_path
 				const filePath = `${recording.id}.mp3`
