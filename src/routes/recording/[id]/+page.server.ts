@@ -25,6 +25,7 @@ async function loadPeaks(id: number, filePath: string): Promise<PeaksCache> {
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!locals.user) redirect(302, '/login')
+	if (!locals.user.current_group_id) error(403, 'Aucun groupe actif')
 
 	const id = parseInt(params.id)
 	if (isNaN(id)) error(400, 'ID invalide')
@@ -42,7 +43,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		FROM recordings r
 		JOIN songs    s   ON s.id   = r.song_id
 		JOIN sessions ses ON ses.id = r.session_id
-		WHERE r.id = ${id}
+		WHERE r.id = ${id} AND ses.group_id = ${locals.user.current_group_id}
 	`
 
 	if (!recording) error(404, 'Prise introuvable')
@@ -61,7 +62,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		`
 	])
 
-	const siblingList = siblings as { id: number; take: number }[]
+	const siblingList = siblings as unknown as { id: number; take: number }[]
 	const siblingIdx = siblingList.findIndex((r) => Number(r.id) === id)
 	const prevRecording = siblingIdx > 0
 		? { id: Number(siblingList[siblingIdx - 1].id), take: Number(siblingList[siblingIdx - 1].take) }

@@ -1,8 +1,8 @@
 import type { Actions, PageServerLoad } from './$types'
 import { fail, redirect } from '@sveltejs/kit'
-import { AUTH_SECRET } from '$env/static/private'
 import { signCookie, verifyPassword } from '$lib/server/auth'
 import sql from '$lib/server/db'
+import { authSecret } from '$lib/server/config'
 
 export const load: PageServerLoad = ({ locals }) => {
 	if (locals.user) redirect(302, '/')
@@ -26,7 +26,7 @@ export const actions: Actions = {
 			return fail(401, { error: 'Identifiants incorrects.' })
 		}
 
-		const signed = signCookie(name, AUTH_SECRET)
+		const signed = signCookie(name, authSecret())
 		cookies.set('band_session', signed, {
 			path: '/',
 			httpOnly: true,

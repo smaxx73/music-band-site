@@ -17,7 +17,7 @@
 	type Group = { song: Song; recordings: RecordingRow[] }
 
 	type SessionData = {
-		id: number; date: string; type: string; title: string | null
+		id: number; date: string; type: 'repetition' | 'concert' | 'studio' | 'autre'; title: string | null
 		location: string | null; notes: string | null; members: string[]
 	}
 
@@ -29,7 +29,7 @@
 
 	async function saveSession(patch: {
 		date: string
-		type: string
+		type: 'repetition' | 'concert' | 'studio' | 'autre'
 		title: string | null
 		location: string | null
 		members: string[]

@@ -5,6 +5,11 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props()
 
 	let editingId = $state<number | null>(null)
+
+	function hasActionError(action: string, id: number) {
+		const actionData = form as { action?: string; error?: string; id?: number } | null
+		return actionData?.action === action && actionData.id === id && Boolean(actionData.error)
+	}
 	let createSuccess = $state(false)
 	let createFormEl: HTMLFormElement
 
@@ -120,7 +125,7 @@
 				<tbody>
 					{#each data.songs as song (song.id)}
 						{@const isEditing = editingId === song.id}
-						{@const hasError = form?.action === 'update' && form.id === song.id && form.error}
+						{@const hasError = hasActionError('update', song.id)}
 						{@const isAbandoned = song.status === 'abandonne'}
 
 						{#if isEditing}

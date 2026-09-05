@@ -25,11 +25,15 @@ async function loadPeaks(recordingId: number, filePath: string): Promise<PeaksCa
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!locals.user) redirect(302, '/login')
+	if (!locals.user.current_group_id) error(403, 'Aucun groupe actif')
 
 	const id = parseInt(params.id)
 	if (isNaN(id)) error(400, 'ID invalide')
 
-	const [playlist] = await sql`SELECT * FROM playlists WHERE id = ${id}`
+	const [playlist] = await sql`
+		SELECT * FROM playlists
+		WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
+	`
 	if (!playlist) error(404, 'Playlist introuvable')
 
 	const items = await sql`

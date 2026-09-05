@@ -18,7 +18,6 @@
 	let {
 		recordingId,
 		comments,
-		defaultAuthor = '',
 		currentTime = 0,
 		playerReady = false,
 		isPlaying = false,
@@ -28,7 +27,6 @@
 	}: {
 		recordingId: number
 		comments: Comment[]
-		defaultAuthor?: string
 		currentTime?: number
 		playerReady?: boolean
 		isPlaying?: boolean
@@ -38,7 +36,6 @@
 	} = $props()
 
 	let displayComments = $state(comments)
-	let author = $state(defaultAuthor)
 	let content = $state('')
 	let anchorTimestamp = $state(false)
 	let submitting = $state(false)
@@ -66,10 +63,6 @@
 		event.preventDefault()
 		formError = null
 
-		if (!author.trim()) {
-			formError = 'Saisis ton prénom.'
-			return
-		}
 		if (!content.trim()) {
 			formError = 'Le commentaire est vide.'
 			return
@@ -86,7 +79,6 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					recording_id: recordingId,
-					author: author.trim(),
 					content: content.trim(),
 					timestamp_s: ts
 				})
@@ -114,12 +106,6 @@
 
 	$effect(() => {
 		displayComments = comments
-	})
-
-	$effect(() => {
-		if (!author && defaultAuthor) {
-			author = defaultAuthor
-		}
 	})
 
 	$effect(() => {
@@ -173,11 +159,6 @@
 		{#if formError}
 			<p class="message-error">{formError}</p>
 		{/if}
-
-		<label class="form-label">
-			Prénom
-			<input class="form-input" type="text" bind:value={author} required disabled={submitting} />
-		</label>
 
 		<label class="form-label">
 			Commentaire

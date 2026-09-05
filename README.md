@@ -69,12 +69,6 @@ Application web privée pour partager et archiver les enregistrements de répét
 - [Docker](https://www.docker.com) et Docker Compose
 - [ffmpeg](https://ffmpeg.org) installé sur la machine
 
-### 0. Installer tsx (nécessaire pour les scripts)
-
-```bash
-pnpm add -D tsx
-```
-
 ### 1. Cloner et installer
 
 ```bash
@@ -115,7 +109,7 @@ La base est initialisée automatiquement via les fichiers `migrations/` au premi
 ### 4. Créer le premier compte admin
 
 ```bash
-npx tsx scripts/create-user.ts --name=TonPrénom --password=tonmotdepasse --role=admin
+node scripts/create-user.mjs --name=TonPrénom --password=tonmotdepasse --role=admin
 ```
 
 Le script peut aussi créer des comptes `user` (rôle par défaut). Les comptes suivants se gèrent depuis `/admin/users`.
@@ -200,7 +194,7 @@ docker compose logs -f
 À faire une fois la stack démarrée :
 
 ```bash
-docker compose exec app node_modules/.bin/tsx scripts/create-user.ts \
+docker compose exec app node scripts/create-user.mjs \
   --name=TonPrénom --password=tonmotdepasse --role=admin
 ```
 
@@ -250,10 +244,11 @@ docker compose exec app ls /data/audio
 ```text
 Internet → Caddy (:80/:443)
               │
-              ├─ /audio/*  →  fichiers MP3 (volume Docker, servi statiquement)
+			  ├─ /audio/*  →  app:3000 (contrôle de session et de groupe)
               └─ /*        →  app:3000 (SvelteKit / Node)
                                 │
                                 └─ db:5432 (PostgreSQL)
 ```
 
-Les fichiers audio ne transitent jamais par Node en production : Caddy les sert directement depuis le volume `audio_data`, ce qui évite de les charger en mémoire.
+Les fichiers audio transitent par Node en streaming en production afin de vérifier
+la session et l'appartenance au groupe. Caddy ne doit pas les servir statiquement.

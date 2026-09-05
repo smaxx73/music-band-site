@@ -11,9 +11,13 @@ cd ~/music-band-site
 
 cp .env.example .env
 nano .env   # remplir AUTH_SECRET, POSTGRES_PASSWORD, ORIGIN=https://maximenguyen.fr
+chmod 600 .env
 
 docker compose up -d --build
 ```
+
+Générer la valeur de `AUTH_SECRET` avec `openssl rand -hex 32`. L'application
+refuse les valeurs modèle ou les secrets de moins de 32 caractères.
 
 ## Mises à jour
 
@@ -47,4 +51,6 @@ Internet → Caddy système (80/443) → localhost:3000 → container app → co
 
 - Caddy gère le HTTPS et proxifie vers le port 3000
 - L'app et la DB communiquent sur le réseau Docker interne
-- Les fichiers audio sont dans le volume Docker `audio_data`, servis directement par Caddy depuis `/audio/`
+- Les fichiers audio sont dans le volume Docker `audio_data` et sont servis par
+  l'application après contrôle de la session et du groupe actif. Caddy doit proxyfier
+  `/audio/*` vers l'application, sans règle `file_server` publique pour ce chemin.

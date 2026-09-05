@@ -6,6 +6,7 @@ import { unlink } from 'fs/promises'
 
 export const DELETE: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
+	if (locals.user.role !== 'admin') return json({ error: 'Réservé aux administrateurs.' }, { status: 403 })
 
 	const id = parseInt(params.id)
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })

@@ -4,11 +4,15 @@ import sql from '$lib/server/db'
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!locals.user) redirect(302, '/login')
+	if (!locals.user.current_group_id) error(403, 'Aucun groupe actif')
 
 	const id = parseInt(params.id)
 	if (isNaN(id)) error(400, 'ID invalide')
 
-	const [session] = await sql`SELECT * FROM sessions WHERE id = ${id}`
+	const [session] = await sql`
+		SELECT * FROM sessions
+		WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
+	`
 	if (!session) error(404, 'Session introuvable')
 
 	const rows = await sql`

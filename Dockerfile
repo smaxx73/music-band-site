@@ -13,7 +13,7 @@ RUN pnpm build
 
 FROM node:22-alpine
 
-RUN apk add --no-cache postgresql16-client
+RUN apk add --no-cache postgresql16-client ffmpeg
 
 WORKDIR /app
 

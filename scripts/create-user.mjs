@@ -1,15 +1,9 @@
-#!/usr/bin/env tsx
+#!/usr/bin/env node
 /**
  * Crée ou met à jour un utilisateur dans la base de données.
- *
- * Usage :
- *   npx tsx scripts/create-user.ts --name=<prénom> --password=<motdepasse> [--role=admin|user]
- *
- * Depuis Docker :
- *   docker compose exec app npx tsx scripts/create-user.ts --name=Alice --password=secret --role=admin
+ * Usage : node scripts/create-user.mjs --name=Alice --password=secret --role=admin
  */
-
-import { randomBytes, scrypt, timingSafeEqual } from 'crypto'
+import { randomBytes, scrypt } from 'crypto'
 import { promisify } from 'util'
 import postgres from 'postgres'
 import { readFileSync } from 'fs'
@@ -17,16 +11,15 @@ import { resolve } from 'path'
 
 const scryptAsync = promisify(scrypt)
 
-async function hashPassword(password: string): Promise<string> {
+async function hashPassword(password) {
 	const salt = randomBytes(16).toString('hex')
-	const hash = (await scryptAsync(password, salt, 64)) as Buffer
+	const hash = await scryptAsync(password, salt, 64)
 	return `${salt}:${hash.toString('hex')}`
 }
 
 function loadEnv() {
 	try {
-		const envPath = resolve(process.cwd(), '.env')
-		const content = readFileSync(envPath, 'utf-8')
+		const content = readFileSync(resolve(process.cwd(), '.env'), 'utf-8')
 		for (const line of content.split('\n')) {
 			const trimmed = line.trim()
 			if (!trimmed || trimmed.startsWith('#')) continue
@@ -37,47 +30,45 @@ function loadEnv() {
 			if (!process.env[key]) process.env[key] = value
 		}
 	} catch {
-		// .env absent — on suppose que DATABASE_URL est déjà dans l'environnement
+		// Dans Docker, DATABASE_URL est fourni par l'environnement.
 	}
 }
 
-function parseArgs(): { name: string; password: string; role: 'admin' | 'user' } {
-	const args: Record<string, string> = {}
+function parseArgs() {
+	const args = {}
 	for (const arg of process.argv.slice(2)) {
-		const m = arg.match(/^--(\w+)=(.+)$/)
-		if (m) args[m[1]] = m[2]
+		const match = arg.match(/^--(\w+)=(.+)$/)
+		if (match) args[match[1]] = match[2]
 	}
-
 	if (!args.name || !args.password) {
-		console.error('Usage: npx tsx scripts/create-user.ts --name=<prénom> --password=<motdepasse> [--role=admin|user]')
+		console.error('Usage: node scripts/create-user.mjs --name=<prénom> --password=<motdepasse> [--role=admin|user]')
 		process.exit(1)
 	}
-
-	const role = args.role === 'admin' ? 'admin' : 'user'
-	return { name: args.name.trim(), password: args.password, role }
+	return {
+		name: args.name.trim(),
+		password: args.password,
+		role: args.role === 'admin' ? 'admin' : 'user'
+	}
 }
 
 async function main() {
 	loadEnv()
-
-	const databaseUrl = process.env.DATABASE_URL
-	if (!databaseUrl) {
+	if (!process.env.DATABASE_URL) {
 		console.error('Erreur : DATABASE_URL non défini.')
 		process.exit(1)
 	}
 
 	const { name, password, role } = parseArgs()
-	const sql = postgres(databaseUrl, { ssl: false })
-
+	const sql = postgres(process.env.DATABASE_URL, { ssl: false })
 	try {
-		const hash = await hashPassword(password)
+		const passwordHash = await hashPassword(password)
 		const [user] = await sql`
 			INSERT INTO users (name, password_hash, role)
-			VALUES (${name}, ${hash}, ${role})
+			VALUES (${name}, ${passwordHash}, ${role})
 			ON CONFLICT (name) DO UPDATE
 				SET password_hash = EXCLUDED.password_hash,
-				    role          = EXCLUDED.role,
-				    active        = true
+					role = EXCLUDED.role,
+					active = true
 			RETURNING id, name, role
 		`
 		console.log(`Utilisateur créé/mis à jour : ${user.name} (${user.role}) — id=${user.id}`)

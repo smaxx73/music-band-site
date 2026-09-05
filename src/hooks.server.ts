@@ -1,12 +1,14 @@
 import type { Handle } from '@sveltejs/kit'
 import { verifyCookie } from '$lib/server/auth'
-import { AUTH_SECRET } from '$env/static/private'
 import sql from '$lib/server/db'
+import { authSecret } from '$lib/server/config'
 
 export const handle: Handle = async ({ event, resolve }) => {
+	// Valider la configuration dès la première requête, même sans cookie de session.
+	const secret = authSecret()
 	const signed = event.cookies.get('band_session')
 	if (signed) {
-		const name = verifyCookie(signed, AUTH_SECRET)
+		const name = verifyCookie(signed, secret)
 		if (name) {
 			const [user] = await sql<{ id: number; name: string; role: 'admin' | 'user' }[]>`
 				SELECT id, name, role FROM users WHERE name = ${name} AND active = true

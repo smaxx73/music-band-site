@@ -9,9 +9,9 @@
 	let saving = $state(false)
 	let removingId = $state<number | null>(null)
 
-	const memberIds = $derived(new Set((data.members as { id: number }[]).map((m) => m.id)))
+	const memberIds = $derived(new Set((data.members as unknown as { id: number }[]).map((m) => m.id)))
 	const nonMembers = $derived(
-		(data.allUsers as { id: number; name: string }[]).filter((u) => !memberIds.has(u.id))
+		(data.allUsers as unknown as { id: number; name: string }[]).filter((u) => !memberIds.has(u.id))
 	)
 </script>
 

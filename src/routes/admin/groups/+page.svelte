@@ -7,6 +7,12 @@
 	let creating = $state(false)
 	let newName = $state('')
 	let deletingId = $state<number | null>(null)
+
+	function hasActionError(action: string, id?: number) {
+		if (form?.action !== action || !form.error) return false
+		if (id === undefined) return true
+		return 'id' in form && form.id === id
+	}
 </script>
 
 <svelte:head>
@@ -44,8 +50,8 @@
 					{creating ? 'Création…' : 'Créer'}
 				</button>
 			</div>
-			{#if form?.action === 'create' && form?.error}
-				<p class="error">{form.error}</p>
+			{#if hasActionError('create')}
+				<p class="error">{form?.error}</p>
 			{/if}
 		</form>
 	</section>
@@ -96,9 +102,9 @@
 								</form>
 							</td>
 						</tr>
-						{#if form?.action === 'delete' && form?.id === g.id && form?.error}
+						{#if hasActionError('delete', g.id)}
 							<tr>
-								<td colspan="5" class="error">{form.error}</td>
+								<td colspan="5" class="error">{form?.error}</td>
 							</tr>
 						{/if}
 					{/each}

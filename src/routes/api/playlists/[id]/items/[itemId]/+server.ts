@@ -5,12 +5,19 @@ import sql from '$lib/server/db'
 /** DELETE — supprime un item et réindexe les positions restantes */
 export const DELETE: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
+	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
 
 	const playlistId = parseInt(params.id)
 	const itemId = parseInt(params.itemId)
 	if (isNaN(playlistId) || isNaN(itemId)) {
 		return json({ error: 'ID invalide.' }, { status: 400 })
 	}
+
+	const [playlist] = await sql`
+		SELECT id FROM playlists
+		WHERE id = ${playlistId} AND group_id = ${locals.user.current_group_id}
+	`
+	if (!playlist) return json({ error: 'Playlist introuvable.' }, { status: 404 })
 
 	await sql.begin(async (tx) => {
 		const [deleted] = await tx`

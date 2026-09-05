@@ -223,7 +223,6 @@
 	<CommentsPanel
 		recordingId={recording.id}
 		comments={comments}
-		defaultAuthor={user ?? ''}
 		currentTime={playerState.currentTime}
 		playerReady={playerState.ready}
 		isPlaying={playerState.isPlaying}

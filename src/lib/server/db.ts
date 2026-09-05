@@ -1,7 +1,8 @@
 import postgres from 'postgres'
-import { DATABASE_URL } from '$env/static/private'
 
-const sql = postgres(DATABASE_URL, {
+// `process.env` est lu au démarrage du conteneur. La valeur de secours évite que
+// l'analyse SvelteKit du build ouvre une connexion ou exige les secrets de prod.
+const sql = postgres(process.env.DATABASE_URL ?? 'postgresql://invalid:invalid@localhost:5432/invalid', {
 	ssl: false,
 	types: {
 		// Keep PostgreSQL DATE values as YYYY-MM-DD strings.

@@ -6,6 +6,7 @@ import { audioPath } from '$lib/server/storage'
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
+	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
 
 	const id = parseInt(params.id)
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
@@ -23,6 +24,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 		JOIN songs   s   ON s.id   = r.song_id
 		JOIN sessions ses ON ses.id = r.session_id
 		WHERE r.id = ${id}
+		  AND ses.group_id = ${locals.user.current_group_id}
 	`
 
 	if (!recording) return json({ error: 'Prise introuvable.' }, { status: 404 })
@@ -32,6 +34,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
+	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
 
 	const id = parseInt(params.id)
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
@@ -52,7 +55,14 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		return json({ error: 'Aucun champ à modifier.' }, { status: 400 })
 	}
 
-	const [recording] = await sql`UPDATE recordings SET ${sql(updates)} WHERE id = ${id} RETURNING *`
+	const [recording] = await sql`
+		UPDATE recordings r SET ${sql(updates)}
+		FROM sessions ses
+		WHERE r.id = ${id}
+		  AND r.session_id = ses.id
+		  AND ses.group_id = ${locals.user.current_group_id}
+		RETURNING r.*
+	`
 	if (!recording) return json({ error: 'Prise introuvable.' }, { status: 404 })
 
 	return json(recording)
