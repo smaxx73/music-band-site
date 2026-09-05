@@ -13,6 +13,7 @@ services:
       AUTH_SECRET: ${AUTH_SECRET}
       NODE_ENV: production
       PORT: 3000
+      BODY_SIZE_LIMIT: 200M
       ORIGIN: ${ORIGIN:-http://localhost}
     volumes:
       - audio_data:/data/audio
