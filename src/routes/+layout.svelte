@@ -4,7 +4,6 @@
 	import favicon from '$lib/assets/favicon.svg'
 	import { page } from '$app/state'
 	import { goto } from '$app/navigation'
-	import { enhance } from '$app/forms'
 	import { isAdmin } from '$lib/types'
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props()
@@ -104,7 +103,7 @@
 						<div class="sidebar-avatar">{userInitials}</div>
 						<span class="sidebar-username">{data.user.name}</span>
 					</a>
-					<form method="POST" action="/logout" use:enhance>
+					<form method="POST" action="/logout">
 						<button type="submit" class="sidebar-logout" title="Se déconnecter">⏻</button>
 					</form>
 				</div>
