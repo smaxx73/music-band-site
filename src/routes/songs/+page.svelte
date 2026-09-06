@@ -2,6 +2,7 @@
 	import type { PageData, ActionData } from './$types'
 	import type { Song } from '$lib/types'
 	import { enhance } from '$app/forms'
+	import Modal from '$lib/components/Modal.svelte'
 
 	let { data, form }: { data: PageData; form: ActionData } = $props()
 
@@ -32,12 +33,6 @@
 <svelte:head>
 	<title>Morceaux</title>
 </svelte:head>
-
-<svelte:window
-	onkeydown={(e) => {
-		if (e.key === 'Escape') showCreateModal = false
-	}}
-/>
 
 <!-- Champs partagés entre la modale d'ajout et l'édition inline -->
 {#snippet songFields(song: Song | null)}
@@ -213,52 +208,38 @@
 
 <!-- Modale d'ajout -->
 {#if showCreateModal}
-	<div class="modal-backdrop">
-		<button
-			type="button"
-			class="backdrop-close"
-			aria-label="Fermer"
-			onclick={() => (showCreateModal = false)}
-		></button>
-		<div class="modal" role="dialog" aria-modal="true" aria-label="Ajouter un morceau">
-			<div class="modal-header">
-				<h2>Ajouter un morceau</h2>
-				<button class="modal-close" aria-label="Fermer" onclick={() => (showCreateModal = false)}>
-					✕
-				</button>
-			</div>
-			<form
-				method="POST"
-				action="?/create"
-				use:enhance={() => {
-					createError = null
-					return async ({ result, update }) => {
-						// En cas d'échec, on garde la saisie de l'utilisateur dans la modale
-						if (result.type === 'failure') {
-							createError = (result.data as { error?: string } | undefined)?.error ?? 'Erreur.'
-							return
-						}
-						await update()
-						showCreateModal = false
-						createSuccess = true
+	<Modal title="Ajouter un morceau" onClose={() => (showCreateModal = false)}>
+		<form
+			method="POST"
+			action="?/create"
+			use:enhance={() => {
+				createError = null
+				return async ({ result, update }) => {
+					// En cas d'échec, on garde la saisie de l'utilisateur dans la modale
+					if (result.type === 'failure') {
+						createError = (result.data as { error?: string } | undefined)?.error ?? 'Erreur.'
+						return
 					}
-				}}
-			>
-				<div class="modal-body">
-					{#if createError}
-						<p class="message-error">{createError}</p>
-					{/if}
-					{@render songFields(null)}
-				</div>
-				<div class="modal-footer">
-					<button type="button" class="btn btn-ghost" onclick={() => (showCreateModal = false)}>
-						Annuler
-					</button>
-					<button type="submit" class="btn btn-primary">Ajouter</button>
-				</div>
-			</form>
-		</div>
-	</div>
+					await update()
+					showCreateModal = false
+					createSuccess = true
+				}
+			}}
+		>
+			<div class="modal-body">
+				{#if createError}
+					<p class="message-error">{createError}</p>
+				{/if}
+				{@render songFields(null)}
+			</div>
+			<div class="modal-footer">
+				<button type="button" class="btn btn-ghost" onclick={() => (showCreateModal = false)}>
+					Annuler
+				</button>
+				<button type="submit" class="btn btn-primary">Ajouter</button>
+			</div>
+		</form>
+	</Modal>
 {/if}
 
 <style>
@@ -389,81 +370,6 @@
 
 	.empty { color: #aaa; font-style: italic; font-size: 0.9rem; }
 	.message-error { color: #c0392b; font-size: 0.875rem; margin: 0 0 0.5rem; }
-
-	/* ─── Modale ───────────────────────── */
-	.modal-backdrop {
-		position: fixed;
-		inset: 0;
-		background: rgba(0, 0, 0, 0.45);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		padding: 1rem;
-		z-index: 100;
-	}
-
-	/* Bouton plein écran derrière la modale : fermeture au clic hors modale, sans piège d'accessibilité */
-	.backdrop-close {
-		position: absolute;
-		inset: 0;
-		background: none;
-		border: none;
-		cursor: default;
-	}
-
-	.modal {
-		position: relative;
-		display: flex;
-		flex-direction: column;
-		background: var(--color-bg);
-		border-radius: var(--radius-xl);
-		box-shadow: var(--shadow-modal);
-		width: 600px;
-		max-width: 100%;
-		max-height: 90vh;
-		overflow: hidden;
-	}
-
-	.modal-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		padding: 1rem 1.25rem 0.75rem;
-		border-bottom: 1px solid var(--color-border-light);
-	}
-
-	.modal-header h2 { margin: 0; font-size: var(--text-lg); }
-
-	.modal-close {
-		background: none;
-		border: none;
-		font-size: 1rem;
-		cursor: pointer;
-		color: var(--color-text-muted);
-		padding: 0;
-	}
-
-	.modal-close:hover { color: var(--color-primary-hover); }
-
-	.modal form {
-		display: flex;
-		flex-direction: column;
-		min-height: 0;
-	}
-
-	.modal-body {
-		padding: 1rem 1.25rem;
-		overflow-y: auto;
-	}
-
-	.modal-footer {
-		display: flex;
-		justify-content: flex-end;
-		gap: 0.5rem;
-		padding: 0.75rem 1.25rem 1rem;
-		border-top: 1px solid var(--color-border-light);
-	}
 
 	/* ─── Responsive ───────────────────── */
 	@media (max-width: 640px) {

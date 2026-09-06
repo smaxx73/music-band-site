@@ -115,7 +115,8 @@ CREATE TABLE calendar_events (
     user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
                                              -- auteur réel des indisponibilités
     date        DATE NOT NULL,
-    type        TEXT NOT NULL CHECK (type IN ('indisponibilite', 'repetition', 'concert')),
+    type        TEXT NOT NULL CHECK (type IN ('indisponibilite', 'repetition', 'concert', 'studio', 'autre')),
+                                             -- les 4 derniers reflètent sessions.type
     author      TEXT NOT NULL,
     title       TEXT,
     notes       TEXT,

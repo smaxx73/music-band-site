@@ -4,6 +4,7 @@
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte'
 	import CommentsPanel from '$lib/components/CommentsPanel.svelte'
 	import SongDetails from '$lib/components/SongDetails.svelte'
+	import Modal from '$lib/components/Modal.svelte'
 
 	let { data }: { data: PageData } = $props()
 
@@ -129,7 +130,6 @@
 	<title>{recording.song_title} — Prise {recording.take}</title>
 </svelte:head>
 
-<svelte:window onkeydown={(e) => { if (e.key === 'Escape') showPlaylistModal = false }} />
 
 <main>
 	<!-- Fil d'Ariane -->
@@ -168,39 +168,32 @@
 
 	<!-- Modale playlist -->
 	{#if showPlaylistModal}
-		<div class="modal-backdrop">
-			<div class="modal" role="dialog" aria-modal="true" aria-label="Ajouter à une playlist">
-				<div class="modal-header">
-					<h3>Ajouter à une playlist</h3>
-					<button class="modal-close" onclick={() => (showPlaylistModal = false)}>✕</button>
-				</div>
-
-				{#if modalLoading}
-					<p class="modal-hint">Chargement…</p>
-				{:else if modalError}
-					<p class="modal-error">{modalError}</p>
-				{:else if modalPlaylists.length === 0}
-					<p class="modal-hint">Aucune playlist. <a href="/playlists">En créer une →</a></p>
-				{:else}
-					<ul class="modal-list">
-						{#each modalPlaylists as p}
-							<li>
-								<button
-									class="modal-item"
-									class:added={addedToId === p.id}
-									onclick={() => addToPlaylist(p.id)}
-									disabled={addedToId !== null}
-								>
-									<span class="modal-name">{p.name}</span>
-									<span class="modal-count">{p.item_count} prise{p.item_count > 1 ? 's' : ''}</span>
-									{#if addedToId === p.id}<span class="modal-check">✓ Ajouté</span>{/if}
-								</button>
-							</li>
-						{/each}
-					</ul>
-				{/if}
-			</div>
-		</div>
+		<Modal title="Ajouter à une playlist" size="sm" onClose={() => (showPlaylistModal = false)}>
+			{#if modalLoading}
+				<p class="modal-hint">Chargement…</p>
+			{:else if modalError}
+				<p class="modal-error">{modalError}</p>
+			{:else if modalPlaylists.length === 0}
+				<p class="modal-hint">Aucune playlist. <a href="/playlists">En créer une →</a></p>
+			{:else}
+				<ul class="modal-list">
+					{#each modalPlaylists as p}
+						<li>
+							<button
+								class="modal-item"
+								class:added={addedToId === p.id}
+								onclick={() => addToPlaylist(p.id)}
+								disabled={addedToId !== null}
+							>
+								<span class="modal-name">{p.name}</span>
+								<span class="modal-count">{p.item_count} prise{p.item_count > 1 ? 's' : ''}</span>
+								{#if addedToId === p.id}<span class="modal-check">✓ Ajouté</span>{/if}
+							</button>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</Modal>
 	{/if}
 
 	<!-- Lecteur -->
@@ -243,24 +236,7 @@
 	.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
 	.header-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
 
-	/* Modale */
-	.modal-backdrop {
-		position: fixed; inset: 0; background: rgba(0,0,0,0.45);
-		display: flex; align-items: center; justify-content: center;
-		z-index: 100;
-	}
-	.modal {
-		background: var(--color-bg); border-radius: var(--radius-xl); width: 360px; max-width: 95vw;
-		box-shadow: var(--shadow-modal); overflow: hidden;
-	}
-	.modal-header {
-		display: flex; align-items: center; justify-content: space-between;
-		padding: 1rem 1.25rem 0.75rem; border-bottom: 1px solid #f0f0f0;
-	}
-	.modal-header h3 { margin: 0; font-size: 0.95rem; }
-	.modal-close { background: none; border: none; font-size: 1rem; cursor: pointer; color: var(--color-text-muted); padding: 0; }
-	.modal-close:hover { color: var(--color-primary-hover); }
-
+	/* Contenu de la modale playlist (structure commune dans app.css) */
 	.modal-list { list-style: none; padding: 0.5rem 0; margin: 0; max-height: 320px; overflow-y: auto; }
 	.modal-item {
 		width: 100%; background: none; border: none; padding: 0.7rem 1.25rem;

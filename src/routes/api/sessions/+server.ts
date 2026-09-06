@@ -74,23 +74,21 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			RETURNING *
 		`
 
-		// Une session de type répétition/concert apparaît automatiquement dans l'agenda
-		if (resolvedType === 'repetition' || resolvedType === 'concert') {
-			await tx`
-				INSERT INTO calendar_events (group_id, user_id, date, type, author, title, notes, location, session_id)
-				VALUES (
-					${locals.user!.current_group_id},
-					NULL,
-					${date.trim()}::date,
-					${resolvedType},
-					${locals.user!.name},
-					${resolvedTitle},
-					${resolvedNotes},
-					${resolvedLocation},
-					${session.id}
-				)
-			`
-		}
+		// Toute session apparaît automatiquement dans l'agenda, quel que soit son type
+		await tx`
+			INSERT INTO calendar_events (group_id, user_id, date, type, author, title, notes, location, session_id)
+			VALUES (
+				${locals.user!.current_group_id},
+				NULL,
+				${date.trim()}::date,
+				${resolvedType},
+				${locals.user!.name},
+				${resolvedTitle},
+				${resolvedNotes},
+				${resolvedLocation},
+				${session.id}
+			)
+		`
 
 		return session
 	})

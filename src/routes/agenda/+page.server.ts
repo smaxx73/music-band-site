@@ -36,7 +36,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			WHERE e.date >= ${start}::date
 				AND e.date < ${end}::date
 				AND (
-					(e.group_id = ${groupId} AND e.type IN ('repetition', 'concert'))
+					(e.group_id = ${groupId} AND e.type <> 'indisponibilite')
 					OR
 					(e.type = 'indisponibilite' AND e.user_id IN (
 						SELECT user_id FROM user_groups WHERE group_id = ${groupId}

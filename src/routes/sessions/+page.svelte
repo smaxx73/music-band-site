@@ -1,8 +1,12 @@
 <script lang="ts">
 	import type { PageData } from './$types'
-	import { formatDateOnly } from '$lib/date'
+	import { invalidateAll } from '$app/navigation'
+	import { formatDateOnly, toDateOnly } from '$lib/date'
+	import Modal from '$lib/components/Modal.svelte'
 
 	let { data }: { data: PageData } = $props()
+
+	type SessionType = 'repetition' | 'concert' | 'studio' | 'autre'
 
 	type SessionRow = {
 		id: number
@@ -24,6 +28,72 @@
 
 	const sessions = $derived(data.sessions as unknown as SessionRow[])
 
+	let showCreateModal = $state(false)
+	let creating = $state(false)
+	let createError = $state<string | null>(null)
+	let createSuccess = $state<string | null>(null)
+
+	let newDate = $state('')
+	let newType = $state<SessionType>('repetition')
+	let newTitle = $state('')
+	let newLocation = $state('')
+	let newMembers = $state('')
+	let newNotes = $state('')
+
+	function openCreateModal() {
+		newDate = toDateOnly(new Date())
+		newType = 'repetition'
+		newTitle = ''
+		newLocation = ''
+		newMembers = ''
+		newNotes = ''
+		createError = null
+		createSuccess = null
+		showCreateModal = true
+	}
+
+	async function createSession(event: SubmitEvent) {
+		event.preventDefault()
+
+		if (!/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+			createError = 'Date invalide (YYYY-MM-DD attendu).'
+			return
+		}
+
+		creating = true
+		createError = null
+		try {
+			const res = await fetch('/api/sessions', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					date: newDate,
+					type: newType,
+					title: newTitle.trim() || null,
+					location: newLocation.trim() || null,
+					notes: newNotes.trim() || null,
+					members: newMembers
+						.split(',')
+						.map((member) => member.trim())
+						.filter(Boolean)
+				})
+			})
+			const json = await res.json()
+			if (!res.ok) {
+				createError = json.error ?? 'Erreur lors de la création.'
+				return
+			}
+
+			await invalidateAll()
+			showCreateModal = false
+			createSuccess = json.title ?? formatDate(json.date)
+		} catch {
+			createError = 'Erreur réseau.'
+		} finally {
+			creating = false
+		}
+	}
+
 	function formatDate(d: string | Date) {
 		return formatDateOnly(d, {
 			weekday: 'long',
@@ -39,7 +109,14 @@
 </svelte:head>
 
 <main>
-	<h1>Sessions</h1>
+	<div class="page-header">
+		<h1>Sessions</h1>
+		<button class="btn btn-primary" onclick={openCreateModal}>+ Nouvelle session</button>
+	</div>
+
+	{#if createSuccess}
+		<p class="message-success">Session « {createSuccess} » créée.</p>
+	{/if}
 
 	{#if sessions.length === 0}
 		<p class="empty">Aucune session pour l'instant. <a href="/upload">Uploader une première prise →</a></p>
@@ -71,6 +148,82 @@
 	{/if}
 </main>
 
+{#if showCreateModal}
+	<Modal title="Nouvelle session" onClose={() => (showCreateModal = false)}>
+		<form onsubmit={createSession}>
+			<div class="modal-body">
+				{#if createError}
+					<p class="message-error">{createError}</p>
+				{/if}
+				<div class="fields">
+					<div class="fields-row">
+						<label class="form-label">
+							Type
+							<select class="form-input" bind:value={newType} disabled={creating}>
+								<option value="repetition">Répétition</option>
+								<option value="concert">Concert</option>
+								<option value="studio">Studio</option>
+								<option value="autre">Autre</option>
+							</select>
+						</label>
+						<label class="form-label">
+							Date <span class="required">*</span>
+							<input class="form-input" type="date" bind:value={newDate} required disabled={creating} />
+						</label>
+					</div>
+					<label class="form-label">
+						Titre <span class="hint">(optionnel)</span>
+						<input
+							class="form-input"
+							type="text"
+							placeholder="ex : Répète avant Ducasse"
+							bind:value={newTitle}
+							disabled={creating}
+						/>
+					</label>
+					<label class="form-label">
+						Lieu
+						<input
+							class="form-input"
+							type="text"
+							placeholder="ex : Studio, Salle des fêtes…"
+							bind:value={newLocation}
+							disabled={creating}
+						/>
+					</label>
+					<label class="form-label">
+						Membres présents <span class="hint">(séparés par des virgules)</span>
+						<input
+							class="form-input"
+							type="text"
+							placeholder="Marc, Julie, Thomas"
+							bind:value={newMembers}
+							disabled={creating}
+						/>
+					</label>
+					<label class="form-label">
+						Notes
+						<textarea class="form-input" rows="3" bind:value={newNotes} disabled={creating}></textarea>
+					</label>
+				</div>
+			</div>
+			<div class="modal-footer">
+				<button
+					type="button"
+					class="btn btn-ghost"
+					onclick={() => (showCreateModal = false)}
+					disabled={creating}
+				>
+					Annuler
+				</button>
+				<button type="submit" class="btn btn-primary" disabled={creating}>
+					{creating ? 'Création…' : 'Créer'}
+				</button>
+			</div>
+		</form>
+	</Modal>
+{/if}
+
 <style>
 	main {
 		max-width: 680px;
@@ -78,9 +231,53 @@
 		padding: 0 1rem;
 	}
 
+	.page-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		margin-bottom: 1.5rem;
+	}
+
 	h1 {
 		font-size: var(--text-xl);
-		margin: 0 0 1.5rem;
+		margin: 0;
+	}
+
+	.fields {
+		display: flex;
+		flex-direction: column;
+		gap: 0.65rem;
+	}
+
+	.fields-row {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: 0.65rem;
+	}
+
+	.required { color: var(--color-error); }
+
+	.hint {
+		font-weight: 400;
+		color: #aaa;
+		font-size: 0.78rem;
+	}
+
+	.message-success { margin-bottom: 1rem; }
+
+	textarea.form-input { resize: vertical; }
+
+	@media (max-width: 640px) {
+		main { margin: 1rem auto; }
+
+		.page-header {
+			flex-direction: column;
+			align-items: stretch;
+			gap: 0.75rem;
+		}
+
+		.fields-row { grid-template-columns: 1fr; }
 	}
 
 	.sessions-list {

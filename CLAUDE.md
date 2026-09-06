@@ -66,6 +66,7 @@ NODE_ENV=production
 ## Navigation
 ```
 /                   tableau de bord (5 dernières sessions + playlists)
+/sessions           liste des sessions + création
 /sessions/[id]      détail session → morceaux groupés → prises
 /songs              liste + gestion du référentiel de morceaux (tout membre du groupe actif)
 /songs/[id]         historique d'un morceau toutes sessions confondues
@@ -76,7 +77,7 @@ NODE_ENV=production
 /group              infos + membres du groupe actif (consultation, tout membre)
 /admin/users        gestion des comptes
 /admin/groups       gestion des groupes et membres
-/agenda             agenda partagé du groupe (indisponibilités, répétitions, concerts)
+/agenda             agenda partagé du groupe (indisponibilités + toutes les sessions)
 ```
 
 ## Non implémenté — ne pas inventer

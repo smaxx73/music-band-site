@@ -110,31 +110,26 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		`
 		if (!session) return null
 
-		// Garder l'agenda synchronisé avec la session
+		// Garder l'agenda synchronisé avec la session, quel que soit son type
 		const [linkedEvent] = await tx`
-			SELECT id FROM calendar_events WHERE session_id = ${id} AND type IN ('repetition', 'concert')
+			SELECT id FROM calendar_events WHERE session_id = ${id}
 		`
 
-		if (session.type === 'repetition' || session.type === 'concert') {
-			if (linkedEvent) {
-				await tx`
-					UPDATE calendar_events
-					SET date = ${session.date}, type = ${session.type}, title = ${session.title},
-						notes = ${session.notes}, location = ${session.location}
-					WHERE id = ${linkedEvent.id}
-				`
-			} else {
-				await tx`
-					INSERT INTO calendar_events (group_id, user_id, date, type, author, title, notes, location, session_id)
-					VALUES (
-						${session.group_id}, NULL, ${session.date}, ${session.type}, ${locals.user!.name},
-						${session.title}, ${session.notes}, ${session.location}, ${session.id}
-					)
-				`
-			}
-		} else if (linkedEvent) {
-			// Le type n'est plus répétition/concert : l'événement d'agenda n'a plus lieu d'être
-			await tx`DELETE FROM calendar_events WHERE id = ${linkedEvent.id}`
+		if (linkedEvent) {
+			await tx`
+				UPDATE calendar_events
+				SET date = ${session.date}, type = ${session.type}, title = ${session.title},
+					notes = ${session.notes}, location = ${session.location}
+				WHERE id = ${linkedEvent.id}
+			`
+		} else {
+			await tx`
+				INSERT INTO calendar_events (group_id, user_id, date, type, author, title, notes, location, session_id)
+				VALUES (
+					${session.group_id}, NULL, ${session.date}, ${session.type}, ${locals.user!.name},
+					${session.title}, ${session.notes}, ${session.location}, ${session.id}
+				)
+			`
 		}
 
 		return session

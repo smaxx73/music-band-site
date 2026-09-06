@@ -14,6 +14,12 @@
    `SELECT COALESCE(MAX(take), 0) + 1 FROM recordings WHERE session_id=$1 AND song_id=$2`
 9. Insertion en base avec `file_hash`, sauvegarde `/data/audio/{id}.mp3`, retour du `recording` créé
 
+## Liste des sessions (`/sessions`)
+
+- Liste des sessions du groupe actif, triées par date décroissante
+- Bouton [+ Nouvelle session] → modale de création (type, date, titre, lieu, membres, notes)
+- La création passe par `POST /api/sessions` et crée l'événement d'agenda lié
+
 ## Vue session (`/sessions/[id]`)
 
 - Prises groupées par morceau, triées par `take` ASC
@@ -61,16 +67,19 @@
 ## Agenda partagé (`/agenda`)
 
 - Vue mensuelle en grille 7 colonnes (lundi → dimanche), navigation mois par mois
-- Chaque membre peut ajouter sur n'importe quel jour un événement de trois types :
+- Chaque membre peut ajouter sur n'importe quel jour un événement :
 - `indisponibilite` — indisponibilité personnelle, liée à `user_id` et sans `group_id`
-- `repetition` — répétition de groupe, liée au groupe actif
-- `concert` — concert de groupe, lié au groupe actif
-- Répétition et concert peuvent être liés à une `session` existante (optionnel)
+- `repetition` | `concert` | `studio` | `autre` — événement de groupe, lié au groupe actif ;
+  ces quatre types reflètent exactement `sessions.type`
+- Toute session créée apparaît automatiquement dans l'agenda, quel que soit son type :
+  `POST /api/sessions` insère l'événement lié, `PATCH` le synchronise (date, type, titre,
+  notes, lieu) et `DELETE` le retire
+- Un événement de groupe peut être lié à une `session` existante (optionnel)
 - Chaque événement peut avoir `title`, `notes` et `location`
 - Les indisponibilités affichées sont celles des utilisateurs membres du groupe actif
 - Clic sur un jour → panneau détail : liste des événements du jour + formulaire d'ajout
-- Badges colorés : rouge = indisponible, bleu = répétition, vert = concert
-- Droits : seul l'auteur peut modifier ou supprimer son indisponibilité ; répétitions et concerts sont modifiables/supprimables par les membres du groupe actif
+- Badges colorés : rouge = indisponible, bleu = répétition, vert = concert, violet = studio, gris = autre
+- Droits : seul l'auteur peut modifier ou supprimer son indisponibilité ; les événements de groupe sont modifiables/supprimables par les membres du groupe actif
 - `author` = nom de l'utilisateur connecté
 
 ## Tableau de bord (`/`)

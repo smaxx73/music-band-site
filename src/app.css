@@ -255,6 +255,91 @@ body {
   vertical-align: middle;
 }
 
+/* ─── Modales ────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 100;
+}
+
+.modal-backdrop-close {
+  position: absolute;
+  inset: 0;
+  background: none;
+  border: none;
+  cursor: default;
+}
+
+.modal {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-modal);
+  width: 600px;
+  max-width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+}
+
+.modal-sm {
+  width: 360px;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem 1.25rem 0.75rem;
+  border-bottom: 1px solid var(--color-border-light);
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--color-text-muted);
+  padding: 0;
+}
+
+.modal-close:hover {
+  color: var(--color-primary-hover);
+}
+
+/* Le formulaire porte le scroll du corps : seul .modal-body défile */
+.modal form {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.modal-body {
+  padding: 1rem 1.25rem;
+  overflow-y: auto;
+}
+
+.modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem 1rem;
+  border-top: 1px solid var(--color-border-light);
+}
+
 /* ─── Fil d'Ariane ───────────────────────────────────── */
 .breadcrumb {
   font-size: 0.85rem;

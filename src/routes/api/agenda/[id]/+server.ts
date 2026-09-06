@@ -10,7 +10,7 @@ async function getAccessibleEvent(id: number, locals: App.Locals) {
 		SELECT * FROM calendar_events
 		WHERE id = ${id}
 			AND (
-				(group_id = ${groupId} AND type IN ('repetition', 'concert'))
+				(group_id = ${groupId} AND type <> 'indisponibilite')
 				OR
 				(type = 'indisponibilite' AND user_id IN (
 					SELECT user_id FROM user_groups WHERE group_id = ${groupId}

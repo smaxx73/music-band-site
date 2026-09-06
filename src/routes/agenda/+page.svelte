@@ -7,7 +7,7 @@
 	type CalendarEventRow = {
 		id: number
 		date: string
-		type: 'indisponibilite' | 'repetition' | 'concert'
+		type: 'indisponibilite' | 'repetition' | 'concert' | 'studio' | 'autre'
 		author: string
 		user_id: number | null
 		title: string | null
@@ -109,7 +109,8 @@
 
 	// Form state
 	let selectedDay: number | null = $state(null)
-	let formType: 'indisponibilite' | 'repetition' | 'concert' = $state('indisponibilite')
+	let formType: 'indisponibilite' | 'repetition' | 'concert' | 'studio' | 'autre' =
+		$state('indisponibilite')
 	let formTitle = $state('')
 	let formNotes = $state('')
 	let formLocation = $state('')
@@ -182,10 +183,13 @@
 		return true
 	}
 
+	// Les 4 types de groupe reflètent sessions.type
 	const TYPE_LABELS: Record<string, string> = {
 		indisponibilite: 'Indisponible',
 		repetition: 'Répétition',
-		concert: 'Concert'
+		concert: 'Concert',
+		studio: 'Studio',
+		autre: 'Autre'
 	}
 
 	const selectedDayLabel = $derived(
@@ -334,6 +338,8 @@
 						<option value="indisponibilite">Indisponible (personnel)</option>
 						<option value="repetition">Répétition</option>
 						<option value="concert">Concert</option>
+						<option value="studio">Studio</option>
+						<option value="autre">Autre</option>
 					</select>
 				</div>
 
@@ -521,6 +527,17 @@
 	.event-concert {
 		background: var(--color-repertoire-bg);
 		color: var(--color-repertoire-text);
+	}
+
+	/* Mêmes couleurs que les badges de type sur /sessions */
+	.event-studio {
+		background: #f3e8ff;
+		color: #7c3aed;
+	}
+
+	.event-autre {
+		background: var(--color-bg-subtle);
+		color: var(--color-text-secondary);
 	}
 
 	/* Day panel */

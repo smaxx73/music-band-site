@@ -29,7 +29,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		WHERE e.date >= ${start}::date
 			AND e.date < ${end}::date
 			AND (
-				(e.group_id = ${groupId} AND e.type IN ('repetition', 'concert'))
+				(e.group_id = ${groupId} AND e.type <> 'indisponibilite')
 				OR
 				(e.type = 'indisponibilite' AND e.user_id IN (
 					SELECT user_id FROM user_groups WHERE group_id = ${groupId}
@@ -51,7 +51,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
 		return json({ error: 'Date invalide.' }, { status: 400 })
 	}
-	if (!['indisponibilite', 'repetition', 'concert'].includes(type)) {
+	if (!['indisponibilite', 'repetition', 'concert', 'studio', 'autre'].includes(type)) {
 		return json({ error: 'Type invalide.' }, { status: 400 })
 	}
 
