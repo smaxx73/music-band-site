@@ -49,13 +49,14 @@
 - Ordre modifiable par drag & drop → PATCH `position`
 - Depuis `/recording/[id]` : bouton "Ajouter à une playlist"
 
-## Référentiel de morceaux (`/admin/songs`)
+## Référentiel de morceaux (`/songs`)
 
-- Ajout : titre (unique), compositeur, tonalité, statut
+- Géré par tout membre du groupe actif (pas réservé aux admins) — scope toujours par `current_group_id`
+- Ajout : titre (unique dans le groupe), compositeur, tonalité, statut
 - Modification possible après coup
-- Statut `abandonne` → masqué dans le sélecteur d'upload, prises existantes conservées
+- Statut `abandonne` → masqué dans le sélecteur d'upload, prises existantes conservées ; reste visible et modifiable dans `/songs`
 - Suppression bloquée si des prises existent pour ce morceau
-- Liste publique `/songs` : morceaux non abandonnés avec nombre de prises (`take_count`)
+- Liste affiche tous les statuts du groupe actif, avec nombre de prises (`take_count`)
 
 ## Agenda partagé (`/agenda`)
 

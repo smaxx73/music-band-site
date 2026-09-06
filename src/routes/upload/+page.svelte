@@ -223,7 +223,7 @@
 			{#if songs.length === 0}
 				<p class="hint">
 					Aucun morceau disponible.
-					<a href="/admin/songs">Ajouter des morceaux →</a>
+					<a href="/songs">Ajouter des morceaux →</a>
 				</p>
 			{:else}
 				<label class="form-label">

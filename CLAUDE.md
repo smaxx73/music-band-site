@@ -9,7 +9,8 @@
 # CLAUDE.md — Band Rehearsal App
 
 Application web privée pour partager les enregistrements de répétitions d'un groupe de musique.
-Accès restreint par comptes individuels. Les contenus sont isolés par groupe actif ; les admins gèrent les morceaux, utilisateurs et groupes.
+Accès restreint par comptes individuels. Les contenus sont isolés par groupe actif ; le référentiel de
+morceaux est géré par tout membre du groupe actif, les admins gèrent en plus les utilisateurs et les groupes.
 
 ## Références
 - Schéma SQL complet : @schema.sql
@@ -62,11 +63,11 @@ NODE_ENV=production
 ```
 /                   tableau de bord (5 dernières sessions + playlists)
 /sessions/[id]      détail session → morceaux groupés → prises
+/songs              liste + gestion du référentiel de morceaux (tout membre du groupe actif)
 /songs/[id]         historique d'un morceau toutes sessions confondues
 /recording/[id]     lecteur waveform + commentaires
 /playlists/[id]     lecture en continu d'une playlist
 /upload             formulaire d'upload
-/admin/songs        gestion du référentiel de morceaux
 /admin/users        gestion des comptes
 /admin/groups       gestion des groupes et membres
 /agenda             agenda partagé du groupe (indisponibilités, répétitions, concerts)

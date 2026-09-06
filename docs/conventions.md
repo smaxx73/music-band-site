@@ -19,11 +19,11 @@ src/
 │   ├── +layout.svelte     # layout global + vérif auth
 │   ├── +page.svelte       # tableau de bord
 │   ├── sessions/[id]/+page.svelte
+│   ├── songs/+page.svelte         # liste + gestion référentiel (tout membre du groupe)
 │   ├── songs/[id]/+page.svelte
 │   ├── recording/[id]/+page.svelte
 │   ├── playlists/[id]/+page.svelte
 │   ├── upload/+page.svelte
-│   ├── admin/songs/+page.svelte
 │   └── api/               # voir src/routes/api/CLAUDE.md
 data/audio/                # fichiers mp3 (volume Docker)
 schema.sql                 # schéma SQL — source de vérité
