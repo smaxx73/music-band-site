@@ -41,6 +41,10 @@ docker compose exec -T db psql -U band -d bandapp < migrations/006_calendar.sql
 # Les migrations sont cumulatives et numérotées ; les appliquer dans l'ordre.
 ```
 
+IMPORTANT (Claude) : dès qu'un changement ajoute un fichier dans `migrations/` ou modifie
+`schema.sql`, avertir explicitement l'utilisateur qu'une migration doit être appliquée en
+déploiement (dev et prod), avec la commande exacte à lancer. Ne jamais laisser deviner.
+
 ## Variables d'environnement (.env, ne jamais commiter)
 ```
 DATABASE_URL=postgresql://band:secret@db:5432/bandapp
