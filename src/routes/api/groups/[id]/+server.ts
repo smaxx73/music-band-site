@@ -1,10 +1,11 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import sql from '$lib/server/db'
+import { isAdmin } from '$lib/types'
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
-	if (locals.user.role !== 'admin') return json({ error: 'Réservé aux administrateurs.' }, { status: 403 })
+	if (!isAdmin(locals.user?.role)) return json({ error: 'Réservé aux administrateurs.' }, { status: 403 })
 
 	const id = parseInt(params.id)
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
@@ -17,7 +18,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
-	if (locals.user.role !== 'admin') return json({ error: 'Réservé aux administrateurs.' }, { status: 403 })
+	if (!isAdmin(locals.user?.role)) return json({ error: 'Réservé aux administrateurs.' }, { status: 403 })
 
 	const id = parseInt(params.id)
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
@@ -43,7 +44,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
 export const DELETE: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
-	if (locals.user.role !== 'admin') return json({ error: 'Réservé aux administrateurs.' }, { status: 403 })
+	if (!isAdmin(locals.user?.role)) return json({ error: 'Réservé aux administrateurs.' }, { status: 403 })
 
 	const id = parseInt(params.id)
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })

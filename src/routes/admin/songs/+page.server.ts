@@ -1,6 +1,7 @@
 import type { PageServerLoad, Actions } from './$types'
 import { error, fail } from '@sveltejs/kit'
 import sql from '$lib/server/db'
+import { isAdmin } from '$lib/types'
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user?.current_group_id) return { songs: [] }
@@ -23,7 +24,7 @@ const VALID_STATUSES = ['en_apprentissage', 'au_repertoire', 'abandonne']
 
 export const actions: Actions = {
 	create: async ({ request, locals }) => {
-		if (locals.user?.role !== 'admin') error(403, 'Accès réservé aux administrateurs')
+		if (!locals.user || !isAdmin(locals.user.role)) error(403, 'Accès réservé aux administrateurs')
 		if (!locals.user.current_group_id)
 			return fail(400, { action: 'create', error: 'Aucun groupe actif.' })
 
@@ -60,7 +61,7 @@ export const actions: Actions = {
 	},
 
 	update: async ({ request, locals }) => {
-		if (locals.user?.role !== 'admin') error(403, 'Accès réservé aux administrateurs')
+		if (!locals.user || !isAdmin(locals.user.role)) error(403, 'Accès réservé aux administrateurs')
 		if (!locals.user.current_group_id)
 			return fail(400, { action: 'update', error: 'Aucun groupe actif.' })
 
@@ -99,7 +100,7 @@ export const actions: Actions = {
 	},
 
 	delete: async ({ request, locals }) => {
-		if (locals.user?.role !== 'admin') error(403, 'Accès réservé aux administrateurs')
+		if (!locals.user || !isAdmin(locals.user.role)) error(403, 'Accès réservé aux administrateurs')
 		if (!locals.user.current_group_id)
 			return fail(400, { action: 'delete', error: 'Aucun groupe actif.' })
 

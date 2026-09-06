@@ -1,10 +1,11 @@
 import type { RequestHandler } from './$types'
 import { spawn } from 'child_process'
 import { databaseUrl } from '$lib/server/config'
+import { isAdmin } from '$lib/types'
 
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user) return new Response('Non autorisé', { status: 401 })
-	if (locals.user.role !== 'admin') return new Response('Accès réservé aux administrateurs', { status: 403 })
+	if (!isAdmin(locals.user?.role)) return new Response('Accès réservé aux administrateurs', { status: 403 })
 
 	const date = new Date().toISOString().slice(0, 10)
 

@@ -1,6 +1,7 @@
 import type { PageServerLoad, Actions } from './$types'
 import { error, fail } from '@sveltejs/kit'
 import sql from '$lib/server/db'
+import { isAdmin } from '$lib/types'
 
 export const load: PageServerLoad = async ({ params }) => {
 	const id = parseInt(params.id)
@@ -26,7 +27,7 @@ export const load: PageServerLoad = async ({ params }) => {
 
 export const actions: Actions = {
 	rename: async ({ request, locals, params }) => {
-		if (locals.user?.role !== 'admin') error(403, 'Accès réservé aux administrateurs')
+		if (!isAdmin(locals.user?.role)) error(403, 'Accès réservé aux administrateurs')
 
 		const id = parseInt(params.id)
 		const data = await request.formData()
@@ -47,7 +48,7 @@ export const actions: Actions = {
 	},
 
 	addMember: async ({ request, locals, params }) => {
-		if (locals.user?.role !== 'admin') error(403, 'Accès réservé aux administrateurs')
+		if (!isAdmin(locals.user?.role)) error(403, 'Accès réservé aux administrateurs')
 
 		const id = parseInt(params.id)
 		const data = await request.formData()
@@ -66,7 +67,7 @@ export const actions: Actions = {
 	},
 
 	updateRole: async ({ request, locals, params }) => {
-		if (locals.user?.role !== 'admin') error(403, 'Accès réservé aux administrateurs')
+		if (!isAdmin(locals.user?.role)) error(403, 'Accès réservé aux administrateurs')
 
 		const id = parseInt(params.id)
 		const data = await request.formData()
@@ -86,7 +87,7 @@ export const actions: Actions = {
 	},
 
 	removeMember: async ({ request, locals, params }) => {
-		if (locals.user?.role !== 'admin') error(403, 'Accès réservé aux administrateurs')
+		if (!isAdmin(locals.user?.role)) error(403, 'Accès réservé aux administrateurs')
 
 		const id = parseInt(params.id)
 		const data = await request.formData()

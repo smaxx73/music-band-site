@@ -3,10 +3,11 @@ import { json } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 import { audioPath } from '$lib/server/storage'
 import { unlink } from 'fs/promises'
+import { isAdmin } from '$lib/types'
 
 export const DELETE: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
-	if (locals.user.role !== 'admin') return json({ error: 'Réservé aux administrateurs.' }, { status: 403 })
+	if (!isAdmin(locals.user?.role)) return json({ error: 'Réservé aux administrateurs.' }, { status: 403 })
 
 	const id = parseInt(params.id)
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })

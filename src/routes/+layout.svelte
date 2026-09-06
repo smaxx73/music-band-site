@@ -4,6 +4,7 @@
 	import favicon from '$lib/assets/favicon.svg'
 	import { page } from '$app/state'
 	import { goto } from '$app/navigation'
+	import { isAdmin } from '$lib/types'
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props()
 
@@ -79,7 +80,7 @@
 							</a>
 						</li>
 					{/each}
-					{#if data.user?.role === 'admin'}
+					{#if isAdmin(data.user?.role)}
 						<li class="sidebar-sep"></li>
 						<li>
 							<a href="/admin" class="sidebar-link sidebar-link--admin" class:active={isActive('/admin')}>
@@ -106,7 +107,7 @@
 			<div class="app-content">
 				{#if data.user.groups.length === 0}
 					<div class="no-group-banner">
-						{#if data.user.role === 'admin'}
+						{#if isAdmin(data.user.role)}
 							Aucun groupe configuré. <a href="/admin/groups">Créer un groupe</a>
 						{:else}
 							Vous n'appartenez à aucun groupe. Contactez un administrateur.

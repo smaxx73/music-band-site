@@ -1,11 +1,12 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import sql from '$lib/server/db'
+import { isAdmin } from '$lib/types'
 
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
 
-	if (locals.user.role === 'admin') {
+	if (isAdmin(locals.user.role)) {
 		const groups = await sql`
 			SELECT g.*, COUNT(ug.user_id)::int AS member_count
 			FROM groups g
@@ -21,7 +22,7 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
-	if (locals.user.role !== 'admin') return json({ error: 'Réservé aux administrateurs.' }, { status: 403 })
+	if (!isAdmin(locals.user?.role)) return json({ error: 'Réservé aux administrateurs.' }, { status: 403 })
 
 	const body = await request.json()
 	const name: unknown = body.name

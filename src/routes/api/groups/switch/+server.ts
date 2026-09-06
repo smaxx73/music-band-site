@@ -1,5 +1,6 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
+import { isAdmin } from '$lib/types'
 
 export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -12,7 +13,7 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 	}
 
 	const isMember = locals.user.groups.some((g) => g.id === group_id)
-	if (!isMember && locals.user.role !== 'admin') {
+	if (!isMember && !isAdmin(locals.user?.role)) {
 		return json({ error: "Vous n'appartenez pas à ce groupe." }, { status: 403 })
 	}
 

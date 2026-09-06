@@ -1,8 +1,11 @@
 import postgres from 'postgres'
+import { building } from '$app/environment'
+import { databaseUrl } from '$lib/server/config'
 
-// `process.env` est lu au démarrage du conteneur. La valeur de secours évite que
-// l'analyse SvelteKit du build ouvre une connexion ou exige les secrets de prod.
-const sql = postgres(process.env.DATABASE_URL ?? 'postgresql://invalid:invalid@localhost:5432/invalid', {
+// Pendant l'analyse SvelteKit du build, aucune base n'est disponible ni requise.
+// En développement et à l'exécution du conteneur, `databaseUrl` lit le .env
+// via l'environnement dynamique de SvelteKit.
+const sql = postgres(building ? 'postgresql://invalid:invalid@localhost:5432/invalid' : databaseUrl(), {
 	ssl: false,
 	types: {
 		// Keep PostgreSQL DATE values as YYYY-MM-DD strings.

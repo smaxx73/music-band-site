@@ -2,6 +2,7 @@ import type { PageServerLoad, Actions } from './$types'
 import { error, fail } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 import { hashPassword } from '$lib/server/auth'
+import { isAdmin, isSuperadmin, type UserRole } from '$lib/types'
 
 export const load: PageServerLoad = async () => {
 	const users = await sql`
@@ -12,22 +13,30 @@ export const load: PageServerLoad = async () => {
 	return { users }
 }
 
-const VALID_ROLES = ['admin', 'user']
+const VALID_ROLES: UserRole[] = ['user', 'admin', 'superadmin']
+
+// Seul un superadmin peut attribuer ou toucher un compte admin/superadmin.
+// Un admin classique ne peut gérer que les comptes 'user'.
+function canAssignRole(actorRole: UserRole, role: UserRole): boolean {
+	return role === 'user' || isSuperadmin(actorRole)
+}
 
 export const actions: Actions = {
 	create: async ({ request, locals }) => {
-		if (locals.user?.role !== 'admin') error(403, 'Accès réservé aux administrateurs')
+		if (!locals.user || !isAdmin(locals.user.role)) error(403, 'Accès réservé aux administrateurs')
 
 		const data = await request.formData()
 		const name = (data.get('name') as string | null)?.trim()
 		const password = (data.get('password') as string | null)
-		const role = (data.get('role') as string | null) ?? 'user'
+		const role = ((data.get('role') as string | null) ?? 'user') as UserRole
 
 		if (!name) return fail(400, { action: 'create', error: 'Le nom est obligatoire.' })
 		if (!password || password.length < 6)
 			return fail(400, { action: 'create', error: 'Le mot de passe doit faire au moins 6 caractères.' })
 		if (!VALID_ROLES.includes(role))
 			return fail(400, { action: 'create', error: 'Rôle invalide.' })
+		if (!canAssignRole(locals.user.role, role))
+			return fail(403, { action: 'create', error: 'Seul un super-admin peut créer un compte administrateur.' })
 
 		const hash = await hashPassword(password)
 
@@ -44,19 +53,28 @@ export const actions: Actions = {
 	},
 
 	update: async ({ request, locals }) => {
-		if (locals.user?.role !== 'admin') error(403, 'Accès réservé aux administrateurs')
+		if (!locals.user || !isAdmin(locals.user.role)) error(403, 'Accès réservé aux administrateurs')
 
 		const data = await request.formData()
 		const id = parseInt(data.get('id') as string)
-		const role = data.get('role') as string | null
+		const role = data.get('role') as UserRole | null
 		const active = data.get('active') === 'true'
 
 		if (isNaN(id)) return fail(400, { action: 'update', id, error: 'ID invalide.' })
 		if (!role || !VALID_ROLES.includes(role))
 			return fail(400, { action: 'update', id, error: 'Rôle invalide.' })
 
-		// Empêcher un admin de se désactiver lui-même
-		if (locals.user.name === (await getUserName(id)) && (!active || role !== 'admin')) {
+		const target = await getUser(id)
+		if (!target) return fail(404, { action: 'update', id, error: 'Utilisateur introuvable.' })
+
+		// Un admin classique ne peut ni toucher un compte admin/superadmin existant,
+		// ni promouvoir quelqu'un vers ces rôles.
+		if (!canAssignRole(locals.user.role, target.role) || !canAssignRole(locals.user.role, role)) {
+			return fail(403, { action: 'update', id, error: 'Seul un super-admin peut gérer les comptes administrateur.' })
+		}
+
+		// Empêcher un admin/superadmin de se désactiver ou de se rétrograder lui-même
+		if (locals.user.name === target.name && (!active || !isAdmin(role))) {
 			return fail(400, { action: 'update', id, error: 'Vous ne pouvez pas modifier votre propre compte admin.' })
 		}
 
@@ -69,7 +87,7 @@ export const actions: Actions = {
 	},
 
 	resetPassword: async ({ request, locals }) => {
-		if (locals.user?.role !== 'admin') error(403, 'Accès réservé aux administrateurs')
+		if (!locals.user || !isAdmin(locals.user.role)) error(403, 'Accès réservé aux administrateurs')
 
 		const data = await request.formData()
 		const id = parseInt(data.get('id') as string)
@@ -78,6 +96,11 @@ export const actions: Actions = {
 		if (isNaN(id)) return fail(400, { action: 'resetPassword', id, error: 'ID invalide.' })
 		if (!password || password.length < 6)
 			return fail(400, { action: 'resetPassword', id, error: 'Le mot de passe doit faire au moins 6 caractères.' })
+
+		const target = await getUser(id)
+		if (!target) return fail(404, { action: 'resetPassword', id, error: 'Utilisateur introuvable.' })
+		if (!canAssignRole(locals.user.role, target.role))
+			return fail(403, { action: 'resetPassword', id, error: 'Seul un super-admin peut gérer les comptes administrateur.' })
 
 		const hash = await hashPassword(password)
 		const [user] = await sql`
@@ -89,24 +112,27 @@ export const actions: Actions = {
 	},
 
 	delete: async ({ request, locals }) => {
-		if (locals.user?.role !== 'admin') error(403, 'Accès réservé aux administrateurs')
+		if (!locals.user || !isAdmin(locals.user.role)) error(403, 'Accès réservé aux administrateurs')
 
 		const data = await request.formData()
 		const id = parseInt(data.get('id') as string)
 		if (isNaN(id)) return fail(400, { action: 'delete', error: 'ID invalide.' })
 
-		const name = await getUserName(id)
-		if (name === locals.user.name)
+		const target = await getUser(id)
+		if (!target) return fail(404, { action: 'delete', id, error: 'Utilisateur introuvable.' })
+		if (target.name === locals.user.name)
 			return fail(400, { action: 'delete', id, error: 'Vous ne pouvez pas supprimer votre propre compte.' })
+		if (!canAssignRole(locals.user.role, target.role))
+			return fail(403, { action: 'delete', id, error: 'Seul un super-admin peut gérer les comptes administrateur.' })
 
 		const [deleted] = await sql`DELETE FROM users WHERE id = ${id} RETURNING id`
 		if (!deleted) return fail(404, { action: 'delete', id, error: 'Utilisateur introuvable.' })
 	}
 }
 
-async function getUserName(id: number): Promise<string | null> {
-	const [u] = await sql<{ name: string }[]>`SELECT name FROM users WHERE id = ${id}`
-	return u?.name ?? null
+async function getUser(id: number): Promise<{ name: string; role: UserRole } | null> {
+	const [u] = await sql<{ name: string; role: UserRole }[]>`SELECT name, role FROM users WHERE id = ${id}`
+	return u ?? null
 }
 
 function isUniqueViolation(err: unknown): boolean {

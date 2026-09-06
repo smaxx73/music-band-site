@@ -122,133 +122,35 @@ pnpm dev
 
 L'application est disponible sur [http://localhost:5173](http://localhost:5173).
 
-> En dev, les fichiers audio sont servis directement par Node (route `/audio/[id]`). En production, c'est Caddy qui les sert.
+> Les fichiers audio sont toujours servis par Node (route `/audio/[id]`), en dev comme en production, afin de vérifier la session et l'appartenance au groupe. En production, Caddy proxifie cette route sans jamais la servir statiquement lui-même.
 
 ---
 
 ## Déployer sur un VPS
 
-### Prérequis sur le VPS
-
-- Docker et Docker Compose installés
-- Un nom de domaine pointant sur l'IP du VPS (nécessaire pour le HTTPS automatique de Caddy)
-- Ports 80 et 443 ouverts
-
-### 1. Transférer les fichiers
+La procédure complète (prérequis, premier déploiement, mises à jour, migrations,
+sauvegarde, architecture) est documentée dans **[deploy.md](deploy.md)**, qui fait
+foi. Résumé :
 
 ```bash
-# Depuis la machine locale
-rsync -av --exclude node_modules --exclude .git . user@vps:/opt/band-app/
-```
-
-Ou cloner directement sur le VPS :
-
-```bash
-git clone <url-du-repo> /opt/band-app
-cd /opt/band-app
-```
-
-### 2. Configurer le fichier `.env`
-
-Sur le VPS, dans `/opt/band-app/` :
-
-```bash
-nano .env
-```
-
-```env
-# Domaine public (sans https://)
-DOMAIN=rehearsal.mongroupe.fr
-
-# Clé secrète pour les cookies — générer avec : openssl rand -hex 32
-AUTH_SECRET=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-
-# URL d'origine pour SvelteKit (avec https://)
-ORIGIN=https://rehearsal.mongroupe.fr
-```
-
-> Les variables `DATABASE_URL` et `AUDIO_DIR` sont câblées directement dans `docker-compose.yml` et n'ont pas besoin d'être dans `.env`.
-
-### 3. Premier démarrage
-
-```bash
-cd /opt/band-app
+# Premier déploiement
+git clone <url-repo> ~/music-band-site && cd ~/music-band-site
+cp .env.example .env && nano .env   # AUTH_SECRET, POSTGRES_PASSWORD, ORIGIN
 docker compose up -d --build
-```
 
-La stack démarre dans cet ordre :
-
-1. **db** — PostgreSQL 16, initialise le schéma via `migrations/`
-2. **app** — SvelteKit buildé, attend que la base soit prête
-3. **caddy** — reverse proxy, obtient un certificat TLS automatiquement via Let's Encrypt
-
-Vérifier que tout est lancé :
-
-```bash
-docker compose ps
-docker compose logs -f
-```
-
-### 4. Créer le premier compte administrateur
-
-À faire une fois la stack démarrée :
-
-```bash
-docker compose exec app node scripts/create-user.mjs \
-  --name=TonPrénom --password=tonmotdepasse --role=admin
-```
-
-Les comptes suivants se gèrent depuis l'interface `/admin/users`.
-
-### 4. Mises à jour
-
-```bash
-cd /opt/band-app
+# Mise à jour après un changement de code
+cd ~/music-band-site
 git pull
 docker compose up -d --build app
 ```
 
-Seul le conteneur `app` est reconstruit. La base de données et les fichiers audio ne sont pas affectés (volumes persistants).
+Seul le conteneur `app` est reconstruit lors d'une mise à jour ; la base de données
+et les fichiers audio ne sont pas affectés (volumes persistants). Les fichiers
+`migrations/` s'appliquent automatiquement au premier démarrage de la base ; sur une
+base existante, une nouvelle migration s'applique manuellement (voir
+[deploy.md](deploy.md#appliquer-une-migration)).
 
-### 5. Migrations de schéma
-
-Les fichiers `migrations/` sont appliqués automatiquement au **premier démarrage** de la base (quand le volume est vide). Pour appliquer une migration sur une base existante, l'exécuter manuellement :
-
-```bash
-docker compose exec -T db psql -U band -d bandapp < migrations/006_calendar.sql
-```
-
-Remplacer le nom du fichier par la migration à appliquer. Les appliquer dans l'ordre numérique.
-
-### 6. Commandes utiles
-
-```bash
-# Logs en temps réel
-docker compose logs -f app
-
-# Accès à la base de données
-docker compose exec db psql -U band -d bandapp
-
-# Sauvegarder la base
-docker compose exec db pg_dump -U band bandapp > backup_$(date +%Y%m%d).sql
-
-# Restaurer une sauvegarde
-docker compose exec -T db psql -U band -d bandapp < backup_20240101.sql
-
-# Lister les fichiers audio stockés
-docker compose exec app ls /data/audio
-```
-
-### Architecture de production
-
-```text
-Internet → Caddy (:80/:443)
-              │
-			  ├─ /audio/*  →  app:3000 (contrôle de session et de groupe)
-              └─ /*        →  app:3000 (SvelteKit / Node)
-                                │
-                                └─ db:5432 (PostgreSQL)
-```
-
-Les fichiers audio transitent par Node en streaming en production afin de vérifier
-la session et l'appartenance au groupe. Caddy ne doit pas les servir statiquement.
+Caddy tourne en **service système** sur le VPS (hors `docker-compose.yml`, géré par
+`vps-rockandmore`) et proxifie `localhost:3000`, y compris `/audio/*` — les fichiers
+audio transitent toujours par Node pour vérifier la session et l'appartenance au
+groupe, jamais servis statiquement par Caddy.

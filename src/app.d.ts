@@ -7,7 +7,7 @@ declare global {
 			user: {
 				id: number
 				name: string
-				role: 'admin' | 'user'
+				role: 'user' | 'admin' | 'superadmin'
 				current_group_id: number | null
 				groups: { id: number; name: string; role: 'admin' | 'member' }[]
 			} | null
@@ -16,7 +16,7 @@ declare global {
 			user?: {
 				id: number
 				name: string
-				role: 'admin' | 'user'
+				role: 'user' | 'admin' | 'superadmin'
 				current_group_id: number | null
 				groups: { id: number; name: string; role: 'admin' | 'member' }[]
 			} | null

@@ -10,7 +10,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	if (signed) {
 		const name = verifyCookie(signed, secret)
 		if (name) {
-			const [user] = await sql<{ id: number; name: string; role: 'admin' | 'user' }[]>`
+			const [user] = await sql<{ id: number; name: string; role: 'user' | 'admin' | 'superadmin' }[]>`
 				SELECT id, name, role FROM users WHERE name = ${name} AND active = true
 			`
 			if (user) {

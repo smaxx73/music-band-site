@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData, ActionData } from './$types'
 	import { enhance } from '$app/forms'
+	import { isSuperadmin } from '$lib/types'
 
 	let { data, form }: { data: PageData; form: ActionData } = $props()
 
@@ -9,6 +10,20 @@
 	let users = $state(data.users as unknown as User[])
 	let editingId = $state<number | null>(null)
 	let resetId = $state<number | null>(null)
+
+	// Un admin classique ne peut créer/gérer que des comptes 'user' — seul un super-admin
+	// peut attribuer ou toucher un compte admin/superadmin.
+	const actorIsSuperadmin = $derived(isSuperadmin(data.user?.role))
+
+	function roleLabel(role: string) {
+		if (role === 'superadmin') return 'Super-admin'
+		if (role === 'admin') return 'Administrateur'
+		return 'Utilisateur'
+	}
+
+	function canManage(role: string) {
+		return actorIsSuperadmin || role === 'user'
+	}
 </script>
 
 <svelte:head>
@@ -58,7 +73,10 @@
 					Rôle
 					<select class="form-input" name="role">
 						<option value="user">Utilisateur</option>
-						<option value="admin">Administrateur</option>
+						{#if actorIsSuperadmin}
+							<option value="admin">Administrateur</option>
+							<option value="superadmin">Super-admin</option>
+						{/if}
 					</select>
 				</label>
 			</div>
@@ -121,7 +139,10 @@
 												Rôle
 												<select class="form-input" name="role">
 													<option value="user" selected={user.role === 'user'}>Utilisateur</option>
-													<option value="admin" selected={user.role === 'admin'}>Administrateur</option>
+													{#if actorIsSuperadmin}
+														<option value="admin" selected={user.role === 'admin'}>Administrateur</option>
+														<option value="superadmin" selected={user.role === 'superadmin'}>Super-admin</option>
+													{/if}
 												</select>
 											</label>
 											<label class="form-label">
@@ -187,7 +208,7 @@
 								<td class="name">{user.name}</td>
 								<td>
 									<span class="badge badge-{user.role}">
-										{user.role === 'admin' ? 'Administrateur' : 'Utilisateur'}
+										{roleLabel(user.role)}
 									</span>
 								</td>
 								<td>
@@ -196,23 +217,27 @@
 									</span>
 								</td>
 								<td class="actions-cell">
-									<button class="btn btn-sm" onclick={() => (editingId = user.id)}>
-										Modifier
-									</button>
-									<button class="btn btn-sm" onclick={() => (resetId = user.id)}>
-										Mot de passe
-									</button>
-									<form
-										method="POST"
-										action="?/delete"
-										use:enhance
-										onsubmit={(e) => {
-											if (!confirm(`Supprimer "${user.name}" ?`)) e.preventDefault()
-										}}
-									>
-										<input type="hidden" name="id" value={user.id} />
-										<button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
-									</form>
+									{#if canManage(user.role)}
+										<button class="btn btn-sm" onclick={() => (editingId = user.id)}>
+											Modifier
+										</button>
+										<button class="btn btn-sm" onclick={() => (resetId = user.id)}>
+											Mot de passe
+										</button>
+										<form
+											method="POST"
+											action="?/delete"
+											use:enhance
+											onsubmit={(e) => {
+												if (!confirm(`Supprimer "${user.name}" ?`)) e.preventDefault()
+											}}
+										>
+											<input type="hidden" name="id" value={user.id} />
+											<button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
+										</form>
+									{:else}
+										<span class="muted-note">Réservé au super-admin</span>
+									{/if}
 								</td>
 							</tr>
 						{/if}
@@ -313,9 +338,12 @@
 	}
 
 	.badge-admin { background: #e8f0fe; color: #1a56db; }
+	.badge-superadmin { background: #fef3c7; color: #92400e; }
 	.badge-user { background: #f0f0f0; color: #555; }
 	.badge-status-active { background: #d1fae5; color: #065f46; }
 	.badge-status-inactive { background: #fee2e2; color: #991b1b; }
+
+	.muted-note { color: #aaa; font-style: italic; font-size: 0.8rem; }
 
 	.empty { color: #aaa; font-style: italic; font-size: 0.9rem; }
 	.message-error { color: #c0392b; font-size: 0.875rem; margin: 0 0 0.5rem; }

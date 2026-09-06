@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'user'
+export type UserRole = 'user' | 'admin' | 'superadmin'
 
 export type User = {
 	id: number
@@ -6,6 +6,15 @@ export type User = {
 	role: UserRole
 	active: boolean
 	created_at: Date
+}
+
+// Le superadmin a tous les pouvoirs d'un admin, plus la gestion des comptes admin/superadmin eux-mêmes.
+export function isAdmin(role: UserRole | null | undefined): boolean {
+	return role === 'admin' || role === 'superadmin'
+}
+
+export function isSuperadmin(role: UserRole | null | undefined): boolean {
+	return role === 'superadmin'
 }
 
 export type GroupRole = 'admin' | 'member'

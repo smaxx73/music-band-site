@@ -5,7 +5,9 @@ CREATE TABLE users (
     id            SERIAL PRIMARY KEY,
     name          TEXT NOT NULL UNIQUE,
     password_hash TEXT NOT NULL,
-    role          TEXT NOT NULL DEFAULT 'user',  -- 'admin' | 'user'
+    role          TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin', 'superadmin')),
+                                                  -- superadmin = tous les pouvoirs d'admin,
+                                                  -- + seul rôle pouvant gérer les comptes admin/superadmin
     active        BOOLEAN NOT NULL DEFAULT true,
     created_at    TIMESTAMPTZ DEFAULT now()
 );

@@ -6,12 +6,13 @@ import { join } from 'path'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 import { audioDir } from '$lib/server/config'
+import { isAdmin } from '$lib/types'
 
 const execFileAsync = promisify(execFile)
 
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
-	if (locals.user.role !== 'admin') return json({ error: 'Réservé aux administrateurs.' }, { status: 403 })
+	if (!isAdmin(locals.user?.role)) return json({ error: 'Réservé aux administrateurs.' }, { status: 403 })
 	const directory = audioDir()
 
 	const groupId = locals.user.current_group_id
