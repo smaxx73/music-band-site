@@ -4,6 +4,7 @@
 	import favicon from '$lib/assets/favicon.svg'
 	import { page } from '$app/state'
 	import { goto } from '$app/navigation'
+	import { enhance } from '$app/forms'
 	import { isAdmin } from '$lib/types'
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props()
@@ -98,10 +99,15 @@
 					+ Uploader
 				</a>
 
-				<a href="/profile" class="sidebar-user" class:active={isActive('/profile')}>
-					<div class="sidebar-avatar">{userInitials}</div>
-					<span class="sidebar-username">{data.user.name}</span>
-				</a>
+				<div class="sidebar-account">
+					<a href="/profile" class="sidebar-user" class:active={isActive('/profile')}>
+						<div class="sidebar-avatar">{userInitials}</div>
+						<span class="sidebar-username">{data.user.name}</span>
+					</a>
+					<form method="POST" action="/logout" use:enhance>
+						<button type="submit" class="sidebar-logout" title="Se déconnecter">⏻</button>
+					</form>
+				</div>
 			</nav>
 
 			<!-- Page content -->
@@ -257,12 +263,25 @@
 		opacity: 0.75;
 	}
 
+	.sidebar-account {
+		display: flex;
+		align-items: center;
+		gap: 4px;
+		border-top: 1px solid rgba(255,255,255,0.08);
+	}
+
+	.sidebar-account form {
+		margin: 0;
+		flex-shrink: 0;
+	}
+
 	.sidebar-user {
 		display: flex;
 		align-items: center;
 		gap: 8px;
 		padding: 6px 4px;
-		border-top: 1px solid rgba(255,255,255,0.08);
+		flex: 1;
+		min-width: 0;
 		color: inherit;
 		text-decoration: none;
 		border-radius: 6px;
@@ -271,6 +290,27 @@
 	.sidebar-user:hover,
 	.sidebar-user.active {
 		background: rgba(255,255,255,0.08);
+	}
+
+	.sidebar-logout {
+		flex-shrink: 0;
+		width: 24px;
+		height: 24px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		background: transparent;
+		border: none;
+		border-radius: 6px;
+		color: var(--color-mid);
+		font-size: 0.85rem;
+		cursor: pointer;
+		transition: background 0.1s, color 0.1s;
+	}
+
+	.sidebar-logout:hover {
+		background: rgba(255,255,255,0.08);
+		color: #fff;
 	}
 
 	.sidebar-avatar {
