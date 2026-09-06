@@ -43,6 +43,7 @@
 		{ href: '/songs', label: 'Morceaux', icon: '♪' },
 		{ href: '/playlists', label: 'Playlists', icon: '≡' },
 		{ href: '/agenda', label: 'Agenda', icon: '◻' },
+		{ href: '/group', label: 'Mon groupe', icon: '◈' },
 	]
 </script>
 
@@ -66,7 +67,12 @@
 			{:else if currentGroup}
 				<a href="/group" class="group-chip">{currentGroup.name}</a>
 			{/if}
-			<div class="user-avatar" title={data.user.name}>{userInitials}</div>
+			<a
+				href="/profile"
+				class="user-avatar"
+				class:active={isActive('/profile')}
+				title="{data.user.name} — mon profil"
+			>{userInitials}</a>
 		</header>
 
 		<div class="app-body">
@@ -188,6 +194,14 @@
 		font-weight: 700;
 		flex-shrink: 0;
 		border: 1.5px solid var(--color-accent);
+		text-decoration: none;
+		transition: filter 0.1s;
+	}
+
+	.user-avatar:hover,
+	.user-avatar.active {
+		filter: brightness(1.08);
+		box-shadow: 0 0 0 2px rgba(224, 123, 58, 0.35);
 	}
 
 	/* ─── Sidebar ────────────────────────────────── */

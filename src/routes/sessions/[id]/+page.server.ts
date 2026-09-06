@@ -15,6 +15,27 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	`
 	if (!session) error(404, 'Session introuvable')
 
+	// Sessions adjacentes du groupe, pour la navigation précédent/suivant.
+	// Le tuple (date, id) départage les sessions d'une même journée. La comparaison
+	// reste entièrement en SQL : renvoyer la date via JS la ferait transiter par un
+	// timestamp et risquerait un décalage d'un jour selon le fuseau.
+	const [[prevSession], [nextSession]] = await Promise.all([
+		sql`
+			SELECT id, date, title, type FROM sessions
+			WHERE group_id = ${locals.user.current_group_id}
+			  AND (date, id) < (SELECT date, id FROM sessions WHERE id = ${id})
+			ORDER BY date DESC, id DESC
+			LIMIT 1
+		`,
+		sql`
+			SELECT id, date, title, type FROM sessions
+			WHERE group_id = ${locals.user.current_group_id}
+			  AND (date, id) > (SELECT date, id FROM sessions WHERE id = ${id})
+			ORDER BY date ASC, id ASC
+			LIMIT 1
+		`
+	])
+
 	const rows = await sql`
 		SELECT
 			r.id, r.take, r.status, r.notes, r.duration_s, r.uploaded_by, r.created_at, r.file_path,
@@ -76,5 +97,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		})
 	}
 
-	return { session, groups: Array.from(groupMap.values()) }
+	return {
+		session,
+		groups: Array.from(groupMap.values()),
+		prevSession: prevSession ?? null,
+		nextSession: nextSession ?? null
+	}
 }

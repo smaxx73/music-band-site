@@ -28,6 +28,33 @@
 
 	const sessions = $derived(data.sessions as unknown as SessionRow[])
 
+	// ─── Filtrage / regroupement (côté client : la liste complète est chargée) ───
+	let typeFilter = $state<string>('all')
+
+	const typeCounts = $derived.by(() => {
+		const counts: Record<string, number> = { all: sessions.length }
+		for (const s of sessions) counts[s.type] = (counts[s.type] ?? 0) + 1
+		return counts
+	})
+
+	const filteredSessions = $derived(
+		typeFilter === 'all' ? sessions : sessions.filter((s) => s.type === typeFilter)
+	)
+
+	// Repères temporels : les sessions arrivent déjà triées par date décroissante
+	type YearGroup = { year: number; sessions: SessionRow[] }
+
+	const sessionsByYear = $derived.by(() => {
+		const groups: YearGroup[] = []
+		for (const s of filteredSessions) {
+			const year = new Date(s.date).getFullYear()
+			const last = groups[groups.length - 1]
+			if (last?.year === year) last.sessions.push(s)
+			else groups.push({ year, sessions: [s] })
+		}
+		return groups
+	})
+
 	let showCreateModal = $state(false)
 	let creating = $state(false)
 	let createError = $state<string | null>(null)
@@ -121,30 +148,58 @@
 	{#if sessions.length === 0}
 		<p class="empty">Aucune session pour l'instant. <a href="/upload">Uploader une première prise →</a></p>
 	{:else}
-		<ul class="sessions-list">
-			{#each sessions as s}
-				<li>
-					<a href="/sessions/{s.id}" class="session-card">
-						<div class="session-top">
-							<span class="type-badge type-{s.type ?? 'repetition'}">{typeLabels[s.type] ?? s.type}</span>
-							<div class="session-date">{s.title ?? formatDate(s.date)}</div>
-						</div>
-						{#if s.title}
-							<div class="session-location">{formatDate(s.date)}</div>
-						{:else if s.location}
-							<div class="session-location">{s.location}</div>
-						{/if}
-						<div class="session-meta">
-							{s.song_count} morceau{s.song_count > 1 ? 'x' : ''} ·
-							{s.recording_count} prise{s.recording_count > 1 ? 's' : ''}
-							{#if s.members?.length}
-								· {s.members.join(', ')}
-							{/if}
-						</div>
-					</a>
-				</li>
+		<div class="type-filters">
+			<button
+				class="filter-pill"
+				class:active={typeFilter === 'all'}
+				onclick={() => (typeFilter = 'all')}
+			>Toutes <span class="pill-count">{typeCounts.all}</span></button>
+			{#each Object.entries(typeLabels) as [value, label]}
+				{#if typeCounts[value]}
+					<button
+						class="filter-pill"
+						class:active={typeFilter === value}
+						onclick={() => (typeFilter = value)}
+					>{label} <span class="pill-count">{typeCounts[value]}</span></button>
+				{/if}
 			{/each}
-		</ul>
+		</div>
+
+		{#each sessionsByYear as group (group.year)}
+			<section class="year-group">
+				<h2 class="year-heading">
+					{group.year}
+					<span class="year-count">
+						{group.sessions.length} session{group.sessions.length > 1 ? 's' : ''}
+					</span>
+				</h2>
+
+				<ul class="sessions-list">
+					{#each group.sessions as s}
+						<li>
+							<a href="/sessions/{s.id}" class="session-card">
+								<div class="session-top">
+									<span class="type-badge type-{s.type ?? 'repetition'}">{typeLabels[s.type] ?? s.type}</span>
+									<div class="session-date">{s.title ?? formatDate(s.date)}</div>
+								</div>
+								{#if s.title}
+									<div class="session-location">{formatDate(s.date)}</div>
+								{:else if s.location}
+									<div class="session-location">{s.location}</div>
+								{/if}
+								<div class="session-meta">
+									{s.song_count} morceau{s.song_count > 1 ? 'x' : ''} ·
+									{s.recording_count} prise{s.recording_count > 1 ? 's' : ''}
+									{#if s.members?.length}
+										· {s.members.join(', ')}
+									{/if}
+								</div>
+							</a>
+						</li>
+					{/each}
+				</ul>
+			</section>
+		{/each}
 	{/if}
 </main>
 
@@ -278,6 +333,62 @@
 		}
 
 		.fields-row { grid-template-columns: 1fr; }
+	}
+
+	.type-filters {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.3rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.filter-pill {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		background: var(--color-bg-subtle);
+		border: 1px solid var(--color-border-light);
+		border-radius: 999px;
+		padding: 0.25rem 0.7rem;
+		font-size: var(--text-xs);
+		font-family: inherit;
+		color: var(--color-text-secondary);
+		cursor: pointer;
+		transition: background 0.1s, color 0.1s, border-color 0.1s;
+	}
+
+	.filter-pill:hover { border-color: var(--color-border); }
+
+	.filter-pill.active {
+		background: var(--color-ink);
+		border-color: var(--color-ink);
+		color: #fff;
+	}
+
+	.pill-count {
+		font-size: 0.65rem;
+		font-weight: 700;
+		opacity: 0.65;
+	}
+
+	.year-group { margin-bottom: 1.75rem; }
+
+	.year-heading {
+		display: flex;
+		align-items: baseline;
+		gap: 0.6rem;
+		font-size: var(--text-sm);
+		font-weight: 700;
+		color: var(--color-text-muted);
+		letter-spacing: 0.04em;
+		margin: 0 0 0.6rem;
+		padding-bottom: 0.3rem;
+		border-bottom: 1px solid var(--color-border-light);
+	}
+
+	.year-count {
+		font-size: var(--text-xs);
+		font-weight: 400;
 	}
 
 	.sessions-list {

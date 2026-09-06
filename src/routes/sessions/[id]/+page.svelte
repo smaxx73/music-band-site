@@ -26,6 +26,26 @@
 	let session = $derived(data.session as unknown as SessionData)
 	let groups = $derived(data.groups as unknown as Group[])
 
+	type AdjacentSession = { id: number; date: string; title: string | null; type: string }
+	const prevSession = $derived(data.prevSession as unknown as AdjacentSession | null)
+	const nextSession = $derived(data.nextSession as unknown as AdjacentSession | null)
+
+	function shortDate(d: string | Date) {
+		return formatDateOnly(d, { day: 'numeric', month: 'short', year: '2-digit' })
+	}
+
+	// Ancre de section pour le sommaire des morceaux
+	function songAnchor(songId: number) {
+		return `song-${songId}`
+	}
+
+	function scrollToSong(songId: number) {
+		document.getElementById(songAnchor(songId))?.scrollIntoView({
+			behavior: 'smooth',
+			block: 'start'
+		})
+	}
+
 	let sessionSaving = $state(false)
 	let sessionError = $state<string | null>(null)
 
@@ -222,10 +242,28 @@
 </svelte:head>
 
 <main>
-	<nav class="breadcrumb">
-		<a href="/sessions">Sessions</a> /
-		<span>{formatDate(session.date)}</span>
-	</nav>
+	<div class="breadcrumb-row">
+		<nav class="breadcrumb">
+			<a href="/sessions">Sessions</a> /
+			<span>{formatDate(session.date)}</span>
+		</nav>
+		<div class="session-nav">
+			{#if prevSession}
+				<a
+					href="/sessions/{prevSession.id}"
+					class="btn btn-secondary btn-sm"
+					title="Session précédente : {prevSession.title ?? shortDate(prevSession.date)}"
+				>← {shortDate(prevSession.date)}</a>
+			{/if}
+			{#if nextSession}
+				<a
+					href="/sessions/{nextSession.id}"
+					class="btn btn-secondary btn-sm"
+					title="Session suivante : {nextSession.title ?? shortDate(nextSession.date)}"
+				>{shortDate(nextSession.date)} →</a>
+			{/if}
+		</div>
+	</div>
 
 	<SessionEditor
 		session={session}
@@ -238,8 +276,19 @@
 	{#if groups.length === 0}
 		<p class="empty">Aucune prise pour cette session. <a href="/upload">Uploader →</a></p>
 	{:else}
+		{#if groups.length > 1}
+			<nav class="song-toc" aria-label="Morceaux de la session">
+				{#each groups as group}
+					<button class="song-toc-pill" onclick={() => scrollToSong(group.song.id)}>
+						{group.song.title}
+						<span class="song-toc-count">{group.recordings.length}</span>
+					</button>
+				{/each}
+			</nav>
+		{/if}
+
 		{#each groups as group}
-			<section class="song-section">
+			<section class="song-section" id={songAnchor(group.song.id)}>
 				<h2>
 					<a href="/songs/{group.song.id}">{group.song.title}</a>
 					{#if group.song.composer}
@@ -396,7 +445,59 @@
 		padding: 0 1rem;
 	}
 
-	.song-section { margin-bottom: 2rem; }
+	.breadcrumb-row {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 1rem;
+		flex-wrap: wrap;
+	}
+
+	.session-nav {
+		display: flex;
+		gap: 0.4rem;
+		margin-bottom: 1.25rem;
+	}
+
+	/* Sommaire cliquable : évite de scroller une session à plusieurs morceaux */
+	.song-toc {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.35rem;
+		margin-bottom: 1.5rem;
+	}
+
+	.song-toc-pill {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		background: var(--color-bg-subtle);
+		border: 1px solid var(--color-border-light);
+		border-radius: 999px;
+		padding: 0.25rem 0.65rem;
+		font-size: var(--text-xs);
+		font-family: inherit;
+		color: var(--color-text-secondary);
+		cursor: pointer;
+		transition: background 0.1s, color 0.1s, border-color 0.1s;
+	}
+
+	.song-toc-pill:hover {
+		background: var(--color-accent-light);
+		border-color: var(--color-accent);
+		color: var(--color-accent);
+	}
+
+	.song-toc-count {
+		font-weight: 700;
+		font-size: 0.65rem;
+		color: var(--color-text-muted);
+	}
+
+	.song-section {
+		margin-bottom: 2rem;
+		scroll-margin-top: 1rem;
+	}
 
 	h2 { font-size: var(--text-lg); margin: 0 0 0.75rem; }
 	h2 a { color: var(--color-primary); text-decoration: none; }

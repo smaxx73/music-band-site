@@ -28,6 +28,70 @@
 		au_repertoire: 'Au répertoire',
 		abandonne: 'Abandonné'
 	}
+
+	// ─── Filtrage / tri (côté client : la liste complète est déjà chargée) ───
+	type SongRow = Song & { take_count: number }
+	type SortKey = 'title' | 'take_count' | 'status'
+
+	let search = $state('')
+	let statusFilter = $state<string>('all')
+	let sortKey = $state<SortKey>('title')
+	let sortAsc = $state(true)
+
+	const allSongs = $derived(data.songs as unknown as SongRow[])
+
+	const statusCounts = $derived.by(() => {
+		const counts: Record<string, number> = { all: allSongs.length }
+		for (const s of allSongs) counts[s.status] = (counts[s.status] ?? 0) + 1
+		return counts
+	})
+
+	function toggleSort(key: SortKey) {
+		if (sortKey === key) sortAsc = !sortAsc
+		else {
+			sortKey = key
+			// Le nombre de prises est plus parlant en décroissant par défaut
+			sortAsc = key !== 'take_count'
+		}
+	}
+
+	function sortIndicator(key: SortKey) {
+		if (sortKey !== key) return ''
+		return sortAsc ? ' ↑' : ' ↓'
+	}
+
+	const visibleSongs = $derived.by(() => {
+		const q = search.trim().toLowerCase()
+		const rows = allSongs.filter((s) => {
+			if (statusFilter !== 'all' && s.status !== statusFilter) return false
+			if (!q) return true
+			return (
+				s.title.toLowerCase().includes(q) ||
+				(s.composer?.toLowerCase().includes(q) ?? false) ||
+				(s.key?.toLowerCase().includes(q) ?? false)
+			)
+		})
+
+		const dir = sortAsc ? 1 : -1
+		return rows.sort((a, b) => {
+			if (sortKey === 'take_count') {
+				const diff = a.take_count - b.take_count
+				return diff !== 0 ? diff * dir : a.title.localeCompare(b.title, 'fr')
+			}
+			if (sortKey === 'status') {
+				const diff = a.status.localeCompare(b.status, 'fr')
+				return diff !== 0 ? diff * dir : a.title.localeCompare(b.title, 'fr')
+			}
+			return a.title.localeCompare(b.title, 'fr') * dir
+		})
+	})
+
+	function resetFilters() {
+		search = ''
+		statusFilter = 'all'
+	}
+
+	const isFiltered = $derived(search.trim() !== '' || statusFilter !== 'all')
 </script>
 
 <svelte:head>
@@ -108,24 +172,66 @@
 
 	<!-- Liste des morceaux -->
 	<section class="songs-list">
-		<h2>Morceaux ({data.songs.length})</h2>
+		<div class="list-header">
+			<h2>
+				Morceaux ({visibleSongs.length}{#if isFiltered}<span class="of-total"> / {allSongs.length}</span>{/if})
+			</h2>
+		</div>
 
-		{#if data.songs.length === 0}
+		{#if allSongs.length === 0}
 			<p class="empty">Aucun morceau pour l'instant.</p>
 		{:else}
+			<div class="filters">
+				<input
+					class="form-input search-input"
+					type="search"
+					placeholder="Rechercher un titre, un compositeur, une tonalité…"
+					bind:value={search}
+					autocomplete="off"
+				/>
+				<div class="status-filters">
+					<button
+						class="filter-pill"
+						class:active={statusFilter === 'all'}
+						onclick={() => (statusFilter = 'all')}
+					>Tous <span class="pill-count">{statusCounts.all}</span></button>
+					{#each Object.entries(STATUS_LABELS) as [value, label]}
+						{#if statusCounts[value]}
+							<button
+								class="filter-pill filter-{value}"
+								class:active={statusFilter === value}
+								onclick={() => (statusFilter = value)}
+							>{label} <span class="pill-count">{statusCounts[value]}</span></button>
+						{/if}
+					{/each}
+				</div>
+			</div>
+
+			{#if visibleSongs.length === 0}
+				<p class="empty">
+					Aucun morceau ne correspond.
+					<button class="link-btn" onclick={resetFilters}>Réinitialiser les filtres</button>
+				</p>
+			{:else}
 			<table class="data-table">
 				<thead>
 					<tr>
-						<th>Titre</th>
+						<th>
+							<button class="th-sort" onclick={() => toggleSort('title')}>Titre{sortIndicator('title')}</button>
+						</th>
 						<th>Compositeur</th>
 						<th>Tonalité</th>
-						<th>Statut</th>
-						<th>Prises</th>
+						<th>
+							<button class="th-sort" onclick={() => toggleSort('status')}>Statut{sortIndicator('status')}</button>
+						</th>
+						<th>
+							<button class="th-sort" onclick={() => toggleSort('take_count')}>Prises{sortIndicator('take_count')}</button>
+						</th>
 						<th>Actions</th>
 					</tr>
 				</thead>
 				<tbody>
-					{#each data.songs as song (song.id)}
+					{#each visibleSongs as song (song.id)}
 						{@const isEditing = editingId === song.id}
 						{@const hasError = hasActionError('update', song.id)}
 						{@const isAbandoned = song.status === 'abandonne'}
@@ -198,6 +304,7 @@
 					{/each}
 				</tbody>
 			</table>
+			{/if}
 		{/if}
 
 		{#if form?.action === 'delete' && form.error}
@@ -255,6 +362,87 @@
 		justify-content: space-between;
 		gap: 1rem;
 		margin-bottom: 2rem;
+	}
+
+	.list-header {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 1rem;
+	}
+
+	.of-total {
+		color: var(--color-text-muted);
+		font-weight: 400;
+	}
+
+	.filters {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.6rem;
+		margin-bottom: 1rem;
+	}
+
+	.search-input {
+		flex: 1 1 260px;
+		min-width: 0;
+	}
+
+	.status-filters {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.3rem;
+	}
+
+	.filter-pill {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.3rem;
+		background: var(--color-bg-subtle);
+		border: 1px solid var(--color-border-light);
+		border-radius: 999px;
+		padding: 0.25rem 0.7rem;
+		font-size: var(--text-xs);
+		font-family: inherit;
+		color: var(--color-text-secondary);
+		cursor: pointer;
+		transition: background 0.1s, color 0.1s, border-color 0.1s;
+	}
+
+	.filter-pill:hover { border-color: var(--color-border); }
+
+	.filter-pill.active {
+		background: var(--color-ink);
+		border-color: var(--color-ink);
+		color: #fff;
+	}
+
+	.pill-count {
+		font-size: 0.65rem;
+		font-weight: 700;
+		opacity: 0.65;
+	}
+
+	.th-sort {
+		background: none;
+		border: none;
+		padding: 0;
+		font: inherit;
+		color: inherit;
+		cursor: pointer;
+	}
+
+	.th-sort:hover { text-decoration: underline; }
+
+	.link-btn {
+		background: none;
+		border: none;
+		padding: 0;
+		font: inherit;
+		color: var(--color-accent);
+		cursor: pointer;
+		text-decoration: underline;
 	}
 
 	h1 {
