@@ -102,14 +102,47 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		return json({ error: 'Aucun champ à modifier.' }, { status: 400 })
 	}
 
-	const [session] = await sql`
-		UPDATE sessions SET ${sql(updates)}
-		WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
-		RETURNING *
-	`
-	if (!session) return json({ error: 'Session introuvable.' }, { status: 404 })
+	const result = await sql.begin(async (tx) => {
+		const [session] = await tx`
+			UPDATE sessions SET ${tx(updates)}
+			WHERE id = ${id} AND group_id = ${locals.user!.current_group_id}
+			RETURNING *
+		`
+		if (!session) return null
 
-	return json(session)
+		// Garder l'agenda synchronisé avec la session
+		const [linkedEvent] = await tx`
+			SELECT id FROM calendar_events WHERE session_id = ${id} AND type IN ('repetition', 'concert')
+		`
+
+		if (session.type === 'repetition' || session.type === 'concert') {
+			if (linkedEvent) {
+				await tx`
+					UPDATE calendar_events
+					SET date = ${session.date}, type = ${session.type}, title = ${session.title},
+						notes = ${session.notes}, location = ${session.location}
+					WHERE id = ${linkedEvent.id}
+				`
+			} else {
+				await tx`
+					INSERT INTO calendar_events (group_id, user_id, date, type, author, title, notes, location, session_id)
+					VALUES (
+						${session.group_id}, NULL, ${session.date}, ${session.type}, ${locals.user!.name},
+						${session.title}, ${session.notes}, ${session.location}, ${session.id}
+					)
+				`
+			}
+		} else if (linkedEvent) {
+			// Le type n'est plus répétition/concert : l'événement d'agenda n'a plus lieu d'être
+			await tx`DELETE FROM calendar_events WHERE id = ${linkedEvent.id}`
+		}
+
+		return session
+	})
+
+	if (!result) return json({ error: 'Session introuvable.' }, { status: 404 })
+
+	return json(result)
 }
 
 export const DELETE: RequestHandler = async ({ locals, params }) => {
@@ -125,10 +158,20 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 		WHERE r.session_id = ${id} AND s.group_id = ${locals.user.current_group_id}
 	`
 
-	const [deleted] = await sql`
-		DELETE FROM sessions WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
-		RETURNING id
-	`
+	const deleted = await sql.begin(async (tx) => {
+		const [session] = await tx`
+			SELECT id FROM sessions WHERE id = ${id} AND group_id = ${locals.user!.current_group_id}
+		`
+		if (!session) return null
+
+		// Retirer l'événement d'agenda lié avant de supprimer la session
+		await tx`DELETE FROM calendar_events WHERE session_id = ${id}`
+
+		const [deleted] = await tx`
+			DELETE FROM sessions WHERE id = ${id} RETURNING id
+		`
+		return deleted
+	})
 	if (!deleted) return json({ error: 'Session introuvable.' }, { status: 404 })
 
 	for (const r of recordings) {

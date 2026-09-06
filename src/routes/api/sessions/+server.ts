@@ -53,19 +53,47 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		? members.filter((m) => typeof m === 'string' && m.trim()).map((m: string) => m.trim())
 		: []
 
-	const [session] = await sql`
-		INSERT INTO sessions (group_id, date, type, title, location, notes, members, created_by)
-		VALUES (
-			${locals.user.current_group_id},
-			${date.trim()},
-			${typeof type === 'string' ? type : 'repetition'},
-			${typeof title === 'string' && title.trim() ? title.trim() : null},
-			${typeof location === 'string' && location.trim() ? location.trim() : null},
-			${typeof notes === 'string' && notes.trim() ? notes.trim() : null},
-			${sql.array(membersArray)},
-			${locals.user.name}
-		)
-		RETURNING *
-	`
+	const resolvedType = typeof type === 'string' ? type : 'repetition'
+	const resolvedTitle = typeof title === 'string' && title.trim() ? title.trim() : null
+	const resolvedLocation = typeof location === 'string' && location.trim() ? location.trim() : null
+	const resolvedNotes = typeof notes === 'string' && notes.trim() ? notes.trim() : null
+
+	const session = await sql.begin(async (tx) => {
+		const [session] = await tx`
+			INSERT INTO sessions (group_id, date, type, title, location, notes, members, created_by)
+			VALUES (
+				${locals.user!.current_group_id},
+				${date.trim()},
+				${resolvedType},
+				${resolvedTitle},
+				${resolvedLocation},
+				${resolvedNotes},
+				${sql.array(membersArray)},
+				${locals.user!.name}
+			)
+			RETURNING *
+		`
+
+		// Une session de type répétition/concert apparaît automatiquement dans l'agenda
+		if (resolvedType === 'repetition' || resolvedType === 'concert') {
+			await tx`
+				INSERT INTO calendar_events (group_id, user_id, date, type, author, title, notes, location, session_id)
+				VALUES (
+					${locals.user!.current_group_id},
+					NULL,
+					${date.trim()}::date,
+					${resolvedType},
+					${locals.user!.name},
+					${resolvedTitle},
+					${resolvedNotes},
+					${resolvedLocation},
+					${session.id}
+				)
+			`
+		}
+
+		return session
+	})
+
 	return json(session, { status: 201 })
 }
