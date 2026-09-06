@@ -7,7 +7,7 @@
 
 	type User = { id: number; name: string; role: string; active: boolean; created_at: string }
 
-	let users = $state(data.users as unknown as User[])
+	let users = $derived(data.users as unknown as User[])
 	let editingId = $state<number | null>(null)
 	let resetId = $state<number | null>(null)
 

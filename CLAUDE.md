@@ -73,6 +73,7 @@ NODE_ENV=production
 /playlists/[id]     lecture en continu d'une playlist
 /upload             formulaire d'upload
 /profile            infos du compte connecté + changement de mot de passe
+/group              infos + membres du groupe actif (consultation, tout membre)
 /admin/users        gestion des comptes
 /admin/groups       gestion des groupes et membres
 /agenda             agenda partagé du groupe (indisponibilités, répétitions, concerts)

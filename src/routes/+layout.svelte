@@ -62,8 +62,9 @@
 						<option value={g.id} selected={g.id === data.user.current_group_id}>{g.name}</option>
 					{/each}
 				</select>
+				<a href="/group" class="group-info-link" title="Infos du groupe">ⓘ</a>
 			{:else if currentGroup}
-				<span class="group-chip">{currentGroup.name}</span>
+				<a href="/group" class="group-chip">{currentGroup.name}</a>
 			{/if}
 			<div class="user-avatar" title={data.user.name}>{userInitials}</div>
 		</header>
@@ -157,7 +158,17 @@
 		max-width: 150px;
 		overflow: hidden;
 		text-overflow: ellipsis;
+		text-decoration: none;
 	}
+	.group-chip:hover { text-decoration: underline; }
+
+	.group-info-link {
+		color: var(--color-mid);
+		text-decoration: none;
+		font-size: 0.9rem;
+		flex-shrink: 0;
+	}
+	.group-info-link:hover { color: #fff; }
 
 	.user-avatar {
 		width: 30px;
