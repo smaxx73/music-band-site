@@ -21,8 +21,10 @@
 		location: string | null; notes: string | null; members: string[]
 	}
 
-	let session = $state(data.session as unknown as SessionData)
-	let groups = $state(data.groups as unknown as Group[])
+	// $derived inscriptible : les mises à jour optimistes locales sont écrasées
+	// dès que `data` est rechargé (navigation, invalidation).
+	let session = $derived(data.session as unknown as SessionData)
+	let groups = $derived(data.groups as unknown as Group[])
 
 	let sessionSaving = $state(false)
 	let sessionError = $state<string | null>(null)

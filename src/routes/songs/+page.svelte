@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData, ActionData } from './$types'
+	import type { Song } from '$lib/types'
 	import { enhance } from '$app/forms'
 
 	let { data, form }: { data: PageData; form: ActionData } = $props()
@@ -10,8 +11,16 @@
 		const actionData = form as { action?: string; error?: string; id?: number } | null
 		return actionData?.action === action && actionData.id === id && Boolean(actionData.error)
 	}
+
+	let showCreateModal = $state(false)
 	let createSuccess = $state(false)
-	let createFormEl: HTMLFormElement
+	let createError = $state<string | null>(null)
+
+	function openCreateModal() {
+		createError = null
+		createSuccess = false
+		showCreateModal = true
+	}
 
 	const STATUS_LABELS: Record<string, string> = {
 		en_apprentissage: 'En apprentissage',
@@ -24,80 +33,83 @@
 	<title>Morceaux</title>
 </svelte:head>
 
-<main>
-	<h1>Morceaux</h1>
+<svelte:window
+	onkeydown={(e) => {
+		if (e.key === 'Escape') showCreateModal = false
+	}}
+/>
 
-	<!-- Formulaire d'ajout -->
-	<section class="add-form form-section">
-		<h2>Ajouter un morceau</h2>
-		{#if form?.action === 'create' && form.error}
-			<p class="message-error">{form.error}</p>
-		{/if}
-		{#if createSuccess}
-			<p class="message-success">Morceau ajouté.</p>
-		{/if}
-		<form
-			method="POST"
-			action="?/create"
-			bind:this={createFormEl}
-			use:enhance={() => {
-				createSuccess = false
-				return async ({ result, update }) => {
-					await update()
-					if (result.type !== 'failure') {
-						createFormEl?.reset()
-						createSuccess = true
-					}
-				}
-			}}
-		>
-			<div class="fields-create">
+<!-- Champs partagés entre la modale d'ajout et l'édition inline -->
+{#snippet songFields(song: Song | null)}
+	<div class="fields-create">
+		<label class="form-label">
+			<span>Titre <span class="required">*</span></span>
+			<input
+				class="form-input"
+				type="text"
+				name="title"
+				value={song?.title ?? ''}
+				required
+				autocomplete="off"
+			/>
+		</label>
+		<div class="fields-row">
+			<label class="form-label">
+				Compositeur
+				<input class="form-input" type="text" name="composer" value={song?.composer ?? ''} />
+			</label>
+			<label class="form-label tonalite">
+				Tonalité
+				<input
+					class="form-input"
+					type="text"
+					name="key"
+					value={song?.key ?? ''}
+					placeholder="ex : Dm, Bb"
+				/>
+			</label>
+			<label class="form-label statut">
+				Statut
+				<select class="form-input" name="status">
+					{#each Object.entries(STATUS_LABELS) as [value, label]}
+						<option {value} selected={song ? song.status === value : value === 'en_apprentissage'}>
+							{label}
+						</option>
+					{/each}
+				</select>
+			</label>
+		</div>
+		<details class="optional-details" open={Boolean(song?.lyrics || song?.music_notes)}>
+			<summary>Paroles et notes musicales <span class="optional-hint">(optionnel)</span></summary>
+			<div class="fields-optional">
 				<label class="form-label">
-					<span>Titre <span class="required">*</span></span>
-					<input class="form-input" type="text" name="title" required autocomplete="off" />
+					Paroles
+					<textarea class="form-input" name="lyrics" rows="6" value={song?.lyrics ?? ''}></textarea>
 				</label>
-				<div class="fields-row">
-					<label class="form-label">
-						Compositeur
-						<input class="form-input" type="text" name="composer" />
-					</label>
-					<label class="form-label tonalite">
-						Tonalité
-						<input class="form-input" type="text" name="key" placeholder="ex : Dm, Bb" />
-					</label>
-					<label class="form-label statut">
-						Statut
-						<select class="form-input" name="status">
-							<option value="en_apprentissage">En apprentissage</option>
-							<option value="au_repertoire">Au répertoire</option>
-							<option value="abandonne">Abandonné</option>
-						</select>
-					</label>
-				</div>
-				<details class="optional-details">
-					<summary>Paroles et notes musicales <span class="optional-hint">(optionnel)</span></summary>
-					<div class="fields-optional">
-						<label class="form-label">
-							Paroles
-							<textarea class="form-input" name="lyrics" rows="6"></textarea>
-						</label>
-						<label class="form-label">
-							Accords / infos musicales
-							<textarea
-								class="form-input"
-								name="music_notes"
-								rows="6"
-								placeholder="Accords, structure, tempo, remarques..."
-							></textarea>
-						</label>
-					</div>
-				</details>
+				<label class="form-label">
+					Accords / infos musicales
+					<textarea
+						class="form-input"
+						name="music_notes"
+						rows="6"
+						value={song?.music_notes ?? ''}
+						placeholder="Accords, structure, tempo, remarques..."
+					></textarea>
+				</label>
 			</div>
-			<div class="form-footer">
-				<button type="submit" class="btn btn-primary">Ajouter</button>
-			</div>
-		</form>
-	</section>
+		</details>
+	</div>
+{/snippet}
+
+<main>
+	<div class="page-header">
+		<h1>Morceaux</h1>
+		<button class="btn btn-primary" onclick={openCreateModal}>+ Ajouter un morceau</button>
+	</div>
+
+	{#if createSuccess}
+		<p class="message-success">Morceau ajouté.</p>
+	{/if}
 
 	<!-- Liste des morceaux -->
 	<section class="songs-list">
@@ -143,45 +155,7 @@
 										}}
 									>
 										<input type="hidden" name="id" value={song.id} />
-										<div class="fields-create">
-											<label class="form-label">
-												<span>Titre <span class="required">*</span></span>
-												<input class="form-input" type="text" name="title" value={song.title} required />
-											</label>
-											<div class="fields-row">
-												<label class="form-label">
-													Compositeur
-													<input class="form-input" type="text" name="composer" value={song.composer ?? ''} />
-												</label>
-												<label class="form-label tonalite">
-													Tonalité
-													<input class="form-input" type="text" name="key" value={song.key ?? ''} />
-												</label>
-												<label class="form-label statut">
-													Statut
-													<select class="form-input" name="status">
-														{#each Object.entries(STATUS_LABELS) as [value, label]}
-															<option {value} selected={song.status === value}>{label}</option>
-														{/each}
-													</select>
-												</label>
-											</div>
-											<div class="fields-optional fields-optional-edit">
-												<label class="form-label">
-													Paroles
-													<textarea class="form-input" name="lyrics" rows="6" value={song.lyrics ?? ''}></textarea>
-												</label>
-												<label class="form-label">
-													Accords / infos musicales
-													<textarea
-														class="form-input"
-														name="music_notes"
-														rows="6"
-														value={song.music_notes ?? ''}
-													></textarea>
-												</label>
-											</div>
-										</div>
+										{@render songFields(song)}
 										<div class="inline-actions">
 											<button type="submit" class="btn btn-primary">Enregistrer</button>
 											<button type="button" class="btn btn-ghost" onclick={() => (editingId = null)}>
@@ -195,18 +169,16 @@
 							<!-- Ligne normale -->
 							<tr class:abandoned={isAbandoned}>
 								<td class="title"><a href="/songs/{song.id}">{song.title}</a></td>
-								<td>{song.composer ?? '—'}</td>
-								<td>{song.key ?? '—'}</td>
-								<td>
+								<td data-label="Compositeur">{song.composer ?? '—'}</td>
+								<td data-label="Tonalité">{song.key ?? '—'}</td>
+								<td class="status-cell">
 									<span class="badge badge-{song.status}">
 										{STATUS_LABELS[song.status] ?? song.status}
 									</span>
 								</td>
-								<td class="center">{song.take_count}</td>
+								<td class="center" data-label="Prises">{song.take_count}</td>
 								<td class="actions-cell">
-									<button class="btn btn-sm" onclick={() => (editingId = song.id)}>
-										Modifier
-									</button>
+									<button class="btn btn-sm" onclick={() => (editingId = song.id)}> Modifier </button>
 
 									{#if song.take_count === 0}
 										<form
@@ -239,6 +211,56 @@
 	</section>
 </main>
 
+<!-- Modale d'ajout -->
+{#if showCreateModal}
+	<div class="modal-backdrop">
+		<button
+			type="button"
+			class="backdrop-close"
+			aria-label="Fermer"
+			onclick={() => (showCreateModal = false)}
+		></button>
+		<div class="modal" role="dialog" aria-modal="true" aria-label="Ajouter un morceau">
+			<div class="modal-header">
+				<h2>Ajouter un morceau</h2>
+				<button class="modal-close" aria-label="Fermer" onclick={() => (showCreateModal = false)}>
+					✕
+				</button>
+			</div>
+			<form
+				method="POST"
+				action="?/create"
+				use:enhance={() => {
+					createError = null
+					return async ({ result, update }) => {
+						// En cas d'échec, on garde la saisie de l'utilisateur dans la modale
+						if (result.type === 'failure') {
+							createError = (result.data as { error?: string } | undefined)?.error ?? 'Erreur.'
+							return
+						}
+						await update()
+						showCreateModal = false
+						createSuccess = true
+					}
+				}}
+			>
+				<div class="modal-body">
+					{#if createError}
+						<p class="message-error">{createError}</p>
+					{/if}
+					{@render songFields(null)}
+				</div>
+				<div class="modal-footer">
+					<button type="button" class="btn btn-ghost" onclick={() => (showCreateModal = false)}>
+						Annuler
+					</button>
+					<button type="submit" class="btn btn-primary">Ajouter</button>
+				</div>
+			</form>
+		</div>
+	</div>
+{/if}
+
 <style>
 	main {
 		max-width: 900px;
@@ -246,9 +268,17 @@
 		padding: 0 1rem;
 	}
 
+	.page-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		margin-bottom: 2rem;
+	}
+
 	h1 {
 		font-size: var(--text-xl);
-		margin-bottom: 2rem;
+		margin: 0;
 	}
 
 	h2 {
@@ -260,15 +290,10 @@
 		margin-bottom: 3rem;
 	}
 
-	.add-form {
-		margin-bottom: 3rem;
-	}
-
 	.fields-create {
 		display: flex;
 		flex-direction: column;
 		gap: 0.65rem;
-		margin-bottom: 0.75rem;
 	}
 
 	.fields-row {
@@ -322,18 +347,9 @@
 		padding: 0.75rem;
 	}
 
-	.fields-optional-edit {
-		padding: 0;
-	}
-
 	textarea.form-input {
 		resize: vertical;
 		min-height: 7rem;
-	}
-
-	.form-footer {
-		display: flex;
-		justify-content: flex-end;
 	}
 
 	.required { color: var(--color-error); }
@@ -344,7 +360,7 @@
 		border-radius: var(--radius-md);
 		padding: 0.4rem 0.75rem;
 		font-size: var(--text-sm);
-		margin-bottom: 0.5rem;
+		margin: 0 0 1.5rem;
 	}
 
 	td.center { text-align: center; }
@@ -373,4 +389,149 @@
 
 	.empty { color: #aaa; font-style: italic; font-size: 0.9rem; }
 	.message-error { color: #c0392b; font-size: 0.875rem; margin: 0 0 0.5rem; }
+
+	/* ─── Modale ───────────────────────── */
+	.modal-backdrop {
+		position: fixed;
+		inset: 0;
+		background: rgba(0, 0, 0, 0.45);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		padding: 1rem;
+		z-index: 100;
+	}
+
+	/* Bouton plein écran derrière la modale : fermeture au clic hors modale, sans piège d'accessibilité */
+	.backdrop-close {
+		position: absolute;
+		inset: 0;
+		background: none;
+		border: none;
+		cursor: default;
+	}
+
+	.modal {
+		position: relative;
+		display: flex;
+		flex-direction: column;
+		background: var(--color-bg);
+		border-radius: var(--radius-xl);
+		box-shadow: var(--shadow-modal);
+		width: 600px;
+		max-width: 100%;
+		max-height: 90vh;
+		overflow: hidden;
+	}
+
+	.modal-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 1rem;
+		padding: 1rem 1.25rem 0.75rem;
+		border-bottom: 1px solid var(--color-border-light);
+	}
+
+	.modal-header h2 { margin: 0; font-size: var(--text-lg); }
+
+	.modal-close {
+		background: none;
+		border: none;
+		font-size: 1rem;
+		cursor: pointer;
+		color: var(--color-text-muted);
+		padding: 0;
+	}
+
+	.modal-close:hover { color: var(--color-primary-hover); }
+
+	.modal form {
+		display: flex;
+		flex-direction: column;
+		min-height: 0;
+	}
+
+	.modal-body {
+		padding: 1rem 1.25rem;
+		overflow-y: auto;
+	}
+
+	.modal-footer {
+		display: flex;
+		justify-content: flex-end;
+		gap: 0.5rem;
+		padding: 0.75rem 1.25rem 1rem;
+		border-top: 1px solid var(--color-border-light);
+	}
+
+	/* ─── Responsive ───────────────────── */
+	@media (max-width: 640px) {
+		main { margin: 1rem auto; padding: 0 0.75rem; }
+
+		.page-header {
+			align-items: stretch;
+			flex-direction: column;
+			gap: 0.75rem;
+			margin-bottom: 1.5rem;
+		}
+
+		.fields-row { grid-template-columns: 1fr; }
+		.fields-row .tonalite,
+		.fields-row .statut { width: auto; }
+
+		.fields-optional { grid-template-columns: 1fr; }
+
+		/* La table devient une pile de cartes */
+		.data-table,
+		.data-table tbody,
+		.data-table tr,
+		.data-table td {
+			display: block;
+		}
+
+		.data-table thead { display: none; }
+
+		.data-table tr {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 0.35rem 0.9rem;
+			border: 1px solid var(--color-border-light);
+			border-radius: var(--radius-md);
+			padding: 0.75rem;
+			margin-bottom: 0.6rem;
+		}
+
+		.data-table td {
+			border: none;
+			padding: 0;
+			min-width: 0;
+		}
+
+		.data-table td[data-label]::before {
+			content: attr(data-label) ' ';
+			font-size: var(--text-xs);
+			text-transform: uppercase;
+			color: var(--color-text-muted);
+			margin-right: 0.3rem;
+		}
+
+		td.title,
+		td.status-cell,
+		td.actions-cell,
+		.editing-row td {
+			flex: 1 1 100%;
+		}
+
+		td.title { font-size: var(--text-base); }
+		td.center { text-align: left; }
+
+		.actions-cell { margin-top: 0.35rem; }
+		.actions-cell > * { flex: 1; }
+		.actions-cell .btn { width: 100%; }
+
+		.editing-row td { padding: 0.75rem; }
+		.inline-actions .btn { flex: 1; }
+	}
 </style>

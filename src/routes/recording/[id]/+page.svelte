@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { PageData } from './$types'
-	import { untrack } from 'svelte'
 	import { formatDateOnly } from '$lib/date'
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte'
 	import CommentsPanel from '$lib/components/CommentsPanel.svelte'
@@ -21,7 +20,7 @@
 	}
 
 	const recording = $derived(data.recording as unknown as Recording)
-	let comments = $state(untrack(() => data.comments as unknown as Comment[]))
+	let comments = $derived(data.comments as unknown as Comment[])
 	const user = $derived(data.user as string | null)
 
 	type PlayerState = {

@@ -35,7 +35,8 @@
 		onCommentsChange?: (comments: Comment[]) => void
 	} = $props()
 
-	let displayComments = $state(comments)
+	// $derived inscriptible : ajout optimiste local, resynchronisé dès que le parent change
+	let displayComments = $derived(comments)
 	let content = $state('')
 	let anchorTimestamp = $state(false)
 	let submitting = $state(false)
@@ -103,10 +104,6 @@
 			submitting = false
 		}
 	}
-
-	$effect(() => {
-		displayComments = comments
-	})
 
 	$effect(() => {
 		if (playerReady && !isPlaying && currentTime > 0) {

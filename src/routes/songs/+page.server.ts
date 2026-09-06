@@ -1,12 +1,15 @@
 import type { PageServerLoad, Actions } from './$types'
 import { error, fail, redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
+import type { Song } from '$lib/types'
+
+type SongWithTakeCount = Song & { take_count: number }
 
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) redirect(302, '/login')
 	if (!locals.user.current_group_id) return { songs: [] }
 
-	const songs = await sql`
+	const songs = await sql<SongWithTakeCount[]>`
 		SELECT s.*, COUNT(r.id)::int AS take_count
 		FROM songs s
 		LEFT JOIN recordings r ON r.song_id = s.id

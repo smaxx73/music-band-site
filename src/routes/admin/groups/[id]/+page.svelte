@@ -5,7 +5,7 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props()
 
 	let editingName = $state(false)
-	let newName = $state(data.group.name as string)
+	let newName = $state('') // rempli à l'ouverture du champ de renommage
 	let saving = $state(false)
 	let removingId = $state<number | null>(null)
 
@@ -50,7 +50,11 @@
 		{:else}
 			<h1>
 				{data.group.name}
-				<button class="btn-edit" onclick={() => editingName = true} title="Renommer">✏</button>
+				<button
+					class="btn-edit"
+					onclick={() => { newName = data.group.name as string; editingName = true }}
+					title="Renommer"
+				>✏</button>
 			</h1>
 		{/if}
 	</div>

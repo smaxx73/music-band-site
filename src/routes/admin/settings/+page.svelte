@@ -6,7 +6,7 @@
 
 	type AudioFormat = { id: number; label: string; mime_types: string[]; enabled: boolean }
 
-	let formats = $state(data.formats as unknown as AudioFormat[])
+	let formats = $derived(data.formats as unknown as AudioFormat[])
 	let submitting = $state<number | null>(null)
 	let globalError = $state<string | null>(null)
 
