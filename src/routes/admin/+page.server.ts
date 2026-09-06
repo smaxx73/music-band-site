@@ -1,7 +1,8 @@
 import type { PageServerLoad } from './$types'
 import sql from '$lib/server/db'
 
-export const load: PageServerLoad = async () => {
+export const load: PageServerLoad = async ({ locals }) => {
+	if (!locals.user?.current_group_id) return { recentRecordings: [] }
 
 	const recentRecordings = await sql`
 		SELECT
@@ -11,6 +12,7 @@ export const load: PageServerLoad = async () => {
 		FROM recordings r
 		JOIN songs    s   ON s.id   = r.song_id
 		JOIN sessions ses ON ses.id = r.session_id
+		WHERE ses.group_id = ${locals.user.current_group_id}
 		ORDER BY r.created_at DESC
 		LIMIT 10
 	`
