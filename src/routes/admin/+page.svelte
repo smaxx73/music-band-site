@@ -58,7 +58,7 @@
 		deletingId = id
 		deleteError = null
 		try {
-			const res = await fetch(`/api/admin/recordings/${id}`, { method: 'DELETE' })
+			const res = await fetch(`/api/recordings/${id}`, { method: 'DELETE' })
 			const json = await res.json()
 			if (!res.ok) { deleteError = json.error ?? 'Erreur.'; return }
 			recentRecordings = recentRecordings.filter((r) => r.id !== id)

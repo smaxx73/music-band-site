@@ -1,6 +1,5 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
-import { isAdmin } from '$lib/types'
 
 export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -12,8 +11,11 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 		return json({ error: 'group_id invalide.' }, { status: 400 })
 	}
 
+	// Le groupe actif est résolu dans hooks.server.ts, qui n'honore que les groupes
+	// dont l'utilisateur est membre — y compris pour un admin. Refuser ici aussi,
+	// sinon la bascule renverrait un succès que le hook ignorerait silencieusement.
 	const isMember = locals.user.groups.some((g) => g.id === group_id)
-	if (!isMember && !isAdmin(locals.user?.role)) {
+	if (!isMember) {
 		return json({ error: "Vous n'appartenez pas à ce groupe." }, { status: 403 })
 	}
 
