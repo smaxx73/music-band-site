@@ -1,12 +1,13 @@
 import type { PageServerLoad } from './$types'
 import { redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
+import { isAdmin } from '$lib/types'
 
 // Consultation seule, portée sur le groupe actif — la gestion (renommer, membres)
 // reste réservée aux admins via /admin/groups/[id].
 export const load: PageServerLoad = async ({ locals }) => {
 	if (!locals.user) redirect(302, '/login')
-	if (!locals.user.current_group_id) return { group: null, members: [] }
+	if (!locals.user.current_group_id) return { group: null, members: [], canSeeGlobalRole: false }
 
 	const groupId = locals.user.current_group_id
 
@@ -26,13 +27,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 		GROUP BY g.id
 	`
 
+	// Le rôle global relève de l'administration des comptes, pas de la vie du groupe :
+	// on ne l'expose qu'aux admins, et on ne le sélectionne pas du tout sinon —
+	// le masquer côté client le laisserait lisible dans le payload de la page.
+	const canSeeGlobalRole = isAdmin(locals.user.role)
+
 	const members = await sql`
-		SELECT u.id, u.name, u.role AS global_role, ug.role AS group_role, ug.joined_at
+		SELECT
+			u.id, u.name, ug.role AS group_role, ug.joined_at
+			${canSeeGlobalRole ? sql`, u.role AS global_role` : sql``}
 		FROM user_groups ug
 		JOIN users u ON u.id = ug.user_id
 		WHERE ug.group_id = ${groupId}
 		ORDER BY u.name
 	`
 
-	return { group, members }
+	return { group, members, canSeeGlobalRole }
 }

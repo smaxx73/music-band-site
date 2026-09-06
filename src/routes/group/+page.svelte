@@ -77,7 +77,7 @@
 						<tr>
 							<th>Nom</th>
 							<th>Rôle dans le groupe</th>
-							<th>Rôle global</th>
+							{#if data.canSeeGlobalRole}<th>Rôle global</th>{/if}
 						</tr>
 					</thead>
 					<tbody>
@@ -89,11 +89,13 @@
 										{GROUP_ROLE_LABELS[m.group_role] ?? m.group_role}
 									</span>
 								</td>
-								<td>
-									<span class="badge badge-{m.global_role}">
-										{ROLE_LABELS[m.global_role] ?? m.global_role}
-									</span>
-								</td>
+								{#if data.canSeeGlobalRole}
+									<td>
+										<span class="badge badge-{m.global_role}">
+											{ROLE_LABELS[m.global_role] ?? m.global_role}
+										</span>
+									</td>
+								{/if}
 							</tr>
 						{/each}
 					</tbody>
