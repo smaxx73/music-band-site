@@ -97,10 +97,10 @@
 					+ Uploader
 				</a>
 
-				<div class="sidebar-user">
+				<a href="/profile" class="sidebar-user" class:active={isActive('/profile')}>
 					<div class="sidebar-avatar">{userInitials}</div>
 					<span class="sidebar-username">{data.user.name}</span>
-				</div>
+				</a>
 			</nav>
 
 			<!-- Page content -->
@@ -252,6 +252,14 @@
 		gap: 8px;
 		padding: 6px 4px;
 		border-top: 1px solid rgba(255,255,255,0.08);
+		color: inherit;
+		text-decoration: none;
+		border-radius: 6px;
+	}
+
+	.sidebar-user:hover,
+	.sidebar-user.active {
+		background: rgba(255,255,255,0.08);
 	}
 
 	.sidebar-avatar {
