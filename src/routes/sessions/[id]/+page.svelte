@@ -327,8 +327,8 @@
 						{#each group.recordings as r}
 							<tr>
 								<td class="take">#{r.take}</td>
-								<td>{formatDuration(r.duration_s)}</td>
-								<td>
+								<td class="duration-cell">{formatDuration(r.duration_s)}</td>
+								<td class="quality-cell">
 									<datalist id="quality-opts-{r.id}">
 										<option value="À revoir"></option>
 										<option value="Moyen"></option>
@@ -385,7 +385,7 @@
 										</button>
 									{/if}
 								</td>
-								<td class="center">
+								<td class="center comments-cell">
 									{#if r.comment_count > 0}
 										<button
 											class="comment-count"
@@ -399,8 +399,8 @@
 										<span class="muted">—</span>
 									{/if}
 								</td>
-								<td class="muted">{r.uploaded_by}</td>
-								<td>
+								<td class="muted uploader-cell" data-label="Par">{r.uploaded_by}</td>
+								<td class="listen-cell">
 									<a href="/recording/{r.id}" class="btn btn-secondary btn-sm">Écouter</a>
 								</td>
 								{#if editMode}
@@ -416,7 +416,7 @@
 										onclick={() => moveRecording(group.song.id, r.id, 1)}
 										title="Descendre">↓</button>
 								</td>
-								<td>
+								<td class="delete-cell">
 									<button
 										class="btn btn-danger btn-sm"
 										disabled={deletingRecordingId === r.id}
@@ -646,4 +646,92 @@
 
 	.btn-reorder:hover:not(:disabled) { background: var(--color-bg-subtle); }
 	.btn-reorder:disabled { opacity: var(--disabled-opacity); cursor: not-allowed; }
+
+	/* ─── Responsive : chaque prise devient une carte ─── */
+	@media (max-width: 640px) {
+		main { margin: 1rem auto; padding: 0 0.75rem; }
+
+		.breadcrumb-row {
+			flex-direction: column;
+			align-items: stretch;
+			gap: 0.5rem;
+		}
+
+		.breadcrumb { margin-bottom: 0.5rem; }
+
+		.session-nav > * { flex: 1; }
+
+		.data-table,
+		.data-table tbody,
+		.data-table tr,
+		.data-table td {
+			display: block;
+		}
+
+		.data-table thead { display: none; }
+
+		.data-table tr {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 0.45rem 0.8rem;
+			border: 1px solid var(--color-border-light);
+			border-radius: var(--radius-lg);
+			padding: 0.7rem 0.75rem;
+			margin-bottom: 0.6rem;
+		}
+
+		.data-table td {
+			border: none;
+			padding: 0;
+			min-width: 0;
+		}
+
+		.data-table td[data-label]::before {
+			content: attr(data-label) ' ';
+			font-size: var(--text-xs);
+			text-transform: uppercase;
+			color: var(--color-text-muted);
+			margin-right: 0.25rem;
+		}
+
+		/* Ligne 1 : prise · durée · auteur — puis notes, puis actions */
+		td.take { order: 1; font-size: var(--text-base); }
+		td.take::before { content: 'Prise '; font-weight: 400; color: var(--color-text-muted); }
+		td.duration-cell { order: 2; font-size: var(--text-sm); color: var(--color-text-secondary); }
+		td.uploader-cell { order: 3; margin-left: auto; }
+
+		td.notes-cell { order: 4; flex: 1 1 100%; max-width: none; }
+		.notes-display { padding: 0.3rem 0.4rem; border-color: var(--color-border-light); }
+
+		td.quality-cell { order: 5; }
+		.quality-input { width: 8rem; padding: 0.3rem 0.45rem; font-size: 0.78rem; }
+
+		td.comments-cell { order: 6; text-align: left; }
+		.comment-count { padding: 0.25rem 0.6rem; }
+
+		td.listen-cell { order: 7; margin-left: auto; }
+
+		td.reorder-cell { order: 8; flex: 0 0 auto; }
+		.btn-reorder { padding: 0.3rem 0.6rem; }
+		td.delete-cell { order: 9; margin-left: auto; }
+
+		/* Les commentaires dépliés sortent du cadre de la carte */
+		.data-table tr.comments-row {
+			display: block;
+			border: none;
+			border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+			padding: 0;
+			margin: -0.5rem 0 0.7rem;
+		}
+
+		.comments-row > td { padding: 0 0.7rem; border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+
+		.footer-actions {
+			flex-wrap: wrap;
+			gap: 0.5rem;
+		}
+
+		.footer-actions > * { flex: 1 1 45%; }
+	}
 </style>

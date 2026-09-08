@@ -3,10 +3,21 @@
 	import type { LayoutData } from './$types'
 	import favicon from '$lib/assets/favicon.svg'
 	import { page } from '$app/state'
-	import { goto } from '$app/navigation'
+	import { goto, afterNavigate } from '$app/navigation'
 	import { isAdmin } from '$lib/types'
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props()
+
+	// Menu mobile : tiroir latéral, refermé dès qu'on navigue
+	let menuOpen = $state(false)
+	afterNavigate(() => { menuOpen = false })
+
+	// Tiroir ouvert : on bloque le défilement du fond
+	$effect(() => {
+		if (!menuOpen) return
+		document.body.style.overflow = 'hidden'
+		return () => { document.body.style.overflow = '' }
+	})
 
 	function isActive(prefix: string) {
 		if (prefix === '/') return page.url.pathname === '/'
@@ -51,10 +62,21 @@
 	<link rel="icon" href={favicon} />
 </svelte:head>
 
+<svelte:window
+	onkeydown={(e) => { if (e.key === 'Escape') menuOpen = false }}
+	onresize={() => { if (window.innerWidth > 640) menuOpen = false }}
+/>
+
 {#if data.user}
 	<div class="app-shell">
 		<!-- Top bar -->
 		<header class="app-top-bar">
+			<button
+				class="menu-toggle"
+				onclick={() => (menuOpen = !menuOpen)}
+				aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
+				aria-expanded={menuOpen}
+			>{menuOpen ? '✕' : '☰'}</button>
 			<a href="/" class="brand">🎸 BandApp</a>
 			<div class="top-spacer"></div>
 			{#if data.user.groups.length > 1}
@@ -67,6 +89,7 @@
 			{:else if currentGroup}
 				<a href="/group" class="group-chip">{currentGroup.name}</a>
 			{/if}
+			<a href="/upload" class="top-upload" title="Uploader une prise" aria-label="Uploader une prise">+</a>
 			<a
 				href="/profile"
 				class="user-avatar"
@@ -76,8 +99,16 @@
 		</header>
 
 		<div class="app-body">
-			<!-- Sidebar -->
-			<nav class="app-sidebar">
+			{#if menuOpen}
+				<button
+					class="nav-backdrop"
+					aria-label="Fermer le menu"
+					onclick={() => (menuOpen = false)}
+				></button>
+			{/if}
+
+			<!-- Sidebar (tiroir sur mobile) -->
+			<nav class="app-sidebar" class:open={menuOpen}>
 				<ul class="sidebar-nav">
 					{#each navItems as item}
 						<li>
@@ -136,6 +167,44 @@
 
 <style>
 	/* ─── Top bar ────────────────────────────────── */
+	/* Bouton menu et raccourci upload : mobile uniquement */
+	.menu-toggle,
+	.top-upload,
+	.nav-backdrop { display: none; }
+
+	.menu-toggle {
+		width: 32px;
+		height: 32px;
+		align-items: center;
+		justify-content: center;
+		margin-left: -6px;
+		background: transparent;
+		border: none;
+		border-radius: var(--radius-md);
+		color: #fff;
+		font-size: 1rem;
+		line-height: 1;
+		cursor: pointer;
+		flex-shrink: 0;
+	}
+
+	.menu-toggle:hover { background: rgba(255,255,255,0.1); }
+
+	.top-upload {
+		width: 30px;
+		height: 30px;
+		align-items: center;
+		justify-content: center;
+		border-radius: 50%;
+		background: var(--color-accent);
+		color: #fff;
+		font-size: 1.1rem;
+		font-weight: 600;
+		line-height: 1;
+		text-decoration: none;
+		flex-shrink: 0;
+	}
+
 	.brand {
 		font-weight: 700;
 		font-size: 1rem;
@@ -364,57 +433,64 @@
 		font-weight: 600;
 	}
 
-	/* ─── Mobile: replaces sidebar with compact top nav ─ */
+	/* ─── Mobile : la sidebar devient un tiroir latéral ─ */
 	@media (max-width: 640px) {
+		.menu-toggle,
+		.top-upload { display: flex; }
+
 		.app-shell {
 			height: auto;
+			min-height: 100vh;
 			overflow: visible;
 		}
+
+		.app-top-bar {
+			position: sticky;
+			top: 0;
+			padding: 0 0.7rem;
+			gap: 0.6rem;
+		}
+
+		.group-select,
+		.group-chip { max-width: 110px; }
 
 		.app-body {
 			flex-direction: column;
 			overflow: visible;
 		}
 
+		/* Hors écran par défaut, glisse à l'ouverture du menu */
 		.app-sidebar {
-			width: 100%;
-			flex-direction: row;
-			padding: 0 8px;
-			gap: 0;
-			overflow-x: auto;
-			overflow-y: visible;
-			border-right: none;
-			border-bottom: 1px solid rgba(255,255,255,0.08);
+			position: fixed;
+			top: 44px;
+			bottom: 0;
+			left: 0;
+			width: 218px;
+			z-index: 90;
+			transform: translateX(-100%);
+			transition: transform 0.18s ease-out;
+			border-right: 1px solid rgba(255,255,255,0.08);
 		}
 
-		.sidebar-nav {
-			flex-direction: row;
-			gap: 2px;
+		.app-sidebar.open {
+			transform: none;
+			box-shadow: 4px 0 20px rgba(0,0,0,0.3);
 		}
 
-		.sidebar-link {
-			white-space: nowrap;
-			padding: 8px 10px;
-			gap: 5px;
+		.nav-backdrop {
+			display: block;
+			position: fixed;
+			inset: 44px 0 0;
+			z-index: 80;
+			background: rgba(0,0,0,0.45);
+			border: none;
+			padding: 0;
+			cursor: default;
 		}
 
-		.nav-icon { display: none; }
+		.sidebar-link { padding: 10px 10px; }
 
-		.sidebar-sep { display: none; }
-
-		.sidebar-spacer { display: none; }
-
-		.sidebar-upload {
-			margin: 4px 0 4px 6px;
-			padding: 6px 12px;
-			white-space: nowrap;
-			flex-shrink: 0;
-		}
-
-		.sidebar-user { display: none; }
-
-		.app-content {
-			overflow-y: visible;
-		}
+		.app-content { overflow-y: visible; }
 	}
+
 </style>

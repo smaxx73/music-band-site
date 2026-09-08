@@ -284,4 +284,22 @@
 		padding: 1rem 1.25rem;
 		margin-bottom: 2rem;
 	}
+
+	/* ─── Responsive ───────────────────── */
+	@media (max-width: 640px) {
+		main { margin: 1rem auto; padding: 0 0.75rem; }
+
+		.header {
+			flex-direction: column;
+			align-items: stretch;
+			gap: 0.75rem;
+		}
+
+		.header-actions { justify-content: flex-start; }
+		.header-actions > * { flex: 1 1 auto; }
+
+		h1 { font-size: 1.2rem; flex-wrap: wrap; }
+
+		.player-card { padding: 0.85rem 0.8rem; }
+	}
 </style>

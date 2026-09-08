@@ -132,13 +132,13 @@
 						{#each group.recordings as r}
 							<tr>
 								<td class="take">Prise {r.take}</td>
-								<td>{formatDuration(r.duration_s)}</td>
-								<td>
+								<td class="duration-cell">{formatDuration(r.duration_s)}</td>
+								<td class="quality-cell">
 									<span class="badge badge-quality-{qualityClass(r.status)}">
 										{r.status}
 									</span>
 								</td>
-								<td class="center">
+								<td class="center comments-cell">
 									{#if r.comment_count > 0}
 										<button
 											class="comment-count"
@@ -152,8 +152,8 @@
 										<span class="muted">—</span>
 									{/if}
 								</td>
-								<td class="muted">{r.uploaded_by}</td>
-								<td>
+								<td class="muted uploader-cell" data-label="Par">{r.uploaded_by}</td>
+								<td class="listen-cell">
 									<a href="/recording/{r.id}" class="btn btn-secondary btn-sm">Écouter</a>
 								</td>
 							</tr>
@@ -236,4 +236,63 @@
 	.comment-count.open { border-color: var(--color-accent); background: var(--color-accent-light); }
 
 	.comments-row > td { background: var(--color-bg-subtle); padding: 0 1rem; }
+
+	/* ─── Responsive : chaque prise devient une carte ─── */
+	@media (max-width: 640px) {
+		main { margin: 1rem auto; padding: 0 0.75rem; }
+
+		.song-header { gap: 0.5rem; }
+		h1 { font-size: 1.25rem; flex-wrap: wrap; }
+
+		.data-table,
+		.data-table tbody,
+		.data-table tr,
+		.data-table td {
+			display: block;
+		}
+
+		.data-table thead { display: none; }
+
+		.data-table tr {
+			display: flex;
+			flex-wrap: wrap;
+			align-items: center;
+			gap: 0.45rem 0.8rem;
+			border: 1px solid var(--color-border-light);
+			border-radius: var(--radius-lg);
+			padding: 0.7rem 0.75rem;
+			margin-bottom: 0.6rem;
+		}
+
+		.data-table td {
+			border: none;
+			padding: 0;
+		}
+
+		.data-table td[data-label]::before {
+			content: attr(data-label) ' ';
+			font-size: var(--text-xs);
+			text-transform: uppercase;
+			color: var(--color-text-muted);
+			margin-right: 0.25rem;
+		}
+
+		td.take { order: 1; font-size: var(--text-base); color: var(--color-text); }
+		td.duration-cell { order: 2; font-size: var(--text-sm); color: var(--color-text-secondary); }
+		td.uploader-cell { order: 3; margin-left: auto; }
+		td.quality-cell { order: 4; }
+		td.comments-cell { order: 5; text-align: left; }
+		td.listen-cell { order: 6; margin-left: auto; }
+
+		.comment-count { padding: 0.25rem 0.6rem; }
+
+		.data-table tr.comments-row {
+			display: block;
+			border: none;
+			padding: 0;
+			margin: -0.5rem 0 0.7rem;
+		}
+
+		.comments-row > td { padding: 0 0.7rem; border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+	}
 </style>

@@ -200,4 +200,13 @@
 		font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
 		background: var(--color-primary); color: white; padding: 0.1rem 0.4rem; border-radius: var(--radius-sm);
 	}
+
+	/* ─── Responsive ───────────────────── */
+	@media (max-width: 640px) {
+		main { margin: 1rem auto; padding: 0 0.75rem; }
+
+		h1 { font-size: 1.2rem; }
+
+		.player-card { padding: 0.85rem 0.8rem; }
+	}
 </style>

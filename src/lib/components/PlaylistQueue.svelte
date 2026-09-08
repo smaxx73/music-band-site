@@ -167,6 +167,7 @@
 
 	.item-body {
 		flex: 1;
+		min-width: 0;
 		background: none;
 		border: none;
 		padding: 0;
@@ -189,6 +190,8 @@
 		display: flex;
 		flex-direction: column;
 		gap: 0.1rem;
+		min-width: 0;
+		overflow-wrap: anywhere;
 	}
 
 	.item-title { font-weight: 600; font-size: var(--text-sm); }

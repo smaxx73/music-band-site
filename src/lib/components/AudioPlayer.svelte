@@ -312,7 +312,8 @@
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
-		gap: 1rem;
+		flex-wrap: wrap;
+		gap: 0.6rem 1rem;
 	}
 
 	.controls-left {
@@ -376,5 +377,25 @@
 	.volume-slider {
 		width: 72px;
 		accent-color: var(--color-primary);
+	}
+
+	/* Sous 640px la rangée ne tient plus : le volume passe à la ligne */
+	@media (max-width: 640px) {
+		.controls { gap: 0.55rem 0.75rem; }
+
+		.controls-left { order: 1; }
+		.time { order: 2; }
+
+		.volume-label {
+			order: 3;
+			flex: 1 1 100%;
+		}
+
+		.volume-slider {
+			flex: 1;
+			width: auto;
+			min-width: 0;
+			height: 1.5rem;
+		}
 	}
 </style>
