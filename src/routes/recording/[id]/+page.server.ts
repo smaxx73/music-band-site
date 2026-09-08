@@ -3,6 +3,7 @@ import { error, redirect } from '@sveltejs/kit'
 import { readFile, writeFile } from 'fs/promises'
 import sql from '$lib/server/db'
 import { extractPeaks, getDuration } from '$lib/server/ffmpeg'
+import { commentsWithReactions } from '$lib/server/comments'
 import { env } from '$env/dynamic/private'
 
 type PeaksCache = { peaks: number[]; duration: number | null }
@@ -49,11 +50,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!recording) error(404, 'Prise introuvable')
 
 	const [comments, peaksData, siblings] = await Promise.all([
-		sql`
-			SELECT * FROM comments
-			WHERE recording_id = ${id}
-			ORDER BY timestamp_s ASC NULLS LAST, created_at ASC
-		`,
+		commentsWithReactions(id, locals.user.id),
 		loadPeaks(id, recording.file_path as string),
 		sql`
 			SELECT id, take FROM recordings

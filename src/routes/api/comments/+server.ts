@@ -1,6 +1,7 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import sql from '$lib/server/db'
+import { commentsWithReactions } from '$lib/server/comments'
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -11,14 +12,15 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		return json({ error: 'Paramètre recording_id manquant ou invalide.' }, { status: 400 })
 	}
 
-	const comments = await sql`
-		SELECT c.* FROM comments c
-		JOIN recordings r ON r.id = c.recording_id
+	// Le scope groupe est vérifié sur la prise avant de lire les commentaires.
+	const [rec] = await sql`
+		SELECT r.id FROM recordings r
 		JOIN sessions ses ON ses.id = r.session_id
-		WHERE c.recording_id = ${recordingId}
-		  AND ses.group_id = ${locals.user.current_group_id}
-		ORDER BY timestamp_s ASC NULLS LAST, created_at ASC
+		WHERE r.id = ${recordingId} AND ses.group_id = ${locals.user.current_group_id}
 	`
+	if (!rec) return json({ error: 'Prise introuvable.' }, { status: 404 })
+
+	const comments = await commentsWithReactions(recordingId, locals.user.id)
 
 	return json(comments)
 }
@@ -65,5 +67,6 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		RETURNING *
 	`
 
-	return json(comment, { status: 201 })
+	// Un commentaire tout juste créé n'a encore aucune réaction.
+	return json({ ...comment, up_count: 0, down_count: 0, my_reaction: null }, { status: 201 })
 }

@@ -80,6 +80,22 @@ export type Comment = {
 	created_at: Date
 }
 
+export type ReactionValue = 1 | -1
+
+export type CommentReaction = {
+	comment_id: number
+	user_id: number
+	value: ReactionValue
+	created_at: Date
+}
+
+// Commentaire enrichi des compteurs de réactions et de la réaction de l'utilisateur courant.
+export type CommentWithReactions = Comment & {
+	up_count: number
+	down_count: number
+	my_reaction: ReactionValue | null
+}
+
 export type Playlist = {
 	id: number
 	group_id: number

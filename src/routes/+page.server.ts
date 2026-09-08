@@ -8,10 +8,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const groupId = locals.user.current_group_id
 
 	if (!groupId) {
-		return { sessions: [], playlists: [], stats: null, nextEvent: null }
+		return { sessions: [], playlists: [], stats: null, nextEvent: null, recentComments: [] }
 	}
 
-	const [sessions, playlists, statsRows, nextEventRows] = await Promise.all([
+	const [sessions, playlists, statsRows, nextEventRows, recentComments] = await Promise.all([
 		sql`
 			SELECT
 				s.id, s.date, s.location, s.members,
@@ -47,6 +47,19 @@ export const load: PageServerLoad = async ({ locals }) => {
 			ORDER BY date ASC
 			LIMIT 1
 		`,
+		sql`
+			SELECT
+				c.id, c.author, c.content, c.created_at,
+				r.id     AS recording_id,
+				so.title AS song_title
+			FROM comments c
+			JOIN recordings r ON r.id = c.recording_id
+			JOIN sessions ses ON ses.id = r.session_id
+			JOIN songs so     ON so.id = r.song_id
+			WHERE ses.group_id = ${groupId}
+			ORDER BY c.created_at DESC
+			LIMIT 5
+		`,
 	])
 
 	return {
@@ -54,5 +67,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 		playlists,
 		stats: statsRows[0] ?? null,
 		nextEvent: nextEventRows[0] ?? null,
+		recentComments,
 	}
 }

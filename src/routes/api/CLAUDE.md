@@ -26,6 +26,7 @@ api/songs/+server.ts
 api/songs/[id]/+server.ts
 api/recordings/[id]/+server.ts
 api/comments/+server.ts
+api/comments/[id]/reactions/+server.ts
 api/playlists/+server.ts
 api/playlists/[id]/+server.ts
 api/playlists/[id]/items/+server.ts

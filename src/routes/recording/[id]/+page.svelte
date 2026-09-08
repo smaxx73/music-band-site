@@ -5,6 +5,7 @@
 	import CommentsPanel from '$lib/components/CommentsPanel.svelte'
 	import SongDetails from '$lib/components/SongDetails.svelte'
 	import Modal from '$lib/components/Modal.svelte'
+	import type { CommentWithReactions } from '$lib/types'
 
 	let { data }: { data: PageData } = $props()
 
@@ -15,10 +16,7 @@
 		song_lyrics: string | null; song_music_notes: string | null
 		session_date: string; session_location: string | null
 	}
-	type Comment = {
-		id: number; recording_id: number; author: string
-		content: string; timestamp_s: number | null; created_at: string
-	}
+	type Comment = CommentWithReactions
 
 	const recording = $derived(data.recording as unknown as Recording)
 	let comments = $derived(data.comments as unknown as Comment[])

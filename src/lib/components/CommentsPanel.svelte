@@ -1,14 +1,7 @@
 <script lang="ts">
 	import { tick } from 'svelte'
-
-	type Comment = {
-		id: number
-		recording_id: number
-		author: string
-		content: string
-		timestamp_s: number | null
-		created_at: string
-	}
+	import CommentList from '$lib/components/CommentList.svelte'
+	import type { CommentWithReactions } from '$lib/types'
 
 	type HighlightRequest = {
 		id: number
@@ -26,13 +19,13 @@
 		onCommentsChange = () => {}
 	}: {
 		recordingId: number
-		comments: Comment[]
+		comments: CommentWithReactions[]
 		currentTime?: number
 		playerReady?: boolean
 		isPlaying?: boolean
 		highlightRequest?: HighlightRequest | null
 		onSeek?: (seconds: number) => void
-		onCommentsChange?: (comments: Comment[]) => void
+		onCommentsChange?: (comments: CommentWithReactions[]) => void
 	} = $props()
 
 	// $derived inscriptible : ajout optimiste local, resynchronisé dès que le parent change
@@ -41,23 +34,14 @@
 	let anchorTimestamp = $state(false)
 	let submitting = $state(false)
 	let formError = $state<string | null>(null)
-	let commentEls = $state<Record<number, HTMLElement>>({})
 	let lastHighlightToken = $state<number | null>(null)
+	let list = $state<ReturnType<typeof CommentList> | null>(null)
 
 	function formatTime(s: number) {
 		if (!isFinite(s)) return '0:00'
 		const m = Math.floor(s / 60)
 		const sec = Math.floor(s % 60)
 		return `${m}:${String(sec).padStart(2, '0')}`
-	}
-
-	function highlightComment(commentId: number) {
-		const el = commentEls[commentId]
-		if (!el) return
-
-		el.scrollIntoView({ behavior: 'smooth', block: 'center' })
-		el.classList.add('highlight')
-		setTimeout(() => el.classList.remove('highlight'), 1500)
 	}
 
 	async function submitComment(event: SubmitEvent) {
@@ -90,14 +74,14 @@
 				return
 			}
 
-			const updatedComments = [...displayComments, json as Comment]
+			const updatedComments = [...displayComments, json as CommentWithReactions]
 			displayComments = updatedComments
 			onCommentsChange(updatedComments)
 			content = ''
 			anchorTimestamp = false
 
 			await tick()
-			highlightComment(json.id)
+			list?.highlightComment(json.id)
 		} catch {
 			formError = 'Erreur réseau.'
 		} finally {
@@ -118,7 +102,7 @@
 		if (highlightRequest.token === lastHighlightToken) return
 
 		lastHighlightToken = highlightRequest.token
-		highlightComment(highlightRequest.id)
+		list?.highlightComment(highlightRequest.id)
 	})
 </script>
 
@@ -128,26 +112,9 @@
 	{#if displayComments.length === 0}
 		<p class="empty">Pas encore de commentaire.</p>
 	{:else}
-		<ul class="comment-list">
-			{#each displayComments as comment (comment.id)}
-				<li class="comment" bind:this={commentEls[comment.id]}>
-					<div class="comment-header">
-						<strong>{comment.author}</strong>
-						{#if comment.timestamp_s !== null && comment.timestamp_s !== undefined}
-							<button class="timestamp-link" onclick={() => onSeek(comment.timestamp_s!)}>
-								⏱ {formatTime(comment.timestamp_s)}
-							</button>
-						{:else}
-							<span class="global-badge">global</span>
-						{/if}
-						<span class="comment-date">
-							{new Date(comment.created_at).toLocaleString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
-						</span>
-					</div>
-					<p class="comment-content">{comment.content}</p>
-				</li>
-			{/each}
-		</ul>
+		<div class="list-wrapper">
+			<CommentList bind:this={list} comments={displayComments} {onSeek} />
+		</div>
 	{/if}
 
 	<form class="form-section comment-form" onsubmit={submitComment}>
@@ -174,73 +141,12 @@
 </section>
 
 <style>
-	:global(.comment.highlight) {
-		background: #fffbe6 !important;
-		transition: background 0s;
-	}
-
 	h2 {
 		font-size: var(--text-lg);
 		margin: 0 0 1rem;
 	}
 
-	.comment-list {
-		list-style: none;
-		padding: 0;
-		margin: 0 0 1.5rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.5rem;
-	}
-
-	.comment {
-		border: 1px solid #f0f0f0;
-		border-radius: var(--radius-lg);
-		padding: 0.75rem 1rem;
-		transition: background 0.6s;
-	}
-
-	.comment-header {
-		display: flex;
-		align-items: center;
-		gap: 0.6rem;
-		margin-bottom: 0.35rem;
-		font-size: 0.85rem;
-	}
-
-	.timestamp-link {
-		background: #fff7ed;
-		border: 1px solid #fed7aa;
-		color: #c2410c;
-		border-radius: var(--radius-md);
-		padding: 0.1rem 0.4rem;
-		font-size: 0.78rem;
-		cursor: pointer;
-		font-weight: 600;
-	}
-
-	.timestamp-link:hover { background: #ffedd5; }
-
-	.global-badge {
-		font-size: 0.72rem;
-		color: #aaa;
-		border: 1px solid #e5e5e5;
-		border-radius: var(--radius-sm);
-		padding: 0.1rem 0.35rem;
-	}
-
-	.comment-date {
-		color: #bbb;
-		font-size: 0.78rem;
-		margin-left: auto;
-	}
-
-	.comment-content {
-		font-size: 0.9rem;
-		margin: 0;
-		white-space: pre-wrap;
-		color: #333;
-	}
+	.list-wrapper { margin-bottom: 1.5rem; }
 
 	.comment-form { margin-top: 0; }
 

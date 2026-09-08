@@ -82,6 +82,14 @@ CREATE TABLE comments (
     created_at   TIMESTAMPTZ DEFAULT now()
 );
 
+CREATE TABLE comment_reactions (
+    comment_id  INTEGER REFERENCES comments(id) ON DELETE CASCADE,
+    user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    value       SMALLINT NOT NULL CHECK (value IN (-1, 1)),  -- 1 = pouce haut, -1 = pouce bas
+    created_at  TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (comment_id, user_id)
+);
+
 CREATE TABLE playlists (
     id          SERIAL PRIMARY KEY,
     group_id    INTEGER NOT NULL REFERENCES groups(id),
@@ -133,3 +141,4 @@ CREATE INDEX idx_user_groups_group  ON user_groups(group_id);
 CREATE INDEX idx_recordings_file_hash ON recordings(file_hash);
 CREATE INDEX idx_calendar_events_group_date ON calendar_events(group_id, date);
 CREATE INDEX idx_calendar_events_user ON calendar_events(user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX idx_comment_reactions_comment ON comment_reactions(comment_id);

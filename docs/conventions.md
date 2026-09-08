@@ -11,7 +11,9 @@ src/
 │   │   └── ffmpeg.ts      # conversion mp3, découpe silence, durée
 │   └── components/
 │       ├── AudioPlayer.svelte     # lecteur WaveSurfer.js
-│       ├── CommentsPanel.svelte   # commentaires globaux et timestampés
+│       ├── CommentsPanel.svelte   # commentaires d'une prise + formulaire d'ajout (page lecteur)
+│       ├── CommentList.svelte     # liste de commentaires + réactions 👍/👎 (partagée)
+│       ├── RecordingComments.svelte # commentaires d'une prise chargés à la demande (hors lecteur)
 │       ├── PlaylistQueue.svelte   # file de lecture playlist
 │       ├── SessionEditor.svelte   # édition des métadonnées de session
 │       └── SongDetails.svelte     # paroles et notes musicales

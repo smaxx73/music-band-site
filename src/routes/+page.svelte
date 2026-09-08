@@ -11,11 +11,16 @@
 	type PlaylistRow = { id: number; name: string; item_count: number; updated_at: string }
 	type Stats = { session_count: number; recording_count: number; playlist_count: number }
 	type NextEvent = { id: number; date: string; type: string; title: string | null; notes: string | null }
+	type RecentComment = {
+		id: number; author: string; content: string
+		created_at: string; recording_id: number; song_title: string
+	}
 
 	const sessions = $derived(data.sessions as unknown as SessionRow[])
 	const playlists = $derived(data.playlists as unknown as PlaylistRow[])
 	const stats = $derived(data.stats as Stats | null)
 	const nextEvent = $derived(data.nextEvent as NextEvent | null)
+	const recentComments = $derived((data.recentComments ?? []) as unknown as RecentComment[])
 
 	const firstName = $derived((data as any).user?.name?.split(' ')[0] ?? 'vous')
 
@@ -44,33 +49,57 @@
 		indisponibilite: 'var(--color-red-light)',
 	}
 
-	// Activity timeline derived from sessions + playlists
-	type ActivityItem = { date: string; label: string; detail: string; color: string }
+	function truncate(text: string, max = 70) {
+		const clean = text.replace(/\s+/g, ' ').trim()
+		return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean
+	}
+
+	// Activity timeline derived from sessions + playlists + comments
+	type ActivityItem = {
+		ts: number; date: string; label: string; detail: string
+		color: string; href?: string
+	}
 	const activity = $derived((): ActivityItem[] => {
 		const items: ActivityItem[] = []
 
 		for (const s of sessions) {
 			items.push({
+				ts: new Date(toDateOnly(s.date) || s.date).getTime(),
 				date: formatShortDate(s.date),
 				label: 'Session',
 				detail: [s.location, s.song_titles?.filter(Boolean).slice(0, 2).join(', ')].filter(Boolean).join(' · '),
 				color: 'var(--color-accent)',
+				href: `/sessions/${s.id}`,
 			})
 		}
 
 		for (const p of playlists.slice(0, 2)) {
 			if (p.updated_at) {
 				items.push({
+					ts: new Date(p.updated_at).getTime(),
 					date: formatShortDate(p.updated_at),
 					label: 'Playlist modifiée',
 					detail: p.name,
 					color: 'var(--color-blue)',
+					href: `/playlists/${p.id}`,
 				})
 			}
 		}
 
-		items.sort((a, b) => b.date.localeCompare(a.date))
-		return items.slice(0, 6)
+		for (const c of recentComments) {
+			items.push({
+				ts: new Date(c.created_at).getTime(),
+				date: formatShortDate(c.created_at),
+				label: `💬 ${c.author} — ${c.song_title}`,
+				detail: truncate(c.content),
+				color: 'var(--color-green)',
+				href: `/recording/${c.recording_id}`,
+			})
+		}
+
+		// Tri sur l'horodatage brut : les libellés de date sont déjà formatés pour l'affichage.
+		items.sort((a, b) => b.ts - a.ts)
+		return items.slice(0, 8)
 	})
 </script>
 
@@ -166,13 +195,23 @@
 					{#each activity() as item}
 						<div class="timeline-item">
 							<div class="timeline-dot" style="background: {item.color}"></div>
-							<div class="timeline-body">
-								<div class="timeline-label">{item.label}</div>
-								{#if item.detail}
-									<div class="timeline-detail">{item.detail}</div>
-								{/if}
-								<div class="timeline-date">{item.date}</div>
-							</div>
+							{#if item.href}
+								<a class="timeline-body" href={item.href}>
+									<div class="timeline-label">{item.label}</div>
+									{#if item.detail}
+										<div class="timeline-detail">{item.detail}</div>
+									{/if}
+									<div class="timeline-date">{item.date}</div>
+								</a>
+							{:else}
+								<div class="timeline-body">
+									<div class="timeline-label">{item.label}</div>
+									{#if item.detail}
+										<div class="timeline-detail">{item.detail}</div>
+									{/if}
+									<div class="timeline-date">{item.date}</div>
+								</div>
+							{/if}
 						</div>
 					{/each}
 				</div>
@@ -413,7 +452,11 @@
 		flex-direction: column;
 		gap: 1px;
 		min-width: 0;
+		color: inherit;
+		text-decoration: none;
 	}
+
+	a.timeline-body:hover .timeline-label { color: var(--color-accent); }
 
 	.timeline-label {
 		font-size: 0.82rem;

@@ -3,6 +3,7 @@
 	import { formatDateOnly } from '$lib/date'
 	import SessionEditor from '$lib/components/SessionEditor.svelte'
 	import SongDetails from '$lib/components/SongDetails.svelte'
+	import RecordingComments from '$lib/components/RecordingComments.svelte'
 
 	let { data }: { data: PageData } = $props()
 
@@ -81,6 +82,13 @@
 		return formatDateOnly(d, {
 			weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
 		})
+	}
+
+	// Commentaires dépliables : lisibles sans ouvrir le lecteur.
+	let openComments = $state<Record<number, boolean>>({})
+
+	function toggleComments(id: number) {
+		openComments = { ...openComments, [id]: !openComments[id] }
 	}
 
 	function formatDuration(s: number | null) {
@@ -379,7 +387,14 @@
 								</td>
 								<td class="center">
 									{#if r.comment_count > 0}
-										<span class="comment-count">{r.comment_count}</span>
+										<button
+											class="comment-count"
+											class:open={openComments[r.id]}
+											onclick={() => toggleComments(r.id)}
+											title={openComments[r.id] ? 'Masquer les commentaires' : 'Lire les commentaires'}
+										>
+											💬 {r.comment_count}
+										</button>
 									{:else}
 										<span class="muted">—</span>
 									{/if}
@@ -412,6 +427,13 @@
 								</td>
 								{/if}
 							</tr>
+							{#if openComments[r.id]}
+								<tr class="comments-row">
+									<td colspan={editMode ? 9 : 7}>
+										<RecordingComments recordingId={r.id} />
+									</td>
+								</tr>
+							{/if}
 						{/each}
 					</tbody>
 				</table>
@@ -514,11 +536,18 @@
 		display: inline-block;
 		background: var(--color-abandoned-bg);
 		color: #444;
+		border: 1px solid transparent;
 		border-radius: 10px;
 		padding: 0.1rem 0.5rem;
 		font-size: var(--text-xs);
 		font-weight: 600;
+		cursor: pointer;
 	}
+
+	.comment-count:hover { border-color: var(--color-accent); }
+	.comment-count.open { border-color: var(--color-accent); background: var(--color-accent-light); }
+
+	.comments-row > td { background: var(--color-bg-subtle); padding: 0 1rem; }
 
 	.footer-actions { margin-top: 2rem; display: flex; gap: 0.75rem; align-items: center; }
 

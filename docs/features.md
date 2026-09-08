@@ -27,6 +27,8 @@
 - Modification possible : date, type, titre, lieu, notes, membres de la session
 - Modification possible par prise : qualité libre, notes
 - Ajout d'une prise oubliée à une session passée : autorisé
+- Le compteur de commentaires d'une prise est cliquable : il déplie la liste des commentaires
+  sous la ligne, chargée à la demande via `GET /api/comments?recording_id=`, sans ouvrir le lecteur
 - Mode édition : suppression de prise, déplacement dans l'ordre du morceau, puis renumérotation persistée
 - Suppression d'une session : supprime la session, ses prises en cascade et les fichiers audio associés
 
@@ -36,6 +38,7 @@
 - Triées par date de session décroissante
 - Objectif : visualiser l'évolution du morceau dans le temps
 - Les prises affichent leur libellé de qualité libre
+- Le compteur de commentaires déplie la liste des commentaires de la prise, sans ouvrir le lecteur
 
 ## Lecteur audio (`/recording/[id]`)
 
@@ -47,6 +50,16 @@
 - Ajout de commentaire : global OU ancré à la position courante du lecteur
 - La case "ancrer au timestamp" est cochée par défaut si le lecteur est en pause
 - Auteur pré-rempli depuis l'utilisateur connecté
+
+## Réactions aux commentaires
+
+- Chaque membre peut réagir à un commentaire par 👍 ou 👎, depuis le lecteur comme depuis
+  les listes dépliées des vues session et morceau
+- Une seule réaction par membre et par commentaire : cliquer l'autre pouce la remplace,
+  re-cliquer le même la retire (`DELETE`)
+- `POST /api/comments/[id]/reactions` avec `{ value: 1 | -1 }`, `DELETE` pour retirer ;
+  les deux retournent `{ up_count, down_count, my_reaction }`
+- Les compteurs affichés sont mis à jour localement, sans rechargement de page
 
 ## Playlists (`/playlists/[id]`)
 
@@ -85,5 +98,7 @@
 ## Tableau de bord (`/`)
 
 - Colonne gauche : 5 dernières sessions (date, morceaux travaillés en résumé)
-- Colonne droite : playlists triées par date de modification
+- Colonne droite : flux d'actualité (sessions, playlists modifiées et **derniers commentaires**,
+  triés par horodatage décroissant, chaque entrée renvoyant vers la page concernée),
+  puis playlists triées par date de modification
 - Bouton [+ Uploader] toujours visible en haut
