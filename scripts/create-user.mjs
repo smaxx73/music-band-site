@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Crée ou met à jour un utilisateur dans la base de données.
- * Usage : node scripts/create-user.mjs --name=Alice --password=secret --role=admin
+ * Usage : node scripts/create-user.mjs --nickname=Alice --password=secret --role=admin
  */
 import { randomBytes, scrypt } from 'crypto'
 import { promisify } from 'util'
@@ -40,12 +40,12 @@ function parseArgs() {
 		const match = arg.match(/^--(\w+)=(.+)$/)
 		if (match) args[match[1]] = match[2]
 	}
-	if (!args.name || !args.password) {
-		console.error('Usage: node scripts/create-user.mjs --name=<prénom> --password=<motdepasse> [--role=admin|user]')
+	if (!args.nickname || !args.password) {
+		console.error('Usage: node scripts/create-user.mjs --nickname=<pseudo> --password=<motdepasse> [--role=admin|user]')
 		process.exit(1)
 	}
 	return {
-		name: args.name.trim(),
+		nickname: args.nickname.trim(),
 		password: args.password,
 		role: args.role === 'admin' ? 'admin' : 'user'
 	}
@@ -58,20 +58,20 @@ async function main() {
 		process.exit(1)
 	}
 
-	const { name, password, role } = parseArgs()
+	const { nickname, password, role } = parseArgs()
 	const sql = postgres(process.env.DATABASE_URL, { ssl: false })
 	try {
 		const passwordHash = await hashPassword(password)
 		const [user] = await sql`
-			INSERT INTO users (name, password_hash, role)
-			VALUES (${name}, ${passwordHash}, ${role})
-			ON CONFLICT (name) DO UPDATE
+			INSERT INTO users (nickname, password_hash, role)
+			VALUES (${nickname}, ${passwordHash}, ${role})
+			ON CONFLICT (nickname) DO UPDATE
 				SET password_hash = EXCLUDED.password_hash,
 					role = EXCLUDED.role,
 					active = true
-			RETURNING id, name, role
+			RETURNING id, nickname, role
 		`
-		console.log(`Utilisateur créé/mis à jour : ${user.name} (${user.role}) — id=${user.id}`)
+		console.log(`Utilisateur créé/mis à jour : ${user.nickname} (${user.role}) — id=${user.id}`)
 	} finally {
 		await sql.end()
 	}

@@ -11,11 +11,11 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
 
 	const members = await sql`
-		SELECT u.id, u.name, u.role AS global_role, ug.role AS group_role, ug.joined_at
+		SELECT u.id, u.display_name, u.role AS global_role, ug.role AS group_role, ug.joined_at
 		FROM user_groups ug
 		JOIN users u ON u.id = ug.user_id
 		WHERE ug.group_id = ${id}
-		ORDER BY u.name
+		ORDER BY u.display_name
 	`
 	return json(members)
 }

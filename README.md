@@ -109,7 +109,7 @@ La base est initialisée automatiquement via les fichiers `migrations/` au premi
 ### 4. Créer le premier compte admin
 
 ```bash
-node scripts/create-user.mjs --name=TonPrénom --password=tonmotdepasse --role=admin
+node scripts/create-user.mjs --nickname=TonPseudo --password=tonmotdepasse --role=admin
 ```
 
 Le script peut aussi créer des comptes `user` (rôle par défaut). Les comptes suivants se gèrent depuis `/admin/users`.

@@ -63,7 +63,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				NULL,
 				${date}::date,
 				'indisponibilite',
-				${locals.user.name},
+				${locals.user.display_name},
 				${typeof notes === 'string' && notes.trim() ? notes.trim() : null},
 				${typeof location === 'string' && location.trim() ? location.trim() : null}
 			)
@@ -88,7 +88,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			NULL,
 			${date}::date,
 			${type},
-			${locals.user.name},
+			${locals.user.display_name},
 			${typeof title === 'string' && title.trim() ? title.trim() : null},
 			${typeof notes === 'string' && notes.trim() ? notes.trim() : null},
 			${typeof location === 'string' && location.trim() ? location.trim() : null},

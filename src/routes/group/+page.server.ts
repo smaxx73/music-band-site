@@ -34,12 +34,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const members = await sql`
 		SELECT
-			u.id, u.name, ug.role AS group_role, ug.joined_at
+			u.id, u.display_name, ug.role AS group_role, ug.joined_at
 			${canSeeGlobalRole ? sql`, u.role AS global_role` : sql``}
 		FROM user_groups ug
 		JOIN users u ON u.id = ug.user_id
 		WHERE ug.group_id = ${groupId}
-		ORDER BY u.name
+		ORDER BY u.display_name
 	`
 
 	return { group, members, canSeeGlobalRole }

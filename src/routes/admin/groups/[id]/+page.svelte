@@ -11,7 +11,7 @@
 
 	const memberIds = $derived(new Set((data.members as unknown as { id: number }[]).map((m) => m.id)))
 	const nonMembers = $derived(
-		(data.allUsers as unknown as { id: number; name: string }[]).filter((u) => !memberIds.has(u.id))
+		(data.allUsers as unknown as { id: number; nickname: string; display_name: string }[]).filter((u) => !memberIds.has(u.id))
 	)
 </script>
 
@@ -78,7 +78,7 @@
 				<tbody>
 					{#each data.members as m}
 						<tr>
-							<td class="name">{m.name}</td>
+							<td class="name">{m.display_name}</td>
 							<td>
 								<form method="POST" action="?/updateRole" use:enhance>
 									<input type="hidden" name="user_id" value={m.id} />
@@ -127,7 +127,7 @@
 				<select name="user_id" class="input" required>
 					<option value="">— Choisir un utilisateur —</option>
 					{#each nonMembers as u}
-						<option value={u.id}>{u.name}</option>
+							<option value={u.id}>{u.display_name} ({u.nickname})</option>
 					{/each}
 				</select>
 				<select name="role" class="input-sm">

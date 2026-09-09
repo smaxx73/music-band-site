@@ -8,10 +8,21 @@ export const handle: Handle = async ({ event, resolve }) => {
 	const secret = authSecret()
 	const signed = event.cookies.get('band_session')
 	if (signed) {
-		const name = verifyCookie(signed, secret)
-		if (name) {
-			const [user] = await sql<{ id: number; name: string; role: 'user' | 'admin' | 'superadmin' }[]>`
-				SELECT id, name, role FROM users WHERE name = ${name} AND active = true
+		const session = verifyCookie(signed, secret)
+		const userId = session?.match(/^user:(\d+)$/)?.[1]
+		if (userId || session) {
+			const [user] = await sql<{
+				id: number
+				nickname: string
+				first_name: string | null
+				last_name: string | null
+				display_name_format: 'nickname' | 'first_name' | 'first_name_last_initial' | 'first_name_last_name'
+				display_name: string
+				role: 'user' | 'admin' | 'superadmin'
+			}[]>`
+				SELECT id, nickname, first_name, last_name, display_name_format, display_name, role
+				FROM users
+				WHERE ${userId ? sql`id = ${Number(userId)}` : sql`nickname = ${session}`} AND active = true
 			`
 			if (user) {
 				const groups = await sql<{ id: number; name: string; role: 'admin' | 'member' }[]>`

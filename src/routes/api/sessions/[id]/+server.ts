@@ -126,7 +126,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			await tx`
 				INSERT INTO calendar_events (group_id, user_id, date, type, author, title, notes, location, session_id)
 				VALUES (
-					${session.group_id}, NULL, ${session.date}, ${session.type}, ${locals.user!.name},
+					${session.group_id}, NULL, ${session.date}, ${session.type}, ${locals.user!.display_name},
 					${session.title}, ${session.notes}, ${session.location}, ${session.id}
 				)
 			`

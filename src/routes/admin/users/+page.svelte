@@ -5,7 +5,16 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props()
 
-	type User = { id: number; name: string; role: string; active: boolean; created_at: string }
+	type User = {
+		id: number
+		nickname: string
+		first_name: string | null
+		last_name: string | null
+		display_name: string
+		role: string
+		active: boolean
+		created_at: string
+	}
 
 	let users = $derived(data.users as unknown as User[])
 	let editingId = $state<number | null>(null)
@@ -62,8 +71,8 @@
 		>
 			<div class="fields">
 				<label class="form-label">
-					Prénom <span class="required">*</span>
-					<input class="form-input" type="text" name="name" required autocomplete="off" />
+					Pseudo <span class="required">*</span>
+					<input class="form-input" type="text" name="nickname" required maxlength="50" autocomplete="username" />
 				</label>
 				<label class="form-label">
 					Mot de passe <span class="required">*</span>
@@ -98,7 +107,7 @@
 			<table class="data-table">
 				<thead>
 					<tr>
-						<th>Nom</th>
+						<th>Pseudo</th>
 						<th>Rôle</th>
 						<th>Statut</th>
 						<th>Actions</th>
@@ -132,8 +141,8 @@
 										<input type="hidden" name="id" value={user.id} />
 										<div class="fields">
 											<label class="form-label">
-												Nom
-												<input class="form-input" type="text" value={user.name} disabled />
+											Pseudo
+											<input class="form-input" type="text" value={user.nickname} disabled />
 											</label>
 											<label class="form-label">
 												Rôle
@@ -205,7 +214,7 @@
 							</tr>
 						{:else}
 							<tr class:inactive={!user.active}>
-								<td class="name">{user.name}</td>
+								<td class="name">{user.nickname}{user.display_name !== user.nickname ? ` · ${user.display_name}` : ''}</td>
 								<td>
 									<span class="badge badge-{user.role}">
 										{roleLabel(user.role)}
@@ -229,7 +238,7 @@
 											action="?/delete"
 											use:enhance
 											onsubmit={(e) => {
-												if (!confirm(`Supprimer "${user.name}" ?`)) e.preventDefault()
+												if (!confirm(`Supprimer "${user.nickname}" ?`)) e.preventDefault()
 											}}
 										>
 											<input type="hidden" name="id" value={user.id} />

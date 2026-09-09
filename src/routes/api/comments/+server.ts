@@ -60,7 +60,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		INSERT INTO comments (recording_id, author, content, timestamp_s)
 		VALUES (
 			${recordingId},
-			${locals.user.name},
+			${locals.user.display_name},
 			${content.trim()},
 			${typeof timestampS === 'number' ? timestampS : null}
 		)

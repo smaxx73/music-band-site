@@ -22,7 +22,7 @@
 	const nextEvent = $derived(data.nextEvent as NextEvent | null)
 	const recentComments = $derived((data.recentComments ?? []) as unknown as RecentComment[])
 
-	const firstName = $derived((data as any).user?.name?.split(' ')[0] ?? 'vous')
+	const firstName = $derived((data as any).user?.display_name?.split(' ')[0] ?? 'vous')
 
 	function formatDate(d: string | Date) {
 		return formatDateOnly(d, { weekday: 'short', day: 'numeric', month: 'short' })

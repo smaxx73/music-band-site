@@ -11,22 +11,22 @@ export const load: PageServerLoad = ({ locals }) => {
 export const actions: Actions = {
 	default: async ({ request, cookies }) => {
 		const data = await request.formData()
-		const name = (data.get('name') as string | null)?.trim()
+		const nickname = (data.get('nickname') as string | null)?.trim()
 		const password = data.get('password') as string | null
 
-		if (!name || !password) {
+		if (!nickname || !password) {
 			return fail(400, { error: 'Champs manquants.' })
 		}
 
-		const [user] = await sql<{ name: string; password_hash: string }[]>`
-			SELECT name, password_hash FROM users WHERE name = ${name} AND active = true
+		const [user] = await sql<{ id: number; password_hash: string }[]>`
+			SELECT id, password_hash FROM users WHERE nickname = ${nickname} AND active = true
 		`
 
 		if (!user || !(await verifyPassword(password, user.password_hash))) {
 			return fail(401, { error: 'Identifiants incorrects.' })
 		}
 
-		const signed = signCookie(name, authSecret())
+		const signed = signCookie(`user:${user.id}`, authSecret())
 		cookies.set('band_session', signed, {
 			path: '/',
 			httpOnly: true,

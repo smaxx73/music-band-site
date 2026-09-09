@@ -69,7 +69,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				${resolvedLocation},
 				${resolvedNotes},
 				${sql.array(membersArray)},
-				${locals.user!.name}
+				${locals.user!.display_name}
 			)
 			RETURNING *
 		`
@@ -82,7 +82,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				NULL,
 				${date.trim()}::date,
 				${resolvedType},
-				${locals.user!.name},
+				${locals.user!.display_name},
 				${resolvedTitle},
 				${resolvedNotes},
 				${resolvedLocation},

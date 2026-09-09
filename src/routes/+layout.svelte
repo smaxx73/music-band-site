@@ -40,7 +40,7 @@
 	)
 
 	const userInitials = $derived(
-		data.user?.name
+		data.user?.display_name
 			.split(' ')
 			.map((n) => n[0])
 			.join('')
@@ -94,7 +94,7 @@
 				href="/profile"
 				class="user-avatar"
 				class:active={isActive('/profile')}
-				title="{data.user.name} — mon profil"
+				title="{data.user.display_name} — mon profil"
 			>{userInitials}</a>
 		</header>
 
@@ -138,7 +138,7 @@
 				<div class="sidebar-account">
 					<a href="/profile" class="sidebar-user" class:active={isActive('/profile')}>
 						<div class="sidebar-avatar">{userInitials}</div>
-						<span class="sidebar-username">{data.user.name}</span>
+						<span class="sidebar-username">{data.user.display_name}</span>
 					</a>
 					<form method="POST" action="/logout">
 						<button type="submit" class="sidebar-logout" title="Se déconnecter">⏻</button>

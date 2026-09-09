@@ -27,7 +27,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	`
 	const allowedMime = new Set(rows.flatMap((r) => r.mime_types))
 
-	const user = locals.user.name
+	const user = locals.user.display_name
 
 	return new Promise<Response>((resolve) => {
 		const bb = busboy({

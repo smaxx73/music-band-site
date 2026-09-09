@@ -17,8 +17,8 @@
 		{/if}
 
 		<label class="form-label">
-			Prénom
-			<input class="form-input" type="text" name="name" required autocomplete="given-name" />
+			Pseudo
+			<input class="form-input" type="text" name="nickname" required autocomplete="username" />
 		</label>
 
 		<label class="form-label">

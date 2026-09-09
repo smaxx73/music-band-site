@@ -2,11 +2,21 @@ export type UserRole = 'user' | 'admin' | 'superadmin'
 
 export type User = {
 	id: number
-	name: string
+	nickname: string
+	first_name: string | null
+	last_name: string | null
+	display_name_format: DisplayNameFormat
+	display_name: string
 	role: UserRole
 	active: boolean
 	created_at: Date
 }
+
+export type DisplayNameFormat =
+	| 'nickname'
+	| 'first_name'
+	| 'first_name_last_initial'
+	| 'first_name_last_name'
 
 // Le superadmin a tous les pouvoirs d'un admin, plus la gestion des comptes admin/superadmin eux-mêmes.
 export function isAdmin(role: UserRole | null | undefined): boolean {

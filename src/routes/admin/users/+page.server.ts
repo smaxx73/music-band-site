@@ -6,9 +6,9 @@ import { isAdmin, isSuperadmin, type UserRole } from '$lib/types'
 
 export const load: PageServerLoad = async () => {
 	const users = await sql`
-		SELECT id, name, role, active, created_at
+		SELECT id, nickname, first_name, last_name, display_name, role, active, created_at
 		FROM users
-		ORDER BY name
+		ORDER BY nickname
 	`
 	return { users }
 }
@@ -26,11 +26,12 @@ export const actions: Actions = {
 		if (!locals.user || !isAdmin(locals.user.role)) error(403, 'Accès réservé aux administrateurs')
 
 		const data = await request.formData()
-		const name = (data.get('name') as string | null)?.trim()
+		const nickname = (data.get('nickname') as string | null)?.trim()
 		const password = (data.get('password') as string | null)
 		const role = ((data.get('role') as string | null) ?? 'user') as UserRole
 
-		if (!name) return fail(400, { action: 'create', error: 'Le nom est obligatoire.' })
+		if (!nickname || nickname.length > 50)
+			return fail(400, { action: 'create', error: 'Le pseudo est obligatoire et ne peut pas dépasser 50 caractères.' })
 		if (!password || password.length < 6)
 			return fail(400, { action: 'create', error: 'Le mot de passe doit faire au moins 6 caractères.' })
 		if (!VALID_ROLES.includes(role))
@@ -42,12 +43,12 @@ export const actions: Actions = {
 
 		try {
 			await sql`
-				INSERT INTO users (name, password_hash, role)
-				VALUES (${name}, ${hash}, ${role})
+				INSERT INTO users (nickname, password_hash, role)
+				VALUES (${nickname}, ${hash}, ${role})
 			`
 		} catch (err) {
 			if (isUniqueViolation(err))
-				return fail(409, { action: 'create', error: 'Ce nom est déjà utilisé.' })
+				return fail(409, { action: 'create', error: 'Ce pseudo est déjà utilisé.' })
 			throw err
 		}
 	},
@@ -74,7 +75,7 @@ export const actions: Actions = {
 		}
 
 		// Empêcher un admin/superadmin de se désactiver ou de se rétrograder lui-même
-		if (locals.user.name === target.name && (!active || !isAdmin(role))) {
+		if (locals.user.id === id && (!active || !isAdmin(role))) {
 			return fail(400, { action: 'update', id, error: 'Vous ne pouvez pas modifier votre propre compte admin.' })
 		}
 
@@ -120,7 +121,7 @@ export const actions: Actions = {
 
 		const target = await getUser(id)
 		if (!target) return fail(404, { action: 'delete', id, error: 'Utilisateur introuvable.' })
-		if (target.name === locals.user.name)
+		if (id === locals.user.id)
 			return fail(400, { action: 'delete', id, error: 'Vous ne pouvez pas supprimer votre propre compte.' })
 		if (!canAssignRole(locals.user.role, target.role))
 			return fail(403, { action: 'delete', id, error: 'Seul un super-admin peut gérer les comptes administrateur.' })
@@ -130,8 +131,8 @@ export const actions: Actions = {
 	}
 }
 
-async function getUser(id: number): Promise<{ name: string; role: UserRole } | null> {
-	const [u] = await sql<{ name: string; role: UserRole }[]>`SELECT name, role FROM users WHERE id = ${id}`
+async function getUser(id: number): Promise<{ role: UserRole } | null> {
+	const [u] = await sql<{ role: UserRole }[]>`SELECT role FROM users WHERE id = ${id}`
 	return u ?? null
 }
 

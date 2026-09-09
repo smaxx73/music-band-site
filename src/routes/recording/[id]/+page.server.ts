@@ -73,7 +73,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		comments,
 		peaks: peaksData.peaks,
 		peaksDuration: peaksData.duration,
-		user: locals.user?.name ?? null,
+		user: locals.user?.display_name ?? null,
 		prevRecording,
 		nextRecording
 	}

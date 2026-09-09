@@ -40,9 +40,41 @@
 	<!-- Informations -->
 	<section class="section">
 		<h2>Informations</h2>
-		<dl class="info-list">
-			<dt>Nom</dt>
-			<dd>{data.user?.name}</dd>
+		{#if form?.action === 'updateProfile' && form.error}
+			<p class="message-error">{form.error}</p>
+		{/if}
+		{#if form?.action === 'updateProfile' && form.success}
+			<p class="message-success">Informations mises à jour.</p>
+		{/if}
+		<form method="POST" action="?/updateProfile" class="profile-form">
+			<label class="form-label">
+				Pseudo <span class="required">*</span>
+				<input class="form-input" type="text" name="nickname" required maxlength="50" value={data.user?.nickname ?? ''} autocomplete="username" />
+			</label>
+			<label class="form-label">
+				Prénom
+				<input class="form-input" type="text" name="first_name" maxlength="100" value={data.user?.first_name ?? ''} autocomplete="given-name" />
+			</label>
+			<label class="form-label">
+				Nom
+				<input class="form-input" type="text" name="last_name" maxlength="100" value={data.user?.last_name ?? ''} autocomplete="family-name" />
+			</label>
+			<label class="form-label">
+				Nom affiché sur les pages
+				<select class="form-input" name="display_name_format">
+					<option value="nickname" selected={data.user?.display_name_format === 'nickname'}>Pseudo</option>
+					<option value="first_name" selected={data.user?.display_name_format === 'first_name'}>Prénom</option>
+					<option value="first_name_last_initial" selected={data.user?.display_name_format === 'first_name_last_initial'}>Prénom + initiale du nom</option>
+					<option value="first_name_last_name" selected={data.user?.display_name_format === 'first_name_last_name'}>Prénom + nom</option>
+				</select>
+				<span class="field-hint">Si les informations nécessaires ne sont pas renseignées, le pseudo reste affiché.</span>
+			</label>
+			<button type="submit" class="btn btn-primary">Enregistrer les informations</button>
+		</form>
+
+		<dl class="info-list account-info">
+			<dt>Nom affiché actuel</dt>
+			<dd>{data.user?.display_name}</dd>
 
 			<dt>Rôle</dt>
 			<dd>
@@ -81,10 +113,10 @@
 				Modifier le mot de passe
 			</button>
 		{:else}
-			{#if form?.error}
+			{#if form?.action === 'changePassword' && form.error}
 				<p class="message-error">{form.error}</p>
 			{/if}
-			{#if form?.success}
+			{#if form?.action === 'changePassword' && form.success}
 				<p class="message-success">Mot de passe mis à jour.</p>
 			{/if}
 			<form
@@ -218,6 +250,17 @@
 		gap: 0.75rem;
 		max-width: 320px;
 	}
+
+	.profile-form {
+		display: flex;
+		flex-direction: column;
+		gap: 0.75rem;
+		max-width: 420px;
+		margin-bottom: 1.5rem;
+	}
+
+	.account-info { margin-top: 1rem; }
+	.field-hint { display: block; color: #777; font-size: 0.8rem; margin-top: 0.35rem; }
 
 	.required { color: var(--color-error, #c0392b); }
 

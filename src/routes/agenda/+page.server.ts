@@ -15,7 +15,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const groupId = locals.user.current_group_id
 	if (!groupId) {
-		return { events: [], sessions: [], month, userName: locals.user.name }
+		return { events: [], sessions: [], month, userName: locals.user.display_name }
 	}
 
 	const [y, m] = month.split('-').map(Number)
@@ -53,5 +53,5 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		`
 	])
 
-	return { events, sessions, month, userName: locals.user.name, userId: locals.user.id }
+	return { events, sessions, month, userName: locals.user.display_name, userId: locals.user.id }
 }

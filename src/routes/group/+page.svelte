@@ -83,7 +83,7 @@
 					<tbody>
 						{#each data.members as m}
 							<tr>
-								<td class="name">{m.name}</td>
+								<td class="name">{m.display_name}</td>
 								<td>
 									<span class="badge badge-group-{m.group_role}">
 										{GROUP_ROLE_LABELS[m.group_role] ?? m.group_role}

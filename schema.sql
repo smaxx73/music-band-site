@@ -2,14 +2,35 @@
 -- Toute modification du schéma = nouveau fichier dans migrations/
 
 CREATE TABLE users (
-    id            SERIAL PRIMARY KEY,
-    name          TEXT NOT NULL UNIQUE,
-    password_hash TEXT NOT NULL,
-    role          TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin', 'superadmin')),
+    id                  SERIAL PRIMARY KEY,
+    nickname            TEXT NOT NULL UNIQUE,
+    first_name          TEXT,
+    last_name           TEXT,
+    display_name_format TEXT NOT NULL DEFAULT 'nickname'
+                        CHECK (display_name_format IN ('nickname', 'first_name', 'first_name_last_initial', 'first_name_last_name')),
+    -- Le nom affiché est toujours replié sur le pseudo si les champs nécessaires ne sont pas renseignés.
+    display_name        TEXT GENERATED ALWAYS AS (
+                        CASE
+                            WHEN display_name_format = 'first_name'
+                                AND NULLIF(btrim(first_name), '') IS NOT NULL
+                                THEN btrim(first_name)
+                            WHEN display_name_format = 'first_name_last_initial'
+                                AND NULLIF(btrim(first_name), '') IS NOT NULL
+                                AND NULLIF(btrim(last_name), '') IS NOT NULL
+                                THEN btrim(first_name) || ' ' || left(btrim(last_name), 1) || '.'
+                            WHEN display_name_format = 'first_name_last_name'
+                                AND NULLIF(btrim(first_name), '') IS NOT NULL
+                                AND NULLIF(btrim(last_name), '') IS NOT NULL
+                                THEN btrim(first_name) || ' ' || btrim(last_name)
+                            ELSE nickname
+                        END
+                    ) STORED,
+    password_hash       TEXT NOT NULL,
+    role                TEXT NOT NULL DEFAULT 'user' CHECK (role IN ('user', 'admin', 'superadmin')),
                                                   -- superadmin = tous les pouvoirs d'admin,
                                                   -- + seul rôle pouvant gérer les comptes admin/superadmin
-    active        BOOLEAN NOT NULL DEFAULT true,
-    created_at    TIMESTAMPTZ DEFAULT now()
+    active              BOOLEAN NOT NULL DEFAULT true,
+    created_at          TIMESTAMPTZ DEFAULT now()
 );
 
 CREATE TABLE groups (
