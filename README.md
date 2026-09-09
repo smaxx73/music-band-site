@@ -10,12 +10,12 @@ Application web privée pour partager et archiver les enregistrements de répét
 - Détection des doublons par empreinte SHA-256 avant conversion
 - **Numérotation automatique des prises** par morceau et par session (Prise 1, 2, 3…)
 - **Lecteur audio** avec visualisation de la forme d'onde (WaveSurfer.js), contrôles ⏮ ▶/⏸ ⏭ +10s et réglage du volume
-- **Qualité par prise** : À revoir / Moyen / Bon / Référence ou libellé court personnalisé — modifiable directement dans la vue session
+- **Qualité par prise** : À revoir / Moyen / Bon / Référence ou libellé court personnalisé — se règle uniquement dans le détail d'une session
 
 ### Sessions
 
 - Création de sessions avec type (répétition, concert, studio, autre), titre optionnel, date, lieu, membres présents et notes
-- Vue session : prises groupées par morceau, qualité et notes éditables inline
+- Vue session : prises groupées par morceau, qualité et notes éditables inline ; l'historique d'un morceau est en lecture seule
 - Ajout de prises à une session passée
 - Mode édition pour supprimer des prises, réordonner les prises d'un morceau et renuméroter
 - Suppression d'une session avec suppression des fichiers audio associés

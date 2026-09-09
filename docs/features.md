@@ -25,7 +25,7 @@
 - Prises groupées par morceau, triées par `take` ASC
 - Chaque morceau : toutes ses prises + qualité + nombre de commentaires
 - Modification possible : date, type, titre, lieu, notes, membres de la session
-- Modification possible par prise : qualité libre, notes
+- Modification possible par prise : qualité libre, notes. La qualité se règle uniquement dans cette vue ; l'historique d'un morceau est en lecture seule.
 - Ajout d'une prise oubliée à une session passée : autorisé
 - Le compteur de commentaires d'une prise est cliquable : il déplie la liste des commentaires
   sous la ligne, chargée à la demande via `GET /api/comments?recording_id=`, sans ouvrir le lecteur

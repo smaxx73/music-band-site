@@ -99,6 +99,7 @@
 	}
 
 	let editingNotes = $state<Record<number, string>>({})
+	let customQualityDraft = $state<Record<number, string>>({})
 	let savingId = $state<number | null>(null)
 	let saveError = $state<Record<number, string>>({})
 
@@ -124,7 +125,7 @@
 			const json = await res.json()
 			if (!res.ok) {
 				saveError = { ...saveError, [id]: json.error ?? 'Erreur.' }
-				return
+				return false
 			}
 			groups = groups.map((g) => ({
 				...g,
@@ -132,8 +133,10 @@
 					r.id === id ? { ...r, status: json.status, notes: json.notes } : r
 				)
 			}))
+			return true
 		} catch {
 			saveError = { ...saveError, [id]: 'Erreur réseau.' }
+			return false
 		} finally {
 			savingId = null
 		}
@@ -146,12 +149,42 @@
 		'Référence': 'reference', 'référence': 'reference',
 		'en_cours': 'a-revoir', 'au_point': 'bon', 'repertoire': 'reference',
 	}
+	const QUALITY_OPTIONS = ['À revoir', 'Moyen', 'Bon', 'Référence']
 
 	function qualityClass(q: string) { return QUALITY_CLASS[q] ?? 'custom' }
 
-	async function onQualityBlur(r: RecordingRow, e: FocusEvent) {
-		const value = (e.target as HTMLInputElement).value.trim()
-		if (!value || value === r.status) return
+	function presetQuality(q: string) {
+		const normalized = q.trim().toLocaleLowerCase('fr-FR')
+		return QUALITY_OPTIONS.find((option) => option.toLocaleLowerCase('fr-FR') === normalized)
+			?? ({ en_cours: 'À revoir', au_point: 'Bon', repertoire: 'Référence' }[normalized] ?? null)
+	}
+
+	function isCustomQuality(r: RecordingRow) {
+		return r.id in customQualityDraft || !presetQuality(r.status)
+	}
+
+	async function chooseQuality(r: RecordingRow, e: Event) {
+		if (savingId === r.id) return
+		const select = e.currentTarget as HTMLSelectElement
+		const value = select.value
+		if (value === 'custom') {
+			customQualityDraft = { ...customQualityDraft, [r.id]: presetQuality(r.status) ? '' : r.status }
+			return
+		}
+		delete customQualityDraft[r.id]
+		customQualityDraft = { ...customQualityDraft }
+		const saved = await patchRecording(r.id, { status: value })
+		if (!saved) select.value = presetQuality(r.status) ?? 'custom'
+	}
+
+	async function saveCustomQuality(r: RecordingRow) {
+		if (savingId === r.id) return
+		const value = (customQualityDraft[r.id] ?? r.status).trim()
+		if (!value) {
+			saveError = { ...saveError, [r.id]: 'Saisis une qualité.' }
+			return
+		}
+		if (value === r.status) return
 		await patchRecording(r.id, { status: value })
 	}
 
@@ -309,7 +342,6 @@
 					musicNotes={group.song.music_notes}
 					compact
 				/>
-
 				<table class="data-table">
 					<thead>
 						<tr>
@@ -329,21 +361,34 @@
 								<td class="take">#{r.take}</td>
 								<td class="duration-cell">{formatDuration(r.duration_s)}</td>
 								<td class="quality-cell">
-									<datalist id="quality-opts-{r.id}">
-										<option value="À revoir"></option>
-										<option value="Moyen"></option>
-										<option value="Bon"></option>
-										<option value="Référence"></option>
-									</datalist>
-									<input
-										type="text"
-										list="quality-opts-{r.id}"
-										class="quality-input quality-{qualityClass(r.status)}"
-										value={r.status}
+									<select
+										class="quality-select quality-{qualityClass(r.status)}"
+										value={presetQuality(r.status) ?? 'custom'}
 										disabled={savingId === r.id}
-										onblur={(e) => onQualityBlur(r, e)}
-										onkeydown={(e) => { if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur() }}
-									/>
+										aria-label="Qualité de la prise {r.take}"
+										onchange={(e) => chooseQuality(r, e)}
+									>
+										{#each QUALITY_OPTIONS as option}
+											<option value={option}>{option}</option>
+										{/each}
+										<option value="custom">Autre…</option>
+									</select>
+									{#if isCustomQuality(r)}
+										<div class="custom-quality-control">
+											<input
+												type="text"
+												class="quality-input quality-custom"
+												value={customQualityDraft[r.id] ?? r.status}
+												placeholder="Libellé personnalisé"
+												maxlength="50"
+												disabled={savingId === r.id}
+												aria-label="Libellé personnalisé pour la prise {r.take}"
+												oninput={(e) => (customQualityDraft = { ...customQualityDraft, [r.id]: (e.currentTarget as HTMLInputElement).value })}
+												onkeydown={(e) => { if (e.key === 'Enter') saveCustomQuality(r) }}
+											/>
+											<button class="btn-save" onclick={() => saveCustomQuality(r)} disabled={savingId === r.id}>OK</button>
+										</div>
+									{/if}
 									{#if saveError[r.id]}
 										<span class="save-error">{saveError[r.id]}</span>
 									{/if}
@@ -551,7 +596,8 @@
 
 	.footer-actions { margin-top: 2rem; display: flex; gap: 0.75rem; align-items: center; }
 
-	/* Input qualité coloré inline */
+	/* Sélecteur de qualité et libellé personnalisé */
+	.quality-select,
 	.quality-input {
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-sm);
@@ -563,13 +609,21 @@
 		width: 7.5rem;
 	}
 
+	.custom-quality-control {
+		display: flex;
+		gap: 0.3rem;
+		margin-top: 0.35rem;
+	}
+
+	.quality-select:disabled,
 	.quality-input:disabled { opacity: var(--disabled-opacity); cursor: not-allowed; }
 
-	.quality-input.quality-a-revoir  { background: #fff3cd; color: #7c5a00; border-color: #fde68a; }
-	.quality-input.quality-moyen     { background: var(--color-progress-bg); color: var(--color-progress-text); border-color: #fde68a; }
-	.quality-input.quality-bon       { background: var(--color-learning-bg); color: var(--color-learning-text); border-color: #bfdbfe; }
-	.quality-input.quality-reference { background: var(--color-repertoire-bg); color: var(--color-repertoire-text); border-color: #bbf7d0; }
-	.quality-input.quality-custom    { background: var(--color-bg-subtle); color: var(--color-text-secondary); }
+	.quality-select.quality-a-revoir  { background: #fff3cd; color: #7c5a00; border-color: #fde68a; }
+	.quality-select.quality-moyen     { background: var(--color-progress-bg); color: var(--color-progress-text); border-color: #fde68a; }
+	.quality-select.quality-bon       { background: var(--color-learning-bg); color: var(--color-learning-text); border-color: #bfdbfe; }
+	.quality-select.quality-reference { background: var(--color-repertoire-bg); color: var(--color-repertoire-text); border-color: #bbf7d0; }
+	.quality-select.quality-custom,
+	.quality-input.quality-custom      { background: var(--color-bg-subtle); color: var(--color-text-secondary); }
 
 	.save-error { display: block; font-size: 0.72rem; color: var(--color-error); margin-top: 0.2rem; }
 
@@ -705,6 +759,7 @@
 		.notes-display { padding: 0.3rem 0.4rem; border-color: var(--color-border-light); }
 
 		td.quality-cell { order: 5; }
+		.quality-select,
 		.quality-input { width: 8rem; padding: 0.3rem 0.45rem; font-size: 0.78rem; }
 
 		td.comments-cell { order: 6; text-align: left; }
