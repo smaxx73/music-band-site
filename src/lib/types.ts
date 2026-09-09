@@ -65,6 +65,7 @@ export type Session = {
 	notes: string | null
 	members: string[]
 	created_by: string
+	created_by_user_id: number | null
 	created_at: Date
 }
 
@@ -78,6 +79,7 @@ export type Recording = {
 	status: string  // qualité libre : 'À revoir' | 'Moyen' | 'Bon' | 'Référence' | texte court
 	notes: string | null
 	uploaded_by: string
+	uploaded_by_user_id: number | null
 	created_at: Date
 }
 
@@ -85,6 +87,7 @@ export type Comment = {
 	id: number
 	recording_id: number
 	author: string
+	author_user_id: number | null
 	content: string
 	timestamp_s: number | null
 	created_at: Date
@@ -112,6 +115,7 @@ export type Playlist = {
 	name: string
 	description: string | null
 	created_by: string
+	created_by_user_id: number | null
 	created_at: Date
 	updated_at: Date | null
 }
@@ -129,6 +133,7 @@ export type CalendarEventType = 'indisponibilite' | 'repetition' | 'concert'
 export type CalendarEvent = {
 	id: number
 	group_id: number
+	user_id: number | null
 	date: string
 	type: CalendarEventType
 	author: string

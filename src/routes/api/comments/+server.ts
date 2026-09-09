@@ -57,10 +57,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!rec) return json({ error: 'Prise introuvable.' }, { status: 404 })
 
 	const [comment] = await sql`
-		INSERT INTO comments (recording_id, author, content, timestamp_s)
+		INSERT INTO comments (recording_id, author, author_user_id, content, timestamp_s)
 		VALUES (
 			${recordingId},
 			${locals.user.display_name},
+			${locals.user.id},
 			${content.trim()},
 			${typeof timestampS === 'number' ? timestampS : null}
 		)

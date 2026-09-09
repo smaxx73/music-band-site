@@ -49,13 +49,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 		`,
 		sql`
 			SELECT
-				c.id, c.author, c.content, c.created_at,
+				c.id, COALESCE(u.display_name, c.author) AS author, c.content, c.created_at,
 				r.id     AS recording_id,
 				so.title AS song_title
 			FROM comments c
 			JOIN recordings r ON r.id = c.recording_id
 			JOIN sessions ses ON ses.id = r.session_id
 			JOIN songs so     ON so.id = r.song_id
+			LEFT JOIN users u ON u.id = c.author_user_id
 			WHERE ses.group_id = ${groupId}
 			ORDER BY c.created_at DESC
 			LIMIT 5

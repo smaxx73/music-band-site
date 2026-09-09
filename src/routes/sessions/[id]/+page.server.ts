@@ -10,8 +10,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	if (isNaN(id)) error(400, 'ID invalide')
 
 	const [session] = await sql`
-		SELECT * FROM sessions
-		WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
+		SELECT s.*, COALESCE(u.display_name, s.created_by) AS created_by
+		FROM sessions s
+		LEFT JOIN users u ON u.id = s.created_by_user_id
+		WHERE s.id = ${id} AND s.group_id = ${locals.user.current_group_id}
 	`
 	if (!session) error(404, 'Session introuvable')
 
@@ -38,7 +40,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	const rows = await sql`
 		SELECT
-			r.id, r.take, r.status, r.notes, r.duration_s, r.uploaded_by, r.created_at, r.file_path,
+			r.id, r.take, r.status, r.notes, r.duration_s, COALESCE(MAX(u.display_name), r.uploaded_by) AS uploaded_by, r.created_at, r.file_path,
 			s.id       AS song_id,
 			s.title    AS song_title,
 			s.composer AS song_composer,
@@ -48,6 +50,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			COUNT(c.id)::int AS comment_count
 		FROM recordings r
 		JOIN songs s ON s.id = r.song_id
+		LEFT JOIN users u ON u.id = r.uploaded_by_user_id
 		LEFT JOIN comments c ON c.recording_id = r.id
 		WHERE r.session_id = ${id}
 		GROUP BY r.id, s.id

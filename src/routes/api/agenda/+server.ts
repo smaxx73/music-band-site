@@ -20,12 +20,13 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 	const events = await sql`
 		SELECT
-			e.id, e.group_id, e.user_id, e.type, e.author, e.title, e.notes, e.location, e.session_id, e.created_at,
+			e.id, e.group_id, e.user_id, e.type, COALESCE(u.display_name, e.author) AS author, e.title, e.notes, e.location, e.session_id, e.created_at,
 			to_char(e.date, 'YYYY-MM-DD') AS date,
 			to_char(s.date, 'YYYY-MM-DD') AS session_date,
 			s.location AS session_location
 		FROM calendar_events e
 		LEFT JOIN sessions s ON s.id = e.session_id
+		LEFT JOIN users u ON u.id = e.user_id
 		WHERE e.date >= ${start}::date
 			AND e.date < ${end}::date
 			AND (
@@ -85,7 +86,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		INSERT INTO calendar_events (group_id, user_id, date, type, author, title, notes, location, session_id)
 		VALUES (
 			${locals.user.current_group_id},
-			NULL,
+			${locals.user.id},
 			${date}::date,
 			${type},
 			${locals.user.display_name},

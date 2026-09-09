@@ -17,13 +17,14 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	const recordings = await sql`
 		SELECT
-			r.id, r.take, r.status, r.notes, r.duration_s, r.uploaded_by, r.created_at,
+			r.id, r.take, r.status, r.notes, r.duration_s, COALESCE(MAX(u.display_name), r.uploaded_by) AS uploaded_by, r.created_at,
 			ses.id       AS session_id,
 			ses.date     AS session_date,
 			ses.location AS session_location,
 			COUNT(c.id)::int AS comment_count
 		FROM recordings r
 		JOIN sessions ses ON ses.id = r.session_id
+		LEFT JOIN users u ON u.id = r.uploaded_by_user_id
 		LEFT JOIN comments c ON c.recording_id = r.id
 		WHERE r.song_id = ${id} AND ses.group_id = ${locals.user.current_group_id}
 		GROUP BY r.id, ses.id

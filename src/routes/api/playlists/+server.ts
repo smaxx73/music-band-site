@@ -9,8 +9,9 @@ export const GET: RequestHandler = async ({ locals }) => {
 	const groupId = locals.user.current_group_id
 
 	const playlists = await sql`
-		SELECT p.*, COUNT(pi.id)::int AS item_count
+		SELECT p.*, COALESCE(MAX(u.display_name), p.created_by) AS created_by, COUNT(pi.id)::int AS item_count
 		FROM playlists p
+		LEFT JOIN users u ON u.id = p.created_by_user_id
 		LEFT JOIN playlist_items pi ON pi.playlist_id = p.id
 		WHERE p.group_id = ${groupId}
 		GROUP BY p.id
@@ -32,12 +33,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	const [playlist] = await sql`
-		INSERT INTO playlists (group_id, name, description, created_by, updated_at)
+		INSERT INTO playlists (group_id, name, description, created_by, created_by_user_id, updated_at)
 		VALUES (
 			${locals.user.current_group_id},
 			${name.trim()},
 			${typeof description === 'string' && description.trim() ? description.trim() : null},
 			${locals.user.display_name},
+			${locals.user.id},
 			now()
 		)
 		RETURNING *

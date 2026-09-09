@@ -73,6 +73,7 @@ CREATE TABLE sessions (
     notes       TEXT,
     members     TEXT[],                      -- ["Marc", "Julie", "Thomas"]
     created_by  TEXT NOT NULL,
+    created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at  TIMESTAMPTZ DEFAULT now()
 );
 
@@ -87,6 +88,7 @@ CREATE TABLE recordings (
     file_hash   TEXT,
     notes       TEXT,
     uploaded_by TEXT NOT NULL,
+    uploaded_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at  TIMESTAMPTZ DEFAULT now(),
     UNIQUE (session_id, song_id, take)
 );
@@ -98,6 +100,7 @@ CREATE TABLE comments (
     id           SERIAL PRIMARY KEY,
     recording_id INTEGER REFERENCES recordings(id) ON DELETE CASCADE,
     author       TEXT NOT NULL,
+    author_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     content      TEXT NOT NULL,
     timestamp_s  FLOAT,                      -- null = commentaire global
     created_at   TIMESTAMPTZ DEFAULT now()
@@ -117,6 +120,7 @@ CREATE TABLE playlists (
     name        TEXT NOT NULL,
     description TEXT,
     created_by  TEXT NOT NULL,
+    created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at  TIMESTAMPTZ DEFAULT now(),
     updated_at  TIMESTAMPTZ
 );
@@ -142,7 +146,7 @@ CREATE TABLE calendar_events (
     group_id    INTEGER REFERENCES groups(id) ON DELETE CASCADE,
                                              -- NULL pour les indisponibilités personnelles
     user_id     INTEGER REFERENCES users(id) ON DELETE SET NULL,
-                                             -- auteur réel des indisponibilités
+                                             -- auteur réel de l'événement (et propriétaire des indisponibilités)
     date        DATE NOT NULL,
     type        TEXT NOT NULL CHECK (type IN ('indisponibilite', 'repetition', 'concert', 'studio', 'autre')),
                                              -- les 4 derniers reflètent sessions.type
@@ -163,3 +167,7 @@ CREATE INDEX idx_recordings_file_hash ON recordings(file_hash);
 CREATE INDEX idx_calendar_events_group_date ON calendar_events(group_id, date);
 CREATE INDEX idx_calendar_events_user ON calendar_events(user_id) WHERE user_id IS NOT NULL;
 CREATE INDEX idx_comment_reactions_comment ON comment_reactions(comment_id);
+CREATE INDEX idx_sessions_created_by_user ON sessions(created_by_user_id) WHERE created_by_user_id IS NOT NULL;
+CREATE INDEX idx_recordings_uploaded_by_user ON recordings(uploaded_by_user_id) WHERE uploaded_by_user_id IS NOT NULL;
+CREATE INDEX idx_comments_author_user ON comments(author_user_id) WHERE author_user_id IS NOT NULL;
+CREATE INDEX idx_playlists_created_by_user ON playlists(created_by_user_id) WHERE created_by_user_id IS NOT NULL;

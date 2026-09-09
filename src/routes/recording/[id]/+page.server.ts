@@ -34,6 +34,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const [recording] = await sql`
 		SELECT
 			r.*,
+			COALESCE(u.display_name, r.uploaded_by) AS uploaded_by,
 			s.title      AS song_title,
 			s.composer   AS song_composer,
 			s.key        AS song_key,
@@ -44,6 +45,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		FROM recordings r
 		JOIN songs    s   ON s.id   = r.song_id
 		JOIN sessions ses ON ses.id = r.session_id
+		LEFT JOIN users u ON u.id = r.uploaded_by_user_id
 		WHERE r.id = ${id} AND ses.group_id = ${locals.user.current_group_id}
 	`
 

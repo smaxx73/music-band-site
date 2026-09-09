@@ -10,7 +10,10 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
 
 	const [playlist] = await sql`
-		SELECT * FROM playlists WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
+		SELECT p.*, COALESCE(u.display_name, p.created_by) AS created_by
+		FROM playlists p
+		LEFT JOIN users u ON u.id = p.created_by_user_id
+		WHERE p.id = ${id} AND p.group_id = ${locals.user.current_group_id}
 	`
 	if (!playlist) return json({ error: 'Playlist introuvable.' }, { status: 404 })
 

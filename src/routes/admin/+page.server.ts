@@ -6,12 +6,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const recentRecordings = await sql`
 		SELECT
-			r.id, r.take, r.status, r.uploaded_by, r.created_at,
+			r.id, r.take, r.status, COALESCE(u.display_name, r.uploaded_by) AS uploaded_by, r.created_at,
 			s.title  AS song_title,
 			ses.date AS session_date
 		FROM recordings r
 		JOIN songs    s   ON s.id   = r.song_id
 		JOIN sessions ses ON ses.id = r.session_id
+		LEFT JOIN users u ON u.id = r.uploaded_by_user_id
 		WHERE ses.group_id = ${locals.user.current_group_id}
 		ORDER BY r.created_at DESC
 		LIMIT 10

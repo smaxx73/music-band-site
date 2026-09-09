@@ -10,10 +10,11 @@ export const GET: RequestHandler = async ({ locals }) => {
 
 	const sessions = await sql`
 		SELECT
-			s.*,
+			s.*, COALESCE(MAX(u.display_name), s.created_by) AS created_by,
 			COUNT(DISTINCT r.song_id)::int AS song_count,
 			COUNT(r.id)::int             AS recording_count
 		FROM sessions s
+		LEFT JOIN users u ON u.id = s.created_by_user_id
 		LEFT JOIN recordings r ON r.session_id = s.id
 		WHERE s.group_id = ${groupId}
 		GROUP BY s.id
@@ -60,7 +61,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 	const session = await sql.begin(async (tx) => {
 		const [session] = await tx`
-			INSERT INTO sessions (group_id, date, type, title, location, notes, members, created_by)
+			INSERT INTO sessions (group_id, date, type, title, location, notes, members, created_by, created_by_user_id)
 			VALUES (
 				${locals.user!.current_group_id},
 				${date.trim()},
@@ -69,7 +70,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				${resolvedLocation},
 				${resolvedNotes},
 				${sql.array(membersArray)},
-				${locals.user!.display_name}
+				${locals.user!.display_name},
+				${locals.user!.id}
 			)
 			RETURNING *
 		`
@@ -79,7 +81,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			INSERT INTO calendar_events (group_id, user_id, date, type, author, title, notes, location, session_id)
 			VALUES (
 				${locals.user!.current_group_id},
-				NULL,
+				${locals.user!.id},
 				${date.trim()}::date,
 				${resolvedType},
 				${locals.user!.display_name},

@@ -8,10 +8,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const sessions = await sql`
 		SELECT
-			s.*,
+			s.*, COALESCE(MAX(u.display_name), s.created_by) AS created_by,
 			COUNT(DISTINCT r.song_id)::int AS song_count,
 			COUNT(r.id)::int               AS recording_count
 		FROM sessions s
+		LEFT JOIN users u ON u.id = s.created_by_user_id
 		LEFT JOIN recordings r ON r.session_id = s.id
 		WHERE s.group_id = ${locals.user.current_group_id}
 		GROUP BY s.id

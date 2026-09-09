@@ -28,6 +28,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const allowedMime = new Set(rows.flatMap((r) => r.mime_types))
 
 	const user = locals.user.display_name
+	const userId = locals.user.id
 
 	return new Promise<Response>((resolve) => {
 		const bb = busboy({
@@ -147,8 +148,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 						WHERE session_id = ${sessionId} AND song_id = ${songId}
 					`
 					const [rec] = await tx`
-						INSERT INTO recordings (session_id, song_id, take, file_path, duration_s, uploaded_by, file_hash)
-						VALUES (${sessionId}, ${songId}, ${take}, ${'pending'}, ${duration}, ${user}, ${fileHash})
+						INSERT INTO recordings (session_id, song_id, take, file_path, duration_s, uploaded_by, uploaded_by_user_id, file_hash)
+						VALUES (${sessionId}, ${songId}, ${take}, ${'pending'}, ${duration}, ${user}, ${userId}, ${fileHash})
 						RETURNING *
 					`
 					return rec
