@@ -1,5 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types'
+	import { untrack } from 'svelte'
+	import { player } from '$lib/player.svelte'
 	import { formatDateOnly } from '$lib/date'
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte'
 	import CommentsPanel from '$lib/components/CommentsPanel.svelte'
@@ -113,6 +115,27 @@
 		duration: (recording.duration_s ?? (data as { peaksDuration?: number | null }).peaksDuration) ?? undefined
 	})
 
+	// La page devient la vue détaillée du lecteur partagé : arriver ici sur la prise
+	// déjà en cours ne coupe pas la lecture, `load` ne retouche pas le `src`.
+	$effect(() => {
+		const r = recording
+		untrack(() =>
+			player.load({
+				recordingId: r.id,
+				songId: r.song_id,
+				songTitle: r.song_title,
+				take: r.take,
+				sessionDate: String(r.session_date),
+				durationS: r.duration_s
+			})
+		)
+	})
+
+	$effect(() => {
+		player.attachView()
+		return () => player.detachView()
+	})
+
 	const commentMarkers = $derived(
 		comments
 			.filter((comment) => comment.timestamp_s !== null && comment.timestamp_s !== undefined)
@@ -198,6 +221,7 @@
 	<div class="player-card">
 		<AudioPlayer
 			track={playerTrack}
+			media={player.media}
 			markers={commentMarkers}
 			seekRequest={seekRequest}
 			onStateChange={(state) => {

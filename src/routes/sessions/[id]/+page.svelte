@@ -5,6 +5,7 @@
 	import SongDetails from '$lib/components/SongDetails.svelte'
 	import RecordingComments from '$lib/components/RecordingComments.svelte'
 	import InlineRecordingPlayer from '$lib/components/InlineRecordingPlayer.svelte'
+	import { player } from '$lib/player.svelte'
 
 	let { data }: { data: PageData } = $props()
 
@@ -98,9 +99,27 @@
 	let seekRequest = $state<{ seconds: number; token: number } | null>(null)
 	let seekToken = 0
 
-	function togglePlayer(id: number) {
-		openPlayer = openPlayer === id ? null : id
+	function togglePlayer(song: Song, r: RecordingRow) {
 		seekRequest = null
+
+		// Replier ne coupe pas le son : la barre du bas prend le relais.
+		if (openPlayer === r.id) {
+			openPlayer = null
+			return
+		}
+
+		openPlayer = r.id
+		player.load(
+			{
+				recordingId: r.id,
+				songId: song.id,
+				songTitle: song.title,
+				take: r.take,
+				sessionDate: String(session.date),
+				durationS: r.duration_s
+			},
+			true
+		)
 	}
 
 	function seekInPlayer(seconds: number) {
@@ -466,10 +485,12 @@
 									<button
 										class="btn btn-secondary btn-sm"
 										class:btn-active={openPlayer === r.id}
-										onclick={() => togglePlayer(r.id)}
-										title={openPlayer === r.id ? 'Fermer le lecteur' : 'Écouter sans quitter la page'}
+										onclick={() => togglePlayer(group.song, r)}
+										title={openPlayer === r.id
+											? 'Replier la waveform (la lecture continue en bas)'
+											: 'Écouter sans quitter la page'}
 									>
-										{openPlayer === r.id ? '▲ Fermer' : '▶ Écouter'}
+										{openPlayer === r.id ? '▲ Réduire' : '▶ Écouter'}
 									</button>
 								</td>
 								{#if editMode}

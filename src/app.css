@@ -459,3 +459,9 @@ html, body {
   background: var(--color-bg);
   min-width: 0;
 }
+
+/* ─── Mini-lecteur ───────────────────────────────────── */
+/* Sur mobile la barre est fixée en bas : on dégage la fin du contenu. */
+@media (max-width: 640px) {
+  body.has-mini-player .app-content { padding-bottom: 64px; }
+}

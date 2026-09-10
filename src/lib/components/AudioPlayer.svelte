@@ -32,6 +32,7 @@
 
 	let {
 		track,
+		media = null,
 		markers = [],
 		seekRequest = null,
 		toggleRequest = null,
@@ -43,6 +44,12 @@
 		onEnded = () => {}
 	}: {
 		track: AudioTrack
+		/**
+		 * `<audio>` partagé du layout. Fourni : le composant n'est qu'une vue sur ce média
+		 * (WaveSurfer ne le met pas en pause quand la vue est détruite, cf. player.svelte.ts),
+		 * et le `src` reste piloté par le store. Absent : le lecteur possède son propre audio.
+		 */
+		media?: HTMLAudioElement | null
 		markers?: AudioMarker[]
 		seekRequest?: SeekRequest | null
 		toggleRequest?: ToggleRequest | null
@@ -109,12 +116,23 @@
 		}
 	}
 
+	/**
+	 * `setSrc` ne court-circuite que si l'URL est identique à `media.currentSrc`, qui est
+	 * absolue. Passer le `src` relatif de la piste rechargerait l'élément et couperait la
+	 * lecture : on renvoie donc toujours l'URL telle que l'élément la porte déjà.
+	 */
+	function sourceUrl(forTrack: AudioTrack) {
+		if (!media) return forTrack.src
+		return media.currentSrc || media.src || forTrack.src
+	}
+
 	async function initPlayer() {
 		if (!waveformEl || wavesurfer) return
 
 		const WaveSurfer = (await import('wavesurfer.js')).default
 		const instance = WaveSurfer.create({
 			container: waveformEl,
+			...(media ? { media } : {}),
 			waveColor: '#6b7280',
 			progressColor: '#1a1a1a',
 			cursorColor: '#1a1a1a',
@@ -123,7 +141,7 @@
 			barRadius: 2,
 			height,
 			normalize: true,
-			url: track.src,
+			url: sourceUrl(track),
 			...(track.peaks?.length && track.duration ? { peaks: [track.peaks], duration: track.duration } : {})
 		})
 
@@ -163,6 +181,14 @@
 		wavesurfer = instance
 		currentTrackId = track.id
 		mounted = true
+
+		// La vue peut se greffer sur un média déjà en cours : aucun événement `play`
+		// ne sera émis, il faut donc reprendre son état tel quel.
+		if (media) {
+			isPlaying = !media.paused
+			currentTime = media.currentTime
+		}
+
 		emitState()
 	}
 
@@ -179,7 +205,7 @@
 		clearMarkers()
 
 		wavesurfer.load(
-			nextTrack.src,
+			sourceUrl(nextTrack),
 			nextTrack.peaks?.length && nextTrack.duration ? [nextTrack.peaks] : undefined,
 			nextTrack.duration ?? undefined
 		)

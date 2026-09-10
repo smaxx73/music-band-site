@@ -5,6 +5,7 @@
 	import { page } from '$app/state'
 	import { goto, afterNavigate } from '$app/navigation'
 	import { isAdmin } from '$lib/types'
+	import MiniPlayer from '$lib/components/MiniPlayer.svelte'
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props()
 
@@ -160,6 +161,8 @@
 				{@render children()}
 			</div>
 		</div>
+
+		<MiniPlayer />
 	</div>
 {:else}
 	{@render children()}

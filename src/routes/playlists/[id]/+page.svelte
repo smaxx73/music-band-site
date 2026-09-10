@@ -5,6 +5,7 @@
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte'
 	import PlaylistQueue from '$lib/components/PlaylistQueue.svelte'
 	import SongDetails from '$lib/components/SongDetails.svelte'
+	import { player } from '$lib/player.svelte'
 
 	let { data }: { data: PageData } = $props()
 
@@ -161,6 +162,9 @@
 					toggleRequest={toggleRequest}
 					onStateChange={(state) => {
 						playerState = state
+						// Ce lecteur garde sa propre file : quand il démarre, il prend la
+						// main sur la prise isolée éventuellement en cours dans la barre.
+						if (state.isPlaying) player.pause()
 					}}
 					onEnded={playNext}
 				/>

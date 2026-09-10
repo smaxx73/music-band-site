@@ -1,5 +1,6 @@
 <script lang="ts">
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte'
+	import { player } from '$lib/player.svelte'
 
 	let {
 		recordingId,
@@ -12,6 +13,13 @@
 		/** Demande de seek émise par le parent (clic sur le timestamp d'un commentaire). */
 		seekRequest?: { seconds: number; token: number } | null
 	} = $props()
+
+	// Tant que cette waveform est montée, la barre du bas se retire : elle ferait
+	// doublon avec les contrôles affichés ici.
+	$effect(() => {
+		player.attachView()
+		return () => player.detachView()
+	})
 
 	let peaks = $state<number[]>([])
 	let peaksDuration = $state<number | null>(null)
@@ -62,7 +70,7 @@
 	{:else if loading}
 		<p class="inline-msg">Chargement du lecteur…</p>
 	{:else}
-		<AudioPlayer track={track} height={56} {seekRequest} />
+		<AudioPlayer track={track} media={player.media} height={56} {seekRequest} />
 		<a class="inline-link" href="/recording/{recordingId}">Ouvrir la page lecteur →</a>
 	{/if}
 </div>
