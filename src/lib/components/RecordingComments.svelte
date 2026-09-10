@@ -3,9 +3,12 @@
 	import type { CommentWithReactions } from '$lib/types'
 
 	let {
-		recordingId
+		recordingId,
+		onSeek = null
 	}: {
 		recordingId: number
+		/** Fourni uniquement quand un lecteur est ouvert sur la même prise. */
+		onSeek?: ((seconds: number) => void) | null
 	} = $props()
 
 	let comments = $state<CommentWithReactions[]>([])
@@ -50,7 +53,7 @@
 	{:else if comments.length === 0}
 		<p class="inline-msg">Pas encore de commentaire.</p>
 	{:else}
-		<CommentList {comments} compact />
+		<CommentList {comments} {onSeek} compact />
 	{/if}
 </div>
 

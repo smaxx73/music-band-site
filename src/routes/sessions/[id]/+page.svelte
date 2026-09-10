@@ -4,6 +4,7 @@
 	import SessionEditor from '$lib/components/SessionEditor.svelte'
 	import SongDetails from '$lib/components/SongDetails.svelte'
 	import RecordingComments from '$lib/components/RecordingComments.svelte'
+	import InlineRecordingPlayer from '$lib/components/InlineRecordingPlayer.svelte'
 
 	let { data }: { data: PageData } = $props()
 
@@ -89,6 +90,22 @@
 
 	function toggleComments(id: number) {
 		openComments = { ...openComments, [id]: !openComments[id] }
+	}
+
+	// Lecteur dépliable : une seule prise à la fois, sinon plusieurs instances
+	// WaveSurfer téléchargent leur mp3 et jouent en même temps.
+	let openPlayer = $state<number | null>(null)
+	let seekRequest = $state<{ seconds: number; token: number } | null>(null)
+	let seekToken = 0
+
+	function togglePlayer(id: number) {
+		openPlayer = openPlayer === id ? null : id
+		seekRequest = null
+	}
+
+	function seekInPlayer(seconds: number) {
+		seekToken += 1
+		seekRequest = { seconds, token: seekToken }
 	}
 
 	function formatDuration(s: number | null) {
@@ -446,7 +463,14 @@
 								</td>
 								<td class="muted uploader-cell" data-label="Par">{r.uploaded_by}</td>
 								<td class="listen-cell">
-									<a href="/recording/{r.id}" class="btn btn-secondary btn-sm">Écouter</a>
+									<button
+										class="btn btn-secondary btn-sm"
+										class:btn-active={openPlayer === r.id}
+										onclick={() => togglePlayer(r.id)}
+										title={openPlayer === r.id ? 'Fermer le lecteur' : 'Écouter sans quitter la page'}
+									>
+										{openPlayer === r.id ? '▲ Fermer' : '▶ Écouter'}
+									</button>
 								</td>
 								{#if editMode}
 								<td class="reorder-cell">
@@ -472,10 +496,22 @@
 								</td>
 								{/if}
 							</tr>
-							{#if openComments[r.id]}
+							{#if openPlayer === r.id || openComments[r.id]}
 								<tr class="comments-row">
 									<td colspan={editMode ? 9 : 7}>
-										<RecordingComments recordingId={r.id} />
+										{#if openPlayer === r.id}
+											<InlineRecordingPlayer
+												recordingId={r.id}
+												durationS={r.duration_s}
+												seekRequest={seekRequest}
+											/>
+										{/if}
+										{#if openComments[r.id]}
+											<RecordingComments
+												recordingId={r.id}
+												onSeek={openPlayer === r.id ? seekInPlayer : null}
+											/>
+										{/if}
 									</td>
 								</tr>
 							{/if}
@@ -591,6 +627,9 @@
 
 	.comment-count:hover { border-color: var(--color-accent); }
 	.comment-count.open { border-color: var(--color-accent); background: var(--color-accent-light); }
+
+	/* Même signal visuel que le compteur de commentaires déplié */
+	.listen-cell .btn-active { border-color: var(--color-accent); background: var(--color-accent-light); }
 
 	.comments-row > td { background: var(--color-bg-subtle); padding: 0 1rem; }
 
