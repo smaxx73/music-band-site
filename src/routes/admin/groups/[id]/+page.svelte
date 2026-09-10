@@ -1,8 +1,36 @@
 <script lang="ts">
 	import type { PageData, ActionData } from './$types'
 	import { enhance } from '$app/forms'
+	import { formatBytes } from '$lib/types'
 
 	let { data, form }: { data: PageData; form: ActionData } = $props()
+
+	// La suppression n'est armée que lorsque le nom saisi correspond exactement.
+	// Le serveur revérifie : c'est ici un garde-fou d'attention, pas de sécurité.
+	let confirmation = $state('')
+	let deletingGroup = $state(false)
+	// Le navigateur ne signale pas la fin d'un téléchargement : ce drapeau atteste
+	// que la sauvegarde a été lancée, pas qu'elle a abouti. C'est un garde-fou
+	// d'attention, au même titre que la saisie du nom — la règle de droit est serveur.
+	let backupStarted = $state(false)
+	const confirmed = $derived(confirmation.trim() === data.group.name)
+
+	const impactLines = $derived(
+		data.deletionImpact
+			? [
+					{ label: 'membres (les comptes sont conservés)', value: `${data.deletionImpact.members}` },
+					{ label: 'morceaux', value: `${data.deletionImpact.songs}` },
+					{ label: 'sessions', value: `${data.deletionImpact.sessions}` },
+					{
+						label: 'prises',
+						value: `${data.deletionImpact.recordings} — ${formatBytes(data.deletionImpact.audio_bytes)} d'audio`
+					},
+					{ label: 'commentaires', value: `${data.deletionImpact.comments}` },
+					{ label: 'playlists', value: `${data.deletionImpact.playlists}` },
+					{ label: "événements d'agenda", value: `${data.deletionImpact.calendar_events}` }
+				]
+			: []
+	)
 
 	let editingName = $state(false)
 	let newName = $state('') // rempli à l'ouverture du champ de renommage
@@ -80,20 +108,27 @@
 						<tr>
 							<td class="name">{m.display_name}</td>
 							<td>
-								<form method="POST" action="?/updateRole" use:enhance>
-									<input type="hidden" name="user_id" value={m.id} />
-									<select
-										name="role"
-										class="role-select"
-										onchange={(e) => (e.currentTarget.form as HTMLFormElement).requestSubmit()}
-									>
-										<option value="member" selected={m.group_role === 'member'}>Membre</option>
-										<option value="admin" selected={m.group_role === 'admin'}>Admin</option>
-									</select>
-								</form>
+								<!-- Attribuer ou retirer le rôle d'admin de groupe est réservé au superadmin. -->
+								{#if data.canAssignAdmin}
+									<form method="POST" action="?/updateRole" use:enhance>
+										<input type="hidden" name="user_id" value={m.id} />
+										<select
+											name="role"
+											class="role-select"
+											aria-label="Rôle de {m.display_name} dans le groupe"
+											onchange={(e) => (e.currentTarget.form as HTMLFormElement).requestSubmit()}
+										>
+											<option value="member" selected={m.group_role === 'member'}>Membre</option>
+											<option value="admin" selected={m.group_role === 'admin'}>Admin</option>
+										</select>
+									</form>
+								{:else}
+									<span class="muted">{m.group_role === 'admin' ? 'Admin' : 'Membre'}</span>
+								{/if}
 							</td>
 							<td class="muted">{m.global_role}</td>
 							<td>
+								{#if m.group_role !== 'admin' || data.canAssignAdmin}
 								<form
 									method="POST"
 									action="?/removeMember"
@@ -111,11 +146,16 @@
 										{removingId === m.id ? '…' : 'Retirer'}
 									</button>
 								</form>
+								{/if}
 							</td>
 						</tr>
 					{/each}
 				</tbody>
 			</table>
+		{/if}
+
+		{#if form?.error && (form?.action === 'removeMember' || form?.action === 'updateRole')}
+			<p class="error">{form.error}</p>
 		{/if}
 	</section>
 
@@ -130,13 +170,109 @@
 							<option value={u.id}>{u.display_name} ({u.nickname})</option>
 					{/each}
 				</select>
-				<select name="role" class="input-sm">
+				<select name="role" class="input-sm" aria-label="Rôle dans le groupe">
 					<option value="member">Membre</option>
-					<option value="admin">Admin</option>
+					{#if data.canAssignAdmin}<option value="admin">Admin</option>{/if}
 				</select>
 				<button type="submit" class="btn-primary">Ajouter</button>
 			</form>
 			{#if form?.action === 'addMember' && form?.error}
+				<p class="error">{form.error}</p>
+			{/if}
+		</section>
+	{/if}
+
+	{#if data.canDelete && data.deletionImpact}
+		<!-- Zone dangereuse : superadmin uniquement. Isolée en bas de page pour qu'aucune
+		     action destructrice ne voisine avec la gestion courante des membres. -->
+		<section class="danger-zone">
+			<h2>Zone dangereuse</h2>
+
+			<p class="danger-intro">
+				Supprimer <strong>{data.group.name}</strong> détruit définitivement tout son contenu,
+				fichiers audio compris. Cette action est irréversible et n'est pas sauvegardée.
+			</p>
+
+			<ul class="impact">
+				{#each impactLines as line}
+					<li><span class="impact-value">{line.value}</span> {line.label}</li>
+				{/each}
+			</ul>
+
+			<ol class="steps">
+				<li>
+					<strong>Sauvegarder</strong>
+					<p class="step-note">
+						L'archive du groupe contient ses morceaux, sessions, prises, commentaires,
+						playlists et agenda, plus le manifeste des fichiers audio (nom, taille, SHA-256).
+						<strong>Elle ne contient pas les mp3 eux-mêmes</strong> — copiez-les depuis
+						<code>AUDIO_DIR</code> en vous servant du manifeste si vous voulez pouvoir les rejouer.
+					</p>
+					<div class="step-actions">
+						<a
+							href="/api/groups/{data.group.id}/export"
+							class="btn-secondary"
+							download
+							onclick={() => (backupStarted = true)}
+						>
+							Archive du groupe (.json)
+						</a>
+						<a
+							href="/api/admin/backup"
+							class="btn-secondary"
+							download
+							onclick={() => (backupStarted = true)}
+						>
+							Sauvegarde SQL complète (.sql)
+						</a>
+					</div>
+					<p class="step-note">
+						Seul le dump SQL est restaurable tel quel — c'est lui qu'il faut prendre
+						si vous voulez pouvoir revenir en arrière.
+					</p>
+				</li>
+				<li class:disabled={!backupStarted}>
+					<strong>Confirmer</strong>
+					{#if !backupStarted}
+						<p class="step-note">Téléchargez d'abord une sauvegarde.</p>
+					{/if}
+				</li>
+			</ol>
+
+			<form
+				method="POST"
+				action="?/deleteGroup"
+				use:enhance={() => {
+					deletingGroup = true
+					return ({ update }) => { deletingGroup = false; return update() }
+				}}
+				class="danger-form"
+			>
+				<label for="confirmation">
+					Tapez <strong>{data.group.name}</strong> pour confirmer
+				</label>
+				<div class="danger-row">
+					<input
+						id="confirmation"
+						name="confirmation"
+						type="text"
+						class="input"
+						bind:value={confirmation}
+						autocomplete="off"
+						placeholder={data.group.name}
+						disabled={!backupStarted}
+					/>
+					<button
+						type="submit"
+						class="btn-danger"
+						disabled={!confirmed || !backupStarted || deletingGroup}
+					>
+						{deletingGroup ? 'Suppression…' : 'Supprimer définitivement'}
+					</button>
+				</div>
+			</form>
+
+			{#if form?.action === 'deleteGroup' && form?.error}
 				<p class="error">{form.error}</p>
 			{/if}
 		</section>
@@ -291,4 +427,74 @@
 
 	.empty { color: #aaa; font-style: italic; font-size: 0.9rem; }
 	.error { color: #c0392b; font-size: 0.85rem; margin-top: 0.4rem; }
+
+	.danger-zone {
+		margin-top: 3rem;
+		border: 1px solid #f0c9c9;
+		border-radius: 6px;
+		padding: 1.25rem;
+		background: #fffafa;
+	}
+
+	.danger-zone h2 {
+		margin: 0 0 0.75rem;
+		font-size: 0.95rem;
+		font-weight: 700;
+		color: #b91c1c;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+	}
+
+	.danger-intro { margin: 0 0 1rem; font-size: 0.875rem; line-height: 1.5; }
+
+	.impact {
+		margin: 0 0 1.25rem;
+		padding-left: 1.1rem;
+		font-size: 0.85rem;
+		line-height: 1.7;
+		color: #555;
+	}
+
+	.impact-value { font-weight: 700; color: #1a1a1a; }
+
+	.danger-form { display: flex; flex-direction: column; gap: 0.4rem; }
+	.danger-form label { font-size: 0.82rem; color: #555; }
+
+	.danger-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+	.danger-row .input { flex: 1 1 14rem; min-width: 0; }
+
+	.btn-danger {
+		padding: 0.45rem 1rem;
+		border: none;
+		border-radius: 4px;
+		background: #b91c1c;
+		color: #fff;
+		font-size: 0.85rem;
+		font-weight: 600;
+		cursor: pointer;
+	}
+	.btn-danger:hover:not(:disabled) { background: #991b1b; }
+	.btn-danger:disabled { background: #e5b4b4; cursor: not-allowed; }
+
+	.steps {
+		margin: 0 0 1.25rem;
+		padding-left: 1.2rem;
+		font-size: 0.85rem;
+		line-height: 1.5;
+	}
+
+	.steps li { margin-bottom: 1rem; }
+	.steps li.disabled { opacity: 0.55; }
+
+	.step-note { margin: 0.35rem 0 0; color: #666; font-size: 0.82rem; }
+	.step-note code { background: #f3f0f0; padding: 0.05rem 0.25rem; border-radius: 3px; }
+
+	.step-actions {
+		display: flex;
+		gap: 0.5rem;
+		flex-wrap: wrap;
+		margin-top: 0.6rem;
+	}
+
+	.danger-form .input:disabled { background: #f5f2f2; cursor: not-allowed; }
 </style>

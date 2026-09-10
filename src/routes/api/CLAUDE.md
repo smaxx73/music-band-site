@@ -34,7 +34,9 @@ api/agenda/+server.ts
 api/agenda/[id]/+server.ts
 api/groups/+server.ts
 api/groups/[id]/+server.ts
+api/groups/[id]/export/+server.ts
 api/groups/[id]/members/+server.ts
+api/groups/[id]/members/[userId]/+server.ts
 api/groups/switch/+server.ts
 ```
 
@@ -42,3 +44,17 @@ api/groups/switch/+server.ts
 Toutes les routes API vérifient le cookie `band_session`.
 Si absent → `return json({ error: "Non autorisé" }, { status: 401 })`
 Les routes qui manipulent du contenu partagé vérifient aussi `locals.user.current_group_id`.
+
+Deux niveaux de droits au-delà de l'authentification :
+- **admin global** (`isAdmin(locals.user.role)`) → création/suppression de groupes, comptes,
+  sauvegardes, statistiques
+- **admin du groupe visé** (`canManageGroup(locals.user, groupId)`) → membres et nom du groupe,
+  suppression du contenu d'autrui. Vrai aussi pour un admin global.
+- **superadmin** (`canDeleteGroup`) → suppression et export d'un groupe.
+  `DELETE /api/groups/[id]` exige en plus `?confirm=<nom exact du groupe>` et supprime tout
+  le contenu en cascade ; `GET /api/groups/[id]/export` en fournit l'archive JSON préalable.
+  Une archive ne contient jamais de `password_hash`.
+
+Ne jamais réécrire ces règles à la main : utiliser les helpers de `src/lib/types.ts`, et pour
+les membres d'un groupe passer par `src/lib/server/groups.ts`, qui renvoie un
+`GroupOpResult` (`{ ok: false, status, error }`) à rendre tel quel.

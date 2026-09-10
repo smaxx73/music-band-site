@@ -6,7 +6,6 @@
 
 	let creating = $state(false)
 	let newName = $state('')
-	let deletingId = $state<number | null>(null)
 
 	function hasActionError(action: string, id?: number) {
 		if (form?.action !== action || !form.error) return false
@@ -81,32 +80,11 @@
 							<td class="muted">{g.song_count}</td>
 							<td class="muted">{g.session_count}</td>
 							<td class="actions-cell">
+								<!-- La suppression vit dans la zone dangereuse de la fiche du groupe :
+								     elle exige l'impact chiffré et la saisie du nom. -->
 								<a href="/admin/groups/{g.id}" class="btn-secondary">Gérer</a>
-								<form
-									method="POST"
-									action="?/delete"
-									use:enhance={() => {
-										deletingId = g.id
-										return ({ update }) => { deletingId = null; update() }
-									}}
-								>
-									<input type="hidden" name="id" value={g.id} />
-									<button
-										type="submit"
-										class="btn-delete"
-										disabled={deletingId === g.id || g.session_count > 0}
-										title={g.session_count > 0 ? 'Impossible : des sessions existent' : ''}
-									>
-										{deletingId === g.id ? '…' : 'Supprimer'}
-									</button>
-								</form>
 							</td>
 						</tr>
-						{#if hasActionError('delete', g.id)}
-							<tr>
-								<td colspan="5" class="error">{form?.error}</td>
-							</tr>
-						{/if}
 					{/each}
 				</tbody>
 			</table>
@@ -210,19 +188,6 @@
 		gap: 0.5rem;
 		align-items: center;
 	}
-
-	.btn-delete {
-		padding: 0.2rem 0.55rem;
-		border: 1px solid #f0c0c0;
-		border-radius: 3px;
-		background: #fff5f5;
-		color: #c0392b;
-		font-size: 0.78rem;
-		cursor: pointer;
-	}
-	.btn-delete:hover:not(:disabled) { background: #ffe0e0; }
-	.btn-delete:disabled { opacity: 0.4; cursor: not-allowed; }
-
 	.empty { color: #aaa; font-style: italic; font-size: 0.9rem; }
 	.error { color: #c0392b; font-size: 0.85rem; margin-top: 0.4rem; }
 </style>

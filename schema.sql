@@ -43,7 +43,10 @@ CREATE TABLE groups (
 CREATE TABLE user_groups (
     user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
     group_id    INTEGER REFERENCES groups(id) ON DELETE CASCADE,
-    role        TEXT NOT NULL DEFAULT 'member',  -- 'admin' | 'member'
+    role        TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
+                                             -- 'admin' = administrateur de CE groupe (membres, nom,
+                                             -- suppression du contenu d'autrui). Attribué par le
+                                             -- superadmin uniquement — voir src/lib/types.ts.
     joined_at   TIMESTAMPTZ DEFAULT now(),
     PRIMARY KEY (user_id, group_id)
 );

@@ -1,11 +1,9 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
-import sql from '$lib/server/db'
-import { isAdmin } from '$lib/types'
+import { removeGroupMember, setGroupMemberRole } from '$lib/server/groups'
 
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
-	if (!isAdmin(locals.user?.role)) return json({ error: 'Réservé aux administrateurs.' }, { status: 403 })
 
 	const groupId = parseInt(params.id)
 	const userId = parseInt(params.userId)
@@ -18,28 +16,22 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		return json({ error: 'Rôle invalide (admin | member).' }, { status: 400 })
 	}
 
-	const [member] = await sql`
-		UPDATE user_groups SET role = ${role}
-		WHERE user_id = ${userId} AND group_id = ${groupId}
-		RETURNING *
-	`
-	if (!member) return json({ error: 'Membre introuvable.' }, { status: 404 })
-	return json(member)
+	// La réserve superadmin sur le rôle d'admin de groupe est portée par le helper.
+	const result = await setGroupMemberRole(locals.user, groupId, userId, role)
+	if (!result.ok) return json({ error: result.error }, { status: result.status })
+
+	return json(result.value)
 }
 
 export const DELETE: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
-	if (!isAdmin(locals.user?.role)) return json({ error: 'Réservé aux administrateurs.' }, { status: 403 })
 
 	const groupId = parseInt(params.id)
 	const userId = parseInt(params.userId)
 	if (isNaN(groupId) || isNaN(userId)) return json({ error: 'ID invalide.' }, { status: 400 })
 
-	const [deleted] = await sql`
-		DELETE FROM user_groups
-		WHERE user_id = ${userId} AND group_id = ${groupId}
-		RETURNING user_id
-	`
-	if (!deleted) return json({ error: 'Membre introuvable.' }, { status: 404 })
+	const result = await removeGroupMember(locals.user, groupId, userId)
+	if (!result.ok) return json({ error: result.error }, { status: result.status })
+
 	return json({ success: true })
 }

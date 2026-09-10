@@ -10,7 +10,9 @@
 
 Application web privée pour partager les enregistrements de répétitions d'un groupe de musique.
 Accès restreint par comptes individuels. Les contenus sont isolés par groupe actif ; le référentiel de
-morceaux est géré par tout membre du groupe actif, les admins gèrent en plus les utilisateurs et les groupes.
+morceaux est géré par tout membre du groupe actif. Chaque groupe a ses propres administrateurs
+(`user_groups.role`), qui gèrent ses membres, son nom et la suppression du contenu d'autrui ; les admins
+globaux (`users.role`) gèrent en plus les comptes et les groupes eux-mêmes. Voir « Rôles et droits ».
 
 ## Références
 - Schéma SQL complet : @schema.sql
@@ -58,10 +60,40 @@ NODE_ENV=production
 - IMPORTANT : le calcul du `take` doit se faire dans une transaction
 - IMPORTANT : les morceaux avec statut `abandonne` n'apparaissent pas dans le sélecteur d'upload
 - IMPORTANT : toutes les données groupe-scopées doivent être filtrées par `locals.user.current_group_id`
+- IMPORTANT : toute décision de droit passe par les helpers de `src/lib/types.ts`
+  (`canManageGroup`, `canAssignGroupAdmin`, `canDeleteGroupContent`) — jamais par une
+  comparaison de rôle écrite à la main, pour que l'écran et l'API appliquent la même règle
+- IMPORTANT : les opérations sur les membres d'un groupe passent par `src/lib/server/groups.ts`,
+  jamais par un `INSERT`/`UPDATE`/`DELETE` direct sur `user_groups`
 - Ne jamais exposer de mot de passe ou hash de mot de passe dans le code client ou les logs
 - `$lib/server/` ne doit jamais être importé dans un composant client
 - WaveSurfer.js doit être importé dynamiquement (`import()`) — accès à `window`
 - En production, Caddy sert les fichiers audio directement depuis `/audio/` — pas Node
+
+## Rôles et droits
+
+Deux axes indépendants, à ne pas confondre :
+
+| Colonne | Valeurs | Portée |
+|---|---|---|
+| `users.role` | `user` / `admin` / `superadmin` | toute la plateforme |
+| `user_groups.role` | `member` / `admin` | un groupe donné |
+
+- **member** — tout le contenu de son groupe actif : sessions, prises, morceaux, playlists,
+  commentaires, agenda. Ne supprime que les sessions et les prises dont il est l'auteur.
+- **admin de groupe** — en plus, sur SON groupe : ajouter/retirer des membres, renommer le
+  groupe, supprimer les sessions et prises créées par d'autres.
+- **admin global** — tout ce qui précède sur tous les groupes, plus la création de groupes
+  et la gestion des comptes `user`.
+- **superadmin** — en plus, seul à pouvoir gérer les comptes `admin`/`superadmin`, à attribuer
+  ou retirer le rôle d'admin de groupe, et à **supprimer un groupe**.
+
+Le rôle d'admin de groupe s'attribue depuis `/admin/groups/[id]` (superadmin uniquement).
+Un admin de groupe gère son groupe depuis `/group`, sans accès à `/admin`.
+
+La suppression d'un groupe vit dans la « zone dangereuse » en bas de `/admin/groups/[id]` :
+sauvegarde à télécharger d'abord (archive JSON du groupe ou dump SQL complet), impact chiffré
+affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audio). Irréversible.
 
 ## Navigation
 ```
@@ -74,7 +106,8 @@ NODE_ENV=production
 /playlists/[id]     lecture en continu d'une playlist
 /upload             formulaire d'upload
 /profile            infos du compte connecté + changement de mot de passe
-/group              infos + membres du groupe actif (consultation, tout membre)
+/group              infos + membres du groupe actif (consultation pour tout membre,
+                    gestion des membres et du nom pour l'admin du groupe)
 /admin/users        gestion des comptes
 /admin/groups       gestion des groupes et membres
 /agenda             agenda partagé du groupe (indisponibilités + toutes les sessions)

@@ -39,28 +39,6 @@ export const actions: Actions = {
 				return fail(409, { action: 'create', error: 'Ce nom de groupe existe déjà.' })
 			throw err
 		}
-	},
-
-	delete: async ({ request, locals }) => {
-		if (!locals.user || !isAdmin(locals.user.role)) error(403, 'Accès réservé aux administrateurs')
-
-		const data = await request.formData()
-		const id = parseInt(data.get('id') as string)
-		if (isNaN(id)) return fail(400, { action: 'delete', error: 'ID invalide.' })
-
-		const [{ count }] = await sql`
-			SELECT COUNT(*)::int AS count FROM sessions WHERE group_id = ${id}
-		`
-		if (count > 0) {
-			return fail(409, {
-				action: 'delete',
-				id,
-				error: 'Impossible de supprimer : des sessions existent pour ce groupe.'
-			})
-		}
-
-		const [deleted] = await sql`DELETE FROM groups WHERE id = ${id} RETURNING id`
-		if (!deleted) return fail(404, { action: 'delete', id, error: 'Groupe introuvable.' })
 	}
 }
 

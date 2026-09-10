@@ -3,6 +3,7 @@ import { json } from '@sveltejs/kit'
 import { unlink } from 'fs/promises'
 import sql from '$lib/server/db'
 import { audioPath } from '$lib/server/storage'
+import { canDeleteGroupContent } from '$lib/types'
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -76,6 +77,21 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 
 	const id = parseInt(params.id)
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
+
+	// Modération : une prise est supprimable par celui qui l'a uploadée ou par
+	// un administrateur du groupe.
+	const [target] = await sql`
+		SELECT r.uploaded_by_user_id FROM recordings r
+		JOIN sessions s ON s.id = r.session_id
+		WHERE r.id = ${id} AND s.group_id = ${locals.user.current_group_id}
+	`
+	if (!target) return json({ error: 'Prise introuvable.' }, { status: 404 })
+	if (!canDeleteGroupContent(locals.user, locals.user.current_group_id, target.uploaded_by_user_id)) {
+		return json(
+			{ error: "Seul l'auteur de la prise ou un administrateur du groupe peut la supprimer." },
+			{ status: 403 }
+		)
+	}
 
 	const [deleted] = await sql`
 		DELETE FROM recordings r

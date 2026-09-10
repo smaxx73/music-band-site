@@ -6,6 +6,7 @@
 	import RecordingComments from '$lib/components/RecordingComments.svelte'
 	import InlineRecordingPlayer from '$lib/components/InlineRecordingPlayer.svelte'
 	import { player } from '$lib/player.svelte'
+	import { canDeleteGroupContent } from '$lib/types'
 
 	let { data }: { data: PageData } = $props()
 
@@ -15,19 +16,29 @@
 	}
 	type RecordingRow = {
 		id: number; take: number; status: string; notes: string | null
-		duration_s: number | null; uploaded_by: string; comment_count: number; file_path: string
+		duration_s: number | null; uploaded_by: string; uploaded_by_user_id: number | null
+		comment_count: number; file_path: string
 	}
 	type Group = { song: Song; recordings: RecordingRow[] }
 
 	type SessionData = {
 		id: number; date: string; type: 'repetition' | 'concert' | 'studio' | 'autre'; title: string | null
 		location: string | null; notes: string | null; members: string[]
+		created_by_user_id: number | null
 	}
 
 	// $derived inscriptible : les mises à jour optimistes locales sont écrasées
 	// dès que `data` est rechargé (navigation, invalidation).
 	let session = $derived(data.session as unknown as SessionData)
 	let groups = $derived(data.groups as unknown as Group[])
+
+	// Mêmes règles qu'à l'API : l'auteur d'un contenu, ou un administrateur du groupe.
+	// L'écran n'affiche donc que des actions que le serveur acceptera.
+	const canDeleteSession = $derived(
+		canDeleteGroupContent(data.user, data.user?.current_group_id, session.created_by_user_id)
+	)
+	const canDeleteRecording = (r: RecordingRow) =>
+		canDeleteGroupContent(data.user, data.user?.current_group_id, r.uploaded_by_user_id)
 
 	type AdjacentSession = { id: number; date: string; title: string | null; type: string }
 	const prevSession = $derived(data.prevSession as unknown as AdjacentSession | null)
@@ -507,6 +518,7 @@
 										title="Descendre">↓</button>
 								</td>
 								<td class="delete-cell">
+									{#if canDeleteRecording(r)}
 									<button
 										class="btn btn-danger btn-sm"
 										disabled={deletingRecordingId === r.id}
@@ -514,6 +526,7 @@
 									>
 										{deletingRecordingId === r.id ? '…' : 'Supprimer'}
 									</button>
+									{/if}
 								</td>
 								{/if}
 							</tr>
@@ -553,9 +566,11 @@
 			{renumbering ? '…' : 'Renuméroter'}
 		</button>
 		{/if}
+		{#if canDeleteSession}
 		<button class="btn btn-danger" onclick={deleteSession} disabled={deleting}>
 			{deleting ? 'Suppression…' : 'Supprimer la session'}
 		</button>
+		{/if}
 	</div>
 	{#if deleteError}
 		<p class="message-error" style="margin-top: 0.5rem;">{deleteError}</p>

@@ -1,6 +1,7 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import sql from '$lib/server/db'
+import { deleteGroup, renameGroup } from '$lib/server/groups'
 import { isAdmin } from '$lib/types'
 
 export const GET: RequestHandler = async ({ locals, params }) => {
@@ -16,9 +17,11 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	return json(group)
 }
 
+// Renommer relève de l'administration du groupe lui-même : un admin de groupe
+// peut renommer le sien. La création reste transverse (admin global), la
+// suppression est réservée au superadmin.
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
-	if (!isAdmin(locals.user?.role)) return json({ error: 'Réservé aux administrateurs.' }, { status: 403 })
 
 	const id = parseInt(params.id)
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
@@ -26,50 +29,24 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	const body = await request.json()
 	const name: unknown = body.name
 
-	if (typeof name !== 'string' || !name.trim()) {
-		return json({ error: 'Le nom est obligatoire.' }, { status: 400 })
-	}
+	if (typeof name !== 'string') return json({ error: 'Le nom est obligatoire.' }, { status: 400 })
 
-	try {
-		const [group] = await sql`
-			UPDATE groups SET name = ${name.trim()} WHERE id = ${id} RETURNING *
-		`
-		if (!group) return json({ error: 'Groupe introuvable.' }, { status: 404 })
-		return json(group)
-	} catch (err) {
-		if (isUniqueViolation(err)) return json({ error: 'Ce nom existe déjà.' }, { status: 409 })
-		throw err
-	}
+	const result = await renameGroup(locals.user, id, name)
+	if (!result.ok) return json({ error: result.error }, { status: result.status })
+
+	return json(result.value)
 }
 
-export const DELETE: RequestHandler = async ({ locals, params }) => {
+// Suppression en cascade, réservée au superadmin. Le nom du groupe doit être repassé
+// en `?confirm=` : sans cela un appel malencontreux emporterait tout le contenu.
+export const DELETE: RequestHandler = async ({ locals, params, url }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
-	if (!isAdmin(locals.user?.role)) return json({ error: 'Réservé aux administrateurs.' }, { status: 403 })
 
 	const id = parseInt(params.id)
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
 
-	const [{ count }] = await sql`
-		SELECT COUNT(*)::int AS count FROM sessions WHERE group_id = ${id}
-	`
-	if (count > 0) {
-		return json(
-			{ error: 'Impossible de supprimer : des sessions existent pour ce groupe.' },
-			{ status: 409 }
-		)
-	}
+	const result = await deleteGroup(locals.user, id, url.searchParams.get('confirm'))
+	if (!result.ok) return json({ error: result.error }, { status: result.status })
 
-	const [deleted] = await sql`DELETE FROM groups WHERE id = ${id} RETURNING id`
-	if (!deleted) return json({ error: 'Groupe introuvable.' }, { status: 404 })
-
-	return json({ success: true })
-}
-
-function isUniqueViolation(err: unknown): boolean {
-	return (
-		typeof err === 'object' &&
-		err !== null &&
-		'code' in err &&
-		(err as { code: string }).code === '23505'
-	)
+	return json({ success: true, deleted: result.value.impact })
 }

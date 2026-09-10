@@ -29,6 +29,70 @@ export function isSuperadmin(role: UserRole | null | undefined): boolean {
 
 export type GroupRole = 'admin' | 'member'
 
+// Sous-ensemble de `locals.user` / `data.user` suffisant pour décider des droits.
+// Structurel à dessein : les mêmes fonctions servent côté serveur et côté composant,
+// ce qui évite qu'un écran affiche une action que l'API refusera.
+export type RoleBearer = {
+	id: number
+	role: UserRole
+	groups: { id: number; role: GroupRole }[]
+}
+
+// Rôle de l'utilisateur dans un groupe donné — null s'il n'en est pas membre.
+export function memberGroupRole(
+	user: RoleBearer | null | undefined,
+	groupId: number | null | undefined
+): GroupRole | null {
+	if (!user || groupId == null) return null
+	return user.groups.find((g) => g.id === groupId)?.role ?? null
+}
+
+// Administration d'un groupe : membres, nom, suppression du contenu d'autrui.
+// Un admin global l'est sur tous les groupes, un admin de groupe sur le sien.
+export function canManageGroup(
+	user: RoleBearer | null | undefined,
+	groupId: number | null | undefined
+): boolean {
+	if (isAdmin(user?.role)) return true
+	return memberGroupRole(user, groupId) === 'admin'
+}
+
+// Le rôle d'admin de groupe ouvre l'accès aux membres d'un groupe : il n'est ni
+// attribué ni retiré par un admin global, seulement par un superadmin. Même règle
+// que pour les comptes admin/superadmin sur /admin/users.
+export function canAssignGroupAdmin(user: RoleBearer | null | undefined): boolean {
+	return isSuperadmin(user?.role)
+}
+
+// Supprimer un groupe emporte tout son contenu et les fichiers audio associés,
+// sans reprise possible : c'est le seul acte du produit réservé au superadmin
+// au-delà de la gestion des rôles.
+export function canDeleteGroup(user: RoleBearer | null | undefined): boolean {
+	return isSuperadmin(user?.role)
+}
+
+// Formate un volume d'octets pour l'affichage de l'impact d'une suppression.
+export function formatBytes(bytes: number): string {
+	if (bytes <= 0) return '0 octet'
+	const units = ['octets', 'Ko', 'Mo', 'Go', 'To']
+	const exponent = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1)
+	const value = bytes / 1024 ** exponent
+	return `${value.toFixed(exponent === 0 ? 0 : 1).replace('.', ',')} ${units[exponent]}`
+}
+
+// Suppression d'un contenu de groupe : son auteur, ou un administrateur du groupe.
+// Un contenu dont l'auteur n'a pas pu être relié (migration 018) n'est supprimable
+// que par un administrateur — on ne devine pas la propriété à partir du texte libre.
+export function canDeleteGroupContent(
+	user: RoleBearer | null | undefined,
+	groupId: number | null | undefined,
+	authorUserId: number | null | undefined
+): boolean {
+	if (!user) return false
+	if (authorUserId != null && authorUserId === user.id) return true
+	return canManageGroup(user, groupId)
+}
+
 export type Group = {
 	id: number
 	name: string

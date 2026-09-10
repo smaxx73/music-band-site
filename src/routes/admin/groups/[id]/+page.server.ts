@@ -1,9 +1,21 @@
 import type { PageServerLoad, Actions } from './$types'
-import { error, fail } from '@sveltejs/kit'
+import { error, fail, redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
-import { isAdmin } from '$lib/types'
+import {
+	addGroupMember,
+	deleteGroup,
+	groupDeletionImpact,
+	removeGroupMember,
+	renameGroup,
+	setGroupMemberRole,
+	type GroupOpResult
+} from '$lib/server/groups'
+import { canAssignGroupAdmin, canDeleteGroup } from '$lib/types'
 
-export const load: PageServerLoad = async ({ params }) => {
+// L'accès à /admin est filtré par admin/+layout.server.ts (admin global).
+// Les actions repassent malgré tout par les helpers de $lib/server/groups, qui
+// portent les règles fines — notamment la réserve superadmin sur le rôle d'admin de groupe.
+export const load: PageServerLoad = async ({ locals, params }) => {
 	const id = parseInt(params.id)
 	if (isNaN(id)) error(400, 'ID invalide')
 
@@ -22,33 +34,42 @@ export const load: PageServerLoad = async ({ params }) => {
 		SELECT id, nickname, display_name, role FROM users WHERE active = true ORDER BY display_name
 	`
 
-	return { group, members, allUsers }
+	// L'impact n'est calculé que pour qui peut réellement supprimer : il coûte un
+	// `stat` par fichier audio, inutile à charger pour les autres administrateurs.
+	const canDelete = canDeleteGroup(locals.user)
+	const deletionImpact = canDelete ? await groupDeletionImpact(id) : null
+
+	return {
+		group,
+		members,
+		allUsers,
+		canAssignAdmin: canAssignGroupAdmin(locals.user),
+		canDelete,
+		deletionImpact
+	}
+}
+
+function toFail(
+	action: string,
+	result: Extract<GroupOpResult<never>, { ok: false }>,
+	extra: Record<string, unknown> = {}
+) {
+	return fail(result.status, { action, error: result.error, ...extra })
 }
 
 export const actions: Actions = {
 	rename: async ({ request, locals, params }) => {
-		if (!isAdmin(locals.user?.role)) error(403, 'Accès réservé aux administrateurs')
+		if (!locals.user) error(403, 'Accès réservé aux administrateurs')
 
 		const id = parseInt(params.id)
 		const data = await request.formData()
-		const name = (data.get('name') as string | null)?.trim()
 
-		if (!name) return fail(400, { action: 'rename', error: 'Le nom est obligatoire.' })
-
-		try {
-			const [group] = await sql`
-				UPDATE groups SET name = ${name} WHERE id = ${id} RETURNING id
-			`
-			if (!group) return fail(404, { action: 'rename', error: 'Groupe introuvable.' })
-		} catch (err) {
-			if (isUniqueViolation(err))
-				return fail(409, { action: 'rename', error: 'Ce nom existe déjà.' })
-			throw err
-		}
+		const result = await renameGroup(locals.user, id, data.get('name') as string | null)
+		if (!result.ok) return toFail('rename', result)
 	},
 
 	addMember: async ({ request, locals, params }) => {
-		if (!isAdmin(locals.user?.role)) error(403, 'Accès réservé aux administrateurs')
+		if (!locals.user) error(403, 'Accès réservé aux administrateurs')
 
 		const id = parseInt(params.id)
 		const data = await request.formData()
@@ -59,15 +80,12 @@ export const actions: Actions = {
 		if (role !== 'admin' && role !== 'member')
 			return fail(400, { action: 'addMember', error: 'Rôle invalide.' })
 
-		await sql`
-			INSERT INTO user_groups (user_id, group_id, role)
-			VALUES (${userId}, ${id}, ${role})
-			ON CONFLICT (user_id, group_id) DO UPDATE SET role = EXCLUDED.role
-		`
+		const result = await addGroupMember(locals.user, id, userId, role)
+		if (!result.ok) return toFail('addMember', result)
 	},
 
 	updateRole: async ({ request, locals, params }) => {
-		if (!isAdmin(locals.user?.role)) error(403, 'Accès réservé aux administrateurs')
+		if (!locals.user) error(403, 'Accès réservé aux administrateurs')
 
 		const id = parseInt(params.id)
 		const data = await request.formData()
@@ -78,16 +96,12 @@ export const actions: Actions = {
 		if (role !== 'admin' && role !== 'member')
 			return fail(400, { action: 'updateRole', error: 'Rôle invalide.' })
 
-		const [member] = await sql`
-			UPDATE user_groups SET role = ${role}
-			WHERE user_id = ${userId} AND group_id = ${id}
-			RETURNING user_id
-		`
-		if (!member) return fail(404, { action: 'updateRole', error: 'Membre introuvable.' })
+		const result = await setGroupMemberRole(locals.user, id, userId, role)
+		if (!result.ok) return toFail('updateRole', result, { id: userId })
 	},
 
 	removeMember: async ({ request, locals, params }) => {
-		if (!isAdmin(locals.user?.role)) error(403, 'Accès réservé aux administrateurs')
+		if (!locals.user) error(403, 'Accès réservé aux administrateurs')
 
 		const id = parseInt(params.id)
 		const data = await request.formData()
@@ -95,19 +109,20 @@ export const actions: Actions = {
 
 		if (isNaN(userId)) return fail(400, { action: 'removeMember', error: 'ID invalide.' })
 
-		const [deleted] = await sql`
-			DELETE FROM user_groups WHERE user_id = ${userId} AND group_id = ${id}
-			RETURNING user_id
-		`
-		if (!deleted) return fail(404, { action: 'removeMember', error: 'Membre introuvable.' })
-	}
-}
+		const result = await removeGroupMember(locals.user, id, userId)
+		if (!result.ok) return toFail('removeMember', result, { id: userId })
+	},
 
-function isUniqueViolation(err: unknown): boolean {
-	return (
-		typeof err === 'object' &&
-		err !== null &&
-		'code' in err &&
-		(err as { code: string }).code === '23505'
-	)
+	// Zone dangereuse : superadmin uniquement, et saisie du nom exigée côté serveur.
+	deleteGroup: async ({ request, locals, params }) => {
+		if (!locals.user) error(403, 'Accès réservé aux administrateurs')
+
+		const id = parseInt(params.id)
+		const data = await request.formData()
+
+		const result = await deleteGroup(locals.user, id, data.get('confirmation') as string | null)
+		if (!result.ok) return toFail('deleteGroup', result)
+
+		redirect(303, '/admin/groups')
+	}
 }

@@ -30,7 +30,12 @@
 - Le compteur de commentaires d'une prise est cliquable : il déplie la liste des commentaires
   sous la ligne, chargée à la demande via `GET /api/comments?recording_id=`, sans ouvrir le lecteur
 - Mode édition : suppression de prise, déplacement dans l'ordre du morceau, puis renumérotation persistée
-- Suppression d'une session : supprime la session, ses prises en cascade et les fichiers audio associés
+- Suppression d'une prise : réservée à celui qui l'a uploadée et aux admins du groupe.
+  Le bouton n'apparaît pas aux autres membres, et l'API répond `403`
+- Suppression d'une session : réservée à son créateur et aux admins du groupe.
+  Supprime la session, ses prises en cascade et les fichiers audio associés
+- Une prise ou une session dont l'auteur n'a pas pu être relié à un compte (contenu antérieur
+  à la migration 018) n'est supprimable que par un admin du groupe
 
 ## Vue morceau (`/songs/[id]`)
 
@@ -94,6 +99,62 @@
 - Badges colorés : rouge = indisponible, bleu = répétition, vert = concert, violet = studio, gris = autre
 - Droits : seul l'auteur peut modifier ou supprimer son indisponibilité ; les événements de groupe sont modifiables/supprimables par les membres du groupe actif
 - `author` = nom de l'utilisateur connecté
+
+## Groupe actif (`/group`)
+
+- Consultation pour tout membre : informations du groupe, compteurs, liste des membres
+  avec leur rôle dans le groupe
+- Le rôle **global** d'un membre (`users.role`) n'est affiché qu'aux admins globaux, et n'est
+  pas sélectionné en base sinon — le masquer côté client le laisserait dans le payload
+- Un **admin de groupe** (`user_groups.role = 'admin'`) y gère son groupe sans passer par `/admin` :
+  renommer le groupe, ajouter un membre, retirer un membre
+- Ajout **par pseudo exact**, pas par liste déroulante : un admin de groupe n'a pas à voir
+  l'annuaire des comptes des autres groupes de la plateforme
+- Un membre ajouté depuis `/group` l'est toujours en rôle `member`
+- Le sélecteur de rôle dans le groupe n'apparaît qu'au superadmin. Un admin de groupe ne peut
+  ni promouvoir un membre, ni retirer un autre admin de groupe (ce qui l'empêche aussi de se
+  retirer lui-même)
+- Le dernier membre d'un groupe ne peut pas être retiré : le contenu deviendrait inatteignable
+
+## Rôles dans un groupe
+
+- `user_groups.role` vaut `member` ou `admin` et porte de vrais droits (migration 019)
+- **Attribution réservée au superadmin**, depuis `/admin/groups/[id]` — un admin global peut
+  gérer les membres d'un groupe mais ne peut ni nommer ni déposer un admin de groupe
+- Un admin de groupe obtient, sur son groupe uniquement : gestion des membres, renommage,
+  suppression des sessions et prises créées par d'autres
+- Il n'obtient **aucun** accès à `/admin`, ni à un autre groupe
+- Toutes ces décisions passent par `canManageGroup` / `canAssignGroupAdmin` /
+  `canDeleteGroupContent` (`src/lib/types.ts`), utilisés à l'identique côté écran et côté API
+- Les opérations d'appartenance passent toutes par `src/lib/server/groups.ts`
+
+## Suppression d'un groupe (`/admin/groups/[id]`)
+
+- **Superadmin uniquement** (`canDeleteGroup`), dans une section « Zone dangereuse » isolée
+  en bas de la fiche du groupe. La liste `/admin/groups` ne propose plus de suppression.
+- Déroulé en deux étapes imposées : **1. sauvegarder**, puis **2. confirmer**. Le champ de
+  confirmation et le bouton restent verrouillés tant qu'aucune sauvegarde n'a été lancée
+- Deux téléchargements proposés :
+  - `GET /api/groups/[id]/export` — archive JSON du seul groupe (morceaux, sessions, prises,
+    commentaires, playlists, agenda, membres) + **manifeste audio** (nom de fichier, taille,
+    SHA-256). Ne contient **jamais** de hash de mot de passe. Superadmin uniquement
+  - `GET /api/admin/backup` — dump `pg_dump` complet, le seul restaurable tel quel
+- Ni l'un ni l'autre n'embarque les `.mp3` (plusieurs Go) : le manifeste sert à les archiver
+  à part depuis `AUDIO_DIR` avant de lancer la suppression
+- Le verrou sur la sauvegarde est un garde-fou d'**attention** : le navigateur ne signale pas
+  la fin d'un téléchargement. La règle de droit, elle, est vérifiée côté serveur
+- L'impact est chiffré avant confirmation : membres, morceaux, sessions, prises et **volume
+  audio réel**, commentaires, playlists, événements d'agenda
+- Confirmation par saisie du nom exact du groupe. Vérifiée **côté serveur** dans
+  `deleteGroup()`, pas seulement par l'écran ; l'API exige le même nom en `?confirm=`
+- Suppression en cascade dans une transaction, dans cet ordre imposé par les FK :
+  `playlists` → `calendar_events` → `sessions` (les prises, commentaires, réactions et
+  entrées de playlist tombent en cascade) → `songs` → `user_groups` → `groups`
+- Les fichiers `.mp3` sont supprimés **après** le commit : un fichier orphelin se rattrape,
+  une ligne pointant vers un fichier disparu non
+- Les **comptes utilisateurs sont conservés** — seule l'appartenance au groupe disparaît.
+  Les indisponibilités personnelles (`group_id IS NULL`) ne sont pas touchées
+- Opération irréversible : aucune sauvegarde n'est prise automatiquement
 
 ## Tableau de bord (`/`)
 
