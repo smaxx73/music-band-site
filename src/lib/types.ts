@@ -206,3 +206,59 @@ export type CalendarEvent = {
 	session_id: number | null
 	created_at: Date
 }
+
+// ─── Notifications d'activité ─────────────────────────────────────────────
+
+export type NotificationType = 'recording' | 'comment' | 'session' | 'playlist' | 'agenda'
+
+// Une notification appartient à un destinataire précis : il n'y a pas de droit à
+// vérifier au-delà de `user_id`, mais l'affichage reste filtré par groupe actif.
+export type ActivityNotification = {
+	id: number
+	type: NotificationType
+	actor_name: string
+	actor_user_id: number | null
+	subject: string | null
+	excerpt: string | null
+	link: string
+	read_at: string | null
+	created_at: string
+}
+
+export type NotificationFeed = {
+	items: ActivityNotification[]
+	unread_count: number
+}
+
+// Libellé de l'action, sans le sujet — celui-ci est mis en valeur à part à l'écran.
+export function notificationLabel(type: NotificationType): string {
+	switch (type) {
+		case 'recording': return 'a ajouté une prise'
+		case 'comment': return 'a commenté'
+		case 'session': return 'a créé une session'
+		case 'playlist': return 'a créé la playlist'
+		case 'agenda': return 'a ajouté un événement'
+	}
+}
+
+export function notificationIcon(type: NotificationType): string {
+	switch (type) {
+		case 'recording': return '♪'
+		case 'comment': return '💬'
+		case 'session': return '◎'
+		case 'playlist': return '≡'
+		case 'agenda': return '◻'
+	}
+}
+
+// Libellé des types de session, partagés avec l'agenda (`calendar_events.type`).
+export function sessionTypeLabel(type: string): string {
+	const labels: Record<string, string> = {
+		repetition: 'Répétition',
+		concert: 'Concert',
+		studio: 'Studio',
+		autre: 'Autre',
+		indisponibilite: 'Indisponibilité'
+	}
+	return labels[type] ?? type
+}

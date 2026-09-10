@@ -113,8 +113,13 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
 /agenda             agenda partagé du groupe (indisponibilités + toutes les sessions)
 ```
 
+Les notifications d'activité n'ont pas de route : elles vivent dans la cloche de la barre
+du haut, alimentée par `src/lib/server/notifications.ts`. Voir « Notifications d'activité »
+dans docs/features.md.
+
 ## Non implémenté — ne pas inventer
-- Notifications email
+- Notifications email (les notifications d'activité, elles, existent — voir docs/features.md)
+- Purge / archivage des notifications
 - Pagination (à faire quand > 50 éléments)
 - Suppression / édition de commentaires
 - Tests automatisés

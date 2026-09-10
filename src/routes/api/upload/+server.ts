@@ -10,6 +10,8 @@ import busboy from 'busboy'
 import sql from '$lib/server/db'
 import { convertToMp3, getDuration } from '$lib/server/ffmpeg'
 import { audioPath, ensureAudioDir } from '$lib/server/storage'
+import { notifyGroup } from '$lib/server/notifications'
+import type { Recording } from '$lib/types'
 
 const MAX_SIZE = 200 * 1024 * 1024
 
@@ -134,9 +136,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 				// Transaction : calcul du take + insertion
 				const groupId = locals.user!.current_group_id!
-				const recording = await sql.begin(async (tx) => {
+				const recording = (await sql.begin(async (tx) => {
 					// Vérifier que session et morceau existent et appartiennent au groupe actif
-					const [song] = await tx`SELECT id FROM songs WHERE id = ${songId} AND group_id = ${groupId}`
+					const [song] = await tx<{ id: number; title: string }[]>`
+						SELECT id, title FROM songs WHERE id = ${songId} AND group_id = ${groupId}
+					`
 					if (!song) throw Object.assign(new Error('song_not_found'), { code: 'song_not_found' })
 
 					const [session] = await tx`SELECT id FROM sessions WHERE id = ${sessionId} AND group_id = ${groupId}`
@@ -147,18 +151,18 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 						FROM recordings
 						WHERE session_id = ${sessionId} AND song_id = ${songId}
 					`
-					const [rec] = await tx`
+					const [rec] = await tx<Recording[]>`
 						INSERT INTO recordings (session_id, song_id, take, file_path, duration_s, uploaded_by, uploaded_by_user_id, file_hash)
 						VALUES (${sessionId}, ${songId}, ${take}, ${'pending'}, ${duration}, ${user}, ${userId}, ${fileHash})
 						RETURNING *
 					`
-					return rec
-				})
+					return { ...rec, song_title: song.title }
+				})) as Recording & { song_title: string }
 
 				// /tmp et AUDIO_DIR sont sur des systèmes de fichiers Docker distincts :
 				// copier avant de supprimer le fichier temporaire plutôt que d'utiliser rename.
 				await ensureAudioDir()
-				const finalPath = audioPath(recording.id as number)
+				const finalPath = audioPath(recording.id)
 				await copyFile(mp3TmpPath, finalPath)
 				await unlink(mp3TmpPath)
 
@@ -166,7 +170,20 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				const filePath = `${recording.id}.mp3`
 				await sql`UPDATE recordings SET file_path = ${filePath} WHERE id = ${recording.id}`
 
-				resolve(json({ ...recording, file_path: filePath }, { status: 201 }))
+				const { song_title, ...created } = recording
+
+				await notifyGroup({
+					groupId,
+					actor: { id: userId, display_name: user },
+					type: 'recording',
+					subject: song_title,
+					excerpt: `Prise ${created.take}`,
+					link: `/recording/${created.id}`,
+					recordingId: created.id,
+					sessionId: created.session_id
+				})
+
+				resolve(json({ ...created, file_path: filePath }, { status: 201 }))
 			} catch (err: unknown) {
 				unlink(rawTmpPath).catch(() => {})
 				unlink(mp3TmpPath).catch(() => {})

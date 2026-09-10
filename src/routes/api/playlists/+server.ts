@@ -1,6 +1,7 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import sql from '$lib/server/db'
+import { notifyGroup } from '$lib/server/notifications'
 
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -44,5 +45,16 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		)
 		RETURNING *
 	`
+
+	await notifyGroup({
+		groupId: locals.user.current_group_id,
+		actor: locals.user,
+		type: 'playlist',
+		subject: playlist.name,
+		excerpt: playlist.description,
+		link: `/playlists/${playlist.id}`,
+		playlistId: playlist.id
+	})
+
 	return json(playlist, { status: 201 })
 }

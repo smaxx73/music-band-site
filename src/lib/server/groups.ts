@@ -265,6 +265,9 @@ export async function deleteGroup(
 		// puisque recordings.song_id les retient.
 		await tx`DELETE FROM sessions WHERE group_id = ${groupId}`
 		await tx`DELETE FROM songs WHERE group_id = ${groupId}`
+		// Les notifications du groupe tomberaient avec lui, mais elles sont retirées
+		// explicitement comme le reste : rien ne part par une cascade implicite ici.
+		await tx`DELETE FROM notifications WHERE group_id = ${groupId}`
 		await tx`DELETE FROM user_groups WHERE group_id = ${groupId}`
 		await tx`DELETE FROM groups WHERE id = ${groupId}`
 	})

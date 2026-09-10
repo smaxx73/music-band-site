@@ -6,6 +6,7 @@
 	import { goto, afterNavigate } from '$app/navigation'
 	import { isAdmin } from '$lib/types'
 	import MiniPlayer from '$lib/components/MiniPlayer.svelte'
+	import NotificationsMenu from '$lib/components/NotificationsMenu.svelte'
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props()
 
@@ -91,6 +92,9 @@
 				<a href="/group" class="group-chip">{currentGroup.name}</a>
 			{/if}
 			<a href="/upload" class="top-upload" title="Uploader une prise" aria-label="Uploader une prise">+</a>
+			{#if data.user.current_group_id}
+				<NotificationsMenu initialUnread={data.unread_notifications ?? 0} />
+			{/if}
 			<a
 				href="/profile"
 				class="user-avatar"

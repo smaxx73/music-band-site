@@ -8,12 +8,14 @@ src/
 │   ├── server/
 │   │   ├── db.ts          # client postgres.js + helpers SQL
 │   │   ├── storage.ts     # lecture/écriture fichiers audio
-│   │   └── ffmpeg.ts      # conversion mp3, découpe silence, durée
+│   │   ├── ffmpeg.ts      # conversion mp3, découpe silence, durée
+│   │   └── notifications.ts # écriture (fan-out) et lecture des notifications
 │   └── components/
 │       ├── AudioPlayer.svelte     # lecteur WaveSurfer.js
 │       ├── CommentsPanel.svelte   # commentaires d'une prise + formulaire d'ajout (page lecteur)
 │       ├── CommentList.svelte     # liste de commentaires + réactions 👍/👎 (partagée)
 │       ├── RecordingComments.svelte # commentaires d'une prise chargés à la demande (hors lecteur)
+│       ├── NotificationsMenu.svelte # cloche + menu des notifications (barre du haut)
 │       ├── PlaylistQueue.svelte   # file de lecture playlist
 │       ├── SessionEditor.svelte   # édition des métadonnées de session
 │       └── SongDetails.svelte     # paroles et notes musicales

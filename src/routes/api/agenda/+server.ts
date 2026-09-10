@@ -1,6 +1,9 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import sql from '$lib/server/db'
+import { notifyGroup } from '$lib/server/notifications'
+import { formatDateOnly } from '$lib/date'
+import { sessionTypeLabel } from '$lib/types'
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -70,6 +73,18 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			)
 			RETURNING *
 		`
+
+		// L'indisponibilité n'est rattachée à aucun groupe (group_id NULL), mais elle
+		// intéresse les membres du groupe depuis lequel elle a été saisie.
+		await notifyGroup({
+			groupId: locals.user.current_group_id,
+			actor: locals.user,
+			type: 'agenda',
+			subject: sessionTypeLabel('indisponibilite'),
+			excerpt: agendaExcerpt(date, location),
+			link: agendaLink(date)
+		})
+
 		return json(event, { status: 201 })
 	}
 
@@ -97,5 +112,29 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		)
 		RETURNING *
 	`
+
+	// Les sessions créent déjà leur propre notification : ne notifier ici que
+	// l'événement d'agenda autonome, sans quoi la même création apparaîtrait deux fois.
+	if (resolvedSessionId === null) {
+		await notifyGroup({
+			groupId: locals.user.current_group_id,
+			actor: locals.user,
+			type: 'agenda',
+			subject: typeof title === 'string' && title.trim() ? title.trim() : sessionTypeLabel(type),
+			excerpt: agendaExcerpt(date, location),
+			link: agendaLink(date)
+		})
+	}
+
 	return json(event, { status: 201 })
+}
+
+/** L'agenda s'ouvre sur un mois : le lien pointe sur celui de l'événement. */
+function agendaLink(date: string): string {
+	return `/agenda?month=${date.slice(0, 7)}`
+}
+
+function agendaExcerpt(date: string, location: unknown): string {
+	const day = formatDateOnly(date, { day: 'numeric', month: 'long', year: 'numeric' })
+	return typeof location === 'string' && location.trim() ? `${day} — ${location.trim()}` : day
 }

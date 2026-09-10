@@ -156,6 +156,28 @@
   Les indisponibilités personnelles (`group_id IS NULL`) ne sont pas touchées
 - Opération irréversible : aucune sauvegarde n'est prise automatiquement
 
+## Notifications d'activité
+
+- Cloche dans la barre du haut, avec pastille du nombre de non lues du **groupe actif**
+- Une notification est créée pour **chaque membre du groupe sauf l'auteur de l'action**, au
+  moment de l'action (`src/lib/server/notifications.ts` → `notifyGroup`)
+- Cinq déclencheurs, un par création : prise uploadée (`recording`), commentaire (`comment`),
+  session (`session`), playlist (`playlist`), événement d'agenda (`agenda`, indisponibilité
+  comprise). Une session crée déjà sa notification : l'événement d'agenda qu'elle génère
+  n'en crée pas une seconde
+- Notifier ne doit **jamais** faire échouer l'action notifiée : `notifyGroup` logue ses
+  erreurs et n'en propage aucune
+- Le menu offre les actions habituelles : filtre « Non lues » / « Toutes », marquer une
+  notification comme lue ou non lue (pastille à droite de la ligne), tout marquer comme lu.
+  Ouvrir une notification la marque lue puis navigue vers la page concernée
+- Le nom de l'auteur est relu depuis `users` (`actor_name` n'est qu'un repli) : un changement
+  de nom affiché se répercute sur l'historique, comme pour les commentaires
+- Une notification disparaît avec le contenu qu'elle annonce (`session_id`, `recording_id`,
+  `playlist_id` en `ON DELETE CASCADE`) plutôt que de pointer vers une page supprimée
+- La pastille est comptée côté serveur dans `+layout.server.ts` — juste dès le premier rendu —
+  puis rafraîchie par le menu toutes les 60 s tant qu'il reste fermé
+- Aucune purge : la table grandit indéfiniment, à traiter quand le volume le justifiera
+
 ## Tableau de bord (`/`)
 
 - Colonne gauche : 5 dernières sessions (date, morceaux travaillés en résumé)

@@ -28,6 +28,7 @@ declare global {
 				current_group_id: number | null
 				groups: { id: number; name: string; role: 'admin' | 'member' }[]
 			} | null
+			unread_notifications?: number
 		}
 		// interface PageState {}
 		// interface Platform {}

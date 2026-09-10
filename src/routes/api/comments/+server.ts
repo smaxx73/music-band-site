@@ -2,6 +2,7 @@ import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 import { commentsWithReactions } from '$lib/server/comments'
+import { notifyGroup } from '$lib/server/notifications'
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -49,9 +50,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	// L'identité est toujours celle de la session ; elle ne doit pas être fournie par le client.
-	const [rec] = await sql`
-		SELECT r.id FROM recordings r
+	const [rec] = await sql<{ id: number; song_title: string }[]>`
+		SELECT r.id, so.title AS song_title
+		FROM recordings r
 		JOIN sessions ses ON ses.id = r.session_id
+		JOIN songs so     ON so.id = r.song_id
 		WHERE r.id = ${recordingId} AND ses.group_id = ${locals.user.current_group_id}
 	`
 	if (!rec) return json({ error: 'Prise introuvable.' }, { status: 404 })
@@ -67,6 +70,16 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		)
 		RETURNING *
 	`
+
+	await notifyGroup({
+		groupId: locals.user.current_group_id,
+		actor: locals.user,
+		type: 'comment',
+		subject: rec.song_title,
+		excerpt: content.trim(),
+		link: `/recording/${recordingId}`,
+		recordingId
+	})
 
 	// Un commentaire tout juste créé n'a encore aucune réaction.
 	return json({ ...comment, up_count: 0, down_count: 0, my_reaction: null }, { status: 201 })

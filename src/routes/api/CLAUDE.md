@@ -27,6 +27,8 @@ api/songs/[id]/+server.ts
 api/recordings/[id]/+server.ts
 api/comments/+server.ts
 api/comments/[id]/reactions/+server.ts
+api/notifications/+server.ts
+api/notifications/[id]/+server.ts
 api/playlists/+server.ts
 api/playlists/[id]/+server.ts
 api/playlists/[id]/items/+server.ts
@@ -54,6 +56,12 @@ Deux niveaux de droits au-delà de l'authentification :
   `DELETE /api/groups/[id]` exige en plus `?confirm=<nom exact du groupe>` et supprime tout
   le contenu en cascade ; `GET /api/groups/[id]/export` en fournit l'archive JSON préalable.
   Une archive ne contient jamais de `password_hash`.
+
+Les notifications font exception au scope habituel : elles appartiennent à un destinataire.
+Le filtre `user_id = locals.user.id` **est** la vérification de droit — personne, admin compris,
+ne marque la notification d'un autre. Une notification d'autrui répond `404`, pas `403`.
+`PATCH /api/notifications` marque tout comme lu dans le groupe actif ;
+`PATCH /api/notifications/[id]` porte `{ read: true | false }`.
 
 Ne jamais réécrire ces règles à la main : utiliser les helpers de `src/lib/types.ts`, et pour
 les membres d'un groupe passer par `src/lib/server/groups.ts`, qui renvoie un

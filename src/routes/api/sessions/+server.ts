@@ -1,6 +1,9 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import sql from '$lib/server/db'
+import { notifyGroup } from '$lib/server/notifications'
+import { formatDateOnly } from '$lib/date'
+import { sessionTypeLabel } from '$lib/types'
 
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -93,6 +96,18 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		`
 
 		return session
+	})
+
+	await notifyGroup({
+		groupId: locals.user.current_group_id,
+		actor: locals.user,
+		type: 'session',
+		subject:
+			resolvedTitle ??
+			`${sessionTypeLabel(resolvedType)} du ${formatDateOnly(date.trim(), { day: 'numeric', month: 'long', year: 'numeric' })}`,
+		excerpt: resolvedLocation,
+		link: `/sessions/${session.id}`,
+		sessionId: session.id
 	})
 
 	return json(session, { status: 201 })
