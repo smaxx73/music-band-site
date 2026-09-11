@@ -300,7 +300,7 @@
 		transition: width 0.4s;
 	}
 
-	.disk-fill.disk-warn { background: #e67e22; }
+	.disk-fill.disk-warn { background: #E65022; }
 
 	/* Table */
 	table {

@@ -4,8 +4,8 @@
   --color-ink:          #2C2B28;
   --color-paper:        #F5F3EE;
   --color-mid:          #9B9489;
-  --color-accent:       #E07B3A;
-  --color-accent-light: #FDE9D5;
+  --color-accent:       #E25E36;
+  --color-accent-light: #F9E3DC;
   --color-green:        #5A9E6F;
   --color-green-light:  #D8EFE0;
   --color-blue:         #4A7DB5;
@@ -28,7 +28,7 @@
 
   /* Statuts — palette chaude */
   --color-learning-bg:      var(--color-accent-light);
-  --color-learning-text:    #C06020;
+  --color-learning-text:    #C04520;
   --color-repertoire-bg:    var(--color-green-light);
   --color-repertoire-text:  #3D7A50;
   --color-progress-bg:      var(--color-blue-light);
@@ -404,7 +404,7 @@ body {
   height: 100%;
   padding: 0;
   border: 0;
-  background: #e67e22;
+  background: #E65022;
   cursor: pointer;
   z-index: 10;
   transform: translateX(-50%);
