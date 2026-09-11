@@ -2,7 +2,12 @@
 	import type { PageData, ActionData } from './$types'
 	import { enhance } from '$app/forms'
 	import { formatDateOnly } from '$lib/date'
-	import { isAdmin } from '$lib/types'
+	import {
+		GROUP_LINK_LABELS,
+		groupLogoUrl,
+		isAdmin,
+		type GroupLinkField
+	} from '$lib/types'
 
 	let { data, form }: { data: PageData; form: ActionData } = $props()
 
@@ -20,6 +25,40 @@
 	let editingName = $state(false)
 	let newName = $state('')
 	let busyMemberId = $state<number | null>(null)
+	let logoError = $state<string | null>(null)
+	let uploadingLogo = $state(false)
+
+	const LINK_FIELDS = Object.keys(GROUP_LINK_LABELS) as GroupLinkField[]
+	const LINK_PLACEHOLDERS: Record<GroupLinkField, string> = {
+		youtube_url: 'youtube.com/@mongroupe',
+		facebook_url: 'facebook.com/mongroupe',
+		instagram_url: 'instagram.com/mongroupe'
+	}
+	const LOGO_MAX_BYTES = 2 * 1024 * 1024
+
+	const groupLinks = $derived(
+		data.group ? LINK_FIELDS.filter((f) => data.group[f]).map((f) => ({ field: f, url: data.group[f] as string })) : []
+	)
+
+	// Refus immédiat d'un fichier trop lourd, plutôt qu'après l'avoir envoyé :
+	// le serveur applique de toute façon la même limite.
+	function checkLogoSize(e: Event) {
+		const input = e.currentTarget as HTMLInputElement
+		const file = input.files?.[0]
+		if (file && file.size > LOGO_MAX_BYTES) {
+			logoError = 'Le logo ne peut pas dépasser 2 Mo.'
+			input.value = ''
+		} else {
+			logoError = null
+		}
+	}
+
+	function linkValue(field: GroupLinkField): string {
+		const submitted = form?.action === 'updateLinks' && form && 'links' in form
+			? (form.links as Record<string, string> | undefined)?.[field]
+			: undefined
+		return submitted ?? (data.group?.[field] as string | null) ?? ''
+	}
 
 	function formatCreatedAt(d: string | Date | null | undefined) {
 		if (!d) return '—'
@@ -53,7 +92,14 @@
 				<button type="button" class="btn-ghost" onclick={() => (editingName = false)}>Annuler</button>
 			</form>
 		{:else}
-			<h1>
+			<h1 class="group-title">
+				{#if data.group.logo_version}
+					<img
+						src={groupLogoUrl(data.group.id, data.group.logo_version)}
+						alt="Logo de {data.group.name}"
+						class="group-logo"
+					/>
+				{/if}
 				{data.group.name}
 				{#if data.canManage}
 					<button
@@ -86,6 +132,17 @@
 
 				<dt>Playlists</dt>
 				<dd>{data.group.playlist_count}</dd>
+
+				{#if groupLinks.length > 0}
+					<dt>Réseaux</dt>
+					<dd class="links">
+						{#each groupLinks as link}
+							<a href={link.url} target="_blank" rel="noopener noreferrer" class="social-link social-{link.field}">
+								{GROUP_LINK_LABELS[link.field]} ↗
+							</a>
+						{/each}
+					</dd>
+				{/if}
 			</dl>
 
 			{#if isAdmin(data.user?.role)}
@@ -202,6 +259,97 @@
 					<p class="success">{form.added} a rejoint le groupe.</p>
 				{/if}
 			</section>
+
+			<section class="section">
+				<h2>Logo</h2>
+				<div class="logo-editor">
+					{#if data.group.logo_version}
+						<img
+							src={groupLogoUrl(data.group.id, data.group.logo_version)}
+							alt="Logo actuel"
+							class="logo-preview"
+						/>
+					{:else}
+						<div class="logo-preview logo-empty">Aucun logo</div>
+					{/if}
+
+					<div class="logo-actions">
+						<form
+							method="POST"
+							action="?/uploadLogo"
+							enctype="multipart/form-data"
+							class="add-form"
+							use:enhance={() => {
+								uploadingLogo = true
+								return ({ update }) => { uploadingLogo = false; return update() }
+							}}
+						>
+							<input
+								name="logo"
+								type="file"
+								accept="image/png,image/jpeg,image/webp,image/gif"
+								aria-label="Image du logo"
+								class="input-file"
+								onchange={checkLogoSize}
+								required
+							/>
+							<button type="submit" class="btn-primary" disabled={uploadingLogo}>
+								{uploadingLogo ? 'Envoi…' : data.group.logo_version ? 'Remplacer' : 'Envoyer'}
+							</button>
+						</form>
+						<p class="hint">PNG, JPEG, WebP ou GIF, 2 Mo maximum. Une image carrée rend le mieux.</p>
+
+						{#if data.group.logo_version}
+							<form
+								method="POST"
+								action="?/removeLogo"
+								use:enhance
+								onsubmit={(e) => { if (!confirm('Retirer le logo du groupe ?')) e.preventDefault() }}
+							>
+								<button type="submit" class="btn-remove">Retirer le logo</button>
+							</form>
+						{/if}
+					</div>
+				</div>
+				{#if logoError}
+					<p class="error">{logoError}</p>
+				{:else if (form?.action === 'uploadLogo' || form?.action === 'removeLogo') && form?.error}
+					<p class="error">{form.error}</p>
+				{/if}
+			</section>
+
+			<section class="section">
+				<h2>Réseaux</h2>
+				<form
+					method="POST"
+					action="?/updateLinks"
+					class="links-form"
+					use:enhance={() => ({ update }) => update({ reset: false })}
+				>
+					{#each LINK_FIELDS as field}
+						<label for="link-{field}">{GROUP_LINK_LABELS[field]}</label>
+						<input
+							id="link-{field}"
+							name={field}
+							type="text"
+							inputmode="url"
+							class="input"
+							placeholder={LINK_PLACEHOLDERS[field]}
+							value={linkValue(field)}
+							autocomplete="off"
+						/>
+					{/each}
+					<div class="links-submit">
+						<button type="submit" class="btn-primary">Enregistrer</button>
+					</div>
+				</form>
+				<p class="hint">Laisser un champ vide retire le lien.</p>
+				{#if form?.action === 'updateLinks' && form?.error}
+					<p class="error">{form.error}</p>
+				{:else if form?.action === 'updateLinks' && form && 'saved' in form}
+					<p class="success">Liens enregistrés.</p>
+				{/if}
+			</section>
 		{/if}
 	{/if}
 </main>
@@ -250,6 +398,94 @@
 	}
 
 	.info-list dd { margin: 0; }
+
+	.group-title {
+		display: flex;
+		align-items: center;
+		gap: 0.75rem;
+		flex-wrap: wrap;
+	}
+
+	.group-logo {
+		width: 56px;
+		height: 56px;
+		border-radius: 50%;
+		object-fit: cover;
+		border: 1px solid #e5e5e5;
+		background: #fff;
+		flex-shrink: 0;
+	}
+
+	.links { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+	.social-link {
+		display: inline-block;
+		padding: 0.15rem 0.6rem;
+		border-radius: 999px;
+		font-size: 0.8rem;
+		font-weight: 600;
+		text-decoration: none;
+		border: 1px solid currentColor;
+	}
+	.social-link:hover { text-decoration: underline; }
+	.social-youtube_url { color: #c4302b; }
+	.social-facebook_url { color: #1877f2; }
+	.social-instagram_url { color: #c13584; }
+
+	.logo-editor {
+		display: flex;
+		gap: 1.25rem;
+		align-items: flex-start;
+		flex-wrap: wrap;
+	}
+
+	.logo-preview {
+		width: 96px;
+		height: 96px;
+		border-radius: 50%;
+		object-fit: cover;
+		border: 1px solid #e5e5e5;
+		background: #fff;
+		flex-shrink: 0;
+	}
+
+	.logo-empty {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: #aaa;
+		font-size: 0.75rem;
+		border-style: dashed;
+	}
+
+	.logo-actions {
+		flex: 1 1 16rem;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.6rem;
+	}
+	.logo-actions .hint { margin: 0; }
+
+	.input-file {
+		flex: 1 1 12rem;
+		min-width: 0;
+		font-size: 0.85rem;
+	}
+
+	.links-form {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: 0.5rem 1rem;
+		align-items: center;
+	}
+	.links-form label { font-weight: 600; color: #666; font-size: 0.85rem; }
+	.links-submit { grid-column: 2; }
+
+	@media (max-width: 480px) {
+		.links-form { grid-template-columns: 1fr; }
+		.links-submit { grid-column: 1; }
+	}
 
 	.admin-link { font-size: 0.875rem; }
 	.admin-link a { color: inherit; }

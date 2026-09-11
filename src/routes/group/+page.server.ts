@@ -4,9 +4,14 @@ import sql from '$lib/server/db'
 import {
 	addGroupMember,
 	findActiveUserByNickname,
+	GROUP_LINK_FIELDS,
+	logoRequestTooLarge,
+	removeGroupLogo,
 	removeGroupMember,
 	renameGroup,
+	setGroupLogo,
 	setGroupMemberRole,
+	updateGroupLinks,
 	type GroupOpResult
 } from '$lib/server/groups'
 import { canAssignGroupAdmin, canManageGroup, isAdmin } from '$lib/types'
@@ -28,14 +33,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 			COUNT(DISTINCT ug.user_id)::int  AS member_count,
 			COUNT(DISTINCT s.id)::int        AS song_count,
 			COUNT(DISTINCT ses.id)::int      AS session_count,
-			COUNT(DISTINCT p.id)::int        AS playlist_count
+			COUNT(DISTINCT p.id)::int        AS playlist_count,
+			floor(EXTRACT(EPOCH FROM gl.updated_at))::float8 AS logo_version
 		FROM groups g
+		LEFT JOIN group_logos gl  ON gl.group_id  = g.id
 		LEFT JOIN user_groups ug  ON ug.group_id  = g.id
 		LEFT JOIN songs s         ON s.group_id   = g.id
 		LEFT JOIN sessions ses    ON ses.group_id  = g.id
 		LEFT JOIN playlists p     ON p.group_id    = g.id
 		WHERE g.id = ${groupId}
-		GROUP BY g.id
+		GROUP BY g.id, gl.updated_at
 	`
 
 	// Le rôle global relève de l'administration des comptes, pas de la vie du groupe :
@@ -127,5 +134,40 @@ export const actions: Actions = {
 
 		const result = await removeGroupMember(locals.user, groupId, userId)
 		if (!result.ok) return toFail('removeMember', result, { id: userId })
+	},
+
+	updateLinks: async ({ locals, request }) => {
+		const groupId = activeGroup(locals)
+		if (!locals.user || !groupId) return fail(403, { action: 'updateLinks', error: 'Aucun groupe actif.' })
+
+		const data = await request.formData()
+		const links = Object.fromEntries(
+			GROUP_LINK_FIELDS.map((field) => [field, (data.get(field) as string | null) ?? ''])
+		)
+		const result = await updateGroupLinks(locals.user, groupId, links)
+		// Les saisies sont renvoyées pour ne pas faire retaper les trois champs sur une erreur.
+		if (!result.ok) return toFail('updateLinks', result, { links })
+
+		return { action: 'updateLinks', saved: true }
+	},
+
+	uploadLogo: async ({ locals, request }) => {
+		const groupId = activeGroup(locals)
+		if (!locals.user || !groupId) return fail(403, { action: 'uploadLogo', error: 'Aucun groupe actif.' })
+		if (logoRequestTooLarge(request)) {
+			return fail(413, { action: 'uploadLogo', error: 'Le logo ne peut pas dépasser 2 Mo.' })
+		}
+
+		const data = await request.formData()
+		const result = await setGroupLogo(locals.user, groupId, data.get('logo'))
+		if (!result.ok) return toFail('uploadLogo', result)
+	},
+
+	removeLogo: async ({ locals }) => {
+		const groupId = activeGroup(locals)
+		if (!locals.user || !groupId) return fail(403, { action: 'removeLogo', error: 'Aucun groupe actif.' })
+
+		const result = await removeGroupLogo(locals.user, groupId)
+		if (!result.ok) return toFail('removeLogo', result)
 	}
 }

@@ -37,6 +37,7 @@ api/agenda/[id]/+server.ts
 api/groups/+server.ts
 api/groups/[id]/+server.ts
 api/groups/[id]/export/+server.ts
+api/groups/[id]/logo/+server.ts
 api/groups/[id]/members/+server.ts
 api/groups/[id]/members/[userId]/+server.ts
 api/groups/switch/+server.ts
@@ -50,8 +51,11 @@ Les routes qui manipulent du contenu partagé vérifient aussi `locals.user.curr
 Deux niveaux de droits au-delà de l'authentification :
 - **admin global** (`isAdmin(locals.user.role)`) → création/suppression de groupes, comptes,
   sauvegardes, statistiques
-- **admin du groupe visé** (`canManageGroup(locals.user, groupId)`) → membres et nom du groupe,
-  suppression du contenu d'autrui. Vrai aussi pour un admin global.
+- **admin du groupe visé** (`canManageGroup(locals.user, groupId)`) → membres, nom, logo et liens
+  du groupe, suppression du contenu d'autrui. Vrai aussi pour un admin global.
+  `PATCH /api/groups/[id]` accepte `name` et/ou `youtube_url`, `facebook_url`, `instagram_url`
+  (chaîne vide ou `null` = lien retiré). `POST /api/groups/[id]/logo` (multipart, champ `logo`)
+  crée ou remplace le logo, `DELETE` le retire ; `GET` le sert aux membres (`canViewGroup`).
 - **superadmin** (`canDeleteGroup`) → suppression et export d'un groupe.
   `DELETE /api/groups/[id]` exige en plus `?confirm=<nom exact du groupe>` et supprime tout
   le contenu en cascade ; `GET /api/groups/[id]/export` en fournit l'archive JSON préalable.

@@ -37,7 +37,21 @@ CREATE TABLE groups (
     id          SERIAL PRIMARY KEY,
     name        TEXT NOT NULL UNIQUE,
     created_by  INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    created_at  TIMESTAMPTZ DEFAULT now()
+    created_at  TIMESTAMPTZ DEFAULT now(),
+    youtube_url   TEXT,                      -- liens normalisés en https par src/lib/server/groups.ts
+    facebook_url  TEXT,
+    instagram_url TEXT
+);
+
+-- Logo du groupe, en base : il suit le groupe dans pg_dump et part avec lui.
+-- Table à part pour que `SELECT g.*` ne remonte jamais les octets de l'image.
+CREATE TABLE group_logos (
+    group_id    INTEGER PRIMARY KEY REFERENCES groups(id) ON DELETE CASCADE,
+    mime_type   TEXT NOT NULL CHECK (mime_type IN ('image/png', 'image/jpeg', 'image/webp', 'image/gif')),
+                                             -- pas de SVG : servi depuis notre origine, il pourrait exécuter du script
+    data        BYTEA NOT NULL,
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+                                             -- sert aussi de version dans l'URL, pour le cache navigateur
 );
 
 CREATE TABLE user_groups (

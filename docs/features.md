@@ -102,12 +102,12 @@
 
 ## Groupe actif (`/group`)
 
-- Consultation pour tout membre : informations du groupe, compteurs, liste des membres
-  avec leur rôle dans le groupe
+- Consultation pour tout membre : informations du groupe, compteurs, logo, liens vers les
+  réseaux du groupe (ouverts dans un nouvel onglet), liste des membres avec leur rôle dans le groupe
 - Le rôle **global** d'un membre (`users.role`) n'est affiché qu'aux admins globaux, et n'est
   pas sélectionné en base sinon — le masquer côté client le laisserait dans le payload
 - Un **admin de groupe** (`user_groups.role = 'admin'`) y gère son groupe sans passer par `/admin` :
-  renommer le groupe, ajouter un membre, retirer un membre
+  renommer le groupe, ajouter un membre, retirer un membre, changer le logo et les liens réseaux
 - Ajout **par pseudo exact**, pas par liste déroulante : un admin de groupe n'a pas à voir
   l'annuaire des comptes des autres groupes de la plateforme
 - Un membre ajouté depuis `/group` l'est toujours en rôle `member`
@@ -115,6 +115,23 @@
   ni promouvoir un membre, ni retirer un autre admin de groupe (ce qui l'empêche aussi de se
   retirer lui-même)
 - Le dernier membre d'un groupe ne peut pas être retiré : le contenu deviendrait inatteignable
+
+## Logo et réseaux du groupe (`/group`)
+
+- **Logo** : PNG, JPEG, WebP ou GIF, 2 Mo maximum, stocké en base (`group_logos`) pour suivre
+  le groupe dans `pg_dump` et partir avec lui. Le format est lu dans les octets du fichier,
+  jamais repris du navigateur ; SVG refusé (servi depuis notre origine, il pourrait exécuter du script)
+- Servi par `GET /api/groups/[id]/logo`, aux seuls membres du groupe et aux admins globaux
+  (`canViewGroup`) ; un non-membre reçoit `404`. L'URL porte `?v=<horodatage>` pour un cache
+  navigateur long sans jamais servir un ancien logo
+- Affiché à côté du nom sur `/group` et en pastille ronde dans la barre du haut (groupe actif)
+- **Liens** : YouTube, Facebook, Instagram (`groups.youtube_url`, `facebook_url`, `instagram_url`).
+  Saisie tolérante (« youtube.com/@groupe » est complété en https), mais le domaine doit être
+  celui du réseau (sous-domaines compris, `youtu.be` et `fb.com` acceptés) et le lien doit
+  mener à une page, pas à l'accueil du site. Toujours stockés en https. Champ vide = lien retiré
+- Modification réservée à `canManageGroup` (admin du groupe ou admin global), via
+  `src/lib/server/groups.ts` (`updateGroupLinks`, `setGroupLogo`, `removeGroupLogo`)
+- L'archive JSON d'un groupe embarque le logo en base64 ; la suppression du groupe l'emporte
 
 ## Rôles dans un groupe
 
@@ -149,7 +166,8 @@
   `deleteGroup()`, pas seulement par l'écran ; l'API exige le même nom en `?confirm=`
 - Suppression en cascade dans une transaction, dans cet ordre imposé par les FK :
   `playlists` → `calendar_events` → `sessions` (les prises, commentaires, réactions et
-  entrées de playlist tombent en cascade) → `songs` → `user_groups` → `groups`
+  entrées de playlist tombent en cascade) → `songs` → `notifications` → `group_logos`
+  → `user_groups` → `groups`
 - Les fichiers `.mp3` sont supprimés **après** le commit : un fichier orphelin se rattrape,
   une ligne pointant vers un fichier disparu non
 - Les **comptes utilisateurs sont conservés** — seule l'appartenance au groupe disparaît.

@@ -47,8 +47,18 @@ export function memberGroupRole(
 	return user.groups.find((g) => g.id === groupId)?.role ?? null
 }
 
-// Administration d'un groupe : membres, nom, suppression du contenu d'autrui.
-// Un admin global l'est sur tous les groupes, un admin de groupe sur le sien.
+// Consultation des informations d'un groupe (logo compris) : ses membres, et les
+// admins globaux qui l'administrent depuis /admin sans forcément en faire partie.
+export function canViewGroup(
+	user: RoleBearer | null | undefined,
+	groupId: number | null | undefined
+): boolean {
+	if (isAdmin(user?.role)) return true
+	return memberGroupRole(user, groupId) !== null
+}
+
+// Administration d'un groupe : membres, nom, logo et liens, suppression du contenu
+// d'autrui. Un admin global l'est sur tous les groupes, un admin de groupe sur le sien.
 export function canManageGroup(
 	user: RoleBearer | null | undefined,
 	groupId: number | null | undefined
@@ -98,6 +108,23 @@ export type Group = {
 	name: string
 	created_by: number | null
 	created_at: Date
+	youtube_url: string | null
+	facebook_url: string | null
+	instagram_url: string | null
+}
+
+export type GroupLinkField = 'youtube_url' | 'facebook_url' | 'instagram_url'
+
+export const GROUP_LINK_LABELS: Record<GroupLinkField, string> = {
+	youtube_url: 'YouTube',
+	facebook_url: 'Facebook',
+	instagram_url: 'Instagram'
+}
+
+// La version (horodatage de mise à jour) change l'URL à chaque nouveau logo :
+// le navigateur peut alors garder l'image en cache sans jamais servir l'ancienne.
+export function groupLogoUrl(groupId: number, version: number): string {
+	return `/api/groups/${groupId}/logo?v=${version}`
 }
 
 export type UserGroup = {

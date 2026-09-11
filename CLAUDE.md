@@ -11,7 +11,8 @@
 Application web privée pour partager les enregistrements de répétitions d'un groupe de musique.
 Accès restreint par comptes individuels. Les contenus sont isolés par groupe actif ; le référentiel de
 morceaux est géré par tout membre du groupe actif. Chaque groupe a ses propres administrateurs
-(`user_groups.role`), qui gèrent ses membres, son nom et la suppression du contenu d'autrui ; les admins
+(`user_groups.role`), qui gèrent ses membres, son nom, son logo et ses liens (YouTube, Facebook,
+Instagram) et la suppression du contenu d'autrui ; les admins
 globaux (`users.role`) gèrent en plus les comptes et les groupes eux-mêmes. Voir « Rôles et droits ».
 
 ## Références
@@ -82,7 +83,7 @@ Deux axes indépendants, à ne pas confondre :
 - **member** — tout le contenu de son groupe actif : sessions, prises, morceaux, playlists,
   commentaires, agenda. Ne supprime que les sessions et les prises dont il est l'auteur.
 - **admin de groupe** — en plus, sur SON groupe : ajouter/retirer des membres, renommer le
-  groupe, supprimer les sessions et prises créées par d'autres.
+  groupe, changer son logo et ses liens réseaux, supprimer les sessions et prises créées par d'autres.
 - **admin global** — tout ce qui précède sur tous les groupes, plus la création de groupes
   et la gestion des comptes `user`.
 - **superadmin** — en plus, seul à pouvoir gérer les comptes `admin`/`superadmin`, à attribuer
@@ -107,7 +108,7 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
 /upload             formulaire d'upload
 /profile            infos du compte connecté + changement de mot de passe
 /group              infos + membres du groupe actif (consultation pour tout membre,
-                    gestion des membres et du nom pour l'admin du groupe)
+                    gestion des membres, du nom, du logo et des liens pour l'admin du groupe)
 /admin/users        gestion des comptes
 /admin/groups       gestion des groupes et membres
 /agenda             agenda partagé du groupe (indisponibilités + toutes les sessions)

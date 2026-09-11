@@ -25,10 +25,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 				WHERE ${userId ? sql`id = ${Number(userId)}` : sql`nickname = ${session}`} AND active = true
 			`
 			if (user) {
-				const groups = await sql<{ id: number; name: string; role: 'admin' | 'member' }[]>`
-					SELECT g.id, g.name, ug.role
+				const groups = await sql<{ id: number; name: string; role: 'admin' | 'member'; logo_version: number | null }[]>`
+					SELECT g.id, g.name, ug.role,
+					       floor(EXTRACT(EPOCH FROM gl.updated_at))::float8 AS logo_version
 					FROM user_groups ug
 					JOIN groups g ON g.id = ug.group_id
+					LEFT JOIN group_logos gl ON gl.group_id = g.id
 					WHERE ug.user_id = ${user.id}
 					ORDER BY g.name
 				`

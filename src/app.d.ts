@@ -13,7 +13,7 @@ declare global {
 				display_name: string
 				role: 'user' | 'admin' | 'superadmin'
 				current_group_id: number | null
-				groups: { id: number; name: string; role: 'admin' | 'member' }[]
+				groups: { id: number; name: string; role: 'admin' | 'member'; logo_version: number | null }[]
 			} | null
 		}
 		interface PageData {
@@ -26,7 +26,7 @@ declare global {
 				display_name: string
 				role: 'user' | 'admin' | 'superadmin'
 				current_group_id: number | null
-				groups: { id: number; name: string; role: 'admin' | 'member' }[]
+				groups: { id: number; name: string; role: 'admin' | 'member'; logo_version: number | null }[]
 			} | null
 			unread_notifications?: number
 		}

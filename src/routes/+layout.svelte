@@ -4,7 +4,7 @@
 	import favicon from '$lib/assets/favicon.svg'
 	import { page } from '$app/state'
 	import { goto, afterNavigate } from '$app/navigation'
-	import { isAdmin } from '$lib/types'
+	import { groupLogoUrl, isAdmin } from '$lib/types'
 	import MiniPlayer from '$lib/components/MiniPlayer.svelte'
 	import NotificationsMenu from '$lib/components/NotificationsMenu.svelte'
 
@@ -81,6 +81,15 @@
 			>{menuOpen ? '✕' : '☰'}</button>
 			<a href="/" class="brand">🎸 BandApp</a>
 			<div class="top-spacer"></div>
+			{#if currentGroup?.logo_version}
+				<a href="/group" class="group-logo-link" title="Infos du groupe">
+					<img
+						src={groupLogoUrl(currentGroup.id, currentGroup.logo_version)}
+						alt="Logo de {currentGroup.name}"
+						class="group-logo"
+					/>
+				</a>
+			{/if}
 			{#if data.user.groups.length > 1}
 				<select class="group-select" onchange={switchGroup}>
 					{#each data.user.groups as g}
@@ -248,6 +257,16 @@
 		text-decoration: none;
 	}
 	.group-chip:hover { text-decoration: underline; }
+
+	.group-logo-link { display: flex; flex-shrink: 0; }
+
+	.group-logo {
+		width: 26px;
+		height: 26px;
+		border-radius: 50%;
+		object-fit: cover;
+		background: #fff;
+	}
 
 	.group-info-link {
 		color: var(--color-mid);

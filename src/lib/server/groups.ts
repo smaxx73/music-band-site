@@ -5,6 +5,9 @@ import {
 	canAssignGroupAdmin,
 	canDeleteGroup,
 	canManageGroup,
+	canViewGroup,
+	GROUP_LINK_LABELS,
+	type GroupLinkField,
 	type GroupRole,
 	type RoleBearer
 } from '$lib/types'
@@ -160,6 +163,160 @@ export async function removeGroupMember(
 	return { ok: true, value: deleted }
 }
 
+// ─── Identité du groupe : liens et logo ───────────────────────────────────
+
+const GROUP_LINK_HOSTS: Record<GroupLinkField, string[]> = {
+	youtube_url: ['youtube.com', 'youtu.be'],
+	facebook_url: ['facebook.com', 'fb.com'],
+	instagram_url: ['instagram.com']
+}
+
+export const GROUP_LINK_FIELDS = Object.keys(GROUP_LINK_HOSTS) as GroupLinkField[]
+
+// Les liens sont rendus en `href` pour tous les membres : on n'accepte que le domaine
+// attendu, ce qui écarte du même coup `javascript:` et les redirections vers un tiers.
+// Un lien saisi sans schéma (« youtube.com/@groupe ») est complété en https.
+function normalizeGroupLink(field: GroupLinkField, raw: string | null): GroupOpResult<string | null> {
+	const value = raw?.trim()
+	if (!value) return { ok: true, value: null }
+
+	const label = GROUP_LINK_LABELS[field]
+	if (value.length > 300) return fail(400, `Le lien ${label} est trop long.`)
+
+	let url: URL
+	try {
+		url = new URL(/^[a-z][a-z0-9+.-]*:/i.test(value) ? value : `https://${value}`)
+	} catch {
+		return fail(400, `Le lien ${label} n'est pas une adresse valide.`)
+	}
+
+	const hosts = GROUP_LINK_HOSTS[field]
+	const host = url.hostname.toLowerCase()
+	if (
+		(url.protocol !== 'https:' && url.protocol !== 'http:') ||
+		!hosts.some((h) => host === h || host.endsWith(`.${h}`))
+	) {
+		return fail(400, `Le lien ${label} doit pointer vers ${hosts[0]}.`)
+	}
+	if (url.pathname.length <= 1) {
+		return fail(400, `Le lien ${label} doit mener à la page du groupe, pas à l'accueil du site.`)
+	}
+
+	url.protocol = 'https:'
+	return { ok: true, value: url.toString() }
+}
+
+// Modification partielle : seuls les champs présents dans `input` sont touchés,
+// une chaîne vide efface le lien.
+export async function updateGroupLinks(
+	actor: RoleBearer,
+	groupId: number,
+	input: Partial<Record<GroupLinkField, string | null>>
+): Promise<GroupOpResult<Record<GroupLinkField, string | null>>> {
+	if (!canManageGroup(actor, groupId)) return fail(403, FORBIDDEN)
+
+	const values: Partial<Record<GroupLinkField, string | null>> = {}
+	for (const field of GROUP_LINK_FIELDS) {
+		if (!(field in input)) continue
+		const normalized = normalizeGroupLink(field, input[field] ?? null)
+		if (!normalized.ok) return normalized
+		values[field] = normalized.value
+	}
+
+	const fields = Object.keys(values) as GroupLinkField[]
+	const [group] = fields.length
+		? await sql<Record<GroupLinkField, string | null>[]>`
+			UPDATE groups SET ${sql(values, fields)} WHERE id = ${groupId}
+			RETURNING youtube_url, facebook_url, instagram_url
+		`
+		: await sql<Record<GroupLinkField, string | null>[]>`
+			SELECT youtube_url, facebook_url, instagram_url FROM groups WHERE id = ${groupId}
+		`
+	if (!group) return fail(404, 'Groupe introuvable.')
+
+	return { ok: true, value: group }
+}
+
+export const LOGO_MAX_BYTES = 2 * 1024 * 1024
+
+type LogoMime = 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif'
+
+// Le type est lu dans les premiers octets, jamais repris du navigateur : c'est lui
+// qui part en Content-Type au service de l'image. SVG exclu — servi depuis notre
+// origine, il pourrait embarquer du script.
+function detectLogoMime(bytes: Uint8Array): LogoMime | null {
+	const ascii = (start: number, end: number) => String.fromCharCode(...bytes.subarray(start, end))
+	if (bytes.length >= 8 && bytes[0] === 0x89 && ascii(1, 4) === 'PNG') return 'image/png'
+	if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg'
+	if (bytes.length >= 12 && ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') return 'image/webp'
+	if (bytes.length >= 6 && (ascii(0, 6) === 'GIF87a' || ascii(0, 6) === 'GIF89a')) return 'image/gif'
+	return null
+}
+
+// Garde-fou avant de lire le corps : BODY_SIZE_LIMIT est réglé à 200 Mo pour l'audio,
+// et formData() mettrait tout en mémoire. La marge couvre l'enveloppe multipart.
+export function logoRequestTooLarge(request: Request): boolean {
+	const length = Number(request.headers.get('content-length'))
+	return Number.isFinite(length) && length > LOGO_MAX_BYTES + 64 * 1024
+}
+
+export async function setGroupLogo(
+	actor: RoleBearer,
+	groupId: number,
+	file: FormDataEntryValue | null
+): Promise<GroupOpResult<{ version: number }>> {
+	if (!canManageGroup(actor, groupId)) return fail(403, FORBIDDEN)
+
+	if (!(file instanceof File) || file.size === 0) return fail(400, 'Aucune image reçue.')
+	if (file.size > LOGO_MAX_BYTES) return fail(413, 'Le logo ne peut pas dépasser 2 Mo.')
+
+	const data = Buffer.from(await file.arrayBuffer())
+	const mime = detectLogoMime(data)
+	if (!mime) return fail(415, 'Format non pris en charge : PNG, JPEG, WebP ou GIF uniquement.')
+
+	const [group] = await sql`SELECT id FROM groups WHERE id = ${groupId}`
+	if (!group) return fail(404, 'Groupe introuvable.')
+
+	const [logo] = await sql<{ version: number }[]>`
+		INSERT INTO group_logos (group_id, mime_type, data)
+		VALUES (${groupId}, ${mime}, ${data})
+		ON CONFLICT (group_id) DO UPDATE
+			SET mime_type = EXCLUDED.mime_type, data = EXCLUDED.data, updated_at = now()
+		RETURNING floor(EXTRACT(EPOCH FROM updated_at))::float8 AS version
+	`
+	return { ok: true, value: logo }
+}
+
+export async function removeGroupLogo(
+	actor: RoleBearer,
+	groupId: number
+): Promise<GroupOpResult<{ group_id: number }>> {
+	if (!canManageGroup(actor, groupId)) return fail(403, FORBIDDEN)
+
+	const [deleted] = await sql<{ group_id: number }[]>`
+		DELETE FROM group_logos WHERE group_id = ${groupId} RETURNING group_id
+	`
+	if (!deleted) return fail(404, "Ce groupe n'a pas de logo.")
+
+	return { ok: true, value: deleted }
+}
+
+export async function getGroupLogo(
+	actor: RoleBearer,
+	groupId: number
+): Promise<GroupOpResult<{ mime_type: LogoMime; data: Buffer; version: number }>> {
+	// 404 plutôt que 403 : ne pas révéler l'existence d'un groupe dont on n'est pas membre.
+	if (!canViewGroup(actor, groupId)) return fail(404, 'Logo introuvable.')
+
+	const [logo] = await sql<{ mime_type: LogoMime; data: Buffer; version: number }[]>`
+		SELECT mime_type, data, floor(EXTRACT(EPOCH FROM updated_at))::float8 AS version
+		FROM group_logos WHERE group_id = ${groupId}
+	`
+	if (!logo) return fail(404, 'Logo introuvable.')
+
+	return { ok: true, value: logo }
+}
+
 // ─── Suppression d'un groupe ──────────────────────────────────────────────
 // Opération irréversible et transverse : elle emporte tout le contenu du groupe
 // et les fichiers audio correspondants. Réservée au superadmin.
@@ -268,6 +425,7 @@ export async function deleteGroup(
 		// Les notifications du groupe tomberaient avec lui, mais elles sont retirées
 		// explicitement comme le reste : rien ne part par une cascade implicite ici.
 		await tx`DELETE FROM notifications WHERE group_id = ${groupId}`
+		await tx`DELETE FROM group_logos WHERE group_id = ${groupId}`
 		await tx`DELETE FROM user_groups WHERE group_id = ${groupId}`
 		await tx`DELETE FROM groups WHERE id = ${groupId}`
 	})
@@ -298,6 +456,8 @@ export type GroupArchive = {
 	playlists: Record<string, unknown>[]
 	playlist_items: Record<string, unknown>[]
 	calendar_events: Record<string, unknown>[]
+	// Contrairement aux mp3, le logo est assez petit (2 Mo max) pour voyager dans l'archive.
+	logo: { mime_type: string; updated_at: Date; base64: string } | null
 	// Les mp3 eux-mêmes ne sont pas embarqués (plusieurs Go) : le manifeste permet
 	// de les archiver à part depuis AUDIO_DIR avant de lancer la suppression.
 	audio_files: { recording_id: number; file: string; bytes: number; sha256: string | null }[]
@@ -316,7 +476,7 @@ export async function exportGroup(
 	`
 	if (!group) return fail(404, 'Groupe introuvable.')
 
-	const [members, songs, sessions, recordings, comments, playlists, playlistItems, calendarEvents] =
+	const [members, songs, sessions, recordings, comments, playlists, playlistItems, calendarEvents, logos] =
 		await Promise.all([
 			// Jamais password_hash : l'archive peut circuler hors de l'application.
 			sql`
@@ -344,8 +504,12 @@ export async function exportGroup(
 				JOIN playlists p ON p.id = pi.playlist_id
 				WHERE p.group_id = ${groupId} ORDER BY pi.playlist_id, pi.position
 			`,
-			sql`SELECT * FROM calendar_events WHERE group_id = ${groupId} ORDER BY id`
+			sql`SELECT * FROM calendar_events WHERE group_id = ${groupId} ORDER BY id`,
+			sql<{ mime_type: string; updated_at: Date; data: Buffer }[]>`
+				SELECT mime_type, updated_at, data FROM group_logos WHERE group_id = ${groupId}
+			`
 		])
+	const [logo] = logos
 
 	const audio_files = await Promise.all(
 		(recordings as unknown as { id: number; file_hash: string | null }[]).map(async (r) => ({
@@ -374,6 +538,9 @@ export async function exportGroup(
 				playlists: playlists as unknown as Record<string, unknown>[],
 				playlist_items: playlistItems as unknown as Record<string, unknown>[],
 				calendar_events: calendarEvents as unknown as Record<string, unknown>[],
+				logo: logo
+					? { mime_type: logo.mime_type, updated_at: logo.updated_at, base64: logo.data.toString('base64') }
+					: null,
 				audio_files
 			}
 		}
