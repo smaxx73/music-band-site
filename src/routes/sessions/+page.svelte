@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types'
-	import { invalidateAll } from '$app/navigation'
+	import { invalidateAll, goto } from '$app/navigation'
+	import { page } from '$app/state'
 	import { formatDateOnly, toDateOnly } from '$lib/date'
 	import Modal from '$lib/components/Modal.svelte'
 
@@ -66,6 +67,7 @@
 	let newLocation = $state('')
 	let newMembers = $state('')
 	let newNotes = $state('')
+	let newLinkEventId = $state<number | null>(null)
 
 	function openCreateModal() {
 		newDate = toDateOnly(new Date())
@@ -74,10 +76,40 @@
 		newLocation = ''
 		newMembers = ''
 		newNotes = ''
+		newLinkEventId = null
 		createError = null
 		createSuccess = null
 		showCreateModal = true
 	}
+
+	// Arrivée depuis « Créer la session » sur un événement d'agenda (dashboard ou /agenda) :
+	// la modale s'ouvre pré-remplie, et la création liera l'événement au lieu d'en dupliquer un.
+	let prefillHandled = false
+	$effect(() => {
+		if (prefillHandled) return
+		const params = page.url.searchParams
+		const linkEventId = params.get('link_event_id')
+		if (!linkEventId || !/^\d+$/.test(linkEventId)) return
+		prefillHandled = true
+
+		newDate = params.get('date') && /^\d{4}-\d{2}-\d{2}$/.test(params.get('date')!)
+			? params.get('date')!
+			: toDateOnly(new Date())
+		const typeParam = params.get('type')
+		newType = (['repetition', 'concert', 'studio', 'autre'] as const).includes(typeParam as SessionType)
+			? (typeParam as SessionType)
+			: 'repetition'
+		newTitle = params.get('title') ?? ''
+		newLocation = params.get('location') ?? ''
+		newMembers = ''
+		newNotes = ''
+		newLinkEventId = parseInt(linkEventId, 10)
+		createError = null
+		createSuccess = null
+		showCreateModal = true
+
+		goto('/sessions', { replaceState: true, noScroll: true, keepFocus: true })
+	})
 
 	async function createSession(event: SubmitEvent) {
 		event.preventDefault()
@@ -99,6 +131,7 @@
 					title: newTitle.trim() || null,
 					location: newLocation.trim() || null,
 					notes: newNotes.trim() || null,
+					link_event_id: newLinkEventId,
 					members: newMembers
 						.split(',')
 						.map((member) => member.trim())
@@ -209,6 +242,9 @@
 			<div class="modal-body">
 				{#if createError}
 					<p class="message-error">{createError}</p>
+				{/if}
+				{#if newLinkEventId}
+					<p class="message-info">Cette session sera liée à l'événement déjà prévu dans l'agenda.</p>
 				{/if}
 				<div class="fields">
 					<div class="fields-row">

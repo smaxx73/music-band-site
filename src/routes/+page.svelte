@@ -8,6 +8,9 @@
 		id: number; date: string; location: string | null
 		members: string[]; song_count: number; song_titles: string[]
 	}
+	type UpcomingItem =
+		| { kind: 'session'; id: number; date: string; location: string | null; title: null; song_count: number; song_titles: string[] }
+		| { kind: 'event'; id: number; date: string; location: string | null; title: string | null; eventType: string }
 	type PlaylistRow = { id: number; name: string; item_count: number; updated_at: string }
 	type Stats = { session_count: number; recording_count: number; playlist_count: number }
 	type NextEvent = { id: number; date: string; type: string; title: string | null; notes: string | null }
@@ -16,6 +19,7 @@
 		created_at: string; recording_id: number; song_title: string
 	}
 
+	const upcomingItems = $derived(data.upcomingItems as unknown as UpcomingItem[])
 	const sessions = $derived(data.sessions as unknown as SessionRow[])
 	const playlists = $derived(data.playlists as unknown as PlaylistRow[])
 	const stats = $derived(data.stats as Stats | null)
@@ -35,6 +39,8 @@
 	const eventTypeLabel: Record<string, string> = {
 		repetition: 'Répétition',
 		concert: 'Concert',
+		studio: 'Studio',
+		autre: 'Événement',
 		indisponibilite: 'Indisponibilité',
 	}
 
@@ -47,6 +53,31 @@
 		repetition: 'var(--color-accent-light)',
 		concert: 'var(--color-green-light)',
 		indisponibilite: 'var(--color-red-light)',
+	}
+
+	// Mêmes couleurs que les badges de type sur /agenda, pour reconnaître le type d'un coup d'œil.
+	const eventBadgeBg: Record<string, string> = {
+		repetition: 'var(--color-learning-bg)',
+		concert: 'var(--color-repertoire-bg)',
+		studio: '#f3e8ff',
+		autre: 'var(--color-bg-subtle)',
+	}
+	const eventBadgeText: Record<string, string> = {
+		repetition: 'var(--color-learning-text)',
+		concert: 'var(--color-repertoire-text)',
+		studio: '#7c3aed',
+		autre: 'var(--color-text-secondary)',
+	}
+
+	function sessionCreateUrl(item: Extract<UpcomingItem, { kind: 'event' }>) {
+		const params = new URLSearchParams({
+			link_event_id: String(item.id),
+			date: toDateOnly(item.date),
+			type: item.eventType,
+		})
+		if (item.title) params.set('title', item.title)
+		if (item.location) params.set('location', item.location)
+		return `/sessions?${params.toString()}`
 	}
 
 	function truncate(text: string, max = 70) {
@@ -134,36 +165,79 @@
 				</div>
 			{/if}
 
-			<!-- Recent sessions -->
+			{#snippet sessionCard(s: Pick<SessionRow, 'id' | 'date' | 'location' | 'song_count' | 'song_titles'>, badge = false)}
+				<li>
+					<a href="/sessions/{s.id}" class="session-card">
+						<div class="session-card-top">
+							<span class="session-date">{formatDate(s.date)}</span>
+							{#if badge}
+								<span class="item-badge item-badge-session">Session</span>
+							{/if}
+							{#if s.location}
+								<span class="session-loc">{s.location}</span>
+							{/if}
+						</div>
+						{#if s.song_titles?.filter(Boolean).length}
+							<div class="song-pills">
+								{#each s.song_titles.filter(Boolean) as title}
+									<span class="song-pill">{title}</span>
+								{/each}
+							</div>
+						{:else}
+							<div class="session-count">{s.song_count} morceau{s.song_count > 1 ? 'x' : ''}</div>
+						{/if}
+					</a>
+				</li>
+			{/snippet}
+
+			<!-- Upcoming sessions & session-type agenda events -->
+			{#if upcomingItems.length > 0}
+				<div class="section-header">
+					<h2>Événements à venir</h2>
+					<a href="/agenda" class="link-more">Agenda →</a>
+				</div>
+				<ul class="session-list session-list-upcoming">
+					{#each upcomingItems as item}
+						{#if item.kind === 'session'}
+							{@render sessionCard(item, true)}
+						{:else}
+							<li>
+								<div
+									class="session-card session-card-event"
+									style="--badge-bg: {eventBadgeBg[item.eventType] ?? 'var(--color-bg-subtle)'}; --badge-text: {eventBadgeText[item.eventType] ?? 'var(--color-text-secondary)'}"
+								>
+									<a href="/agenda" class="event-info-link">
+										<div class="session-card-top">
+											<span class="session-date">{formatDate(item.date)}</span>
+											<span class="item-badge item-badge-event">{eventTypeLabel[item.eventType] ?? item.eventType}</span>
+											{#if item.location}
+												<span class="session-loc">{item.location}</span>
+											{/if}
+										</div>
+										<div class="session-count">
+											{item.title ? `${item.title} — ` : ''}prévu à l'agenda, pas encore de session
+										</div>
+									</a>
+									<a href={sessionCreateUrl(item)} class="event-create-btn">Créer la session →</a>
+								</div>
+							</li>
+						{/if}
+					{/each}
+				</ul>
+			{/if}
+
+			<!-- Recent (past) sessions -->
 			<div class="section-header">
 				<h2>Sessions récentes</h2>
 				<a href="/sessions" class="link-more">Toutes →</a>
 			</div>
 
 			{#if sessions.length === 0}
-				<p class="empty">Aucune session pour l'instant.</p>
+				<p class="empty">Aucune session passée pour l'instant.</p>
 			{:else}
 				<ul class="session-list">
 					{#each sessions as s}
-						<li>
-							<a href="/sessions/{s.id}" class="session-card">
-								<div class="session-card-top">
-									<span class="session-date">{formatDate(s.date)}</span>
-									{#if s.location}
-										<span class="session-loc">{s.location}</span>
-									{/if}
-								</div>
-								{#if s.song_titles?.filter(Boolean).length}
-									<div class="song-pills">
-										{#each s.song_titles.filter(Boolean) as title}
-											<span class="song-pill">{title}</span>
-										{/each}
-									</div>
-								{:else}
-									<div class="session-count">{s.song_count} morceau{s.song_count > 1 ? 'x' : ''}</div>
-								{/if}
-							</a>
-						</li>
+						{@render sessionCard(s)}
 					{/each}
 				</ul>
 			{/if}
@@ -346,6 +420,74 @@
 	.session-card:hover {
 		border-color: var(--color-accent);
 		background: var(--color-paper);
+	}
+
+	.session-list-upcoming {
+		margin-bottom: 1.4rem;
+	}
+
+	.session-list-upcoming .session-card {
+		border-color: var(--color-accent-light);
+		background: var(--color-accent-light);
+	}
+
+	.session-list-upcoming .session-card:hover {
+		border-color: var(--color-accent);
+		background: var(--color-paper);
+	}
+
+	/* Événement d'agenda pas encore transformé en session : style pointillé neutre,
+	   pour bien le distinguer d'une session réelle (fond accent plein ci-dessus). */
+	.session-list-upcoming .session-card-event {
+		background: var(--color-bg);
+		border-style: dashed;
+		border-color: var(--color-border);
+	}
+
+	.session-list-upcoming .session-card-event:hover {
+		border-color: var(--color-text-muted);
+		background: var(--color-paper);
+	}
+
+	.item-badge {
+		font-size: 0.65rem;
+		font-weight: 600;
+		padding: 1px 7px;
+		border-radius: 20px;
+		white-space: nowrap;
+	}
+
+	.item-badge-session {
+		background: var(--color-green-light);
+		color: var(--color-green);
+	}
+
+	.item-badge-event {
+		background: var(--badge-bg);
+		color: var(--badge-text);
+	}
+
+	.session-card-event {
+		display: block;
+	}
+
+	.event-info-link {
+		display: block;
+		text-decoration: none;
+		color: inherit;
+	}
+
+	.event-create-btn {
+		display: inline-block;
+		margin-top: 0.5rem;
+		font-size: 0.76rem;
+		font-weight: 600;
+		color: var(--color-accent);
+		text-decoration: none;
+	}
+
+	.event-create-btn:hover {
+		text-decoration: underline;
 	}
 
 	.session-card-top {

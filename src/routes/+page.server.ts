@@ -8,10 +8,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const groupId = locals.user.current_group_id
 
 	if (!groupId) {
-		return { sessions: [], playlists: [], stats: null, nextEvent: null, recentComments: [] }
+		return { upcomingItems: [], sessions: [], playlists: [], stats: null, nextEvent: null, recentComments: [] }
 	}
 
-	const [sessions, playlists, statsRows, nextEventRows, recentComments] = await Promise.all([
+	const [upcomingSessions, upcomingGroupEvents, sessions, playlists, statsRows, nextEventRows, recentComments] = await Promise.all([
 		sql`
 			SELECT
 				s.id, s.date, s.location, s.members,
@@ -21,6 +21,34 @@ export const load: PageServerLoad = async ({ locals }) => {
 			LEFT JOIN recordings r ON r.session_id = s.id
 			LEFT JOIN songs       ON songs.id = r.song_id
 			WHERE s.group_id = ${groupId}
+			  AND s.date >= CURRENT_DATE
+			GROUP BY s.id
+			ORDER BY s.date ASC
+			LIMIT 3
+		`,
+		// Événements d'agenda de type session (répétition/concert/studio/autre) pas encore
+		// transformés en vraie session — ceux qui le sont déjà sont couverts par la requête
+		// ci-dessus et ne doivent pas apparaître deux fois.
+		sql`
+			SELECT id, date, type, title, location
+			FROM calendar_events
+			WHERE group_id = ${groupId}
+			  AND date >= CURRENT_DATE
+			  AND session_id IS NULL
+			  AND type IN ('repetition', 'concert', 'studio', 'autre')
+			ORDER BY date ASC
+			LIMIT 3
+		`,
+		sql`
+			SELECT
+				s.id, s.date, s.location, s.members,
+				COUNT(DISTINCT r.song_id)::int                             AS song_count,
+				ARRAY_AGG(DISTINCT songs.title ORDER BY songs.title)       AS song_titles
+			FROM sessions s
+			LEFT JOIN recordings r ON r.session_id = s.id
+			LEFT JOIN songs       ON songs.id = r.song_id
+			WHERE s.group_id = ${groupId}
+			  AND s.date < CURRENT_DATE
 			GROUP BY s.id
 			ORDER BY s.date DESC
 			LIMIT 5
@@ -39,11 +67,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 				(SELECT COUNT(*)::int FROM recordings r JOIN sessions s ON s.id = r.session_id WHERE s.group_id = ${groupId})          AS recording_count,
 				(SELECT COUNT(*)::int FROM playlists   WHERE group_id = ${groupId})                                                   AS playlist_count
 		`,
+		// Les types repetition/concert/studio/autre sont déjà couverts par "Sessions à venir"
+		// ci-dessus (session réelle ou événement d'agenda) : ne pas les reprendre ici, sous
+		// peine d'afficher le même événement deux fois sur le tableau de bord.
 		sql`
 			SELECT id, date, type, title, notes
 			FROM calendar_events
 			WHERE group_id = ${groupId}
 			  AND date >= CURRENT_DATE
+			  AND type = 'indisponibilite'
 			ORDER BY date ASC
 			LIMIT 1
 		`,
@@ -63,7 +95,30 @@ export const load: PageServerLoad = async ({ locals }) => {
 		`,
 	])
 
+	const upcomingItems = [
+		...upcomingSessions.map((s) => ({
+			kind: 'session' as const,
+			id: s.id,
+			date: s.date,
+			location: s.location,
+			title: null as string | null,
+			song_count: s.song_count,
+			song_titles: s.song_titles,
+		})),
+		...upcomingGroupEvents.map((e) => ({
+			kind: 'event' as const,
+			id: e.id,
+			date: e.date,
+			location: e.location,
+			title: e.title as string | null,
+			eventType: e.type,
+		})),
+	]
+		.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+		.slice(0, 3)
+
 	return {
+		upcomingItems,
 		sessions,
 		playlists,
 		stats: statsRows[0] ?? null,

@@ -37,6 +37,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const location: unknown = body.location
 	const notes: unknown = body.notes
 	const members: unknown = body.members
+	const linkEventId: unknown = body.link_event_id
 
 	const validTypes = ['repetition', 'concert', 'studio', 'autre']
 
@@ -52,6 +53,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (members !== undefined && !Array.isArray(members)) {
 		return json({ error: 'members doit être un tableau.' }, { status: 400 })
 	}
+	if (linkEventId !== undefined && linkEventId !== null && typeof linkEventId !== 'number') {
+		return json({ error: 'link_event_id invalide.' }, { status: 400 })
+	}
 
 	const membersArray: string[] = Array.isArray(members)
 		? members.filter((m) => typeof m === 'string' && m.trim()).map((m: string) => m.trim())
@@ -61,6 +65,24 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const resolvedTitle = typeof title === 'string' && title.trim() ? title.trim() : null
 	const resolvedLocation = typeof location === 'string' && location.trim() ? location.trim() : null
 	const resolvedNotes = typeof notes === 'string' && notes.trim() ? notes.trim() : null
+
+	// Transformer un événement d'agenda existant en session : on réutilise sa ligne
+	// calendar_events (on la lie via session_id) au lieu d'en insérer une seconde,
+	// pour éviter un doublon sur le même jour.
+	let linkedEventId: number | null = null
+	if (typeof linkEventId === 'number') {
+		const [event] = await sql`
+			SELECT id FROM calendar_events
+			WHERE id = ${linkEventId}
+			  AND group_id = ${locals.user.current_group_id}
+			  AND session_id IS NULL
+			  AND type <> 'indisponibilite'
+		`
+		if (!event) {
+			return json({ error: 'Événement introuvable ou déjà lié à une session.' }, { status: 400 })
+		}
+		linkedEventId = linkEventId
+	}
 
 	const session = await sql.begin(async (tx) => {
 		const [session] = await tx`
@@ -79,21 +101,30 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			RETURNING *
 		`
 
-		// Toute session apparaît automatiquement dans l'agenda, quel que soit son type
-		await tx`
-			INSERT INTO calendar_events (group_id, user_id, date, type, author, title, notes, location, session_id)
-			VALUES (
-				${locals.user!.current_group_id},
-				${locals.user!.id},
-				${date.trim()}::date,
-				${resolvedType},
-				${locals.user!.display_name},
-				${resolvedTitle},
-				${resolvedNotes},
-				${resolvedLocation},
-				${session.id}
-			)
-		`
+		if (linkedEventId) {
+			await tx`
+				UPDATE calendar_events
+				SET date = ${date.trim()}::date, type = ${resolvedType}, title = ${resolvedTitle},
+				    notes = ${resolvedNotes}, location = ${resolvedLocation}, session_id = ${session.id}
+				WHERE id = ${linkedEventId}
+			`
+		} else {
+			// Toute session apparaît automatiquement dans l'agenda, quel que soit son type
+			await tx`
+				INSERT INTO calendar_events (group_id, user_id, date, type, author, title, notes, location, session_id)
+				VALUES (
+					${locals.user!.current_group_id},
+					${locals.user!.id},
+					${date.trim()}::date,
+					${resolvedType},
+					${locals.user!.display_name},
+					${resolvedTitle},
+					${resolvedNotes},
+					${resolvedLocation},
+					${session.id}
+				)
+			`
+		}
 
 		return session
 	})

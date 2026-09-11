@@ -205,6 +205,17 @@
 	function fmtDate(d: string) {
 		return new Date(`${d}T00:00:00`).toLocaleDateString('fr-FR')
 	}
+
+	function sessionCreateUrl(event: CalendarEventRow) {
+		const params = new URLSearchParams({
+			link_event_id: String(event.id),
+			date: event.date,
+			type: event.type,
+		})
+		if (event.title) params.set('title', event.title)
+		if (event.location) params.set('location', event.location)
+		return `/sessions?${params.toString()}`
+	}
 </script>
 
 <svelte:head>
@@ -277,6 +288,10 @@
 									{#if event.session_id && event.session_date}
 										<a href="/sessions/{event.session_id}" class="panel-event-session">
 											Session du {fmtDate(event.session_date)}{event.session_location ? ` — ${event.session_location}` : ''}
+										</a>
+									{:else}
+										<a href={sessionCreateUrl(event)} class="panel-event-session panel-event-create">
+											Créer la session →
 										</a>
 									{/if}
 									{#if event.location}
