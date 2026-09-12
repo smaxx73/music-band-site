@@ -75,7 +75,8 @@ type Recording = {
 - Stockés dans `/data/audio/{recording_id}.mp3`
 - Convertis en mp3 128kbps à l'upload via ffmpeg
 - Caddy les sert depuis `/audio/` en production ; Node ne les sert qu'en développement
-- `BODY_SIZE_LIMIT` configuré dans `svelte.config.js` pour les gros uploads
+- `BODY_SIZE_LIMIT` configuré dans `docker-compose.yml` (200M), aligné sur `MAX_UPLOAD_SIZE`
+  de `src/lib/server/upload-stream.ts` — les deux doivent bouger ensemble
 - Ne jamais les charger entièrement en mémoire Node
 - Un fichier déposé mais pas encore validé (import à découper) reste **hors** `AUDIO_DIR` :
   Caddy sert ce dossier sans authentification. Voir `src/lib/server/imports.ts`

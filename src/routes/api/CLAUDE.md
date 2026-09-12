@@ -23,6 +23,7 @@ api/imports/+server.ts
 api/imports/[id]/+server.ts
 api/imports/[id]/audio/+server.ts
 api/imports/[id]/split/+server.ts
+api/imports/[id]/redo/+server.ts
 api/sessions/+server.ts
 api/sessions/[id]/+server.ts
 api/sessions/[id]/reorder/+server.ts
@@ -72,11 +73,16 @@ au groupe, et l'import d'un autre répond `404`. Rien n'y est publié, personne 
 à le voir. Passer par `src/lib/server/imports.ts`, jamais par un SQL direct.
 `POST /api/imports` (multipart, champs `audio` + `session_id`) dépose le fichier : l'original
 est conservé tel quel et un proxy léger est fabriqué pour le travail ;
-`GET /api/imports/[id]` relance la détection des blancs (`?threshold_db=&min_silence_s=&min_segment_s=`,
-bornées côté serveur par `normalizeParams`) ; `GET /api/imports/[id]/audio` sert le **proxy**
+`GET /api/imports/[id]` relance la détection des blancs
+(`?threshold_db=&min_silence_s=&min_segment_s=&pad_s=`, bornés côté serveur par
+`normalizeParams`, qui retombe sur les défauts pour tout paramètre absent) ; `GET /api/imports/[id]/audio` sert le **proxy**
 pour la pré-écoute, toujours par Node ; `POST /api/imports/[id]/split`
 (`{ session_id, segments: [{ start_s, end_s, song_id }] }`) taille les extraits dans
-l'**original**, crée les prises et consomme l'import ; `DELETE /api/imports/[id]` l'abandonne. Un import déjà découpé répond `409`.
+l'**original**, crée les prises et consomme l'import **sans détruire l'original** ; `POST /api/imports/[id]/redo` rouvre une découpe
+validée tant que l'original est en rétention (7 jours) — les prises déjà créées ne sont pas
+touchées ; `DELETE /api/imports/[id]` l'abandonne et purge tout, y compris après validation.
+Une découpe déjà validée répond `409` à `/split` et `404` aux routes d'analyse tant qu'elle
+n'a pas été reprise.
 
 Les notifications font exception au scope habituel : elles appartiennent à un destinataire.
 Le filtre `user_id = locals.user.id` **est** la vérification de droit — personne, admin compris,

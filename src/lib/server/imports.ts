@@ -33,14 +33,22 @@ import {
  */
 const IMPORTS_DIR = join(tmpdir(), 'band-imports')
 
-/** Au-delà, un import est considéré abandonné et balayé avec son fichier. */
-const STALE_AFTER_MS = 24 * 60 * 60 * 1000
+/**
+ * Durée de vie d'un import, découpe validée ou non.
+ *
+ * Une découpe validée ne détruit pas l'original : il reste une semaine, ce qui laisse le
+ * temps de s'apercevoir à la répétition suivante qu'un segment en contenait deux et de
+ * refaire la découpe sans renvoyer le fichier. Une seule règle pour tous les imports —
+ * un abandon explicite, lui, supprime tout de suite.
+ */
+const RETENTION_MS = 7 * 24 * 60 * 60 * 1000
 
 /**
- * Marge rendue à chaque segment de part et d'autre : `silencedetect` coupe au seuil,
- * ce qui mange l'attaque d'une note et la fin d'une résonance.
+ * Les fichiers sans ligne en base sont des restes (conteneur redémarré en plein dépôt).
+ * Fenêtre volontairement plus longue que la rétention : une ligne vivante garde toujours
+ * ses fichiers, c'est la suppression de la ligne qui emporte les octets.
  */
-const EDGE_PAD_S = 0.25
+const ORPHAN_AFTER_MS = RETENTION_MS + 24 * 60 * 60 * 1000
 
 /** Nombre de points de la forme d'onde de survol affichée sur l'écran de découpe. */
 const OVERVIEW_POINTS = 600
@@ -81,7 +89,8 @@ export function normalizeParams(raw: Partial<Record<keyof SplitParams, unknown>>
 	return {
 		threshold_db: Math.round(clamp('threshold_db')),
 		min_silence_s: Math.round(clamp('min_silence_s') * 10) / 10,
-		min_segment_s: Math.round(clamp('min_segment_s'))
+		min_segment_s: Math.round(clamp('min_segment_s')),
+		pad_s: Math.round(clamp('pad_s') * 100) / 100
 	}
 }
 
@@ -92,27 +101,37 @@ export function normalizeParams(raw: Partial<Record<keyof SplitParams, unknown>>
 export function segmentsFromSilences(
 	silences: Silence[],
 	duration: number,
-	minSegmentS: number
+	minSegmentS: number,
+	padS: number
 ): AudioSegment[] {
 	const segments: AudioSegment[] = []
 	let cursor = 0
+	let padBefore = 0
 
-	const push = (start: number, end: number) => {
-		const from = Math.max(0, start - EDGE_PAD_S)
-		const to = Math.min(duration, end + EDGE_PAD_S)
+	const push = (start: number, end: number, padAfter: number) => {
+		const from = Math.max(0, start - padBefore)
+		const to = Math.min(duration, end + padAfter)
 		if (to - from >= minSegmentS && to > from) {
 			segments.push({ start_s: round(from), end_s: round(to) })
 		}
 	}
 
 	for (const silence of silences) {
-		if (silence.start > cursor) push(cursor, silence.start)
+		const gap = (silence.end ?? duration) - silence.start
+		// Jamais plus de la moitié du blanc de chaque côté : deux segments voisins ne
+		// peuvent pas se recouvrir, sans quoi un même passage finirait dans deux prises.
+		// Passé cette limite, la marge revient exactement à couper au centre du blanc.
+		const pad = Math.min(padS, gap / 2)
+
+		if (silence.start > cursor) push(cursor, silence.start, pad)
 		// Un silence non refermé court jusqu'à la fin du fichier : plus rien après lui.
 		if (silence.end === null) return segments
 		cursor = Math.max(cursor, silence.end)
+		padBefore = pad
 	}
 
-	if (cursor < duration) push(cursor, duration)
+	// Fin de fichier : aucun blanc à emprunter au-delà.
+	if (cursor < duration) push(cursor, duration, 0)
 	return segments
 }
 
@@ -155,13 +174,42 @@ export async function loadImport(
 	groupId: number | null,
 	id: string
 ): Promise<AudioImport | null> {
+	const row = await loadAnyImport(userId, groupId, id)
+	// Une découpe déjà validée n'est plus un chantier ouvert : elle ne se ré-analyse et
+	// ne se redécoupe qu'après avoir été explicitement reprise (`releaseImport`).
+	return row && row.consumed_at === null ? row : null
+}
+
+/** Comme `loadImport`, mais voit aussi les découpes déjà validées encore en rétention. */
+export async function loadAnyImport(
+	userId: number,
+	groupId: number | null,
+	id: string
+): Promise<AudioImport | null> {
 	if (!groupId || !isUuid(id)) return null
 	const [row] = await sql<AudioImport[]>`
-		SELECT id, session_id, file_name, source_mime, duration_s, created_at
+		SELECT id, session_id, file_name, source_mime, duration_s, consumed_at, created_at
 		FROM audio_imports
-		WHERE id = ${id} AND user_id = ${userId} AND group_id = ${groupId} AND consumed_at IS NULL
+		WHERE id = ${id} AND user_id = ${userId} AND group_id = ${groupId}
 	`
 	return row ?? null
+}
+
+/**
+ * Les fichiers encore repris de l'utilisateur, proposés sur `/upload`. C'est la porte
+ * d'entrée du rattrapage : sans elle, garder l'original une semaine ne servirait à rien.
+ */
+export async function listRecentImports(
+	userId: number,
+	groupId: number | null
+): Promise<AudioImport[]> {
+	if (!groupId) return []
+	return sql<AudioImport[]>`
+		SELECT id, session_id, file_name, source_mime, duration_s, consumed_at, created_at
+		FROM audio_imports
+		WHERE user_id = ${userId} AND group_id = ${groupId}
+		ORDER BY created_at DESC
+	`
 }
 
 export function isUuid(value: string): boolean {
@@ -182,6 +230,11 @@ export async function claimImport(userId: number, groupId: number, id: string): 
 	return Boolean(row)
 }
 
+/**
+ * Rouvre un import : découpe échouée à mi-chemin, ou reprise volontaire d'une découpe
+ * validée dont le résultat ne convient pas. Les prises déjà créées ne sont pas touchées —
+ * l'utilisateur supprime celles qu'il ne garde pas, on ne défait rien dans son dos.
+ */
 export async function releaseImport(id: string): Promise<void> {
 	await sql`UPDATE audio_imports SET consumed_at = NULL WHERE id = ${id}`.catch(() => {})
 }
@@ -215,7 +268,7 @@ export async function analyzeImport(id: string, params: SplitParams): Promise<Im
 	return {
 		params,
 		duration_s: round(duration),
-		segments: segmentsFromSilences(silences, duration, params.min_segment_s)
+		segments: segmentsFromSilences(silences, duration, params.min_segment_s, params.pad_s)
 	}
 }
 
@@ -242,7 +295,7 @@ export async function importPeaks(id: string): Promise<number[]> {
  */
 export async function sweepStaleImports(): Promise<void> {
 	try {
-		const cutoff = new Date(Date.now() - STALE_AFTER_MS)
+		const cutoff = new Date(Date.now() - RETENTION_MS)
 		const stale = await sql<{ id: string }[]>`
 			DELETE FROM audio_imports WHERE created_at < ${cutoff} RETURNING id
 		`
@@ -257,7 +310,7 @@ export async function sweepStaleImports(): Promise<void> {
 		for (const entry of entries) {
 			const full = join(IMPORTS_DIR, entry)
 			const info = await stat(full).catch(() => null)
-			if (info && Date.now() - info.mtimeMs > STALE_AFTER_MS) {
+			if (info && Date.now() - info.mtimeMs > ORPHAN_AFTER_MS) {
 				await rm(full, { force: true }).catch(() => {})
 			}
 		}

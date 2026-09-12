@@ -131,4 +131,8 @@ dans docs/features.md.
 - Tests automatisés
 - Autres outils d'amélioration audio (normalisation, fondus, réduction de bruit) : seule
   la découpe sur les blancs existe — voir docs/features.md
+- Score de confiance par coupure, et seuil de silence déduit du bruit de fond : différés
+  volontairement, ils se règlent sur des fichiers réels et non a priori
+- Waveform zoomable avec marqueurs déplaçables : la retouche des bornes se fait au clavier
+  et au bouton (±0,5 s / ±5 s, couper, fusionner)
 - Recherche full-text

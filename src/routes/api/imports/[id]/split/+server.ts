@@ -6,12 +6,9 @@ import { tmpdir } from 'os'
 import sql from '$lib/server/db'
 import { extractSegment, getDuration } from '$lib/server/ffmpeg'
 import { audioPath, ensureAudioDir, hashFile } from '$lib/server/storage'
-import { claimImport, discardImport, loadImport, releaseImport, sourcePath } from '$lib/server/imports'
+import { claimImport, loadImport, releaseImport, sourcePath } from '$lib/server/imports'
 import { notifyGroup } from '$lib/server/notifications'
-import type { Recording } from '$lib/types'
-
-/** Un segment plus court n'est pas une prise : la découpe est refusée. */
-const MIN_SLICE_S = 1
+import { MIN_SEGMENT_LENGTH_S, type Recording } from '$lib/types'
 
 type SegmentInput = { start_s: number; end_s: number; song_id: number }
 
@@ -59,7 +56,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		const end = Number((raw as SegmentInput)?.end_s)
 		const songId = Number((raw as SegmentInput)?.song_id)
 
-		if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end - start < MIN_SLICE_S) {
+		if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end - start < MIN_SEGMENT_LENGTH_S) {
 			return json({ error: 'Bornes de segment invalides.' }, { status: 400 })
 		}
 		if (audioImport.duration_s !== null && start >= audioImport.duration_s) {
@@ -141,9 +138,9 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			recording.file_path = `${recording.id}.mp3`
 		}
 
-		// 4. L'import a fait son office : ligne et octets s'en vont. Hors du chemin
-		//    d'annulation — les prises sont bonnes, un reste de transit se balaye seul.
-		await discardImport(audioImport.id).catch((err) => console.error('[imports] purge', err))
+		// 4. L'import reste : `claimImport` l'a marqué consommé, mais l'original vit encore
+		//    une semaine. S'apercevoir à la répétition suivante qu'un segment en contenait
+		//    deux ne doit pas obliger à renvoyer le fichier — voir `releaseImport`.
 
 		for (const recording of created) {
 			await notifyGroup({

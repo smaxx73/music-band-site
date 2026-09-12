@@ -304,19 +304,33 @@ export type SplitParams = {
 	min_silence_s: number
 	/** En dessous, un passage sonore est du bruit de salle, pas une prise. */
 	min_segment_s: number
+	/**
+	 * Marge rendue à chaque segment de part et d'autre. `silencedetect` coupe au seuil,
+	 * or une fin de morceau passe sous le seuil bien avant d'être inaudible — cymbale
+	 * qui traîne, réverb. Sans cette marge, la résonance est tranchée net.
+	 */
+	pad_s: number
 }
 
 export const SPLIT_DEFAULTS: SplitParams = {
 	threshold_db: -40,
 	min_silence_s: 2,
-	min_segment_s: 10
+	min_segment_s: 10,
+	pad_s: 0.25
 }
 
 export const SPLIT_BOUNDS: Record<keyof SplitParams, { min: number; max: number; step: number }> = {
 	threshold_db: { min: -70, max: -15, step: 1 },
 	min_silence_s: { min: 0.3, max: 15, step: 0.1 },
-	min_segment_s: { min: 0, max: 300, step: 5 }
+	min_segment_s: { min: 0, max: 300, step: 5 },
+	pad_s: { min: 0, max: 5, step: 0.05 }
 }
+
+/**
+ * Longueur minimale d'un segment, en dessous de laquelle ce n'est plus une prise.
+ * Partagée : l'écran s'en sert pour borner un ajustement à la main, l'API pour refuser.
+ */
+export const MIN_SEGMENT_LENGTH_S = 1
 
 /** Passage sonore repéré entre deux silences, en secondes depuis le début du fichier. */
 export type AudioSegment = { start_s: number; end_s: number }
@@ -333,5 +347,7 @@ export type AudioImport = {
 	/** Type de l'original conservé, tel que déposé. */
 	source_mime: string | null
 	duration_s: number | null
+	/** Non nul = la découpe a été validée. L'original reste repris pendant la rétention. */
+	consumed_at: Date | null
 	created_at: Date
 }

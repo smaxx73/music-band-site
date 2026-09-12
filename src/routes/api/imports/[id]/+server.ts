@@ -4,6 +4,7 @@ import {
 	analyzeImport,
 	discardImport,
 	importPeaks,
+	loadAnyImport,
 	loadImport,
 	normalizeParams
 } from '$lib/server/imports'
@@ -37,12 +38,15 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 	}
 }
 
-/** Abandon : la ligne et les octets partent ensemble. */
+/**
+ * Abandon : la ligne et les octets partent ensemble, sans attendre la rétention.
+ * Vaut aussi pour une découpe déjà validée — purger son original tôt est un droit.
+ */
 export const DELETE: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
 	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
 
-	const audioImport = await loadImport(locals.user.id, locals.user.current_group_id, params.id)
+	const audioImport = await loadAnyImport(locals.user.id, locals.user.current_group_id, params.id)
 	if (!audioImport) return json({ error: 'Import introuvable.' }, { status: 404 })
 
 	await discardImport(audioImport.id)

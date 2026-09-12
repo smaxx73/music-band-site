@@ -9,7 +9,17 @@
 	type SessionRow = { id: number; date: string; location: string | null }
 	type SongRow = { id: number; title: string; lyrics: string | null; music_notes: string | null }
 
+	// Les dates arrivent en objets `Date` : SvelteKit les préserve à la sérialisation.
+	type ImportRow = {
+		id: string
+		file_name: string
+		duration_s: number | null
+		consumed_at: Date | null
+		created_at: Date
+	}
+
 	const sessions = $derived(data.sessions as unknown as SessionRow[])
+	const imports = $derived(data.imports as unknown as ImportRow[])
 	const songs = $derived(data.songs as unknown as SongRow[])
 	const selectedSongData = $derived(songs.find((song) => String(song.id) === selectedSong) ?? null)
 
@@ -27,6 +37,7 @@
 	let multiTake = $state(false)
 
 	let uploading = $state(false)
+	let resuming = $state<string | null>(null)
 	let progress = $state(0)
 	let successId = $state<number | null>(null)
 	let successSessionId = $state<number | null>(null)
@@ -77,6 +88,37 @@
 		} finally {
 			uploading = false
 		}
+	}
+
+	/**
+	 * Reprend un fichier encore en transit. Une découpe déjà validée doit d'abord être
+	 * rouverte côté serveur ; les prises qu'elle a produites restent en place.
+	 */
+	async function resumeImport(row: ImportRow) {
+		if (resuming) return
+		error = null
+		resuming = row.id
+
+		try {
+			if (row.consumed_at) {
+				const res = await fetch(`/api/imports/${row.id}/redo`, { method: 'POST' })
+				if (!res.ok) {
+					const payload = await res.json().catch(() => ({}))
+					error = payload.error ?? 'Reprise impossible.'
+					return
+				}
+			}
+			await goto(`/upload/decoupe/${row.id}`)
+		} finally {
+			resuming = null
+		}
+	}
+
+	function formatLength(seconds: number | null): string {
+		if (seconds === null) return ''
+		const m = Math.floor(seconds / 60)
+		const s = Math.round(seconds % 60)
+		return ` · ${m}:${String(s).padStart(2, '0')}`
 	}
 
 	/** Session existante, ou création à la volée. `null` = l'erreur est déjà affichée. */
@@ -336,6 +378,44 @@
 			{/if}
 		</button>
 	</form>
+
+	<!-- Fichiers longs encore conservés : reprendre une découpe sans renvoyer l'original -->
+	{#if imports.length > 0}
+		<section class="imports">
+			<h2>Fichiers à découper encore disponibles</h2>
+			<p class="hint">
+				L'original est conservé une semaine après la découpe : si un segment en
+				contenait deux, la reprise évite de renvoyer le fichier.
+			</p>
+			<ul>
+				{#each imports as row}
+					<li>
+						<span class="import-name">
+							{row.file_name}
+							<span class="hint">
+								{formatDate(row.created_at)}{formatLength(row.duration_s)}
+								· {row.consumed_at ? 'découpe validée' : 'découpe en attente'}
+							</span>
+						</span>
+						<button
+							type="button"
+							class="btn btn-secondary btn-sm"
+							onclick={() => resumeImport(row)}
+							disabled={resuming !== null || uploading}
+						>
+							{#if resuming === row.id}
+								Ouverture…
+							{:else if row.consumed_at}
+								Refaire la découpe
+							{:else}
+								Reprendre
+							{/if}
+						</button>
+					</li>
+				{/each}
+			</ul>
+		</section>
+	{/if}
 </main>
 
 <style>
@@ -410,6 +490,45 @@
 		background: var(--color-primary);
 		transition: width 0.2s;
 	}
+
+	.imports {
+		margin-top: 2rem;
+		border-top: 1px solid var(--color-border-light);
+		padding-top: 1rem;
+	}
+
+	.imports h2 {
+		font-size: var(--text-sm);
+		text-transform: uppercase;
+		color: var(--color-text-secondary);
+		margin: 0 0 0.25rem;
+	}
+
+	.imports ul {
+		list-style: none;
+		margin: 0.75rem 0 0;
+		padding: 0;
+	}
+
+	.imports li {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+		padding: 0.45rem 0;
+		border-bottom: 1px solid var(--color-border-light);
+	}
+
+	.imports li:last-child { border-bottom: 0; }
+
+	.import-name {
+		display: flex;
+		flex-direction: column;
+		font-size: var(--text-sm);
+		min-width: 0;
+	}
+
+	.import-name > .hint { margin: 0; }
 
 	.check-label {
 		display: flex;

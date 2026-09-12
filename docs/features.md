@@ -40,13 +40,27 @@ Premier des outils d'amélioration audio branchés à la suite de l'upload.
 - Détection des blancs par `silencedetect` (`src/lib/server/ffmpeg.ts`). Le complémentaire
   des silences, ce sont les prises. Chaque segment retrouve 0,25 s de part et d'autre :
   le seuil mange sinon l'attaque d'une note et la fin d'une résonance
-- Réglages par défaut : silence ≥ 2 s sous −40 dB, prise ≥ 10 s. Trois curseurs permettent
-  de **relancer l'analyse** sans renvoyer le fichier — il est déjà sur le serveur.
-  Relancer remet à zéro les morceaux choisis, l'écran le dit
+- Réglages par défaut : silence ≥ 2 s sous −40 dB, prise ≥ 10 s, marge 0,25 s. Quatre
+  curseurs permettent de **relancer l'analyse** sans renvoyer le fichier — il est déjà sur
+  le serveur. Relancer remet à zéro les morceaux choisis et les retouches, l'écran le dit
+- La **marge conservée** est bornée à la moitié du blanc de chaque côté : deux segments
+  voisins ne peuvent donc jamais se recouvrir. Au-delà de cette limite, la marge revient
+  exactement à couper au centre du blanc
 - L'écran affiche la forme d'onde du fichier entier avec les segments en surimpression,
   et pré-écoute chaque segment depuis un seul élément `<audio>` (déplacement, pas découpe)
 - Chaque segment retenu reçoit **son propre morceau** ; les autres sont écartés (bavardage,
   fausse note, bruit de salle). Un segment retenu sans morceau bloque la validation
+- **Préécoute ciblée** : cliquer une borne joue 5 s avant et 5 s après, ce qui valide une
+  coupure sans réécouter le morceau. Un seul élément `<audio>` sur le proxy — on s'y
+  déplace, on ne demande pas d'extrait au serveur
+- **Retouche à la main** (bouton « Ajuster ») : déplacer une borne de ±0,5 s ou ±5 s,
+  **couper un segment en deux** à la position de lecture, **fusionner avec le suivant**.
+  Une borne ne peut pas mordre sur le segment voisin ni descendre sous 1 s de longueur ;
+  tout l'espace du blanc, lui, est disponible. Après une coupe manuelle, la moitié droite
+  repart sans morceau : c'est le choix que l'utilisateur vient de dire vouloir faire
+- Pas de waveform zoomable ni de marqueurs déplaçables à la souris : la retouche numérique
+  couvre le même besoin sans dépendre de la résolution de la forme d'onde, et fonctionne
+  au doigt sur téléphone
 - À la validation : un extrait par segment, taillé **dans l'original** et encodé aux
   réglages de stockage de l'application (mp3 128 kbps) — un seul encodage sur tout le
   chemin d'une prise. Puis création dans **une seule transaction** : les segments d'un
@@ -57,8 +71,20 @@ Premier des outils d'amélioration audio branchés à la suite de l'upload.
 - L'import est **réclamé** (`consumed_at`) avant tout travail : un double envoi ne crée pas
   deux séries de prises. Un import déjà découpé répond `409`
 - Une notification par prise créée, comme pour un upload simple
-- Abandon explicite depuis l'écran ; sinon les imports de plus de 24 h sont balayés avec
-  leurs fichiers au dépôt suivant — pas de tâche planifiée pour un volume aussi faible
+
+### Reprise d'une découpe
+
+- **Une découpe validée ne détruit pas l'original** : il reste **7 jours**. S'apercevoir à
+  la répétition suivante qu'un segment en contenait deux ne doit pas obliger à renvoyer un
+  fichier de 200 Mo
+- `/upload` liste les fichiers encore disponibles : « Reprendre » pour une découpe en
+  attente, « Refaire la découpe » pour une déjà validée (`POST /api/imports/[id]/redo`,
+  qui remet `consumed_at` à NULL)
+- Les prises déjà créées **ne sont pas supprimées** : une partie est en général bonne, et
+  on ne défait rien dans le dos de l'utilisateur. À lui d'écarter celles qu'il ne garde pas
+- Abandon explicite depuis l'écran de découpe : ligne et octets partent tout de suite.
+  Sinon les imports de plus de 7 jours sont balayés au dépôt suivant — une seule règle,
+  découpe validée ou non, et pas de tâche planifiée pour un volume aussi faible
 
 ## Liste des sessions (`/sessions`)
 
