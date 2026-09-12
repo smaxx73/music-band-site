@@ -4,6 +4,7 @@
 	import { page } from '$app/state'
 	import { formatDateOnly, toDateOnly } from '$lib/date'
 	import Modal from '$lib/components/Modal.svelte'
+	import MembersInput from '$lib/components/MembersInput.svelte'
 
 	let { data }: { data: PageData } = $props()
 
@@ -28,6 +29,7 @@
 	}
 
 	const sessions = $derived(data.sessions as unknown as SessionRow[])
+	const groupMembers = $derived(data.groupMembers as string[])
 
 	// ─── Filtrage / regroupement (côté client : la liste complète est chargée) ───
 	let typeFilter = $state<string>('all')
@@ -65,7 +67,9 @@
 	let newType = $state<SessionType>('repetition')
 	let newTitle = $state('')
 	let newLocation = $state('')
-	let newMembers = $state('')
+	// Par défaut, tout le groupe est présent : c'est le cas courant, et on retire
+	// les absents d'un clic plutôt que de retaper les présents à chaque session.
+	let newMembers = $state<string[]>([])
 	let newNotes = $state('')
 	let newLinkEventId = $state<number | null>(null)
 
@@ -74,7 +78,7 @@
 		newType = 'repetition'
 		newTitle = ''
 		newLocation = ''
-		newMembers = ''
+		newMembers = [...groupMembers]
 		newNotes = ''
 		newLinkEventId = null
 		createError = null
@@ -101,7 +105,7 @@
 			: 'repetition'
 		newTitle = params.get('title') ?? ''
 		newLocation = params.get('location') ?? ''
-		newMembers = ''
+		newMembers = [...groupMembers]
 		newNotes = ''
 		newLinkEventId = parseInt(linkEventId, 10)
 		createError = null
@@ -133,9 +137,6 @@
 					notes: newNotes.trim() || null,
 					link_event_id: newLinkEventId,
 					members: newMembers
-						.split(',')
-						.map((member) => member.trim())
-						.filter(Boolean)
 				})
 			})
 			const json = await res.json()
@@ -282,16 +283,10 @@
 							disabled={creating}
 						/>
 					</label>
-					<label class="form-label">
-						Membres présents <span class="hint">(séparés par des virgules)</span>
-						<input
-							class="form-input"
-							type="text"
-							placeholder="Marc, Julie, Thomas"
-							bind:value={newMembers}
-							disabled={creating}
-						/>
-					</label>
+					<div class="form-label">
+						Membres présents
+						<MembersInput bind:members={newMembers} suggestions={groupMembers} disabled={creating} />
+					</div>
 					<label class="form-label">
 						Notes
 						<textarea class="form-input" rows="3" bind:value={newNotes} disabled={creating}></textarea>

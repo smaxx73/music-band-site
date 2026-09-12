@@ -1,6 +1,7 @@
 import type { PageServerLoad } from './$types'
 import { error, redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
+import { listGroupMemberNames } from '$lib/server/groups'
 
 export const load: PageServerLoad = async ({ locals, params }) => {
 	if (!locals.user) redirect(302, '/login')
@@ -107,8 +108,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		})
 	}
 
+	// Participants proposés à l'édition de la session : les membres du groupe actif.
+	const groupMembers = await listGroupMemberNames(locals.user.current_group_id)
+
 	return {
 		session,
+		groupMembers,
 		groups: Array.from(groupMap.values()),
 		prevSession: prevSession ?? null,
 		nextSession: nextSession ?? null

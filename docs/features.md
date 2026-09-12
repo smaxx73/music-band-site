@@ -101,12 +101,18 @@ Premier des outils d'amélioration audio branchés à la suite de l'upload.
 - Liste des sessions du groupe actif, triées par date décroissante
 - Bouton [+ Nouvelle session] → modale de création (type, date, titre, lieu, membres, notes)
 - La création passe par `POST /api/sessions` et crée l'événement d'agenda lié
+- **Participants** : la modale s'ouvre avec **tous les membres du groupe actif** déjà présents — c'est
+  le cas courant, on retire les absents plutôt que de retaper les présents. Chaque nom est une
+  vignette supprimable d'un clic ; un membre retiré se repropose sous le champ pour être remis
+- Un nom **hors du groupe** (remplaçant, invité) s'ajoute librement au clavier : les participants
+  d'une session sont du texte (`sessions.members`), jamais des comptes
 
 ## Vue session (`/sessions/[id]`)
 
 - Prises groupées par morceau, triées par `take` ASC
 - Chaque morceau : toutes ses prises + qualité + nombre de commentaires
 - Modification possible : date, type, titre, lieu, notes, membres de la session
+  (mêmes vignettes qu'à la création — `src/lib/components/MembersInput.svelte`)
 - Modification possible par prise : qualité libre, notes. La qualité se règle uniquement dans cette vue ; l'historique d'un morceau est en lecture seule.
 - Ajout d'une prise oubliée à une session passée : autorisé
 - Chaque prise affiche le **nom du fichier déposé** (`recordings.source_file_name`), tronqué

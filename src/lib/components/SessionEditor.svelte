@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { formatDateOnly, toDateOnly } from '$lib/date'
+	import MembersInput from '$lib/components/MembersInput.svelte'
 
 	type SessionType = 'repetition' | 'concert' | 'studio' | 'autre'
 
@@ -31,11 +32,14 @@
 
 	let {
 		session,
+		groupMembers = [],
 		saving = false,
 		error = null,
 		onSave = async () => false
 	}: {
 		session: SessionData
+		/** Membres du groupe actif, proposés comme participants. */
+		groupMembers?: string[]
 		saving?: boolean
 		error?: string | null
 		onSave?: (patch: SessionPatch) => Promise<boolean>
@@ -46,7 +50,7 @@
 	let editType = $state<SessionType>('repetition')
 	let editTitle = $state('')
 	let editLocation = $state('')
-	let editMembers = $state('')
+	let editMembers = $state<string[]>([])
 	let editNotes = $state('')
 	let localError = $state<string | null>(null)
 
@@ -64,7 +68,7 @@
 		editType = session.type ?? 'repetition'
 		editTitle = session.title ?? ''
 		editLocation = session.location ?? ''
-		editMembers = (session.members ?? []).join(', ')
+		editMembers = [...(session.members ?? [])]
 		editNotes = session.notes ?? ''
 		localError = null
 		editing = true
@@ -84,17 +88,13 @@
 		}
 
 		localError = null
-		const members = editMembers
-			.split(',')
-			.map((member) => member.trim())
-			.filter(Boolean)
 
 		const saved = await onSave({
 			date: editDate,
 			type: editType,
 			title: editTitle.trim() || null,
 			location: editLocation.trim() || null,
-			members,
+			members: editMembers,
 			notes: editNotes.trim() || null
 		})
 
@@ -141,16 +141,10 @@
 					/>
 				</label>
 			</div>
-			<label class="form-label">
-				Membres présents <span class="hint">(séparés par des virgules)</span>
-				<input
-					class="form-input"
-					type="text"
-					placeholder="Marc, Julie, Thomas"
-					bind:value={editMembers}
-					disabled={saving}
-				/>
-			</label>
+			<div class="form-label">
+				Membres présents
+				<MembersInput bind:members={editMembers} suggestions={groupMembers} disabled={saving} />
+			</div>
 			<label class="form-label">
 				Notes
 				<textarea class="form-input" rows="3" bind:value={editNotes} disabled={saving}></textarea>

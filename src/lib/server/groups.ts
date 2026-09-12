@@ -49,6 +49,21 @@ export async function findActiveUserByNickname(
 	return user ?? null
 }
 
+/**
+ * Noms affichés des membres actifs d'un groupe, pour proposer les participants d'une
+ * session. Lecture seule : tout membre voit déjà cette liste sur /group.
+ */
+export async function listGroupMemberNames(groupId: number): Promise<string[]> {
+	const rows = await sql<{ display_name: string }[]>`
+		SELECT u.display_name
+		FROM user_groups ug
+		JOIN users u ON u.id = ug.user_id
+		WHERE ug.group_id = ${groupId} AND u.active = true
+		ORDER BY u.display_name
+	`
+	return rows.map((row) => row.display_name)
+}
+
 export async function renameGroup(
 	actor: RoleBearer,
 	groupId: number,

@@ -360,6 +360,7 @@
 
 	<SessionEditor
 		session={session}
+		groupMembers={data.groupMembers as string[]}
 		saving={sessionSaving}
 		error={sessionError}
 		onSave={saveSession}

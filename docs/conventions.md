@@ -15,6 +15,7 @@ src/
 │   └── components/
 │       ├── AudioPlayer.svelte     # lecteur WaveSurfer.js
 │       ├── CommentsPanel.svelte   # commentaires d'une prise + formulaire d'ajout (page lecteur)
+│       ├── MembersInput.svelte    # participants d'une session en vignettes (saisie libre)
 │       ├── CommentList.svelte     # liste de commentaires + réactions 👍/👎 (partagée)
 │       ├── RecordingComments.svelte # commentaires d'une prise chargés à la demande (hors lecteur)
 │       ├── NotificationsMenu.svelte # cloche + menu des notifications (barre du haut)
