@@ -8,6 +8,15 @@
 	let changingPassword = $state(false)
 	let passwordFormEl = $state<HTMLFormElement>()
 
+	let editingProfile = $state(false)
+
+	const DISPLAY_NAME_FORMAT_LABELS: Record<string, string> = {
+		nickname: 'Pseudo',
+		first_name: 'Prénom',
+		first_name_last_initial: 'Prénom + initiale du nom',
+		first_name_last_name: 'Prénom + nom'
+	}
+
 	const ROLE_LABELS: Record<string, string> = {
 		user: 'Utilisateur',
 		admin: 'Administrateur',
@@ -39,38 +48,86 @@
 
 	<!-- Informations -->
 	<section class="section">
-		<h2>Informations</h2>
+		<div class="section-header">
+			<h2>Informations</h2>
+			{#if !editingProfile}
+				<button
+					type="button"
+					class="btn-icon"
+					onclick={() => (editingProfile = true)}
+					aria-label="Modifier les informations"
+					title="Modifier les informations"
+				>
+					✏️
+				</button>
+			{/if}
+		</div>
+
 		{#if form?.action === 'updateProfile' && form.error}
 			<p class="message-error">{form.error}</p>
 		{/if}
 		{#if form?.action === 'updateProfile' && form.success}
 			<p class="message-success">Informations mises à jour.</p>
 		{/if}
-		<form method="POST" action="?/updateProfile" class="profile-form">
-			<label class="form-label">
-				Pseudo <span class="required">*</span>
-				<input class="form-input" type="text" name="nickname" required maxlength="50" value={data.user?.nickname ?? ''} autocomplete="username" />
-			</label>
-			<label class="form-label">
-				Prénom
-				<input class="form-input" type="text" name="first_name" maxlength="100" value={data.user?.first_name ?? ''} autocomplete="given-name" />
-			</label>
-			<label class="form-label">
-				Nom
-				<input class="form-input" type="text" name="last_name" maxlength="100" value={data.user?.last_name ?? ''} autocomplete="family-name" />
-			</label>
-			<label class="form-label">
-				Nom affiché sur les pages
-				<select class="form-input" name="display_name_format">
-					<option value="nickname" selected={data.user?.display_name_format === 'nickname'}>Pseudo</option>
-					<option value="first_name" selected={data.user?.display_name_format === 'first_name'}>Prénom</option>
-					<option value="first_name_last_initial" selected={data.user?.display_name_format === 'first_name_last_initial'}>Prénom + initiale du nom</option>
-					<option value="first_name_last_name" selected={data.user?.display_name_format === 'first_name_last_name'}>Prénom + nom</option>
-				</select>
-				<span class="field-hint">Si les informations nécessaires ne sont pas renseignées, le pseudo reste affiché.</span>
-			</label>
-			<button type="submit" class="btn btn-primary">Enregistrer les informations</button>
-		</form>
+
+		{#if !editingProfile}
+			<dl class="info-list">
+				<dt>Pseudo</dt>
+				<dd>{data.user?.nickname}</dd>
+
+				<dt>Prénom</dt>
+				<dd>{data.user?.first_name || '—'}</dd>
+
+				<dt>Nom</dt>
+				<dd>{data.user?.last_name || '—'}</dd>
+
+				<dt>Nom affiché sur les pages</dt>
+				<dd>{DISPLAY_NAME_FORMAT_LABELS[data.user?.display_name_format ?? ''] ?? data.user?.display_name_format}</dd>
+			</dl>
+		{:else}
+			<form
+				method="POST"
+				action="?/updateProfile"
+				class="profile-form"
+				use:enhance={() => {
+					return async ({ result, update }) => {
+						await update()
+						if (result.type === 'success') {
+							editingProfile = false
+						}
+					}
+				}}
+			>
+				<label class="form-label">
+					Pseudo <span class="required">*</span>
+					<input class="form-input" type="text" name="nickname" required maxlength="50" value={data.user?.nickname ?? ''} autocomplete="username" />
+				</label>
+				<label class="form-label">
+					Prénom
+					<input class="form-input" type="text" name="first_name" maxlength="100" value={data.user?.first_name ?? ''} autocomplete="given-name" />
+				</label>
+				<label class="form-label">
+					Nom
+					<input class="form-input" type="text" name="last_name" maxlength="100" value={data.user?.last_name ?? ''} autocomplete="family-name" />
+				</label>
+				<label class="form-label">
+					Nom affiché sur les pages
+					<select class="form-input" name="display_name_format">
+						<option value="nickname" selected={data.user?.display_name_format === 'nickname'}>Pseudo</option>
+						<option value="first_name" selected={data.user?.display_name_format === 'first_name'}>Prénom</option>
+						<option value="first_name_last_initial" selected={data.user?.display_name_format === 'first_name_last_initial'}>Prénom + initiale du nom</option>
+						<option value="first_name_last_name" selected={data.user?.display_name_format === 'first_name_last_name'}>Prénom + nom</option>
+					</select>
+					<span class="field-hint">Si les informations nécessaires ne sont pas renseignées, le pseudo reste affiché.</span>
+				</label>
+				<div class="form-actions">
+					<button type="submit" class="btn btn-primary">Enregistrer les informations</button>
+					<button type="button" class="btn btn-ghost" onclick={() => (editingProfile = false)}>
+						Annuler
+					</button>
+				</div>
+			</form>
+		{/if}
 
 		<dl class="info-list account-info">
 			<dt>Nom affiché actuel</dt>
@@ -206,6 +263,32 @@
 	}
 
 	.section { margin-bottom: 2.5rem; }
+
+	.section-header {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem;
+		border-bottom: 1px solid #ebebeb;
+		padding-bottom: 0.4rem;
+		margin: 0 0 1rem;
+	}
+	.section-header h2 {
+		margin: 0;
+		padding-bottom: 0;
+		border-bottom: none;
+	}
+
+	.btn-icon {
+		background: none;
+		border: none;
+		cursor: pointer;
+		font-size: 1rem;
+		line-height: 1;
+		padding: 0.2rem 0.35rem;
+		border-radius: 4px;
+	}
+	.btn-icon:hover { background: #f0f0f0; }
 
 	.info-list {
 		display: grid;
