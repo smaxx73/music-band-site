@@ -423,10 +423,13 @@
 
 	.notif-dot:hover { opacity: 1; }
 
+	/* La cloche vit dans la barre d'actions du bas sur mobile (voir +layout.svelte) :
+	   le panneau s'ouvre vers le haut, juste au-dessus. */
 	@media (max-width: 640px) {
 		.notif-panel {
 			position: fixed;
-			top: 44px;
+			top: auto;
+			bottom: calc(var(--footer-actions-h) + 6px);
 			right: 0.4rem;
 			width: auto;
 			left: 0.4rem;

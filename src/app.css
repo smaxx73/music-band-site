@@ -64,6 +64,11 @@
   --radius-xl: 8px;
   --shadow-modal: 0 8px 30px rgba(0, 0, 0, 0.15);
   --disabled-opacity: 0.45;
+
+  /* Barre d'actions mobile (upload/notifications/profil), fixée en bas sous 640px —
+     alignée sur la hauteur du header pour rester symétrique, et partagée avec le
+     mini-lecteur pour empiler les deux sans se chevaucher. */
+  --footer-actions-h: 44px;
 }
 
 /* ─── Base ───────────────────────────────────────────── */
@@ -521,7 +526,10 @@ html, body {
 }
 
 /* ─── Mini-lecteur ───────────────────────────────────── */
-/* Sur mobile la barre est fixée en bas : on dégage la fin du contenu. */
+/* Sur mobile, la barre d'actions (upload/notifications/profil) est fixée en bas :
+   on dégage la fin du contenu d'autant. Le mini-lecteur, quand présent, s'empile
+   au-dessus d'elle (voir MiniPlayer.svelte) et prend une marge supplémentaire. */
 @media (max-width: 640px) {
-  body.has-mini-player .app-content { padding-bottom: 64px; }
+  .app-content { padding-bottom: var(--footer-actions-h); }
+  body.has-mini-player .app-content { padding-bottom: calc(var(--footer-actions-h) + 64px); }
 }

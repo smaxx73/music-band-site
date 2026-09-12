@@ -199,13 +199,14 @@
 		background: #fff;
 	}
 
-	/* Le shell ne scrolle plus : la barre est fixée au bas de l'écran */
+	/* Le shell ne scrolle plus : la barre est fixée au bas de l'écran, juste
+	   au-dessus de la barre d'actions (upload/notifications/profil). */
 	@media (max-width: 640px) {
 		.mini-player {
 			position: fixed;
 			left: 0;
 			right: 0;
-			bottom: 0;
+			bottom: var(--footer-actions-h);
 			padding: 0.45rem 0.7rem;
 		}
 	}

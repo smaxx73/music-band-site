@@ -103,16 +103,21 @@
 			{:else if currentGroup}
 				<a href="/group" class="group-chip">{currentGroup.name}</a>
 			{/if}
-			<a href="/upload" class="top-upload" title="Uploader une prise" aria-label="Uploader une prise">+</a>
-			{#if data.user.current_group_id}
-				<NotificationsMenu initialUnread={data.unread_notifications ?? 0} />
-			{/if}
-			<a
-				href="/profile"
-				class="user-avatar"
-				class:active={isActive('/profile')}
-				title="{data.user.display_name} — mon profil"
-			>{userInitials}</a>
+			<!-- Sur mobile, ce bloc quitte le header pour devenir une barre d'actions fixée
+			     en bas : le header seul n'a pas la place pour logo + groupe + ces trois
+			     boutons sans déborder. -->
+			<div class="top-actions">
+				<a href="/upload" class="top-upload" title="Uploader une prise" aria-label="Uploader une prise">+</a>
+				{#if data.user.current_group_id}
+					<NotificationsMenu initialUnread={data.unread_notifications ?? 0} />
+				{/if}
+				<a
+					href="/profile"
+					class="user-avatar"
+					class:active={isActive('/profile')}
+					title="{data.user.display_name} — mon profil"
+				>{userInitials}</a>
+			</div>
 		</header>
 
 		<div class="app-body">
@@ -312,6 +317,13 @@
 		box-shadow: 0 0 0 2px rgba(224, 123, 58, 0.35);
 	}
 
+	.top-actions {
+		display: flex;
+		align-items: center;
+		gap: 0.9rem;
+		flex-shrink: 0;
+	}
+
 	/* ─── Sidebar ────────────────────────────────── */
 	.sidebar-nav {
 		list-style: none;
@@ -492,6 +504,28 @@
 
 		.group-select,
 		.group-chip { max-width: 110px; }
+
+		/* Upload, notifications et profil quittent le header pour une barre d'actions
+		   fixée en bas — le header ne garde que le menu, le logo et le groupe actif.
+		   Réordonné visuellement : profil à gauche, upload au centre, notifications
+		   à droite (l'ordre du DOM, lui, reste celui du header desktop). */
+		.top-actions {
+			position: fixed;
+			left: 0;
+			right: 0;
+			bottom: 0;
+			z-index: 96;
+			height: var(--footer-actions-h);
+			padding: 0 1.2rem;
+			background: var(--color-ink);
+			border-top: 1px solid rgba(255,255,255,0.08);
+			justify-content: space-around;
+			gap: 0;
+		}
+
+		.top-actions .user-avatar { order: 1; }
+		.top-actions .top-upload { order: 2; }
+		.top-actions :global(.notif) { order: 3; }
 
 		.app-body {
 			flex-direction: column;
