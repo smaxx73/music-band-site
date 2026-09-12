@@ -24,7 +24,7 @@ export function commentsWithReactions(recordingId: number, userId: number) {
 		LEFT JOIN comment_reactions cr ON cr.comment_id = c.id
 		WHERE c.recording_id = ${recordingId}
 		GROUP BY c.id
-		ORDER BY c.timestamp_s ASC NULLS LAST, c.created_at ASC
+		ORDER BY c.created_at ASC
 	`
 }
 
