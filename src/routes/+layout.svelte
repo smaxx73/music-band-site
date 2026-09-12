@@ -1,7 +1,6 @@
 <script lang="ts">
 	import '../app.css'
 	import type { LayoutData } from './$types'
-	import favicon from '$lib/assets/favicon.svg'
 	import { page } from '$app/state'
 	import { goto, afterNavigate } from '$app/navigation'
 	import { groupLogoUrl, isAdmin } from '$lib/types'
@@ -61,7 +60,8 @@
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+	<link rel="icon" type="image/svg+xml" href="/brand/bandstash-mark-simple.svg" />
+	<meta name="application-name" content="BandStash" />
 </svelte:head>
 
 <svelte:window
@@ -79,7 +79,10 @@
 				aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
 				aria-expanded={menuOpen}
 			>{menuOpen ? '✕' : '☰'}</button>
-			<a href="/" class="brand">🎸 BandApp</a>
+			<a href="/" class="brand" aria-label="BandStash — accueil">
+				<img src="/brand/bandstash-mark-simple.svg" alt="" class="brand-mark" />
+				<span>BandStash</span>
+			</a>
 			<div class="top-spacer"></div>
 			{#if currentGroup?.logo_version}
 				<a href="/group" class="group-logo-link" title="Infos du groupe">
@@ -222,6 +225,9 @@
 	}
 
 	.brand {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.5rem;
 		font-weight: 700;
 		font-size: 1rem;
 		color: #fff;
@@ -229,6 +235,13 @@
 		white-space: nowrap;
 		flex-shrink: 0;
 		letter-spacing: -0.01em;
+	}
+
+	.brand-mark {
+		width: 30px;
+		height: 30px;
+		object-fit: contain;
+		flex-shrink: 0;
 	}
 
 	.top-spacer { flex: 1; }
@@ -517,6 +530,11 @@
 		.sidebar-link { padding: 10px 10px; }
 
 		.app-content { overflow-y: visible; }
+	}
+
+	@media (max-width: 400px) {
+		.brand { gap: 0; }
+		.brand span { display: none; }
 	}
 
 </style>

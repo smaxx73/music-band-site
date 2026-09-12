@@ -5,11 +5,12 @@
 </script>
 
 <svelte:head>
-	<title>Connexion — Band</title>
+	<title>Connexion — BandStash</title>
 </svelte:head>
 
 <div class="wrapper">
-	<h1>Répétitions du groupe</h1>
+	<img src="/brand/bandstash-logo.png" alt="BandStash" class="login-logo" />
+	<h1>Connexion</h1>
 
 	<form method="POST">
 		{#if form?.error}
@@ -40,8 +41,17 @@
 	}
 
 	h1 {
-		margin-bottom: 2rem;
+		margin: 0 0 2rem;
 		font-size: var(--text-xl);
+	}
+
+	.login-logo {
+		display: block;
+		width: min(220px, 68vw);
+		height: auto;
+		margin-bottom: 1.5rem;
+		border-radius: var(--radius-xl);
+		background: #fff;
 	}
 
 	form {

@@ -1,4 +1,4 @@
-# Band Rehearsal App
+# BandStash
 
 Application web privée pour partager et archiver les enregistrements de répétitions d'un groupe de musique. Accès restreint par compte individuel — deux rôles : **admin** (gestion des morceaux et des utilisateurs) et **utilisateur** (accès complet au contenu).
 
