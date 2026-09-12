@@ -166,6 +166,8 @@ export type Recording = {
 	song_id: number
 	take: number
 	file_path: string
+	/** Nom du fichier tel que déposé. NULL pour les prises antérieures à la migration 023. */
+	source_file_name: string | null
 	duration_s: number | null
 	status: string  // qualité libre : 'À revoir' | 'Moyen' | 'Bon' | 'Référence' | texte court
 	notes: string | null

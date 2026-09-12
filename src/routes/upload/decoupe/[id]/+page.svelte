@@ -111,12 +111,11 @@
 		editingIndex = null
 
 		try {
-			const query = new URLSearchParams({
-				threshold_db: String(params.threshold_db),
-				min_silence_s: String(params.min_silence_s),
-				min_segment_s: String(params.min_segment_s),
-				pad_s: String(params.pad_s)
-			})
+			// Dérivé des réglages eux-mêmes : un curseur ajouté part avec, sans risque
+			// d'être branché à l'écran mais absent de la requête.
+			const query = new URLSearchParams(
+				Object.entries(params).map(([key, value]) => [key, String(value)])
+			)
 			const res = await fetch(`/api/imports/${data.audioImport.id}?${query}`)
 			const payload = await res.json()
 			if (!res.ok) {

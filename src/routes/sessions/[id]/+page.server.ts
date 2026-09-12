@@ -41,7 +41,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const rows = await sql`
 		SELECT
 			r.id, r.take, r.status, r.notes, r.duration_s, COALESCE(MAX(u.display_name), r.uploaded_by) AS uploaded_by,
-			r.uploaded_by_user_id, r.created_at, r.file_path,
+			r.uploaded_by_user_id, r.created_at, r.file_path, r.source_file_name,
 			s.id       AS song_id,
 			s.title    AS song_title,
 			s.composer AS song_composer,
@@ -71,7 +71,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		recordings: {
 			id: number; take: number; status: string; notes: string | null
 			duration_s: number | null; uploaded_by: string; uploaded_by_user_id: number | null
-			comment_count: number; file_path: string
+			comment_count: number; file_path: string; source_file_name: string | null
 		}[]
 	}>()
 
@@ -100,7 +100,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			// Sert à décider côté écran qui peut supprimer la prise (voir canDeleteGroupContent).
 			uploaded_by_user_id: row.uploaded_by_user_id,
 			comment_count: row.comment_count,
-			file_path: row.file_path
+			file_path: row.file_path,
+			// Repli sur le nom disque pour les prises d'avant la migration 023,
+			// qui n'ont jamais eu de nom d'origine enregistré.
+			source_file_name: row.source_file_name
 		})
 	}
 

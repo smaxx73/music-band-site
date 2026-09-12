@@ -22,7 +22,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 
 	const rows = await sql`
 		SELECT
-			r.id, r.take, r.status, r.notes, r.duration_s, COALESCE(MAX(u.display_name), r.uploaded_by) AS uploaded_by, r.created_at, r.file_path,
+			r.id, r.take, r.status, r.notes, r.duration_s, COALESCE(MAX(u.display_name), r.uploaded_by) AS uploaded_by, r.created_at, r.file_path, r.source_file_name,
 			s.id   AS song_id,
 			s.title AS song_title,
 			s.composer AS song_composer,
@@ -61,6 +61,7 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 			uploaded_by: row.uploaded_by,
 			created_at: row.created_at,
 			file_path: row.file_path,
+			source_file_name: row.source_file_name,
 			comment_count: row.comment_count
 		})
 	}

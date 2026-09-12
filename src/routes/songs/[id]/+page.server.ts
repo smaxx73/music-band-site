@@ -18,6 +18,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	const recordings = await sql`
 		SELECT
 			r.id, r.take, r.status, r.notes, r.duration_s, COALESCE(MAX(u.display_name), r.uploaded_by) AS uploaded_by, r.created_at,
+			r.file_path, r.source_file_name,
 			ses.id       AS session_id,
 			ses.date     AS session_date,
 			ses.location AS session_location,

@@ -14,6 +14,7 @@
 	type Recording = {
 		id: number; take: number; status: string; notes: string | null
 		duration_s: number | null; uploaded_by: string; session_id: number; song_id: number
+		file_path: string; source_file_name: string | null
 		song_title: string; song_composer: string | null; song_key: string | null
 		song_lyrics: string | null; song_music_notes: string | null
 		session_date: string; session_location: string | null
@@ -173,6 +174,11 @@
 				{#if recording.session_location} · {recording.session_location}{/if}
 				· {recording.uploaded_by}
 			</div>
+			<!-- `file_path` ("{id}.mp3") ne sert de repli que pour les prises d'avant la
+			     migration 023, déposées quand le nom d'origine n'était pas conservé. -->
+			<div class="meta file-meta" class:fallback={!recording.source_file_name}>
+				🎵 {recording.source_file_name ?? recording.file_path}
+			</div>
 		</div>
 		<div class="header-actions">
 			{#if prevRecording}
@@ -299,6 +305,9 @@
 	}
 
 	.meta { font-size: 0.85rem; color: #666; }
+
+	.file-meta { margin-top: 0.15rem; font-size: var(--text-xs); overflow-wrap: anywhere; }
+	.file-meta.fallback { color: var(--color-text-muted); font-style: italic; }
 
 	/* Lecteur */
 	.player-card {

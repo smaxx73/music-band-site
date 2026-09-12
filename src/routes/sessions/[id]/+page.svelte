@@ -17,9 +17,14 @@
 	type RecordingRow = {
 		id: number; take: number; status: string; notes: string | null
 		duration_s: number | null; uploaded_by: string; uploaded_by_user_id: number | null
-		comment_count: number; file_path: string
+		comment_count: number; file_path: string; source_file_name: string | null
 	}
 	type Group = { song: Song; recordings: RecordingRow[] }
+
+	// `file_path` vaut toujours "{id}.mp3" : unique, mais muet sur la provenance. Il ne
+	// sert de nom affiché que pour les prises d'avant la migration 023, déposées quand
+	// le nom d'origine n'était pas encore conservé.
+	const sourceName = (r: RecordingRow) => r.source_file_name ?? r.file_path
 
 	type SessionData = {
 		id: number; date: string; type: 'repetition' | 'concert' | 'studio' | 'autre'; title: string | null
@@ -398,6 +403,7 @@
 							<th>Notes</th>
 							<th>Commentaires</th>
 							<th>Par</th>
+							<th>Fichier</th>
 							<th></th>
 							{#if editMode}<th></th><th></th>{/if}
 						</tr>
@@ -492,6 +498,15 @@
 									{/if}
 								</td>
 								<td class="muted uploader-cell" data-label="Par">{r.uploaded_by}</td>
+								<td class="file-cell" data-label="Fichier">
+									<span
+										class="file-name"
+										class:fallback={!r.source_file_name}
+										title={r.source_file_name
+											? `Fichier déposé : ${r.source_file_name}`
+											: "Nom d'origine inconnu — prise déposée avant sa conservation"}
+									>{sourceName(r)}</span>
+								</td>
 								<td class="listen-cell">
 									<button
 										class="btn btn-secondary btn-sm"
@@ -532,7 +547,7 @@
 							</tr>
 							{#if openPlayer === r.id || openComments[r.id]}
 								<tr class="comments-row">
-									<td colspan={editMode ? 9 : 7}>
+									<td colspan={editMode ? 10 : 8}>
 										{#if openPlayer === r.id}
 											<InlineRecordingPlayer
 												recordingId={r.id}
@@ -645,6 +660,21 @@
 	.composer { font-weight: 400; color: #777; font-size: 0.9rem; }
 
 	td.take { font-weight: 700; color: var(--color-text-secondary); }
+
+	/* Un nom déposé peut être long (« ZOOM0042_LR_2026-09-12.WAV ») : la colonne le
+	   tronque et le titre le donne en entier, plutôt que d'élargir tout le tableau. */
+	td.file-cell { max-width: 8rem; }
+
+	.file-name {
+		display: block;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: var(--text-xs);
+		color: var(--color-text-secondary);
+	}
+
+	.file-name.fallback { color: var(--color-text-muted); font-style: italic; }
 	td.center { text-align: center; }
 
 	.muted { color: #aaa; font-size: 0.8rem; }
@@ -824,27 +854,30 @@
 			margin-right: 0.25rem;
 		}
 
-		/* Ligne 1 : prise · durée · auteur — puis notes, puis actions */
+		/* Ligne 1 : prise · durée · auteur — puis fichier, notes, puis actions */
 		td.take { order: 1; font-size: var(--text-base); }
 		td.take::before { content: 'Prise '; font-weight: 400; color: var(--color-text-muted); }
 		td.duration-cell { order: 2; font-size: var(--text-sm); color: var(--color-text-secondary); }
 		td.uploader-cell { order: 3; margin-left: auto; }
 
-		td.notes-cell { order: 4; flex: 1 1 100%; max-width: none; }
+		td.file-cell { order: 4; flex: 1 1 100%; max-width: none; }
+		.file-name { display: inline; }
+
+		td.notes-cell { order: 5; flex: 1 1 100%; max-width: none; }
 		.notes-display { padding: 0.3rem 0.4rem; border-color: var(--color-border-light); }
 
-		td.quality-cell { order: 5; }
+		td.quality-cell { order: 6; }
 		.quality-select,
 		.quality-input { width: 8rem; padding: 0.3rem 0.45rem; font-size: 0.78rem; }
 
-		td.comments-cell { order: 6; text-align: left; }
+		td.comments-cell { order: 7; text-align: left; }
 		.comment-count { padding: 0.25rem 0.6rem; }
 
-		td.listen-cell { order: 7; margin-left: auto; }
+		td.listen-cell { order: 8; margin-left: auto; }
 
-		td.reorder-cell { order: 8; flex: 0 0 auto; }
+		td.reorder-cell { order: 9; flex: 0 0 auto; }
 		.btn-reorder { padding: 0.3rem 0.6rem; }
-		td.delete-cell { order: 9; margin-left: auto; }
+		td.delete-cell { order: 10; margin-left: auto; }
 
 		/* Les commentaires dépliés sortent du cadre de la carte */
 		.data-table tr.comments-row {

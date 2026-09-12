@@ -33,6 +33,23 @@ export type ReceivedAudio =
 	  }
 	| { ok: false; status: number; error: string }
 
+/** Longueur au-delà de laquelle un nom déposé n'apporte plus rien à l'affichage. */
+const MAX_SOURCE_NAME_LENGTH = 180
+
+/**
+ * Nettoie le nom de fichier annoncé par le navigateur avant de le garder en base
+ * (`recordings.source_file_name`, `audio_imports.file_name`). C'est une chaîne
+ * arbitraire : certains navigateurs envoient un chemin complet, d'autres rien du tout.
+ * Elle ne sert qu'à l'affichage — jamais à construire un chemin, les fichiers étant
+ * toujours nommés depuis l'id de la prise.
+ */
+export function cleanSourceFileName(raw: string): string | null {
+	const base = raw.split(/[/\\]/).pop() ?? ''
+	const trimmed = base.trim().replace(/[\u0000-\u001f\u007f]/g, '')
+	if (!trimmed || trimmed === '.' || trimmed === '..') return null
+	return trimmed.slice(0, MAX_SOURCE_NAME_LENGTH)
+}
+
 export type ReceiveOptions = {
 	allowedMime: Set<string>
 	maxSize: number

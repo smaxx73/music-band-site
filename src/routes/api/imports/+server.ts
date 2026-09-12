@@ -4,7 +4,12 @@ import { randomUUID } from 'crypto'
 import { rename, unlink } from 'fs/promises'
 import sql from '$lib/server/db'
 import { createProxy, getDuration } from '$lib/server/ffmpeg'
-import { allowedAudioMime, MAX_UPLOAD_SIZE, receiveMultipartAudio } from '$lib/server/upload-stream'
+import {
+	allowedAudioMime,
+	cleanSourceFileName,
+	MAX_UPLOAD_SIZE,
+	receiveMultipartAudio
+} from '$lib/server/upload-stream'
 import {
 	createImport,
 	ensureImportsDir,
@@ -79,7 +84,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			groupId,
 			userId: locals.user.id,
 			sessionId,
-			fileName: fileName || 'enregistrement',
+			fileName: cleanSourceFileName(fileName) ?? 'enregistrement',
 			sourceMime: mimeType || null,
 			fileHash: hash,
 			durationS: await getDuration(sourcePath(id))

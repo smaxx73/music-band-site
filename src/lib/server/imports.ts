@@ -1,4 +1,4 @@
-import { mkdir, readdir, rm, stat, unlink, writeFile, readFile } from 'fs/promises'
+import { access, mkdir, readdir, rm, stat, unlink, writeFile, readFile } from 'fs/promises'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import sql from './db'
@@ -72,6 +72,19 @@ function peaksPath(id: string): string {
 
 export async function ensureImportsDir(): Promise<void> {
 	await mkdir(IMPORTS_DIR, { recursive: true })
+}
+
+/**
+ * Lit les réglages depuis une query string. Parcourt les clés connues plutôt que de les
+ * énumérer à la main : ajouter un réglage ne peut pas se faire à moitié, et un curseur
+ * branché à l'écran mais oublié ici resterait silencieusement sans effet.
+ */
+export function paramsFromQuery(search: URLSearchParams): SplitParams {
+	const raw: Partial<Record<keyof SplitParams, unknown>> = {}
+	for (const key of Object.keys(SPLIT_DEFAULTS) as (keyof SplitParams)[]) {
+		raw[key] = search.get(key)
+	}
+	return normalizeParams(raw)
 }
 
 /** Ramène chaque paramètre dans ses bornes — un réglage arrive du client. */
@@ -204,12 +217,24 @@ export async function listRecentImports(
 	groupId: number | null
 ): Promise<AudioImport[]> {
 	if (!groupId) return []
-	return sql<AudioImport[]>`
+	const rows = await sql<AudioImport[]>`
 		SELECT id, session_id, file_name, source_mime, duration_s, consumed_at, created_at
 		FROM audio_imports
 		WHERE user_id = ${userId} AND group_id = ${groupId}
 		ORDER BY created_at DESC
 	`
+
+	// Une ligne peut survivre à ses octets : la zone de transit vit dans le répertoire
+	// temporaire, que la recréation du conteneur emporte. Proposer de reprendre un
+	// fichier absent n'offrirait qu'un bouton qui échoue — on ne liste que le réel.
+	const alive = await Promise.all(
+		rows.map((row) =>
+			access(sourcePath(row.id))
+				.then(() => true)
+				.catch(() => false)
+		)
+	)
+	return rows.filter((_, i) => alive[i])
 }
 
 export function isUuid(value: string): boolean {

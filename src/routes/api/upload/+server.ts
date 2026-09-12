@@ -4,7 +4,12 @@ import { copyFile, unlink } from 'fs/promises'
 import sql from '$lib/server/db'
 import { convertToMp3, getDuration } from '$lib/server/ffmpeg'
 import { audioPath, ensureAudioDir } from '$lib/server/storage'
-import { allowedAudioMime, MAX_UPLOAD_SIZE, receiveMultipartAudio } from '$lib/server/upload-stream'
+import {
+	allowedAudioMime,
+	cleanSourceFileName,
+	MAX_UPLOAD_SIZE,
+	receiveMultipartAudio
+} from '$lib/server/upload-stream'
 import { notifyGroup } from '$lib/server/notifications'
 import type { Recording } from '$lib/types'
 
@@ -22,7 +27,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	})
 	if (!received.ok) return json({ error: received.error }, { status: received.status })
 
-	const { tmpPath: rawTmpPath, hash: fileHash, fields } = received
+	const { tmpPath: rawTmpPath, hash: fileHash, fileName, fields } = received
+	const sourceFileName = cleanSourceFileName(fileName)
 	const mp3TmpPath = rawTmpPath + '.mp3'
 
 	const sessionId = parseInt(fields.session_id ?? '')
@@ -75,8 +81,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				WHERE session_id = ${sessionId} AND song_id = ${songId}
 			`
 			const [rec] = await tx<Recording[]>`
-				INSERT INTO recordings (session_id, song_id, take, file_path, duration_s, uploaded_by, uploaded_by_user_id, file_hash)
-				VALUES (${sessionId}, ${songId}, ${take}, ${'pending'}, ${duration}, ${user}, ${userId}, ${fileHash})
+				INSERT INTO recordings (session_id, song_id, take, file_path, source_file_name, duration_s, uploaded_by, uploaded_by_user_id, file_hash)
+				VALUES (${sessionId}, ${songId}, ${take}, ${'pending'}, ${sourceFileName}, ${duration}, ${user}, ${userId}, ${fileHash})
 				RETURNING *
 			`
 			return { ...rec, song_title: song.title }

@@ -100,6 +100,8 @@ CREATE TABLE recordings (
     song_id     INTEGER REFERENCES songs(id),
     take        INTEGER NOT NULL DEFAULT 1,  -- calculé automatiquement, jamais saisi manuellement
     file_path   TEXT NOT NULL,               -- "{id}.mp3"
+    source_file_name TEXT,                   -- nom du fichier tel que déposé, pour l'affichage
+                                             -- NULL pour les prises antérieures à la migration 023
     duration_s  INTEGER,
     status      TEXT DEFAULT 'À revoir',      -- qualité libre : 'À revoir' | 'Moyen' | 'Bon' | 'Référence' | texte court personnalisé
     file_hash   TEXT,

@@ -15,8 +15,12 @@
 		id: number; take: number; status: string; notes: string | null
 		duration_s: number | null; uploaded_by: string
 		session_id: number; session_date: string; session_location: string | null
-		comment_count: number
+		comment_count: number; file_path: string; source_file_name: string | null
 	}
+
+	// `file_path` ("{id}.mp3") ne sert de nom affiché que pour les prises d'avant la
+	// migration 023, déposées quand le nom d'origine n'était pas encore conservé.
+	const sourceName = (r: RecordingRow) => r.source_file_name ?? r.file_path
 
 	const song = $derived(data.song as unknown as Song)
 	const recordings = $derived(data.recordings as unknown as RecordingRow[])
@@ -125,6 +129,7 @@
 							<th>Qualité</th>
 							<th>Commentaires</th>
 							<th>Par</th>
+							<th>Fichier</th>
 							<th></th>
 						</tr>
 					</thead>
@@ -153,13 +158,22 @@
 									{/if}
 								</td>
 								<td class="muted uploader-cell" data-label="Par">{r.uploaded_by}</td>
+								<td class="file-cell" data-label="Fichier">
+									<span
+										class="file-name"
+										class:fallback={!r.source_file_name}
+										title={r.source_file_name
+											? `Fichier déposé : ${r.source_file_name}`
+											: "Nom d'origine inconnu — prise déposée avant sa conservation"}
+									>{sourceName(r)}</span>
+								</td>
 								<td class="listen-cell">
 									<a href="/recording/{r.id}" class="btn btn-secondary btn-sm">Écouter</a>
 								</td>
 							</tr>
 							{#if openComments[r.id]}
 								<tr class="comments-row">
-									<td colspan="6">
+									<td colspan="7">
 										<RecordingComments recordingId={r.id} />
 									</td>
 								</tr>
@@ -217,6 +231,21 @@
 	.location { font-weight: 400; color: #777; font-size: 0.9rem; }
 
 	td.take { font-weight: 600; color: var(--color-text-secondary); }
+
+	/* Nom tronqué, donné en entier par le titre : un « ZOOM0042_LR.WAV » ne doit pas
+	   élargir le tableau pour tout le monde. */
+	td.file-cell { max-width: 8rem; }
+
+	.file-name {
+		display: block;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+		font-size: var(--text-xs);
+		color: var(--color-text-secondary);
+	}
+
+	.file-name.fallback { color: var(--color-text-muted); font-style: italic; }
 	td.center { text-align: center; }
 	.muted { color: #aaa; font-size: 0.8rem; }
 
@@ -280,9 +309,12 @@
 		td.take { order: 1; font-size: var(--text-base); color: var(--color-text); }
 		td.duration-cell { order: 2; font-size: var(--text-sm); color: var(--color-text-secondary); }
 		td.uploader-cell { order: 3; margin-left: auto; }
-		td.quality-cell { order: 4; }
-		td.comments-cell { order: 5; text-align: left; }
-		td.listen-cell { order: 6; margin-left: auto; }
+		td.file-cell { order: 4; flex: 1 1 100%; max-width: none; }
+		.file-name { display: inline; }
+
+		td.quality-cell { order: 5; }
+		td.comments-cell { order: 6; text-align: left; }
+		td.listen-cell { order: 7; margin-left: auto; }
 
 		.comment-count { padding: 0.25rem 0.6rem; }
 

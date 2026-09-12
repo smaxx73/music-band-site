@@ -6,7 +6,7 @@ import {
 	importPeaks,
 	loadAnyImport,
 	loadImport,
-	normalizeParams
+	paramsFromQuery
 } from '$lib/server/imports'
 
 /**
@@ -20,11 +20,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 	const audioImport = await loadImport(locals.user.id, locals.user.current_group_id, params.id)
 	if (!audioImport) return json({ error: 'Import introuvable.' }, { status: 404 })
 
-	const splitParams = normalizeParams({
-		threshold_db: url.searchParams.get('threshold_db'),
-		min_silence_s: url.searchParams.get('min_silence_s'),
-		min_segment_s: url.searchParams.get('min_segment_s')
-	})
+	const splitParams = paramsFromQuery(url.searchParams)
 
 	try {
 		const [analysis, peaks] = await Promise.all([

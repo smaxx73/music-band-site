@@ -118,9 +118,13 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 					FROM recordings
 					WHERE session_id = ${sessionId} AND song_id = ${slice.songId}
 				`
+				// Toutes les prises d'une découpe portent le nom du fichier déposé : elles
+				// viennent réellement du même enregistrement, et c'est ce que l'on cherche
+				// à retrouver plus tard — pas le numéro du segment, que le take donne déjà.
 				const [row] = await tx<Recording[]>`
-					INSERT INTO recordings (session_id, song_id, take, file_path, duration_s, uploaded_by, uploaded_by_user_id, file_hash)
-					VALUES (${sessionId}, ${slice.songId}, ${take}, ${'pending'}, ${slice.durationS}, ${author}, ${userId}, ${slice.hash})
+					INSERT INTO recordings (session_id, song_id, take, file_path, source_file_name, duration_s, uploaded_by, uploaded_by_user_id, file_hash)
+					VALUES (${sessionId}, ${slice.songId}, ${take}, ${'pending'}, ${audioImport.file_name},
+					        ${slice.durationS}, ${author}, ${userId}, ${slice.hash})
 					RETURNING *
 				`
 				rows.push({ ...row, song_title: titles.get(slice.songId) ?? '' })

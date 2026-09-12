@@ -13,7 +13,10 @@
 7. Extraction durée via ffprobe
 8. Calcul du `take` dans une transaction :
    `SELECT COALESCE(MAX(take), 0) + 1 FROM recordings WHERE session_id=$1 AND song_id=$2`
-9. Insertion en base avec `file_hash`, sauvegarde `/data/audio/{id}.mp3`, retour du `recording` créé
+9. Insertion en base avec `file_hash` et `source_file_name` (le nom du fichier tel que
+   déposé, conservé pour l'affichage seul — le fichier sur disque, lui, est toujours
+   nommé depuis l'id de la prise), sauvegarde `/data/audio/{id}.mp3`, retour du
+   `recording` créé
 
 ## Découpe automatique d'un enregistrement (`/upload/decoupe/[id]`)
 
@@ -61,6 +64,9 @@ Premier des outils d'amélioration audio branchés à la suite de l'upload.
 - Pas de waveform zoomable ni de marqueurs déplaçables à la souris : la retouche numérique
   couvre le même besoin sans dépendre de la résolution de la forme d'onde, et fonctionne
   au doigt sur téléphone
+- Toutes les prises issues d'une découpe portent le **nom du fichier importé** : elles
+  viennent réellement du même enregistrement, et c'est cela qu'on cherche à retrouver plus
+  tard — le numéro du segment, lui, est déjà le `take`
 - À la validation : un extrait par segment, taillé **dans l'original** et encodé aux
   réglages de stockage de l'application (mp3 128 kbps) — un seul encodage sur tout le
   chemin d'une prise. Puis création dans **une seule transaction** : les segments d'un
@@ -80,6 +86,10 @@ Premier des outils d'amélioration audio branchés à la suite de l'upload.
 - `/upload` liste les fichiers encore disponibles : « Reprendre » pour une découpe en
   attente, « Refaire la découpe » pour une déjà validée (`POST /api/imports/[id]/redo`,
   qui remet `consumed_at` à NULL)
+- La liste ne montre que les imports dont l'original existe **vraiment** sur disque : une
+  ligne peut survivre à ses octets, la zone de transit vivant dans le répertoire temporaire
+  que la recréation du conteneur emporte. Proposer de reprendre un fichier absent n'offrirait
+  qu'un bouton qui échoue
 - Les prises déjà créées **ne sont pas supprimées** : une partie est en général bonne, et
   on ne défait rien dans le dos de l'utilisateur. À lui d'écarter celles qu'il ne garde pas
 - Abandon explicite depuis l'écran de découpe : ligne et octets partent tout de suite.
@@ -99,6 +109,10 @@ Premier des outils d'amélioration audio branchés à la suite de l'upload.
 - Modification possible : date, type, titre, lieu, notes, membres de la session
 - Modification possible par prise : qualité libre, notes. La qualité se règle uniquement dans cette vue ; l'historique d'un morceau est en lecture seule.
 - Ajout d'une prise oubliée à une session passée : autorisé
+- Chaque prise affiche le **nom du fichier déposé** (`recordings.source_file_name`), tronqué
+  dans la colonne et donné en entier au survol : `file_path` vaut toujours `{id}.mp3`, unique
+  mais muet sur la provenance. Les prises antérieures à la migration 023 n'ont pas de nom
+  d'origine — il n'a jamais été écrit — et retombent sur `{id}.mp3`, en italique grisé
 - Le compteur de commentaires d'une prise est cliquable : il déplie la liste des commentaires
   sous la ligne, chargée à la demande via `GET /api/comments?recording_id=`, sans ouvrir le lecteur
 - Mode édition : suppression de prise, déplacement dans l'ordre du morceau, puis renumérotation persistée
@@ -114,7 +128,7 @@ Premier des outils d'amélioration audio branchés à la suite de l'upload.
 - Toutes les prises de ce morceau, toutes sessions confondues
 - Triées par date de session décroissante
 - Objectif : visualiser l'évolution du morceau dans le temps
-- Les prises affichent leur libellé de qualité libre
+- Les prises affichent leur libellé de qualité libre et le nom du fichier déposé
 - Le compteur de commentaires déplie la liste des commentaires de la prise, sans ouvrir le lecteur
 
 ## Lecteur audio (`/recording/[id]`)
@@ -127,6 +141,7 @@ Premier des outils d'amélioration audio branchés à la suite de l'upload.
 - Ajout de commentaire : global OU ancré à la position courante du lecteur
 - La case "ancrer au timestamp" est cochée par défaut si le lecteur est en pause
 - Auteur pré-rempli depuis l'utilisateur connecté
+- Le nom du fichier déposé figure sous la ligne de métadonnées de la prise
 
 ## Réactions aux commentaires
 
