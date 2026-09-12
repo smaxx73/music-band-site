@@ -394,179 +394,181 @@
 					musicNotes={group.song.music_notes}
 					compact
 				/>
-				<table class="data-table">
-					<thead>
-						<tr>
-							<th>Prise</th>
-							<th>Durée</th>
-							<th>Qualité</th>
-							<th>Notes</th>
-							<th>Commentaires</th>
-							<th>Par</th>
-							<th>Fichier</th>
-							<th></th>
-							{#if editMode}<th></th><th></th>{/if}
-						</tr>
-					</thead>
-					<tbody>
-						{#each group.recordings as r}
+				<div class="table-scroll">
+					<table class="data-table">
+						<thead>
 							<tr>
-								<td class="take">#{r.take}</td>
-								<td class="duration-cell">{formatDuration(r.duration_s)}</td>
-								<td class="quality-cell">
-									<select
-										class="quality-select quality-{qualityClass(r.status)}"
-										value={presetQuality(r.status) ?? 'custom'}
-										disabled={savingId === r.id}
-										aria-label="Qualité de la prise {r.take}"
-										onchange={(e) => chooseQuality(r, e)}
-									>
-										{#each QUALITY_OPTIONS as option}
-											<option value={option}>{option}</option>
-										{/each}
-										<option value="custom">Autre…</option>
-									</select>
-									{#if isCustomQuality(r)}
-										<div class="custom-quality-control">
-											<input
-												type="text"
-												class="quality-input quality-custom"
-												value={customQualityDraft[r.id] ?? r.status}
-												placeholder="Libellé personnalisé"
-												maxlength="50"
-												disabled={savingId === r.id}
-												aria-label="Libellé personnalisé pour la prise {r.take}"
-												oninput={(e) => (customQualityDraft = { ...customQualityDraft, [r.id]: (e.currentTarget as HTMLInputElement).value })}
-												onkeydown={(e) => { if (e.key === 'Enter') saveCustomQuality(r) }}
-											/>
-											<button class="btn-save" onclick={() => saveCustomQuality(r)} disabled={savingId === r.id}>OK</button>
-										</div>
-									{/if}
-									{#if saveError[r.id]}
-										<span class="save-error">{saveError[r.id]}</span>
-									{/if}
-								</td>
-								<td class="notes-cell">
-									{#if r.id in editingNotes}
-										<div class="notes-edit">
-											<textarea
-												rows="2"
-												bind:value={editingNotes[r.id]}
-												disabled={savingId === r.id}
-											></textarea>
-											<div class="notes-actions">
-												<button
-													class="btn-save"
-													onclick={() => saveNotes(r.id)}
-													disabled={savingId === r.id}
-												>
-													{savingId === r.id ? '…' : 'OK'}
-												</button>
-												<button
-													class="btn-cancel"
-													onclick={() => cancelEditNotes(r.id)}
-													disabled={savingId === r.id}
-												>✕</button>
-											</div>
-										</div>
-									{:else}
-										<button
-											class="notes-display"
-											onclick={() => startEditNotes(r)}
-											title="Cliquer pour modifier"
-										>
-											{#if r.notes}
-												{r.notes}
-											{:else}
-												<span class="muted">—</span>
-											{/if}
-										</button>
-									{/if}
-								</td>
-								<td class="center comments-cell">
-									{#if r.comment_count > 0}
-										<button
-											class="comment-count"
-											class:open={openComments[r.id]}
-											onclick={() => toggleComments(r.id)}
-											title={openComments[r.id] ? 'Masquer les commentaires' : 'Lire les commentaires'}
-										>
-											💬 {r.comment_count}
-										</button>
-									{:else}
-										<span class="muted">—</span>
-									{/if}
-								</td>
-								<td class="muted uploader-cell" data-label="Par">{r.uploaded_by}</td>
-								<td class="file-cell" data-label="Fichier">
-									<span
-										class="file-name"
-										class:fallback={!r.source_file_name}
-										title={r.source_file_name
-											? `Fichier déposé : ${r.source_file_name}`
-											: "Nom d'origine inconnu — prise déposée avant sa conservation"}
-									>{sourceName(r)}</span>
-								</td>
-								<td class="listen-cell">
-									<button
-										class="btn btn-secondary btn-sm"
-										class:btn-active={openPlayer === r.id}
-										onclick={() => togglePlayer(group.song, r)}
-										title={openPlayer === r.id
-											? 'Replier la waveform (la lecture continue en bas)'
-											: 'Écouter sans quitter la page'}
-									>
-										{openPlayer === r.id ? '▲ Réduire' : '▶ Écouter'}
-									</button>
-								</td>
-								{#if editMode}
-								<td class="reorder-cell">
-									<button
-										class="btn-reorder"
-										disabled={group.recordings.indexOf(r) === 0}
-										onclick={() => moveRecording(group.song.id, r.id, -1)}
-										title="Monter">↑</button>
-									<button
-										class="btn-reorder"
-										disabled={group.recordings.indexOf(r) === group.recordings.length - 1}
-										onclick={() => moveRecording(group.song.id, r.id, 1)}
-										title="Descendre">↓</button>
-								</td>
-								<td class="delete-cell">
-									{#if canDeleteRecording(r)}
-									<button
-										class="btn btn-danger btn-sm"
-										disabled={deletingRecordingId === r.id}
-										onclick={() => deleteRecording(r.id)}
-									>
-										{deletingRecordingId === r.id ? '…' : 'Supprimer'}
-									</button>
-									{/if}
-								</td>
-								{/if}
+								<th>Prise</th>
+								<th>Durée</th>
+								<th>Qualité</th>
+								<th>Notes</th>
+								<th>Commentaires</th>
+								<th>Par</th>
+								<th>Fichier</th>
+								<th></th>
+								{#if editMode}<th></th><th></th>{/if}
 							</tr>
-							{#if openPlayer === r.id || openComments[r.id]}
-								<tr class="comments-row">
-									<td colspan={editMode ? 10 : 8}>
-										{#if openPlayer === r.id}
-											<InlineRecordingPlayer
-												recordingId={r.id}
-												durationS={r.duration_s}
-												seekRequest={seekRequest}
-											/>
+						</thead>
+						<tbody>
+							{#each group.recordings as r}
+								<tr>
+									<td class="take">#{r.take}</td>
+									<td class="duration-cell">{formatDuration(r.duration_s)}</td>
+									<td class="quality-cell">
+										<select
+											class="quality-select quality-{qualityClass(r.status)}"
+											value={presetQuality(r.status) ?? 'custom'}
+											disabled={savingId === r.id}
+											aria-label="Qualité de la prise {r.take}"
+											onchange={(e) => chooseQuality(r, e)}
+										>
+											{#each QUALITY_OPTIONS as option}
+												<option value={option}>{option}</option>
+											{/each}
+											<option value="custom">Autre…</option>
+										</select>
+										{#if isCustomQuality(r)}
+											<div class="custom-quality-control">
+												<input
+													type="text"
+													class="quality-input quality-custom"
+													value={customQualityDraft[r.id] ?? r.status}
+													placeholder="Libellé personnalisé"
+													maxlength="50"
+													disabled={savingId === r.id}
+													aria-label="Libellé personnalisé pour la prise {r.take}"
+													oninput={(e) => (customQualityDraft = { ...customQualityDraft, [r.id]: (e.currentTarget as HTMLInputElement).value })}
+													onkeydown={(e) => { if (e.key === 'Enter') saveCustomQuality(r) }}
+												/>
+												<button class="btn-save" onclick={() => saveCustomQuality(r)} disabled={savingId === r.id}>OK</button>
+											</div>
 										{/if}
-										{#if openComments[r.id]}
-											<RecordingComments
-												recordingId={r.id}
-												onSeek={openPlayer === r.id ? seekInPlayer : null}
-											/>
+										{#if saveError[r.id]}
+											<span class="save-error">{saveError[r.id]}</span>
 										{/if}
 									</td>
+									<td class="notes-cell">
+										{#if r.id in editingNotes}
+											<div class="notes-edit">
+												<textarea
+													rows="2"
+													bind:value={editingNotes[r.id]}
+													disabled={savingId === r.id}
+												></textarea>
+												<div class="notes-actions">
+													<button
+														class="btn-save"
+														onclick={() => saveNotes(r.id)}
+														disabled={savingId === r.id}
+													>
+														{savingId === r.id ? '…' : 'OK'}
+													</button>
+													<button
+														class="btn-cancel"
+														onclick={() => cancelEditNotes(r.id)}
+														disabled={savingId === r.id}
+													>✕</button>
+												</div>
+											</div>
+										{:else}
+											<button
+												class="notes-display"
+												onclick={() => startEditNotes(r)}
+												title="Cliquer pour modifier"
+											>
+												{#if r.notes}
+													{r.notes}
+												{:else}
+													<span class="muted">—</span>
+												{/if}
+											</button>
+										{/if}
+									</td>
+									<td class="center comments-cell">
+										{#if r.comment_count > 0}
+											<button
+												class="comment-count"
+												class:open={openComments[r.id]}
+												onclick={() => toggleComments(r.id)}
+												title={openComments[r.id] ? 'Masquer les commentaires' : 'Lire les commentaires'}
+											>
+												💬 {r.comment_count}
+											</button>
+										{:else}
+											<span class="muted">—</span>
+										{/if}
+									</td>
+									<td class="muted uploader-cell" data-label="Par">{r.uploaded_by}</td>
+									<td class="file-cell" data-label="Fichier">
+										<span
+											class="file-name"
+											class:fallback={!r.source_file_name}
+											title={r.source_file_name
+												? `Fichier déposé : ${r.source_file_name}`
+												: "Nom d'origine inconnu — prise déposée avant sa conservation"}
+										>{sourceName(r)}</span>
+									</td>
+									<td class="listen-cell">
+										<button
+											class="btn btn-secondary btn-sm"
+											class:btn-active={openPlayer === r.id}
+											onclick={() => togglePlayer(group.song, r)}
+											title={openPlayer === r.id
+												? 'Replier la waveform (la lecture continue en bas)'
+												: 'Écouter sans quitter la page'}
+										>
+											{openPlayer === r.id ? '▲ Réduire' : '▶ Écouter'}
+										</button>
+									</td>
+									{#if editMode}
+									<td class="reorder-cell">
+										<button
+											class="btn-reorder"
+											disabled={group.recordings.indexOf(r) === 0}
+											onclick={() => moveRecording(group.song.id, r.id, -1)}
+											title="Monter">↑</button>
+										<button
+											class="btn-reorder"
+											disabled={group.recordings.indexOf(r) === group.recordings.length - 1}
+											onclick={() => moveRecording(group.song.id, r.id, 1)}
+											title="Descendre">↓</button>
+									</td>
+									<td class="delete-cell">
+										{#if canDeleteRecording(r)}
+										<button
+											class="btn btn-danger btn-sm"
+											disabled={deletingRecordingId === r.id}
+											onclick={() => deleteRecording(r.id)}
+										>
+											{deletingRecordingId === r.id ? '…' : 'Supprimer'}
+										</button>
+										{/if}
+									</td>
+									{/if}
 								</tr>
-							{/if}
-						{/each}
-					</tbody>
-				</table>
+								{#if openPlayer === r.id || openComments[r.id]}
+									<tr class="comments-row">
+										<td colspan={editMode ? 10 : 8}>
+											{#if openPlayer === r.id}
+												<InlineRecordingPlayer
+													recordingId={r.id}
+													durationS={r.duration_s}
+													seekRequest={seekRequest}
+												/>
+											{/if}
+											{#if openComments[r.id]}
+												<RecordingComments
+													recordingId={r.id}
+													onSeek={openPlayer === r.id ? seekInPlayer : null}
+												/>
+											{/if}
+										</td>
+									</tr>
+								{/if}
+							{/each}
+						</tbody>
+					</table>
+				</div>
 			</section>
 		{/each}
 	{/if}
@@ -593,8 +595,10 @@
 </main>
 
 <style>
+	/* Un peu plus large que les pages de lecture : le tableau des prises porte huit
+	   colonnes et doit tenir dans sa colonne sans la déborder. */
 	main {
-		max-width: 760px;
+		max-width: 800px;
 		margin: 2rem auto;
 		padding: 0 1rem;
 	}
@@ -663,7 +667,7 @@
 
 	/* Un nom déposé peut être long (« ZOOM0042_LR_2026-09-12.WAV ») : la colonne le
 	   tronque et le titre le donne en entier, plutôt que d'élargir tout le tableau. */
-	td.file-cell { max-width: 8rem; }
+	td.file-cell { max-width: 6rem; }
 
 	.file-name {
 		display: block;
@@ -711,7 +715,7 @@
 		font-family: inherit;
 		padding: 0.18rem 0.45rem;
 		background: var(--color-bg);
-		width: 7.5rem;
+		width: 6.5rem;
 	}
 
 	.custom-quality-control {
@@ -733,7 +737,7 @@
 	.save-error { display: block; font-size: 0.72rem; color: var(--color-error); margin-top: 0.2rem; }
 
 	/* Édition inline des notes */
-	.notes-cell { min-width: 140px; max-width: 220px; }
+	.notes-cell { min-width: 100px; max-width: 220px; }
 
 	.notes-display {
 		background: none;
@@ -819,40 +823,6 @@
 		.breadcrumb { margin-bottom: 0.5rem; }
 
 		.session-nav > * { flex: 1; }
-
-		.data-table,
-		.data-table tbody,
-		.data-table tr,
-		.data-table td {
-			display: block;
-		}
-
-		.data-table thead { display: none; }
-
-		.data-table tr {
-			display: flex;
-			flex-wrap: wrap;
-			align-items: center;
-			gap: 0.45rem 0.8rem;
-			border: 1px solid var(--color-border-light);
-			border-radius: var(--radius-lg);
-			padding: 0.7rem 0.75rem;
-			margin-bottom: 0.6rem;
-		}
-
-		.data-table td {
-			border: none;
-			padding: 0;
-			min-width: 0;
-		}
-
-		.data-table td[data-label]::before {
-			content: attr(data-label) ' ';
-			font-size: var(--text-xs);
-			text-transform: uppercase;
-			color: var(--color-text-muted);
-			margin-right: 0.25rem;
-		}
 
 		/* Ligne 1 : prise · durée · auteur — puis fichier, notes, puis actions */
 		td.take { order: 1; font-size: var(--text-base); }

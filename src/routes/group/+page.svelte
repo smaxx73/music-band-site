@@ -159,75 +159,77 @@
 			{#if data.members.length === 0}
 				<p class="empty">Aucun membre.</p>
 			{:else}
-				<table class="data-table">
-					<thead>
-						<tr>
-							<th>Nom</th>
-							<th>Rôle dans le groupe</th>
-							{#if data.canSeeGlobalRole}<th>Rôle global</th>{/if}
-							{#if data.canManage}<th></th>{/if}
-						</tr>
-					</thead>
-					<tbody>
-						{#each data.members as m}
+				<div class="table-scroll">
+					<table class="data-table">
+						<thead>
 							<tr>
-								<td class="name">{m.display_name}</td>
-								<td>
-									{#if data.canAssignAdmin}
-										<!-- Seul le superadmin peut attribuer ou retirer le rôle d'admin de groupe. -->
-										<form method="POST" action="?/updateRole" use:enhance>
-											<input type="hidden" name="user_id" value={m.id} />
-											<select
-												name="role"
-												class="role-select"
-												aria-label="Rôle de {m.display_name} dans le groupe"
-												onchange={(e) => (e.currentTarget.form as HTMLFormElement).requestSubmit()}
-											>
-												<option value="member" selected={m.group_role === 'member'}>Membre</option>
-												<option value="admin" selected={m.group_role === 'admin'}>Admin</option>
-											</select>
-										</form>
-									{:else}
-										<span class="badge badge-group-{m.group_role}">
-											{GROUP_ROLE_LABELS[m.group_role] ?? m.group_role}
-										</span>
-									{/if}
-								</td>
-								{#if data.canSeeGlobalRole}
-									<td>
-										<span class="badge badge-{m.global_role}">
-											{ROLE_LABELS[m.global_role] ?? m.global_role}
-										</span>
-									</td>
-								{/if}
-								{#if data.canManage}
-									<td class="actions">
-										<!-- Retirer un admin de groupe revient à lui retirer son rôle :
-										     le serveur le réserve au superadmin, l'écran suit la même règle. -->
-										{#if m.group_role !== 'admin' || data.canAssignAdmin}
-											<form
-												method="POST"
-												action="?/removeMember"
-												use:enhance={() => {
-													busyMemberId = m.id
-													return ({ update }) => { busyMemberId = null; return update() }
-												}}
-												onsubmit={(e) => {
-													if (!confirm(`Retirer ${m.display_name} du groupe ?`)) e.preventDefault()
-												}}
-											>
+								<th>Nom</th>
+								<th>Rôle dans le groupe</th>
+								{#if data.canSeeGlobalRole}<th>Rôle global</th>{/if}
+								{#if data.canManage}<th></th>{/if}
+							</tr>
+						</thead>
+						<tbody>
+							{#each data.members as m}
+								<tr>
+									<td class="name">{m.display_name}</td>
+									<td data-label="Groupe">
+										{#if data.canAssignAdmin}
+											<!-- Seul le superadmin peut attribuer ou retirer le rôle d'admin de groupe. -->
+											<form method="POST" action="?/updateRole" use:enhance>
 												<input type="hidden" name="user_id" value={m.id} />
-												<button type="submit" class="btn-remove" disabled={busyMemberId === m.id}>
-													{busyMemberId === m.id ? '…' : 'Retirer'}
-												</button>
+												<select
+													name="role"
+													class="role-select"
+													aria-label="Rôle de {m.display_name} dans le groupe"
+													onchange={(e) => (e.currentTarget.form as HTMLFormElement).requestSubmit()}
+												>
+													<option value="member" selected={m.group_role === 'member'}>Membre</option>
+													<option value="admin" selected={m.group_role === 'admin'}>Admin</option>
+												</select>
 											</form>
+										{:else}
+											<span class="badge badge-group-{m.group_role}">
+												{GROUP_ROLE_LABELS[m.group_role] ?? m.group_role}
+											</span>
 										{/if}
 									</td>
-								{/if}
-							</tr>
-						{/each}
-					</tbody>
-				</table>
+									{#if data.canSeeGlobalRole}
+										<td data-label="Global">
+											<span class="badge badge-{m.global_role}">
+												{ROLE_LABELS[m.global_role] ?? m.global_role}
+											</span>
+										</td>
+									{/if}
+									{#if data.canManage}
+										<td class="actions">
+											<!-- Retirer un admin de groupe revient à lui retirer son rôle :
+											     le serveur le réserve au superadmin, l'écran suit la même règle. -->
+											{#if m.group_role !== 'admin' || data.canAssignAdmin}
+												<form
+													method="POST"
+													action="?/removeMember"
+													use:enhance={() => {
+														busyMemberId = m.id
+														return ({ update }) => { busyMemberId = null; return update() }
+													}}
+													onsubmit={(e) => {
+														if (!confirm(`Retirer ${m.display_name} du groupe ?`)) e.preventDefault()
+													}}
+												>
+													<input type="hidden" name="user_id" value={m.id} />
+													<button type="submit" class="btn-remove" disabled={busyMemberId === m.id}>
+														{busyMemberId === m.id ? '…' : 'Retirer'}
+													</button>
+												</form>
+											{/if}
+										</td>
+									{/if}
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				</div>
 			{/if}
 
 			{#if form?.error && (form?.action === 'removeMember' || form?.action === 'updateRole')}
@@ -490,23 +492,6 @@
 	.admin-link { font-size: 0.875rem; }
 	.admin-link a { color: inherit; }
 
-	table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-
-	th {
-		text-align: left;
-		padding: 0.4rem 0.75rem;
-		border-bottom: 2px solid #e0e0e0;
-		font-size: 0.72rem;
-		text-transform: uppercase;
-		color: #666;
-	}
-
-	td {
-		padding: 0.55rem 0.75rem;
-		border-bottom: 1px solid #f0f0f0;
-		vertical-align: middle;
-	}
-
 	.name { font-weight: 600; }
 
 	.badge {
@@ -618,6 +603,16 @@
 	.btn-remove:disabled { opacity: 0.5; cursor: default; }
 
 	.actions { text-align: right; }
+
+	/* Sous 640 px le tableau devient une pile de cartes (voir app.css) :
+	   le nom prend toute la ligne, les rôles et le retrait se rangent dessous. */
+	@media (max-width: 640px) {
+		td.name { flex: 1 1 100%; font-size: var(--text-base); }
+		td.actions { margin-left: auto; }
+
+		/* Le sélecteur de rôle vit dans un <form> : en ligne, il reste sur la ligne du libellé. */
+		td[data-label] form { display: inline-flex; vertical-align: middle; }
+	}
 
 	.empty { color: #aaa; font-style: italic; font-size: 0.9rem; }
 </style>

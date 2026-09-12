@@ -85,6 +85,18 @@ type Recording = {
   proxy, on rend depuis l'original — jamais l'inverse
 - Les doublons sont détectés par `recordings.file_hash` avant conversion
 
+## Tableaux et mobile
+
+- Tout tableau porte `class="data-table"` (styles dans `src/app.css`) — ne jamais redéfinir
+  `table` / `th` / `td` dans le `<style>` d'une page
+- Sous 640 px, `app.css` transforme **tout** `.data-table` en pile de cartes : `thead`
+  masqué, chaque ligne devient une carte en flex. Une page n'ajoute que ce qui lui est
+  propre : l'ordre des cellules (`order`), celles qui prennent toute la largeur
+- Une cellule dont l'en-tête manquerait à la lecture porte `data-label="…"` : le libellé
+  est repris devant son contenu une fois l'en-tête masqué
+- Chaque tableau vit dans un `<div class="table-scroll">` : plus large que sa colonne, il
+  défile sur lui-même au lieu d'élargir la page (mode édition des prises, fenêtre étroite)
+
 ## Données
 - `recordings` est le nœud central — il appartient à une session ET à un morceau
 - Vue session = requête sur `recordings` groupée par `song_id`

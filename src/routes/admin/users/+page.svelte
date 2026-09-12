@@ -104,155 +104,157 @@
 		{#if users.length === 0}
 			<p class="empty">Aucun utilisateur.</p>
 		{:else}
-			<table class="data-table">
-				<thead>
-					<tr>
-						<th>Pseudo</th>
-						<th>Rôle</th>
-						<th>Statut</th>
-						<th>Actions</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each users as user (user.id)}
-						{@const isEditing = editingId === user.id}
-						{@const isResetting = resetId === user.id}
-						{@const updateError = form?.action === 'update' && form.id === user.id ? form.error : null}
-						{@const resetError = form?.action === 'resetPassword' && form.id === user.id ? form.error : null}
+			<div class="table-scroll">
+				<table class="data-table">
+					<thead>
+						<tr>
+							<th>Pseudo</th>
+							<th>Rôle</th>
+							<th>Statut</th>
+							<th>Actions</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each users as user (user.id)}
+							{@const isEditing = editingId === user.id}
+							{@const isResetting = resetId === user.id}
+							{@const updateError = form?.action === 'update' && form.id === user.id ? form.error : null}
+							{@const resetError = form?.action === 'resetPassword' && form.id === user.id ? form.error : null}
 
-						{#if isEditing}
-							<tr class="editing-row">
-								<td colspan="4">
-									{#if updateError}
-										<p class="message-error">{updateError}</p>
-									{/if}
-									<form
-										method="POST"
-										action="?/update"
-										class="inline-edit-form"
-										use:enhance={() => {
-											return ({ result }) => {
-												if (result.type === 'success' || result.type === 'redirect') {
-													editingId = null
-												}
-											}
-										}}
-									>
-										<input type="hidden" name="id" value={user.id} />
-										<div class="fields">
-											<label class="form-label">
-											Pseudo
-											<input class="form-input" type="text" value={user.nickname} disabled />
-											</label>
-											<label class="form-label">
-												Rôle
-												<select class="form-input" name="role">
-													<option value="user" selected={user.role === 'user'}>Utilisateur</option>
-													{#if actorIsSuperadmin}
-														<option value="admin" selected={user.role === 'admin'}>Administrateur</option>
-														<option value="superadmin" selected={user.role === 'superadmin'}>Super-admin</option>
-													{/if}
-												</select>
-											</label>
-											<label class="form-label">
-												Statut
-												<select class="form-input" name="active">
-													<option value="true" selected={user.active}>Actif</option>
-													<option value="false" selected={!user.active}>Inactif</option>
-												</select>
-											</label>
-										</div>
-										<div class="inline-actions">
-											<button type="submit" class="btn btn-primary">Enregistrer</button>
-											<button type="button" class="btn btn-ghost" onclick={() => (editingId = null)}>
-												Annuler
-											</button>
-										</div>
-									</form>
-								</td>
-							</tr>
-						{:else if isResetting}
-							<tr class="editing-row">
-								<td colspan="4">
-									{#if resetError}
-										<p class="message-error">{resetError}</p>
-									{/if}
-									<form
-										method="POST"
-										action="?/resetPassword"
-										class="inline-edit-form"
-										use:enhance={() => {
-											return ({ result }) => {
-												if (result.type === 'success' || result.type === 'redirect') {
-													resetId = null
-												}
-											}
-										}}
-									>
-										<input type="hidden" name="id" value={user.id} />
-										<div class="fields fields-narrow">
-											<label class="form-label">
-												Nouveau mot de passe <span class="required">*</span>
-												<input
-													class="form-input"
-													type="password"
-													name="password"
-													required
-													minlength="6"
-													autocomplete="new-password"
-												/>
-											</label>
-										</div>
-										<div class="inline-actions">
-											<button type="submit" class="btn btn-primary">Réinitialiser</button>
-											<button type="button" class="btn btn-ghost" onclick={() => (resetId = null)}>
-												Annuler
-											</button>
-										</div>
-									</form>
-								</td>
-							</tr>
-						{:else}
-							<tr class:inactive={!user.active}>
-								<td class="name">{user.nickname}{user.display_name !== user.nickname ? ` · ${user.display_name}` : ''}</td>
-								<td>
-									<span class="badge badge-{user.role}">
-										{roleLabel(user.role)}
-									</span>
-								</td>
-								<td>
-									<span class="badge badge-status-{user.active ? 'active' : 'inactive'}">
-										{user.active ? 'Actif' : 'Inactif'}
-									</span>
-								</td>
-								<td class="actions-cell">
-									{#if canManage(user.role)}
-										<button class="btn btn-sm" onclick={() => (editingId = user.id)}>
-											Modifier
-										</button>
-										<button class="btn btn-sm" onclick={() => (resetId = user.id)}>
-											Mot de passe
-										</button>
+							{#if isEditing}
+								<tr class="editing-row">
+									<td colspan="4">
+										{#if updateError}
+											<p class="message-error">{updateError}</p>
+										{/if}
 										<form
 											method="POST"
-											action="?/delete"
-											use:enhance
-											onsubmit={(e) => {
-												if (!confirm(`Supprimer "${user.nickname}" ?`)) e.preventDefault()
+											action="?/update"
+											class="inline-edit-form"
+											use:enhance={() => {
+												return ({ result }) => {
+													if (result.type === 'success' || result.type === 'redirect') {
+														editingId = null
+													}
+												}
 											}}
 										>
 											<input type="hidden" name="id" value={user.id} />
-											<button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
+											<div class="fields">
+												<label class="form-label">
+												Pseudo
+												<input class="form-input" type="text" value={user.nickname} disabled />
+												</label>
+												<label class="form-label">
+													Rôle
+													<select class="form-input" name="role">
+														<option value="user" selected={user.role === 'user'}>Utilisateur</option>
+														{#if actorIsSuperadmin}
+															<option value="admin" selected={user.role === 'admin'}>Administrateur</option>
+															<option value="superadmin" selected={user.role === 'superadmin'}>Super-admin</option>
+														{/if}
+													</select>
+												</label>
+												<label class="form-label">
+													Statut
+													<select class="form-input" name="active">
+														<option value="true" selected={user.active}>Actif</option>
+														<option value="false" selected={!user.active}>Inactif</option>
+													</select>
+												</label>
+											</div>
+											<div class="inline-actions">
+												<button type="submit" class="btn btn-primary">Enregistrer</button>
+												<button type="button" class="btn btn-ghost" onclick={() => (editingId = null)}>
+													Annuler
+												</button>
+											</div>
 										</form>
-									{:else}
-										<span class="muted-note">Réservé au super-admin</span>
-									{/if}
-								</td>
-							</tr>
-						{/if}
-					{/each}
-				</tbody>
-			</table>
+									</td>
+								</tr>
+							{:else if isResetting}
+								<tr class="editing-row">
+									<td colspan="4">
+										{#if resetError}
+											<p class="message-error">{resetError}</p>
+										{/if}
+										<form
+											method="POST"
+											action="?/resetPassword"
+											class="inline-edit-form"
+											use:enhance={() => {
+												return ({ result }) => {
+													if (result.type === 'success' || result.type === 'redirect') {
+														resetId = null
+													}
+												}
+											}}
+										>
+											<input type="hidden" name="id" value={user.id} />
+											<div class="fields fields-narrow">
+												<label class="form-label">
+													Nouveau mot de passe <span class="required">*</span>
+													<input
+														class="form-input"
+														type="password"
+														name="password"
+														required
+														minlength="6"
+														autocomplete="new-password"
+													/>
+												</label>
+											</div>
+											<div class="inline-actions">
+												<button type="submit" class="btn btn-primary">Réinitialiser</button>
+												<button type="button" class="btn btn-ghost" onclick={() => (resetId = null)}>
+													Annuler
+												</button>
+											</div>
+										</form>
+									</td>
+								</tr>
+							{:else}
+								<tr class:inactive={!user.active}>
+									<td class="name">{user.nickname}{user.display_name !== user.nickname ? ` · ${user.display_name}` : ''}</td>
+									<td>
+										<span class="badge badge-{user.role}">
+											{roleLabel(user.role)}
+										</span>
+									</td>
+									<td>
+										<span class="badge badge-status-{user.active ? 'active' : 'inactive'}">
+											{user.active ? 'Actif' : 'Inactif'}
+										</span>
+									</td>
+									<td class="actions-cell">
+										{#if canManage(user.role)}
+											<button class="btn btn-sm" onclick={() => (editingId = user.id)}>
+												Modifier
+											</button>
+											<button class="btn btn-sm" onclick={() => (resetId = user.id)}>
+												Mot de passe
+											</button>
+											<form
+												method="POST"
+												action="?/delete"
+												use:enhance
+												onsubmit={(e) => {
+													if (!confirm(`Supprimer "${user.nickname}" ?`)) e.preventDefault()
+												}}
+											>
+												<input type="hidden" name="id" value={user.id} />
+												<button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
+											</form>
+										{:else}
+											<span class="muted-note">Réservé au super-admin</span>
+										{/if}
+									</td>
+								</tr>
+							{/if}
+						{/each}
+					</tbody>
+				</table>
+			</div>
 		{/if}
 	</section>
 </main>
@@ -301,23 +303,6 @@
 
 	.required { color: var(--color-error); }
 
-	table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-
-	th {
-		text-align: left;
-		padding: 0.4rem 0.75rem;
-		border-bottom: 2px solid #e0e0e0;
-		font-size: 0.72rem;
-		text-transform: uppercase;
-		color: #666;
-	}
-
-	td {
-		padding: 0.55rem 0.75rem;
-		border-bottom: 1px solid #f0f0f0;
-		vertical-align: middle;
-	}
-
 	tr.inactive td { opacity: 0.5; }
 
 	.name { font-weight: 600; }
@@ -356,4 +341,22 @@
 
 	.empty { color: #aaa; font-style: italic; font-size: 0.9rem; }
 	.message-error { color: #c0392b; font-size: 0.875rem; margin: 0 0 0.5rem; }
+
+	/* Sous 640 px le tableau devient une pile de cartes (voir app.css) : les trois
+	   champs du formulaire d'édition passent aussi en colonne. */
+	@media (max-width: 640px) {
+		main { margin: 1rem auto; padding: 0 0.75rem; }
+
+		.fields { grid-template-columns: 1fr; }
+
+		td.name { flex: 1 1 100%; font-size: var(--text-base); }
+
+		td.actions-cell {
+			flex: 1 1 100%;
+			flex-wrap: wrap;
+			margin-top: 0.35rem;
+		}
+
+		.editing-row td { flex: 1 1 100%; padding: 0.75rem; }
+	}
 </style>

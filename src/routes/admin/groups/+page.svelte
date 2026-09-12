@@ -62,32 +62,34 @@
 		{#if data.groups.length === 0}
 			<p class="empty">Aucun groupe.</p>
 		{:else}
-			<table>
-				<thead>
-					<tr>
-						<th>Nom</th>
-						<th>Membres</th>
-						<th>Morceaux</th>
-						<th>Sessions</th>
-						<th></th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each data.groups as g}
+			<div class="table-scroll">
+				<table class="data-table">
+					<thead>
 						<tr>
-							<td><a href="/admin/groups/{g.id}">{g.name}</a></td>
-							<td class="muted">{g.member_count}</td>
-							<td class="muted">{g.song_count}</td>
-							<td class="muted">{g.session_count}</td>
-							<td class="actions-cell">
-								<!-- La suppression vit dans la zone dangereuse de la fiche du groupe :
-								     elle exige l'impact chiffré et la saisie du nom. -->
-								<a href="/admin/groups/{g.id}" class="btn-secondary">Gérer</a>
-							</td>
+							<th>Nom</th>
+							<th>Membres</th>
+							<th>Morceaux</th>
+							<th>Sessions</th>
+							<th></th>
 						</tr>
-					{/each}
-				</tbody>
-			</table>
+					</thead>
+					<tbody>
+						{#each data.groups as g}
+							<tr>
+								<td class="name"><a href="/admin/groups/{g.id}">{g.name}</a></td>
+								<td class="muted" data-label="Membres">{g.member_count}</td>
+								<td class="muted" data-label="Morceaux">{g.song_count}</td>
+								<td class="muted" data-label="Sessions">{g.session_count}</td>
+								<td class="actions-cell">
+									<!-- La suppression vit dans la zone dangereuse de la fiche du groupe :
+									     elle exige l'impact chiffré et la saisie du nom. -->
+									<a href="/admin/groups/{g.id}" class="btn-secondary">Gérer</a>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
 		{/if}
 	</section>
 </main>
@@ -161,23 +163,6 @@
 	}
 	.btn-secondary:hover { background: #f4f4f4; }
 
-	table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-
-	th {
-		text-align: left;
-		padding: 0.4rem 0.75rem;
-		border-bottom: 2px solid #e0e0e0;
-		font-size: 0.72rem;
-		text-transform: uppercase;
-		color: #666;
-	}
-
-	td {
-		padding: 0.55rem 0.75rem;
-		border-bottom: 1px solid #f0f0f0;
-		vertical-align: middle;
-	}
-
 	td a { color: inherit; text-decoration: none; font-weight: 600; }
 	td a:hover { text-decoration: underline; }
 
@@ -188,6 +173,14 @@
 		gap: 0.5rem;
 		align-items: center;
 	}
+	/* Sous 640 px le tableau devient une pile de cartes (voir app.css). */
+	@media (max-width: 640px) {
+		main { margin: 1rem auto; padding: 0 0.75rem; }
+
+		td.name { flex: 1 1 100%; font-size: var(--text-base); }
+		td.actions-cell { flex: 1 1 100%; margin-top: 0.35rem; }
+	}
+
 	.empty { color: #aaa; font-style: italic; font-size: 0.9rem; }
 	.error { color: #c0392b; font-size: 0.85rem; margin-top: 0.4rem; }
 </style>

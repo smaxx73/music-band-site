@@ -255,6 +255,56 @@ body {
   vertical-align: middle;
 }
 
+/* Un tableau plus large que sa colonne défile sur lui-même plutôt que d'élargir la
+   page : c'est le cas des prises en mode édition, et de n'importe quel tableau dans une
+   fenêtre étroite. Inerte sous 640 px, où les lignes sont devenues des cartes. */
+.table-scroll {
+  overflow-x: auto;
+}
+
+/* Sous 640 px, un tableau de cinq à dix colonnes ne tient pas dans l'écran : chaque
+   ligne devient une carte et l'en-tête disparaît, remplacé par le `data-label` que
+   porte chaque cellule qui en a besoin. Les pages n'ont plus qu'à ordonner leurs
+   cellules (`order`) ; le passage en cartes, lui, est décrit ici une seule fois. */
+@media (max-width: 640px) {
+  .data-table,
+  .data-table tbody,
+  .data-table tr,
+  .data-table td {
+    display: block;
+  }
+
+  .data-table thead { display: none; }
+
+  .data-table tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.45rem 0.8rem;
+    border: 1px solid var(--color-border-light);
+    border-radius: var(--radius-lg);
+    padding: 0.7rem 0.75rem;
+    margin-bottom: 0.6rem;
+  }
+
+  .data-table td {
+    border: none;
+    padding: 0;
+    min-width: 0;
+  }
+
+  /* Une cellule d'actions vide n'a pas à occuper une gouttière dans la carte. */
+  .data-table td:empty { display: none; }
+
+  .data-table td[data-label]::before {
+    content: attr(data-label) ' ';
+    font-size: var(--text-xs);
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin-right: 0.25rem;
+  }
+}
+
 /* ─── Modales ────────────────────────────────────────── */
 .modal-backdrop {
   position: fixed;

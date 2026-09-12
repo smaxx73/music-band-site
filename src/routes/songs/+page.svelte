@@ -213,97 +213,99 @@
 					<button class="link-btn" onclick={resetFilters}>Réinitialiser les filtres</button>
 				</p>
 			{:else}
-			<table class="data-table">
-				<thead>
-					<tr>
-						<th>
-							<button class="th-sort" onclick={() => toggleSort('title')}>Titre{sortIndicator('title')}</button>
-						</th>
-						<th>Compositeur</th>
-						<th>Tonalité</th>
-						<th>
-							<button class="th-sort" onclick={() => toggleSort('status')}>Statut{sortIndicator('status')}</button>
-						</th>
-						<th>
-							<button class="th-sort" onclick={() => toggleSort('take_count')}>Prises{sortIndicator('take_count')}</button>
-						</th>
-						<th>Actions</th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each visibleSongs as song (song.id)}
-						{@const isEditing = editingId === song.id}
-						{@const hasError = hasActionError('update', song.id)}
-						{@const isAbandoned = song.status === 'abandonne'}
+			<div class="table-scroll">
+				<table class="data-table">
+					<thead>
+						<tr>
+							<th>
+								<button class="th-sort" onclick={() => toggleSort('title')}>Titre{sortIndicator('title')}</button>
+							</th>
+							<th>Compositeur</th>
+							<th>Tonalité</th>
+							<th>
+								<button class="th-sort" onclick={() => toggleSort('status')}>Statut{sortIndicator('status')}</button>
+							</th>
+							<th>
+								<button class="th-sort" onclick={() => toggleSort('take_count')}>Prises{sortIndicator('take_count')}</button>
+							</th>
+							<th>Actions</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each visibleSongs as song (song.id)}
+							{@const isEditing = editingId === song.id}
+							{@const hasError = hasActionError('update', song.id)}
+							{@const isAbandoned = song.status === 'abandonne'}
 
-						{#if isEditing}
-							<!-- Ligne d'édition inline -->
-							<tr class="editing-row">
-								<td colspan="6">
-									{#if hasError}
-										<p class="message-error">{form?.error}</p>
-									{/if}
-									<form
-										method="POST"
-										action="?/update"
-										class="inline-edit-form"
-										use:enhance={() => {
-											return ({ result }) => {
-												if (result.type === 'success' || result.type === 'redirect') {
-													editingId = null
-												}
-											}
-										}}
-									>
-										<input type="hidden" name="id" value={song.id} />
-										{@render songFields(song)}
-										<div class="inline-actions">
-											<button type="submit" class="btn btn-primary">Enregistrer</button>
-											<button type="button" class="btn btn-ghost" onclick={() => (editingId = null)}>
-												Annuler
-											</button>
-										</div>
-									</form>
-								</td>
-							</tr>
-						{:else}
-							<!-- Ligne normale -->
-							<tr class:abandoned={isAbandoned}>
-								<td class="title"><a href="/songs/{song.id}">{song.title}</a></td>
-								<td data-label="Compositeur">{song.composer ?? '—'}</td>
-								<td data-label="Tonalité">{song.key ?? '—'}</td>
-								<td class="status-cell">
-									<span class="badge badge-{song.status}">
-										{STATUS_LABELS[song.status] ?? song.status}
-									</span>
-								</td>
-								<td class="center" data-label="Prises">{song.take_count}</td>
-								<td class="actions-cell">
-									<button class="btn btn-sm" onclick={() => (editingId = song.id)}> Modifier </button>
-
-									{#if song.take_count === 0}
+							{#if isEditing}
+								<!-- Ligne d'édition inline -->
+								<tr class="editing-row">
+									<td colspan="6">
+										{#if hasError}
+											<p class="message-error">{form?.error}</p>
+										{/if}
 										<form
 											method="POST"
-											action="?/delete"
-											use:enhance
-											onsubmit={(e) => {
-												if (!confirm(`Supprimer "${song.title}" ?`)) e.preventDefault()
+											action="?/update"
+											class="inline-edit-form"
+											use:enhance={() => {
+												return ({ result }) => {
+													if (result.type === 'success' || result.type === 'redirect') {
+														editingId = null
+													}
+												}
 											}}
 										>
 											<input type="hidden" name="id" value={song.id} />
-											<button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
+											{@render songFields(song)}
+											<div class="inline-actions">
+												<button type="submit" class="btn btn-primary">Enregistrer</button>
+												<button type="button" class="btn btn-ghost" onclick={() => (editingId = null)}>
+													Annuler
+												</button>
+											</div>
 										</form>
-									{:else}
-										<button class="btn btn-sm btn-danger" disabled title="Des prises existent">
-											Supprimer
-										</button>
-									{/if}
-								</td>
-							</tr>
-						{/if}
-					{/each}
-				</tbody>
-			</table>
+									</td>
+								</tr>
+							{:else}
+								<!-- Ligne normale -->
+								<tr class:abandoned={isAbandoned}>
+									<td class="title"><a href="/songs/{song.id}">{song.title}</a></td>
+									<td data-label="Compositeur">{song.composer ?? '—'}</td>
+									<td data-label="Tonalité">{song.key ?? '—'}</td>
+									<td class="status-cell">
+										<span class="badge badge-{song.status}">
+											{STATUS_LABELS[song.status] ?? song.status}
+										</span>
+									</td>
+									<td class="center" data-label="Prises">{song.take_count}</td>
+									<td class="actions-cell">
+										<button class="btn btn-sm" onclick={() => (editingId = song.id)}> Modifier </button>
+
+										{#if song.take_count === 0}
+											<form
+												method="POST"
+												action="?/delete"
+												use:enhance
+												onsubmit={(e) => {
+													if (!confirm(`Supprimer "${song.title}" ?`)) e.preventDefault()
+												}}
+											>
+												<input type="hidden" name="id" value={song.id} />
+												<button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
+											</form>
+										{:else}
+											<button class="btn btn-sm btn-danger" disabled title="Des prises existent">
+												Supprimer
+											</button>
+										{/if}
+									</td>
+								</tr>
+							{/if}
+						{/each}
+					</tbody>
+				</table>
+			</div>
 			{/if}
 		{/if}
 
@@ -577,40 +579,6 @@
 		.fields-optional { grid-template-columns: 1fr; }
 
 		/* La table devient une pile de cartes */
-		.data-table,
-		.data-table tbody,
-		.data-table tr,
-		.data-table td {
-			display: block;
-		}
-
-		.data-table thead { display: none; }
-
-		.data-table tr {
-			display: flex;
-			flex-wrap: wrap;
-			align-items: center;
-			gap: 0.35rem 0.9rem;
-			border: 1px solid var(--color-border-light);
-			border-radius: var(--radius-md);
-			padding: 0.75rem;
-			margin-bottom: 0.6rem;
-		}
-
-		.data-table td {
-			border: none;
-			padding: 0;
-			min-width: 0;
-		}
-
-		.data-table td[data-label]::before {
-			content: attr(data-label) ' ';
-			font-size: var(--text-xs);
-			text-transform: uppercase;
-			color: var(--color-text-muted);
-			margin-right: 0.3rem;
-		}
-
 		td.title,
 		td.status-cell,
 		td.actions-cell,

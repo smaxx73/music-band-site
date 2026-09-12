@@ -94,64 +94,66 @@
 		{#if (data.members as unknown[]).length === 0}
 			<p class="empty">Aucun membre.</p>
 		{:else}
-			<table>
-				<thead>
-					<tr>
-						<th>Nom</th>
-						<th>Rôle dans le groupe</th>
-						<th>Rôle global</th>
-						<th></th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each data.members as m}
+			<div class="table-scroll">
+				<table class="data-table">
+					<thead>
 						<tr>
-							<td class="name">{m.display_name}</td>
-							<td>
-								<!-- Attribuer ou retirer le rôle d'admin de groupe est réservé au superadmin. -->
-								{#if data.canAssignAdmin}
-									<form method="POST" action="?/updateRole" use:enhance>
-										<input type="hidden" name="user_id" value={m.id} />
-										<select
-											name="role"
-											class="role-select"
-											aria-label="Rôle de {m.display_name} dans le groupe"
-											onchange={(e) => (e.currentTarget.form as HTMLFormElement).requestSubmit()}
-										>
-											<option value="member" selected={m.group_role === 'member'}>Membre</option>
-											<option value="admin" selected={m.group_role === 'admin'}>Admin</option>
-										</select>
-									</form>
-								{:else}
-									<span class="muted">{m.group_role === 'admin' ? 'Admin' : 'Membre'}</span>
-								{/if}
-							</td>
-							<td class="muted">{m.global_role}</td>
-							<td>
-								{#if m.group_role !== 'admin' || data.canAssignAdmin}
-								<form
-									method="POST"
-									action="?/removeMember"
-									use:enhance={() => {
-										removingId = m.id
-										return ({ update }) => { removingId = null; update() }
-									}}
-								>
-									<input type="hidden" name="user_id" value={m.id} />
-									<button
-										type="submit"
-										class="btn-delete"
-										disabled={removingId === m.id}
-									>
-										{removingId === m.id ? '…' : 'Retirer'}
-									</button>
-								</form>
-								{/if}
-							</td>
+							<th>Nom</th>
+							<th>Rôle dans le groupe</th>
+							<th>Rôle global</th>
+							<th></th>
 						</tr>
-					{/each}
-				</tbody>
-			</table>
+					</thead>
+					<tbody>
+						{#each data.members as m}
+							<tr>
+								<td class="name">{m.display_name}</td>
+								<td data-label="Groupe">
+									<!-- Attribuer ou retirer le rôle d'admin de groupe est réservé au superadmin. -->
+									{#if data.canAssignAdmin}
+										<form method="POST" action="?/updateRole" use:enhance>
+											<input type="hidden" name="user_id" value={m.id} />
+											<select
+												name="role"
+												class="role-select"
+												aria-label="Rôle de {m.display_name} dans le groupe"
+												onchange={(e) => (e.currentTarget.form as HTMLFormElement).requestSubmit()}
+											>
+												<option value="member" selected={m.group_role === 'member'}>Membre</option>
+												<option value="admin" selected={m.group_role === 'admin'}>Admin</option>
+											</select>
+										</form>
+									{:else}
+										<span class="muted">{m.group_role === 'admin' ? 'Admin' : 'Membre'}</span>
+									{/if}
+								</td>
+								<td class="muted" data-label="Global">{m.global_role}</td>
+								<td class="actions-cell">
+									{#if m.group_role !== 'admin' || data.canAssignAdmin}
+									<form
+										method="POST"
+										action="?/removeMember"
+										use:enhance={() => {
+											removingId = m.id
+											return ({ update }) => { removingId = null; update() }
+										}}
+									>
+										<input type="hidden" name="user_id" value={m.id} />
+										<button
+											type="submit"
+											class="btn-delete"
+											disabled={removingId === m.id}
+										>
+											{removingId === m.id ? '…' : 'Retirer'}
+										</button>
+									</form>
+									{/if}
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
 		{/if}
 
 		{#if form?.error && (form?.action === 'removeMember' || form?.action === 'updateRole')}
@@ -343,23 +345,6 @@
 		border-bottom: 1px solid #ebebeb;
 	}
 
-	table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-
-	th {
-		text-align: left;
-		padding: 0.4rem 0.75rem;
-		border-bottom: 2px solid #e0e0e0;
-		font-size: 0.72rem;
-		text-transform: uppercase;
-		color: #666;
-	}
-
-	td {
-		padding: 0.55rem 0.75rem;
-		border-bottom: 1px solid #f0f0f0;
-		vertical-align: middle;
-	}
-
 	.name { font-weight: 600; }
 	.muted { color: #888; font-size: 0.82rem; }
 
@@ -497,4 +482,15 @@
 	}
 
 	.danger-form .input:disabled { background: #f5f2f2; cursor: not-allowed; }
+
+	/* Sous 640 px le tableau devient une pile de cartes (voir app.css). */
+	@media (max-width: 640px) {
+		main { margin: 1rem auto; padding: 0 0.75rem; }
+
+		td.name { flex: 1 1 100%; font-size: var(--text-base); }
+		td.actions-cell { margin-left: auto; }
+
+		/* Le sélecteur de rôle vit dans un <form> : en ligne, il reste sur la ligne du libellé. */
+		td[data-label] form { display: inline-flex; vertical-align: middle; }
+	}
 </style>

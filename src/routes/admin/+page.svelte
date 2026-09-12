@@ -163,38 +163,40 @@
 		{#if recentRecordings.length === 0}
 			<p class="empty">Aucune prise.</p>
 		{:else}
-			<table>
-				<thead>
-					<tr>
-						<th>Morceau</th>
-						<th>Session</th>
-						<th>Prise</th>
-						<th>Par</th>
-						<th></th>
-					</tr>
-				</thead>
-				<tbody>
-					{#each recentRecordings as r}
+			<div class="table-scroll">
+				<table class="data-table">
+					<thead>
 						<tr>
-							<td>
-								<a href="/recording/{r.id}">{r.song_title}</a>
-							</td>
-							<td class="muted">{formatDate(r.session_date)}</td>
-							<td class="muted">Prise {r.take}</td>
-							<td class="muted">{r.uploaded_by}</td>
-							<td>
-								<button
-									class="btn-delete"
-									onclick={() => deleteRecording(r.id, `${r.song_title} — Prise ${r.take}`)}
-									disabled={deletingId === r.id}
-								>
-									{deletingId === r.id ? '…' : 'Supprimer'}
-								</button>
-							</td>
+							<th>Morceau</th>
+							<th>Session</th>
+							<th>Prise</th>
+							<th>Par</th>
+							<th></th>
 						</tr>
-					{/each}
-				</tbody>
-			</table>
+					</thead>
+					<tbody>
+						{#each recentRecordings as r}
+							<tr>
+								<td class="song-cell">
+									<a href="/recording/{r.id}">{r.song_title}</a>
+								</td>
+								<td class="muted">{formatDate(r.session_date)}</td>
+								<td class="muted">Prise {r.take}</td>
+								<td class="muted" data-label="Par">{r.uploaded_by}</td>
+								<td class="actions-cell">
+									<button
+										class="btn-delete"
+										onclick={() => deleteRecording(r.id, `${r.song_title} — Prise ${r.take}`)}
+										disabled={deletingId === r.id}
+									>
+										{deletingId === r.id ? '…' : 'Supprimer'}
+									</button>
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			</div>
 		{/if}
 	</section>
 </main>
@@ -303,27 +305,6 @@
 	.disk-fill.disk-warn { background: #E65022; }
 
 	/* Table */
-	table {
-		width: 100%;
-		border-collapse: collapse;
-		font-size: 0.875rem;
-	}
-
-	th {
-		text-align: left;
-		padding: 0.4rem 0.75rem;
-		border-bottom: 2px solid #e0e0e0;
-		font-size: 0.72rem;
-		text-transform: uppercase;
-		color: #666;
-	}
-
-	td {
-		padding: 0.55rem 0.75rem;
-		border-bottom: 1px solid #f0f0f0;
-		vertical-align: middle;
-	}
-
 	td a { color: inherit; text-decoration: none; font-weight: 600; }
 	td a:hover { text-decoration: underline; }
 
@@ -341,6 +322,16 @@
 
 	.btn-delete:hover:not(:disabled) { background: #ffe0e0; }
 	.btn-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+
+	/* Sous 640 px le tableau devient une pile de cartes (voir app.css). */
+	@media (max-width: 640px) {
+		main { margin: 1rem auto; padding: 0 0.75rem; }
+
+		.disk-label { flex-wrap: wrap; gap: 0.2rem; }
+
+		td.song-cell { flex: 1 1 100%; font-size: var(--text-base); font-weight: 600; }
+		td.actions-cell { margin-left: auto; }
+	}
 
 	.loading { color: #aaa; font-style: italic; font-size: 0.9rem; }
 	.empty { color: #aaa; font-style: italic; font-size: 0.9rem; }

@@ -121,66 +121,68 @@
 					{/if}
 				</h2>
 
-				<table class="data-table">
-					<thead>
-						<tr>
-							<th>Prise</th>
-							<th>Durée</th>
-							<th>Qualité</th>
-							<th>Commentaires</th>
-							<th>Par</th>
-							<th>Fichier</th>
-							<th></th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each group.recordings as r}
+				<div class="table-scroll">
+					<table class="data-table">
+						<thead>
 							<tr>
-								<td class="take">Prise {r.take}</td>
-								<td class="duration-cell">{formatDuration(r.duration_s)}</td>
-								<td class="quality-cell">
-									<span class="badge badge-quality-{qualityClass(r.status)}">
-										{r.status}
-									</span>
-								</td>
-								<td class="center comments-cell">
-									{#if r.comment_count > 0}
-										<button
-											class="comment-count"
-											class:open={openComments[r.id]}
-											onclick={() => toggleComments(r.id)}
-											title={openComments[r.id] ? 'Masquer les commentaires' : 'Lire les commentaires'}
-										>
-											💬 {r.comment_count}
-										</button>
-									{:else}
-										<span class="muted">—</span>
-									{/if}
-								</td>
-								<td class="muted uploader-cell" data-label="Par">{r.uploaded_by}</td>
-								<td class="file-cell" data-label="Fichier">
-									<span
-										class="file-name"
-										class:fallback={!r.source_file_name}
-										title={r.source_file_name
-											? `Fichier déposé : ${r.source_file_name}`
-											: "Nom d'origine inconnu — prise déposée avant sa conservation"}
-									>{sourceName(r)}</span>
-								</td>
-								<td class="listen-cell">
-									<a href="/recording/{r.id}" class="btn btn-secondary btn-sm">Écouter</a>
-								</td>
+								<th>Prise</th>
+								<th>Durée</th>
+								<th>Qualité</th>
+								<th>Commentaires</th>
+								<th>Par</th>
+								<th>Fichier</th>
+								<th></th>
 							</tr>
-							{#if openComments[r.id]}
-								<tr class="comments-row">
-									<td colspan="7">
-										<RecordingComments recordingId={r.id} />
+						</thead>
+						<tbody>
+							{#each group.recordings as r}
+								<tr>
+									<td class="take">Prise {r.take}</td>
+									<td class="duration-cell">{formatDuration(r.duration_s)}</td>
+									<td class="quality-cell">
+										<span class="badge badge-quality-{qualityClass(r.status)}">
+											{r.status}
+										</span>
+									</td>
+									<td class="center comments-cell">
+										{#if r.comment_count > 0}
+											<button
+												class="comment-count"
+												class:open={openComments[r.id]}
+												onclick={() => toggleComments(r.id)}
+												title={openComments[r.id] ? 'Masquer les commentaires' : 'Lire les commentaires'}
+											>
+												💬 {r.comment_count}
+											</button>
+										{:else}
+											<span class="muted">—</span>
+										{/if}
+									</td>
+									<td class="muted uploader-cell" data-label="Par">{r.uploaded_by}</td>
+									<td class="file-cell" data-label="Fichier">
+										<span
+											class="file-name"
+											class:fallback={!r.source_file_name}
+											title={r.source_file_name
+												? `Fichier déposé : ${r.source_file_name}`
+												: "Nom d'origine inconnu — prise déposée avant sa conservation"}
+										>{sourceName(r)}</span>
+									</td>
+									<td class="listen-cell">
+										<a href="/recording/{r.id}" class="btn btn-secondary btn-sm">Écouter</a>
 									</td>
 								</tr>
-							{/if}
-						{/each}
-					</tbody>
-				</table>
+								{#if openComments[r.id]}
+									<tr class="comments-row">
+										<td colspan="7">
+											<RecordingComments recordingId={r.id} />
+										</td>
+									</tr>
+								{/if}
+							{/each}
+						</tbody>
+					</table>
+				</div>
 			</section>
 		{/each}
 	{/if}
@@ -234,7 +236,7 @@
 
 	/* Nom tronqué, donné en entier par le titre : un « ZOOM0042_LR.WAV » ne doit pas
 	   élargir le tableau pour tout le monde. */
-	td.file-cell { max-width: 8rem; }
+	td.file-cell { max-width: 6rem; }
 
 	.file-name {
 		display: block;
@@ -272,39 +274,6 @@
 
 		.song-header { gap: 0.5rem; }
 		h1 { font-size: 1.25rem; flex-wrap: wrap; }
-
-		.data-table,
-		.data-table tbody,
-		.data-table tr,
-		.data-table td {
-			display: block;
-		}
-
-		.data-table thead { display: none; }
-
-		.data-table tr {
-			display: flex;
-			flex-wrap: wrap;
-			align-items: center;
-			gap: 0.45rem 0.8rem;
-			border: 1px solid var(--color-border-light);
-			border-radius: var(--radius-lg);
-			padding: 0.7rem 0.75rem;
-			margin-bottom: 0.6rem;
-		}
-
-		.data-table td {
-			border: none;
-			padding: 0;
-		}
-
-		.data-table td[data-label]::before {
-			content: attr(data-label) ' ';
-			font-size: var(--text-xs);
-			text-transform: uppercase;
-			color: var(--color-text-muted);
-			margin-right: 0.25rem;
-		}
 
 		td.take { order: 1; font-size: var(--text-base); color: var(--color-text); }
 		td.duration-cell { order: 2; font-size: var(--text-sm); color: var(--color-text-secondary); }
