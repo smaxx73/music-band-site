@@ -2,8 +2,12 @@ import type { LayoutServerLoad } from './$types'
 import { redirect } from '@sveltejs/kit'
 import { unreadCount } from '$lib/server/notifications'
 
+// "/" (hors connexion) et "/accueil" (toujours) servent la page d'accueil publique —
+// voir +page.server.ts et routes/accueil — elles ne redirigent jamais vers /login.
+const PUBLIC_PATHS = new Set(['/login', '/', '/accueil'])
+
 export const load: LayoutServerLoad = async ({ locals, url }) => {
-	if (!locals.user && url.pathname !== '/login') {
+	if (!locals.user && !PUBLIC_PATHS.has(url.pathname)) {
 		redirect(302, '/login')
 	}
 

@@ -79,7 +79,7 @@
 				aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
 				aria-expanded={menuOpen}
 			>{menuOpen ? '✕' : '☰'}</button>
-			<a href="/" class="brand" aria-label="BandStash — accueil">
+			<a href="/accueil" class="brand" aria-label="BandStash — accueil">
 				<img src="/brand/bandstash-mark-simple.svg" alt="" class="brand-mark" />
 				<span>BandStash</span>
 			</a>

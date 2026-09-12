@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types'
 	import { formatDateOnly, toDateOnly } from '$lib/date'
+	import PublicLanding from '$lib/components/PublicLanding.svelte'
 
 	let { data }: { data: PageData } = $props()
 
@@ -135,8 +136,12 @@
 </script>
 
 <svelte:head>
-	<title>Tableau de bord</title>
+	<title>{data.user ? 'Tableau de bord' : 'BandStash'}</title>
 </svelte:head>
+
+{#if !data.user}
+	<PublicLanding />
+{:else}
 
 <main>
 	<div class="dash-layout">
@@ -310,6 +315,7 @@
 		</div>
 	</div>
 </main>
+{/if}
 
 <style>
 	main {
