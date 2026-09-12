@@ -248,9 +248,19 @@
 					<button class="day-number" onclick={() => selectDay(day)}>{day}</button>
 					<div class="day-events">
 						{#each groupEventsForDay(day) as event}
-							<div class="event-badge event-{event.type}">
-								{event.title || TYPE_LABELS[event.type]}
-							</div>
+							{#if event.session_id}
+								<a
+									href="/sessions/{event.session_id}"
+									class="event-badge event-{event.type}"
+									title="Voir la session"
+								>
+									{event.title || TYPE_LABELS[event.type]}
+								</a>
+							{:else}
+								<div class="event-badge event-{event.type}">
+									{event.title || TYPE_LABELS[event.type]}
+								</div>
+							{/if}
 						{/each}
 						{#each unavailsForDay(day) as event}
 							<div class="event-badge event-indisponibilite">
@@ -521,6 +531,12 @@
 		text-overflow: ellipsis;
 		max-width: 100%;
 		display: block;
+		color: inherit;
+		text-decoration: none;
+	}
+
+	a.event-badge:hover {
+		text-decoration: underline;
 	}
 
 	.event-indisponibilite {
