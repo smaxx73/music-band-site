@@ -6,6 +6,7 @@
    (liste depuis `songs` où `status != 'abandonne'`)
 2. Réception multipart : fichier audio + `session_id`, `song_id`
 3. Validation : MIME audio autorisé via `audio_formats`, taille < 200 Mo, session et morceau dans le groupe actif
+   (réception multipart commune à l'upload et aux imports : `src/lib/server/upload-stream.ts`)
 4. Streaming du fichier brut vers un fichier temporaire et calcul SHA-256 sans charger l'audio en mémoire
 5. Détection de doublon dans le groupe actif via `recordings.file_hash` ; retour `409` avec les informations de la prise existante si doublon
 6. Conversion ffmpeg → mp3 128kbps + suppression silence début/fin
@@ -13,6 +14,51 @@
 8. Calcul du `take` dans une transaction :
    `SELECT COALESCE(MAX(take), 0) + 1 FROM recordings WHERE session_id=$1 AND song_id=$2`
 9. Insertion en base avec `file_hash`, sauvegarde `/data/audio/{id}.mp3`, retour du `recording` créé
+
+## Découpe automatique d'un enregistrement (`/upload/decoupe/[id]`)
+
+Premier des outils d'amélioration audio branchés à la suite de l'upload.
+
+- Case **« Ce fichier contient plusieurs prises »** sur `/upload`. Le morceau ne se
+  choisit alors pas dans le formulaire : il se choisit segment par segment, après analyse
+- Le fichier part en **zone de transit** (`audio_imports`) et y attend d'être découpé.
+  **Rien n'entre dans `recordings`** avant validation
+- **L'original est conservé intact** : c'est dans lui que les prises seront taillées, et il
+  n'est transcodé qu'une seule fois, à la découpe. Tout le travail — détection des blancs,
+  forme d'onde, préécoute — se fait sur un **proxy** léger (mono 22 kHz, 48 kbps, ~30×
+  plus petit), qu'il serait absurde de payer au tarif de l'original à chaque relance
+  d'analyse ou pour une écoute de cinq secondes
+- Proxy et original partagent la **même échelle de temps** : le proxy n'est jamais rogné
+  (contrairement à `convertToMp3`), et le délai d'encodage mp3 est décrit par l'en-tête
+  LAME puis retiré au décodage. Une borne trouvée sur le proxy vaut telle quelle dans
+  l'original — vérifié à 20 µs près
+- Les octets ne sont **jamais** dans `AUDIO_DIR` : en production Caddy sert ce dossier tel
+  quel sous `/audio/`, sans passer par Node ni par l'authentification. Un fichier que
+  personne n'a validé n'a rien à y faire — il vit dans le répertoire temporaire du conteneur
+- Un import est **personnel** : seul son déposant le voit, et seulement dans le groupe où
+  il l'a déposé. Rien n'est encore publié, personne d'autre n'a à le voir
+- Détection des blancs par `silencedetect` (`src/lib/server/ffmpeg.ts`). Le complémentaire
+  des silences, ce sont les prises. Chaque segment retrouve 0,25 s de part et d'autre :
+  le seuil mange sinon l'attaque d'une note et la fin d'une résonance
+- Réglages par défaut : silence ≥ 2 s sous −40 dB, prise ≥ 10 s. Trois curseurs permettent
+  de **relancer l'analyse** sans renvoyer le fichier — il est déjà sur le serveur.
+  Relancer remet à zéro les morceaux choisis, l'écran le dit
+- L'écran affiche la forme d'onde du fichier entier avec les segments en surimpression,
+  et pré-écoute chaque segment depuis un seul élément `<audio>` (déplacement, pas découpe)
+- Chaque segment retenu reçoit **son propre morceau** ; les autres sont écartés (bavardage,
+  fausse note, bruit de salle). Un segment retenu sans morceau bloque la validation
+- À la validation : un extrait par segment, taillé **dans l'original** et encodé aux
+  réglages de stockage de l'application (mp3 128 kbps) — un seul encodage sur tout le
+  chemin d'une prise. Puis création dans **une seule transaction** : les segments d'un
+  même morceau se numérotent à la suite, sans trou ni collision
+- Les fichiers sont taillés **avant** l'écriture en base, et posés dans `AUDIO_DIR` ensuite :
+  un fichier orphelin se rattrape, une ligne pointant vers un fichier absent non.
+  Si quoi que ce soit échoue, les prises déjà insérées repartent et l'import redevient découpable
+- L'import est **réclamé** (`consumed_at`) avant tout travail : un double envoi ne crée pas
+  deux séries de prises. Un import déjà découpé répond `409`
+- Une notification par prise créée, comme pour un upload simple
+- Abandon explicite depuis l'écran ; sinon les imports de plus de 24 h sont balayés avec
+  leurs fichiers au dépôt suivant — pas de tâche planifiée pour un volume aussi faible
 
 ## Liste des sessions (`/sessions`)
 

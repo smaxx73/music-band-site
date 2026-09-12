@@ -8,7 +8,9 @@ src/
 │   ├── server/
 │   │   ├── db.ts          # client postgres.js + helpers SQL
 │   │   ├── storage.ts     # lecture/écriture fichiers audio
-│   │   ├── ffmpeg.ts      # conversion mp3, découpe silence, durée
+│   │   ├── ffmpeg.ts      # conversion mp3, proxy, détection des blancs, extraction, durée
+│   │   ├── upload-stream.ts # réception multipart d'un fichier audio (prise ou import)
+│   │   ├── imports.ts     # zone de transit des outils audio d'après upload
 │   │   └── notifications.ts # écriture (fan-out) et lecture des notifications
 │   └── components/
 │       ├── AudioPlayer.svelte     # lecteur WaveSurfer.js
@@ -28,6 +30,7 @@ src/
 │   ├── recording/[id]/+page.svelte
 │   ├── playlists/[id]/+page.svelte
 │   ├── upload/+page.svelte
+│   ├── upload/decoupe/[id]/+page.svelte  # découpe d'un import sur les blancs
 │   └── api/               # voir src/routes/api/CLAUDE.md
 data/audio/                # fichiers mp3 (volume Docker)
 schema.sql                 # schéma SQL — source de vérité
@@ -74,6 +77,11 @@ type Recording = {
 - Caddy les sert depuis `/audio/` en production ; Node ne les sert qu'en développement
 - `BODY_SIZE_LIMIT` configuré dans `svelte.config.js` pour les gros uploads
 - Ne jamais les charger entièrement en mémoire Node
+- Un fichier déposé mais pas encore validé (import à découper) reste **hors** `AUDIO_DIR` :
+  Caddy sert ce dossier sans authentification. Voir `src/lib/server/imports.ts`
+- Un import tient en deux fichiers : l'**original** intact, dans lequel les prises sont
+  taillées, et un **proxy** léger qui porte l'analyse et la préécoute. On travaille sur le
+  proxy, on rend depuis l'original — jamais l'inverse
 - Les doublons sont détectés par `recordings.file_hash` avant conversion
 
 ## Données

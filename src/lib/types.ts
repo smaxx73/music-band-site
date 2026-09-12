@@ -289,3 +289,49 @@ export function sessionTypeLabel(type: string): string {
 	}
 	return labels[type] ?? type
 }
+
+// ─── Outils audio : découpe d'un import sur les silences ──────────────────
+
+/**
+ * Réglages de la détection des silences. Exposés à l'écran de découpe : un
+ * enregistrement bavard ou une batterie qui traîne ne se découpent pas au même
+ * seuil qu'une répétition propre, et relancer l'analyse ne renvoie pas le fichier.
+ */
+export type SplitParams = {
+	/** Seuil en dB sous lequel le signal compte comme du silence. */
+	threshold_db: number
+	/** Durée minimale d'un silence pour qu'il sépare deux prises. */
+	min_silence_s: number
+	/** En dessous, un passage sonore est du bruit de salle, pas une prise. */
+	min_segment_s: number
+}
+
+export const SPLIT_DEFAULTS: SplitParams = {
+	threshold_db: -40,
+	min_silence_s: 2,
+	min_segment_s: 10
+}
+
+export const SPLIT_BOUNDS: Record<keyof SplitParams, { min: number; max: number; step: number }> = {
+	threshold_db: { min: -70, max: -15, step: 1 },
+	min_silence_s: { min: 0.3, max: 15, step: 0.1 },
+	min_segment_s: { min: 0, max: 300, step: 5 }
+}
+
+/** Passage sonore repéré entre deux silences, en secondes depuis le début du fichier. */
+export type AudioSegment = { start_s: number; end_s: number }
+
+/**
+ * Fichier déposé, pas encore devenu des prises. Voir `src/lib/server/imports.ts`.
+ * L'original est conservé — c'est lui qui sera taillé ; l'analyse et la préécoute
+ * passent par un proxy léger.
+ */
+export type AudioImport = {
+	id: string
+	session_id: number | null
+	file_name: string
+	/** Type de l'original conservé, tel que déposé. */
+	source_mime: string | null
+	duration_s: number | null
+	created_at: Date
+}

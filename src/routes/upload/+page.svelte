@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types'
+	import { goto } from '$app/navigation'
 	import { formatDateOnly } from '$lib/date'
 	import SongDetails from '$lib/components/SongDetails.svelte'
 
@@ -19,6 +20,11 @@
 	let newLocation = $state('')
 	let selectedSong = $state<string>('')
 	let file = $state<File | null>(null)
+
+	// Une répétition enregistrée d'un bloc contient plusieurs morceaux : le fichier part
+	// alors en zone de transit, et c'est l'écran de découpe qui en tire les prises.
+	// Le morceau ne se choisit donc pas ici, mais segment par segment.
+	let multiTake = $state(false)
 
 	let uploading = $state(false)
 	let progress = $state(0)
@@ -43,45 +49,25 @@
 		duplicate = null
 		progress = 0
 
-		if (!selectedSong) { error = 'Sélectionne un morceau.'; return }
+		if (!multiTake && !selectedSong) { error = 'Sélectionne un morceau.'; return }
 		if (!file) { error = 'Sélectionne un fichier audio.'; return }
 
 		uploading = true
 
 		try {
-			let sessionId: number
+			const sessionId = await resolveSessionId()
+			if (sessionId === null) return
 
-			if (selectedSession === 'new') {
-				if (!newDate) { error = 'Saisis la date de la session.'; uploading = false; return }
-				const res = await fetch('/api/sessions', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						date: newDate,
-						type: newType,
-						title: newTitle.trim() || undefined,
-						location: newLocation.trim() || undefined,
-						members: []
-					})
-				})
-				const json = await res.json()
-				if (!res.ok) { error = json.error ?? 'Erreur création session.'; uploading = false; return }
-				sessionId = json.id
-			} else {
-				sessionId = parseInt(selectedSession)
-				if (isNaN(sessionId)) { error = 'Session invalide.'; uploading = false; return }
+			if (multiTake) {
+				const audioImport = await sendFile<{ id: string }>('/api/imports', sessionId)
+				await goto(`/upload/decoupe/${audioImport.id}`)
+				return
 			}
 
-			const result = await uploadWithProgress(sessionId, parseInt(selectedSong), file)
+			const result = await sendFile<{ id: number }>('/api/upload', sessionId, selectedSong)
 			successId = result.id
 			successSessionId = sessionId
-			file = null
-			selectedSession = ''
-			selectedSong = ''
-			newDate = ''
-			newType = 'repetition'
-			newTitle = ''
-			newLocation = ''
+			resetForm()
 		} catch (err) {
 			if (err instanceof DuplicateError) {
 				duplicate = err.duplicate
@@ -93,6 +79,42 @@
 		}
 	}
 
+	/** Session existante, ou création à la volée. `null` = l'erreur est déjà affichée. */
+	async function resolveSessionId(): Promise<number | null> {
+		if (selectedSession !== 'new') {
+			const sessionId = parseInt(selectedSession)
+			if (isNaN(sessionId)) { error = 'Session invalide.'; return null }
+			return sessionId
+		}
+
+		if (!newDate) { error = 'Saisis la date de la session.'; return null }
+
+		const res = await fetch('/api/sessions', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				date: newDate,
+				type: newType,
+				title: newTitle.trim() || undefined,
+				location: newLocation.trim() || undefined,
+				members: []
+			})
+		})
+		const json = await res.json()
+		if (!res.ok) { error = json.error ?? 'Erreur création session.'; return null }
+		return json.id
+	}
+
+	function resetForm() {
+		file = null
+		selectedSession = ''
+		selectedSong = ''
+		newDate = ''
+		newType = 'repetition'
+		newTitle = ''
+		newLocation = ''
+	}
+
 	class DuplicateError extends Error {
 		duplicate: { id: number; take: number; session_date: string; song_title: string }
 		constructor(d: DuplicateError['duplicate']) {
@@ -101,12 +123,16 @@
 		}
 	}
 
-	function uploadWithProgress(sessionId: number, songId: number, f: File): Promise<{ id: number }> {
+	/**
+	 * XMLHttpRequest plutôt que fetch : c'est le seul moyen de suivre la progression
+	 * de l'envoi, qui dure sur un fichier de plusieurs dizaines de Mo.
+	 */
+	function sendFile<T>(url: string, sessionId: number, songId?: string): Promise<T> {
 		return new Promise((resolve, reject) => {
 			const formData = new FormData()
 			formData.append('session_id', String(sessionId))
-			formData.append('song_id', String(songId))
-			formData.append('audio', f)
+			if (songId) formData.append('song_id', songId)
+			formData.append('audio', file as File)
 
 			const xhr = new XMLHttpRequest()
 
@@ -135,7 +161,7 @@
 
 			xhr.onerror = () => reject(new Error('Erreur réseau.'))
 
-			xhr.open('POST', '/api/upload')
+			xhr.open('POST', url)
 			xhr.send(formData)
 		})
 	}
@@ -217,10 +243,14 @@
 			{/if}
 		</fieldset>
 
-		<!-- Morceau -->
+		<!-- Morceau — en mode découpe, il se choisit segment par segment -->
 		<fieldset>
 			<legend>Morceau</legend>
-			{#if songs.length === 0}
+			{#if multiTake}
+				<p class="hint">
+					Chaque segment détecté recevra son propre morceau à l'écran suivant.
+				</p>
+			{:else if songs.length === 0}
 				<p class="hint">
 					Aucun morceau disponible.
 					<a href="/songs">Ajouter des morceaux →</a>
@@ -263,6 +293,17 @@
 			{#if file}
 				<p class="hint">{file.name} — {(file.size / 1024 / 1024).toFixed(1)} Mo</p>
 			{/if}
+
+			<label class="check-label">
+				<input type="checkbox" bind:checked={multiTake} disabled={uploading} />
+				<span>
+					Ce fichier contient plusieurs prises
+					<span class="hint block">
+						La répétition a été enregistrée d'un bloc : les blancs sont repérés
+						automatiquement et chaque passage devient une prise à part.
+					</span>
+				</span>
+			</label>
 		</fieldset>
 
 		<!-- Progression -->
@@ -273,14 +314,26 @@
 			<p class="hint center">
 				{#if progress < 100}
 					Envoi en cours… {progress}%
+				{:else if multiTake}
+					Préparation du fichier… (l'analyse des blancs suit)
 				{:else}
 					Conversion audio en cours…
 				{/if}
 			</p>
 		{/if}
 
-		<button type="submit" class="btn btn-primary submit-btn" disabled={uploading || !file || !selectedSession || !selectedSong}>
-			{uploading ? 'Upload en cours…' : 'Uploader'}
+		<button
+			type="submit"
+			class="btn btn-primary submit-btn"
+			disabled={uploading || !file || !selectedSession || (!multiTake && !selectedSong)}
+		>
+			{#if uploading}
+				Upload en cours…
+			{:else if multiTake}
+				Analyser et découper
+			{:else}
+				Uploader
+			{/if}
 		</button>
 	</form>
 </main>
@@ -356,6 +409,22 @@
 		height: 100%;
 		background: var(--color-primary);
 		transition: width 0.2s;
+	}
+
+	.check-label {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.5rem;
+		margin-top: 0.9rem;
+		font-size: var(--text-sm);
+		cursor: pointer;
+	}
+
+	.check-label input { margin-top: 0.15rem; }
+
+	.hint.block {
+		display: block;
+		margin-top: 0.15rem;
 	}
 
 	.submit-btn {

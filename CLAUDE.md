@@ -60,6 +60,10 @@ NODE_ENV=production
 - IMPORTANT : ne jamais charger un fichier audio en mémoire Node entièrement
 - IMPORTANT : le calcul du `take` doit se faire dans une transaction
 - IMPORTANT : les morceaux avec statut `abandonne` n'apparaissent pas dans le sélecteur d'upload
+- IMPORTANT : un fichier déposé mais pas encore validé (import à découper) ne va JAMAIS dans
+  `AUDIO_DIR` — Caddy sert ce dossier sans authentification. Voir `src/lib/server/imports.ts`
+- IMPORTANT : sur un import à découper, on analyse et on préécoute le proxy léger, mais le
+  rendu final est TOUJOURS taillé dans l'original conservé — jamais dans le proxy
 - IMPORTANT : toutes les données groupe-scopées doivent être filtrées par `locals.user.current_group_id`
 - IMPORTANT : toute décision de droit passe par les helpers de `src/lib/types.ts`
   (`canManageGroup`, `canAssignGroupAdmin`, `canDeleteGroupContent`) — jamais par une
@@ -106,6 +110,7 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
 /recording/[id]     lecteur waveform + commentaires
 /playlists/[id]     lecture en continu d'une playlist
 /upload             formulaire d'upload
+/upload/decoupe/[id] découpe automatique d'un enregistrement long sur les blancs
 /profile            infos du compte connecté + changement de mot de passe
 /group              infos + membres du groupe actif (consultation pour tout membre,
                     gestion des membres, du nom, du logo et des liens pour l'admin du groupe)
@@ -124,4 +129,6 @@ dans docs/features.md.
 - Pagination (à faire quand > 50 éléments)
 - Suppression / édition de commentaires
 - Tests automatisés
+- Autres outils d'amélioration audio (normalisation, fondus, réduction de bruit) : seule
+  la découpe sur les blancs existe — voir docs/features.md
 - Recherche full-text

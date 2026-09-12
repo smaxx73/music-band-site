@@ -19,6 +19,10 @@ Ne jamais faire confiance aux données du body sans vérification.
 ## Structure des routes
 ```
 api/upload/+server.ts
+api/imports/+server.ts
+api/imports/[id]/+server.ts
+api/imports/[id]/audio/+server.ts
+api/imports/[id]/split/+server.ts
 api/sessions/+server.ts
 api/sessions/[id]/+server.ts
 api/sessions/[id]/reorder/+server.ts
@@ -60,6 +64,19 @@ Deux niveaux de droits au-delà de l'authentification :
   `DELETE /api/groups/[id]` exige en plus `?confirm=<nom exact du groupe>` et supprime tout
   le contenu en cascade ; `GET /api/groups/[id]/export` en fournit l'archive JSON préalable.
   Une archive ne contient jamais de `password_hash`.
+
+Les **imports** (`api/imports/`) sont la zone de transit des outils audio d'après upload :
+un fichier déposé qui n'est pas encore devenu des prises. Ils font exception au scope de
+groupe seul — un import est **personnel** : le filtre `user_id = locals.user.id` s'ajoute
+au groupe, et l'import d'un autre répond `404`. Rien n'y est publié, personne d'autre n'a
+à le voir. Passer par `src/lib/server/imports.ts`, jamais par un SQL direct.
+`POST /api/imports` (multipart, champs `audio` + `session_id`) dépose le fichier : l'original
+est conservé tel quel et un proxy léger est fabriqué pour le travail ;
+`GET /api/imports/[id]` relance la détection des blancs (`?threshold_db=&min_silence_s=&min_segment_s=`,
+bornées côté serveur par `normalizeParams`) ; `GET /api/imports/[id]/audio` sert le **proxy**
+pour la pré-écoute, toujours par Node ; `POST /api/imports/[id]/split`
+(`{ session_id, segments: [{ start_s, end_s, song_id }] }`) taille les extraits dans
+l'**original**, crée les prises et consomme l'import ; `DELETE /api/imports/[id]` l'abandonne. Un import déjà découpé répond `409`.
 
 Les notifications font exception au scope habituel : elles appartiennent à un destinataire.
 Le filtre `user_id = locals.user.id` **est** la vérification de droit — personne, admin compris,

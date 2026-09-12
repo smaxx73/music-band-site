@@ -194,6 +194,26 @@ CREATE TABLE notifications (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Zone de transit des outils audio d'apres upload (decoupe sur les silences).
+-- Un import est un fichier deja depose mais pas encore devenu des prises : il vit le
+-- temps de la decoupe, puis disparait. Les octets n'habitent PAS AUDIO_DIR, que Caddy
+-- sert tel quel sous /audio/ sans passer par Node -- voir src/lib/server/imports.ts.
+-- Deux fichiers par import : l'ORIGINAL intact, dans lequel les prises sont taillees,
+-- et un proxy leger qui porte l'analyse et la preecoute.
+CREATE TABLE audio_imports (
+    id          UUID PRIMARY KEY,
+    group_id    INTEGER NOT NULL REFERENCES groups(id)   ON DELETE CASCADE,
+    user_id     INTEGER NOT NULL REFERENCES users(id)    ON DELETE CASCADE,
+    session_id  INTEGER          REFERENCES sessions(id) ON DELETE CASCADE,
+                                                 -- session qui recevra les prises
+    file_name   TEXT NOT NULL,                   -- nom d'origine, pour l'affichage
+    source_mime TEXT,                            -- type de l'original conserve
+    file_hash   TEXT NOT NULL,                   -- SHA-256 de la source, comme recordings.file_hash
+    duration_s  INTEGER,
+    consumed_at TIMESTAMPTZ,                     -- verrou : une decoupe ne se valide qu'une fois
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE INDEX idx_songs_group_id     ON songs(group_id);
 CREATE INDEX idx_sessions_group_id  ON sessions(group_id);
 CREATE INDEX idx_playlists_group_id ON playlists(group_id);
@@ -209,3 +229,4 @@ CREATE INDEX idx_comments_author_user ON comments(author_user_id) WHERE author_u
 CREATE INDEX idx_playlists_created_by_user ON playlists(created_by_user_id) WHERE created_by_user_id IS NOT NULL;
 CREATE INDEX idx_notifications_recipient ON notifications(user_id, group_id, created_at DESC);
 CREATE INDEX idx_notifications_unread    ON notifications(user_id, group_id) WHERE read_at IS NULL;
+CREATE INDEX idx_audio_imports_owner  ON audio_imports(user_id, created_at DESC);

@@ -1,10 +1,8 @@
 import type { RequestHandler } from './$types'
-import { createReadStream } from 'fs'
-import { stat } from 'fs/promises'
-import { Readable } from 'stream'
 import { join } from 'path'
 import sql from '$lib/server/db'
 import { audioDir } from '$lib/server/config'
+import { streamAudioFile } from '$lib/server/storage'
 
 export const GET: RequestHandler = async ({ params, request, locals }) => {
 	if (!locals.user) return new Response('Non autorisé', { status: 401 })
@@ -26,56 +24,6 @@ export const GET: RequestHandler = async ({ params, request, locals }) => {
 	`
 	if (!recording) return new Response('Not found', { status: 404 })
 
-	const filePath = join(audioDir(), filename)
-
-	let fileSize: number
-	try {
-		const stats = await stat(filePath)
-		fileSize = stats.size
-	} catch {
-		return new Response('Not found', { status: 404 })
-	}
-
-	const rangeHeader = request.headers.get('range')
-
-	if (rangeHeader) {
-		const match = rangeHeader.match(/bytes=(\d*)-(\d*)/)
-		if (!match) {
-			return new Response('Range not satisfiable', {
-				status: 416,
-				headers: { 'Content-Range': `bytes */${fileSize}` }
-			})
-		}
-
-		const start = match[1] ? parseInt(match[1]) : 0
-		const end = match[2] ? parseInt(match[2]) : fileSize - 1
-
-		if (start > end || end >= fileSize) {
-			return new Response('Range not satisfiable', {
-				status: 416,
-				headers: { 'Content-Range': `bytes */${fileSize}` }
-			})
-		}
-
-		const nodeStream = createReadStream(filePath, { start, end })
-		return new Response(Readable.toWeb(nodeStream) as ReadableStream, {
-			status: 206,
-			headers: {
-				'Content-Type': 'audio/mpeg',
-				'Accept-Ranges': 'bytes',
-				'Content-Range': `bytes ${start}-${end}/${fileSize}`,
-				'Content-Length': String(end - start + 1)
-			}
-		})
-	}
-
-	// Pas de Range — fichier complet
-	const nodeStream = createReadStream(filePath)
-	return new Response(Readable.toWeb(nodeStream) as ReadableStream, {
-		headers: {
-			'Content-Type': 'audio/mpeg',
-			'Accept-Ranges': 'bytes',
-			'Content-Length': String(fileSize)
-		}
-	})
+	const response = await streamAudioFile(join(audioDir(), filename), request)
+	return response ?? new Response('Not found', { status: 404 })
 }
