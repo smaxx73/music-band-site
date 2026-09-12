@@ -87,15 +87,17 @@
 	}
 
 	// Activity timeline derived from sessions + playlists + comments
+	type ActivityKind = 'session' | 'playlist' | 'comment'
 	type ActivityItem = {
-		ts: number; date: string; label: string; detail: string
+		kind: ActivityKind; ts: number; date: string; label: string; detail: string
 		color: string; href?: string
 	}
-	const activity = $derived((): ActivityItem[] => {
+	const allActivity = $derived((): ActivityItem[] => {
 		const items: ActivityItem[] = []
 
 		for (const s of sessions) {
 			items.push({
+				kind: 'session',
 				ts: new Date(toDateOnly(s.date) || s.date).getTime(),
 				date: formatShortDate(s.date),
 				label: 'Session',
@@ -108,6 +110,7 @@
 		for (const p of playlists.slice(0, 2)) {
 			if (p.updated_at) {
 				items.push({
+					kind: 'playlist',
 					ts: new Date(p.updated_at).getTime(),
 					date: formatShortDate(p.updated_at),
 					label: 'Playlist modifiée',
@@ -120,6 +123,7 @@
 
 		for (const c of recentComments) {
 			items.push({
+				kind: 'comment',
 				ts: new Date(c.created_at).getTime(),
 				date: formatShortDate(c.created_at),
 				label: `💬 ${c.author} — ${c.song_title}`,
@@ -131,6 +135,20 @@
 
 		// Tri sur l'horodatage brut : les libellés de date sont déjà formatés pour l'affichage.
 		items.sort((a, b) => b.ts - a.ts)
+		return items
+	})
+
+	let activityFilter = $state<'all' | ActivityKind>('all')
+
+	const activityFilterOptions: { value: 'all' | ActivityKind; label: string }[] = [
+		{ value: 'all', label: 'Toutes' },
+		{ value: 'session', label: 'Sessions' },
+		{ value: 'playlist', label: 'Playlists' },
+		{ value: 'comment', label: 'Commentaires' },
+	]
+
+	const activity = $derived((): ActivityItem[] => {
+		const items = activityFilter === 'all' ? allActivity() : allActivity().filter((i) => i.kind === activityFilter)
 		return items.slice(0, 8)
 	})
 </script>
@@ -263,11 +281,15 @@
 		<div class="dash-right">
 			<div class="section-header">
 				<h2>Activité récente</h2>
-				<a href="/playlists" class="link-more">Playlists →</a>
+				<select class="activity-filter" bind:value={activityFilter}>
+					{#each activityFilterOptions as opt}
+						<option value={opt.value}>{opt.label}</option>
+					{/each}
+				</select>
 			</div>
 
 			{#if activity().length === 0}
-				<p class="empty">Aucune activité.</p>
+				<p class="empty">{activityFilter === 'all' ? 'Aucune activité.' : 'Aucune activité de ce type.'}</p>
 			{:else}
 				<div class="timeline">
 					<div class="timeline-line"></div>
@@ -401,6 +423,22 @@
 	}
 
 	.link-more:hover { color: var(--color-accent); }
+
+	.activity-filter {
+		font-size: 0.75rem;
+		color: var(--color-text-muted);
+		background: var(--color-bg);
+		border: 1px solid var(--color-border-light);
+		border-radius: var(--radius-md);
+		padding: 2px 6px;
+		cursor: pointer;
+	}
+
+	.activity-filter:hover,
+	.activity-filter:focus {
+		color: var(--color-accent);
+		border-color: var(--color-accent);
+	}
 
 	/* ─── Sessions ─────────────────────── */
 	.session-list {
