@@ -23,6 +23,26 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 const VALID_STATUSES = ['en_apprentissage', 'au_repertoire', 'abandonne']
 
+const INVALID = Symbol('invalid')
+
+/** Année à 4 chiffres, ou vide → null. */
+function parseYear(raw: string | null): number | null | typeof INVALID {
+	const trimmed = raw?.trim()
+	if (!trimmed) return null
+	if (!/^\d{4}$/.test(trimmed)) return INVALID
+	return Number(trimmed)
+}
+
+/** "3:45" ou "225" (secondes) ; vide → null. */
+function parseDuration(raw: string | null): number | null | typeof INVALID {
+	const trimmed = raw?.trim()
+	if (!trimmed) return null
+	const match = trimmed.match(/^(\d+):([0-5]\d)$/)
+	if (match) return Number(match[1]) * 60 + Number(match[2])
+	if (/^\d+$/.test(trimmed)) return Number(trimmed)
+	return INVALID
+}
+
 // Le référentiel de morceaux est géré par tout membre du groupe actif, pas seulement les admins.
 export const actions: Actions = {
 	create: async ({ request, locals }) => {
@@ -34,6 +54,7 @@ export const actions: Actions = {
 		const title = (data.get('title') as string | null)?.trim()
 		const composer = (data.get('composer') as string | null)?.trim() || null
 		const key = (data.get('key') as string | null)?.trim() || null
+		const original_artist = (data.get('original_artist') as string | null)?.trim() || null
 		const lyrics = (data.get('lyrics') as string | null)?.trim() || null
 		const music_notes = (data.get('music_notes') as string | null)?.trim() || null
 		const status = (data.get('status') as string | null) ?? 'en_apprentissage'
@@ -42,14 +63,27 @@ export const actions: Actions = {
 		if (!VALID_STATUSES.includes(status))
 			return fail(400, { action: 'create', error: 'Statut invalide.' })
 
+		const release_year = parseYear(data.get('release_year') as string | null)
+		if (release_year === INVALID)
+			return fail(400, { action: 'create', error: 'Année de sortie invalide (AAAA).' })
+		const reference_duration_s = parseDuration(data.get('reference_duration') as string | null)
+		if (reference_duration_s === INVALID)
+			return fail(400, { action: 'create', error: 'Durée de référence invalide (mm:ss).' })
+
 		try {
 			await sql`
-				INSERT INTO songs (group_id, title, composer, key, lyrics, music_notes, status)
+				INSERT INTO songs (
+					group_id, title, composer, key, release_year, original_artist,
+					reference_duration_s, lyrics, music_notes, status
+				)
 				VALUES (
 					${locals.user.current_group_id},
 					${title},
 					${composer},
 					${key},
+					${release_year},
+					${original_artist},
+					${reference_duration_s},
 					${lyrics},
 					${music_notes},
 					${status}
@@ -72,6 +106,7 @@ export const actions: Actions = {
 		const title = (data.get('title') as string | null)?.trim()
 		const composer = (data.get('composer') as string | null)?.trim() || null
 		const key = (data.get('key') as string | null)?.trim() || null
+		const original_artist = (data.get('original_artist') as string | null)?.trim() || null
 		const lyrics = (data.get('lyrics') as string | null)?.trim() || null
 		const music_notes = (data.get('music_notes') as string | null)?.trim() || null
 		const status = data.get('status') as string | null
@@ -81,12 +116,22 @@ export const actions: Actions = {
 		if (!status || !VALID_STATUSES.includes(status))
 			return fail(400, { action: 'update', id, error: 'Statut invalide.' })
 
+		const release_year = parseYear(data.get('release_year') as string | null)
+		if (release_year === INVALID)
+			return fail(400, { action: 'update', id, error: 'Année de sortie invalide (AAAA).' })
+		const reference_duration_s = parseDuration(data.get('reference_duration') as string | null)
+		if (reference_duration_s === INVALID)
+			return fail(400, { action: 'update', id, error: 'Durée de référence invalide (mm:ss).' })
+
 		try {
 			const [song] = await sql`
 				UPDATE songs
 				SET title = ${title},
 					composer = ${composer},
 					key = ${key},
+					release_year = ${release_year},
+					original_artist = ${original_artist},
+					reference_duration_s = ${reference_duration_s},
 					lyrics = ${lyrics},
 					music_notes = ${music_notes},
 					status = ${status}

@@ -169,7 +169,8 @@ Premier des outils d'amélioration audio branchés à la suite de l'upload.
 ## Référentiel de morceaux (`/songs`)
 
 - Géré par tout membre du groupe actif (pas réservé aux admins) — scope toujours par `current_group_id`
-- Ajout : titre (unique dans le groupe), compositeur, tonalité, statut
+- Ajout : titre (unique dans le groupe), compositeur, tonalité, statut, et en complément
+  optionnel : artiste/groupe original (si reprise), année de sortie, durée de référence
 - Modification possible après coup
 - Statut `abandonne` → masqué dans le sélecteur d'upload, prises existantes conservées ; reste visible et modifiable dans `/songs`
 - Suppression bloquée si des prises existent pour ce morceau

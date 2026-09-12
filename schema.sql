@@ -71,6 +71,9 @@ CREATE TABLE songs (
     title       TEXT NOT NULL,
     composer    TEXT,
     key         TEXT,                        -- ex: "Dm", "Bb"
+    release_year          INTEGER,           -- année de sortie / composition d'origine
+    original_artist       TEXT,              -- artiste/groupe d'origine si reprise (distinct de `composer`)
+    reference_duration_s  INTEGER,           -- durée cible/de référence, en secondes
     lyrics      TEXT,
     music_notes TEXT,                        -- accords, structure, tempo, remarques musicales
     status      TEXT DEFAULT 'en_apprentissage',

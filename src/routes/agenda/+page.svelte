@@ -226,10 +226,10 @@
 	<div class="header">
 		<button class="btn btn-ghost nav-arrow" onclick={prevMonth}>←</button>
 		<h1 class="month-title">{monthLabel}</h1>
-		<button class="btn btn-ghost nav-arrow" onclick={nextMonth}>→</button>
 		{#if !isCurrentMonth}
 			<button class="btn btn-secondary btn-sm" onclick={goToday}>Aujourd'hui</button>
 		{/if}
+		<button class="btn btn-ghost nav-arrow" onclick={nextMonth}>→</button>
 	</div>
 
 	<div class="calendar">

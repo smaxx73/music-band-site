@@ -8,7 +8,9 @@
 
 	type Song = {
 		id: number; title: string; composer: string | null
-		key: string | null; lyrics: string | null
+		key: string | null; release_year: number | null
+		original_artist: string | null; reference_duration_s: number | null
+		lyrics: string | null
 		music_notes: string | null; status: string
 	}
 	type RecordingRow = {
@@ -96,8 +98,17 @@
 				{song.title}
 				{#if song.key}<span class="key">{song.key}</span>{/if}
 			</h1>
-			{#if song.composer}
-				<p class="composer">{song.composer}</p>
+			{#if song.composer || song.original_artist || song.release_year}
+				<p class="composer">
+					{song.composer ?? ''}
+					{#if song.original_artist}
+						{song.composer ? '—' : ''} reprise de {song.original_artist}
+					{/if}
+					{#if song.release_year}<span class="year">({song.release_year})</span>{/if}
+				</p>
+			{/if}
+			{#if song.reference_duration_s}
+				<p class="ref-duration">Durée de référence : {formatDuration(song.reference_duration_s)}</p>
 			{/if}
 		</div>
 		<span class="badge badge-{song.status}">
@@ -221,6 +232,8 @@
 	}
 
 	.composer { font-size: 0.9rem; color: #666; margin: 0; }
+	.composer .year { color: var(--color-text-muted); }
+	.ref-duration { font-size: 0.85rem; color: var(--color-text-muted); margin: 0.15rem 0 0; }
 
 	.summary { font-size: var(--text-sm); color: var(--color-text-muted); margin: 0 0 1.5rem; }
 

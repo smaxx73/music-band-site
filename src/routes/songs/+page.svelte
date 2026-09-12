@@ -7,10 +7,16 @@
 	let { data, form }: { data: PageData; form: ActionData } = $props()
 
 	let editingId = $state<number | null>(null)
+	let editError = $state<string | null>(null)
 
-	function hasActionError(action: string, id: number) {
-		const actionData = form as { action?: string; error?: string; id?: number } | null
-		return actionData?.action === action && actionData.id === id && Boolean(actionData.error)
+	function startEditing(id: number) {
+		editError = null
+		editingId = id
+	}
+
+	function cancelEditing() {
+		editingId = null
+		editError = null
 	}
 
 	let showCreateModal = $state(false)
@@ -27,6 +33,14 @@
 		en_apprentissage: 'En apprentissage',
 		au_repertoire: 'Au répertoire',
 		abandonne: 'Abandonné'
+	}
+
+	// Préremplit le champ de durée en édition ("3:45"), au format attendu en retour du formulaire.
+	function formatDurationInput(s: number | null | undefined) {
+		if (!s && s !== 0) return ''
+		const m = Math.floor(s / 60)
+		const sec = s % 60
+		return `${m}:${String(sec).padStart(2, '0')}`
 	}
 
 	// ─── Filtrage / tri (côté client : la liste complète est déjà chargée) ───
@@ -68,6 +82,7 @@
 			return (
 				s.title.toLowerCase().includes(q) ||
 				(s.composer?.toLowerCase().includes(q) ?? false) ||
+				(s.original_artist?.toLowerCase().includes(q) ?? false) ||
 				(s.key?.toLowerCase().includes(q) ?? false)
 			)
 		})
@@ -138,6 +153,40 @@
 				</select>
 			</label>
 		</div>
+		<div class="fields-row fields-row-secondary">
+			<label class="form-label">
+				Artiste/groupe original
+				<input
+					class="form-input"
+					type="text"
+					name="original_artist"
+					value={song?.original_artist ?? ''}
+					placeholder="si reprise"
+				/>
+			</label>
+			<label class="form-label annee">
+				Année de sortie
+				<input
+					class="form-input"
+					type="text"
+					inputmode="numeric"
+					name="release_year"
+					value={song?.release_year ?? ''}
+					placeholder="AAAA"
+					maxlength="4"
+				/>
+			</label>
+			<label class="form-label duree">
+				Durée de référence
+				<input
+					class="form-input"
+					type="text"
+					name="reference_duration"
+					value={formatDurationInput(song?.reference_duration_s)}
+					placeholder="mm:ss"
+				/>
+			</label>
+		</div>
 		<details class="optional-details" open={Boolean(song?.lyrics || song?.music_notes)}>
 			<summary>Paroles et notes musicales <span class="optional-hint">(optionnel)</span></summary>
 			<div class="fields-optional">
@@ -185,7 +234,7 @@
 				<input
 					class="form-input search-input"
 					type="search"
-					placeholder="Rechercher un titre, un compositeur, une tonalité…"
+					placeholder="Rechercher un titre, un compositeur, un artiste original, une tonalité…"
 					bind:value={search}
 					autocomplete="off"
 				/>
@@ -234,25 +283,28 @@
 					<tbody>
 						{#each visibleSongs as song (song.id)}
 							{@const isEditing = editingId === song.id}
-							{@const hasError = hasActionError('update', song.id)}
 							{@const isAbandoned = song.status === 'abandonne'}
 
 							{#if isEditing}
 								<!-- Ligne d'édition inline -->
 								<tr class="editing-row">
 									<td colspan="6">
-										{#if hasError}
-											<p class="message-error">{form?.error}</p>
+										{#if editError}
+											<p class="message-error">{editError}</p>
 										{/if}
 										<form
 											method="POST"
 											action="?/update"
 											class="inline-edit-form"
 											use:enhance={() => {
-												return ({ result }) => {
-													if (result.type === 'success' || result.type === 'redirect') {
-														editingId = null
+												editError = null
+												return async ({ result, update }) => {
+													if (result.type === 'failure') {
+														editError = (result.data as { error?: string } | undefined)?.error ?? 'Erreur.'
+														return
 													}
+													await update()
+													editingId = null
 												}
 											}}
 										>
@@ -260,7 +312,7 @@
 											{@render songFields(song)}
 											<div class="inline-actions">
 												<button type="submit" class="btn btn-primary">Enregistrer</button>
-												<button type="button" class="btn btn-ghost" onclick={() => (editingId = null)}>
+												<button type="button" class="btn btn-ghost" onclick={cancelEditing}>
 													Annuler
 												</button>
 											</div>
@@ -270,8 +322,16 @@
 							{:else}
 								<!-- Ligne normale -->
 								<tr class:abandoned={isAbandoned}>
-									<td class="title"><a href="/songs/{song.id}">{song.title}</a></td>
-									<td data-label="Compositeur">{song.composer ?? '—'}</td>
+									<td class="title">
+										<a href="/songs/{song.id}">{song.title}</a>
+										{#if song.release_year}<span class="year-tag">{song.release_year}</span>{/if}
+									</td>
+									<td data-label="Compositeur">
+										{song.composer ?? '—'}
+										{#if song.original_artist}
+											<span class="original-artist">reprise de {song.original_artist}</span>
+										{/if}
+									</td>
 									<td data-label="Tonalité">{song.key ?? '—'}</td>
 									<td class="status-cell">
 										<span class="badge badge-{song.status}">
@@ -280,7 +340,7 @@
 									</td>
 									<td class="center" data-label="Prises">{song.take_count}</td>
 									<td class="actions-cell">
-										<button class="btn btn-sm" onclick={() => (editingId = song.id)}> Modifier </button>
+										<button class="btn btn-sm" onclick={() => startEditing(song.id)}> Modifier </button>
 
 										{#if song.take_count === 0}
 											<form
@@ -476,6 +536,9 @@
 	.fields-row .tonalite { width: 110px; }
 	.fields-row .statut  { width: 175px; }
 
+	.fields-row-secondary .annee { width: 110px; }
+	.fields-row-secondary .duree { width: 110px; }
+
 	.optional-details {
 		border: 1px solid var(--color-border-light);
 		border-radius: var(--radius-md);
@@ -539,6 +602,21 @@
 	td.title a { color: inherit; text-decoration: none; }
 	td.title a:hover { text-decoration: underline; }
 
+	.year-tag {
+		margin-left: 0.35rem;
+		font-size: 0.7rem;
+		font-weight: 400;
+		color: var(--color-text-muted);
+	}
+
+	.original-artist {
+		display: block;
+		font-size: 0.75rem;
+		font-weight: 400;
+		color: var(--color-text-muted);
+		font-style: italic;
+	}
+
 	tr.abandoned td { opacity: 0.5; }
 
 	.editing-row td {
@@ -575,6 +653,8 @@
 		.fields-row { grid-template-columns: 1fr; }
 		.fields-row .tonalite,
 		.fields-row .statut { width: auto; }
+		.fields-row-secondary .annee,
+		.fields-row-secondary .duree { width: auto; }
 
 		.fields-optional { grid-template-columns: 1fr; }
 

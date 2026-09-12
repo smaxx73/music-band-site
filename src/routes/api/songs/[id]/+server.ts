@@ -39,13 +39,28 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		return json({ error: 'Le titre ne peut pas être vide.' }, { status: 400 })
 	}
 
-	const updates: Record<string, string | null> = {}
+	const updates: Record<string, string | number | null> = {}
 	if (body.title !== undefined) updates.title = (body.title as string).trim()
 	if ('composer' in body)
 		updates.composer =
 			typeof body.composer === 'string' && body.composer.trim() ? body.composer.trim() : null
 	if ('key' in body)
 		updates.key = typeof body.key === 'string' && body.key.trim() ? body.key.trim() : null
+	if ('release_year' in body) {
+		const value = parseNullableInt(body.release_year)
+		if (value === INVALID) return json({ error: 'Année de sortie invalide.' }, { status: 400 })
+		updates.release_year = value
+	}
+	if ('original_artist' in body)
+		updates.original_artist =
+			typeof body.original_artist === 'string' && body.original_artist.trim()
+				? body.original_artist.trim()
+				: null
+	if ('reference_duration_s' in body) {
+		const value = parseNullableInt(body.reference_duration_s)
+		if (value === INVALID) return json({ error: 'Durée de référence invalide.' }, { status: 400 })
+		updates.reference_duration_s = value
+	}
 	if ('lyrics' in body)
 		updates.lyrics = typeof body.lyrics === 'string' && body.lyrics.trim() ? body.lyrics.trim() : null
 	if ('music_notes' in body)
@@ -106,4 +121,14 @@ function isUniqueViolation(err: unknown): boolean {
 		'code' in err &&
 		(err as { code: string }).code === '23505'
 	)
+}
+
+const INVALID = Symbol('invalid')
+
+/** Accepte un entier positif, une chaîne vide/absente/null (→ null), ou signale l'erreur. */
+function parseNullableInt(value: unknown): number | null | typeof INVALID {
+	if (value === undefined || value === null || value === '') return null
+	const n = typeof value === 'number' ? value : Number(value)
+	if (!Number.isInteger(n) || n < 0) return INVALID
+	return n
 }
