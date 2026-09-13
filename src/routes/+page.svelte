@@ -347,7 +347,10 @@
 
 	.dash-layout {
 		display: grid;
-		grid-template-columns: 1fr 240px;
+		/* minmax(0, 1fr) et non 1fr seul : sans le 0, une piste de grille ne rétrécit
+		   jamais sous la largeur min-content de son contenu (un titre, un lieu...),
+		   ce qui pousse toute la page plus large que l'écran sur mobile. */
+		grid-template-columns: minmax(0, 1fr) 240px;
 		gap: 2rem;
 		align-items: start;
 	}
@@ -708,7 +711,7 @@
 	/* ─── Responsive ───────────────────── */
 	@media (max-width: 700px) {
 		main { padding: 1rem; }
-		.dash-layout { grid-template-columns: 1fr; }
+		.dash-layout { grid-template-columns: minmax(0, 1fr); }
 		.dash-right { border-top: 1px solid var(--color-border-light); padding-top: 1.5rem; }
 		.stat-row { gap: 0.4rem; }
 		.stat-card { padding: 0.6rem 0.5rem; }
