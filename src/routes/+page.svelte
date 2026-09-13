@@ -375,6 +375,8 @@
 
 	.stat-card {
 		flex: 1;
+		min-width: 0; /* sinon le libellé majuscule (mot entier + letter-spacing) empêche
+		                 la carte de rétrécir sous 320px et déborde de quelques pixels */
 		background: var(--color-paper);
 		border: 1px solid var(--color-border-light);
 		border-radius: var(--radius-lg);
@@ -397,6 +399,9 @@
 		color: var(--color-text-muted);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
 	/* ─── Section headers ──────────────── */
@@ -705,5 +710,7 @@
 		main { padding: 1rem; }
 		.dash-layout { grid-template-columns: 1fr; }
 		.dash-right { border-top: 1px solid var(--color-border-light); padding-top: 1.5rem; }
+		.stat-row { gap: 0.4rem; }
+		.stat-card { padding: 0.6rem 0.5rem; }
 	}
 </style>
