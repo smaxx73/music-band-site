@@ -99,11 +99,12 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 		WHERE r.id = ${id}
 		  AND r.session_id = s.id
 		  AND s.group_id = ${locals.user.current_group_id}
-		RETURNING r.id
+		RETURNING r.id, r.file_path
 	`
 	if (!deleted) return json({ error: 'Prise introuvable.' }, { status: 404 })
 
-	await unlink(audioPath(id)).catch(() => {})
+	// Une prise vidéo seule n'a pas de fichier : la vidéo, elle, reste sur YouTube.
+	if (deleted.file_path) await unlink(audioPath(id)).catch(() => {})
 
 	return json({ success: true })
 }

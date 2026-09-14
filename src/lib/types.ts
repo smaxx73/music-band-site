@@ -163,13 +163,18 @@ export type Session = {
 	created_at: Date
 }
 
+// Une prise a une piste audio, une vidéo YouTube, ou les deux.
 export type Recording = {
 	id: number
 	session_id: number
 	song_id: number
 	take: number
-	file_path: string
-	/** Nom du fichier tel que déposé. NULL pour les prises antérieures à la migration 023. */
+	/** "{id}.mp3". NULL = pas de piste audio : vidéo seule, ni waveform ni playlist. */
+	file_path: string | null
+	/** Vidéo YouTube du morceau : identifiant seul. */
+	youtube_video_id: string | null
+	youtube_title: string | null
+	/** Nom du fichier audio tel que déposé. NULL pour les prises antérieures à la migration 023. */
 	source_file_name: string | null
 	duration_s: number | null
 	status: string  // qualité libre : 'À revoir' | 'Moyen' | 'Bon' | 'Référence' | texte court

@@ -17,12 +17,27 @@
 		id: number; take: number; status: string; notes: string | null
 		duration_s: number | null; uploaded_by: string
 		session_id: number; session_date: string; session_location: string | null
-		comment_count: number; file_path: string; source_file_name: string | null
+		comment_count: number; file_path: string | null; source_file_name: string | null
+		youtube_video_id: string | null; youtube_title: string | null
 	}
 
 	// `file_path` ("{id}.mp3") ne sert de nom affiché que pour les prises d'avant la
 	// migration 023, déposées quand le nom d'origine n'était pas encore conservé.
-	const sourceName = (r: RecordingRow) => r.source_file_name ?? r.file_path
+	// 🎬 signale une vidéo : seule (son titre), ou accompagnée de sa piste audio (le fichier).
+	const sourceName = (r: RecordingRow) =>
+		r.file_path
+			? `${r.youtube_video_id ? '🎬 ' : ''}${r.source_file_name ?? r.file_path}`
+			: `🎬 ${r.youtube_title ?? 'Vidéo YouTube'}`
+	const sourceTitle = (r: RecordingRow) =>
+		[
+			r.file_path &&
+				(r.source_file_name
+					? `Fichier déposé : ${r.source_file_name}`
+					: "Nom d'origine inconnu — prise déposée avant sa conservation"),
+			r.youtube_video_id && `Vidéo YouTube : ${r.youtube_title ?? r.youtube_video_id}`
+		]
+			.filter(Boolean)
+			.join('\n')
 
 	const song = $derived(data.song as unknown as Song)
 	const recordings = $derived(data.recordings as unknown as RecordingRow[])
@@ -173,14 +188,12 @@
 									<td class="file-cell" data-label="Fichier">
 										<span
 											class="file-name"
-											class:fallback={!r.source_file_name}
-											title={r.source_file_name
-												? `Fichier déposé : ${r.source_file_name}`
-												: "Nom d'origine inconnu — prise déposée avant sa conservation"}
+											class:fallback={!!r.file_path && !r.source_file_name}
+											title={sourceTitle(r)}
 										>{sourceName(r)}</span>
 									</td>
 									<td class="listen-cell">
-										<a href="/recording/{r.id}" class="btn btn-secondary btn-sm">Écouter</a>
+										<a href="/recording/{r.id}" class="btn btn-secondary btn-sm">{r.file_path ? 'Écouter' : '🎬 Voir'}</a>
 									</td>
 								</tr>
 								{#if openComments[r.id]}

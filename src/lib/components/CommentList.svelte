@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { formatTimecode } from '$lib/youtube'
 	import type { CommentWithReactions, ReactionValue } from '$lib/types'
 
 	type ReactionState = { up_count: number; down_count: number; my_reaction: ReactionValue | null }
@@ -30,12 +31,8 @@
 		)
 	}
 
-	function formatTime(s: number) {
-		if (!isFinite(s)) return '0:00'
-		const m = Math.floor(s / 60)
-		const sec = Math.floor(s % 60)
-		return `${m}:${String(sec).padStart(2, '0')}`
-	}
+	// Gère les heures : une vidéo YouTube peut dépasser 60 minutes.
+	const formatTime = formatTimecode
 
 	function formatDate(d: string | Date) {
 		return new Date(d).toLocaleString('fr-FR', {

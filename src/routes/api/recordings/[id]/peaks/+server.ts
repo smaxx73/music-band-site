@@ -18,6 +18,9 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	`
 
 	if (!recording) return json({ error: 'Prise introuvable.' }, { status: 404 })
+	if (!recording.file_path) {
+		return json({ error: "Cette prise n'a pas de piste audio." }, { status: 400 })
+	}
 
 	const { peaks, duration } = await loadPeaks(id, recording.file_path as string)
 

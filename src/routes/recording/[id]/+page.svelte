@@ -7,6 +7,8 @@
 	import CommentsPanel from '$lib/components/CommentsPanel.svelte'
 	import SongDetails from '$lib/components/SongDetails.svelte'
 	import Modal from '$lib/components/Modal.svelte'
+	import YouTubePlayer from '$lib/components/YouTubePlayer.svelte'
+	import { youtubeWatchUrl } from '$lib/youtube'
 	import type { CommentWithReactions } from '$lib/types'
 
 	let { data }: { data: PageData } = $props()
@@ -14,7 +16,8 @@
 	type Recording = {
 		id: number; take: number; status: string; notes: string | null
 		duration_s: number | null; uploaded_by: string; session_id: number; song_id: number
-		file_path: string; source_file_name: string | null
+		file_path: string | null; source_file_name: string | null
+		youtube_video_id: string | null; youtube_title: string | null
 		song_title: string; song_composer: string | null; song_key: string | null
 		song_lyrics: string | null; song_music_notes: string | null
 		session_date: string; session_location: string | null
@@ -22,6 +25,12 @@
 	type Comment = CommentWithReactions
 
 	const recording = $derived(data.recording as unknown as Recording)
+	// Une prise a une piste audio, une vidéo YouTube, ou les deux.
+	const hasAudio = $derived(!!recording.file_path)
+	// Avec les deux, l'audio s'affiche d'abord : c'est lui que jouent la barre du bas et les
+	// playlists. $derived inscriptible : l'onglet revient à l'audio en changeant de prise.
+	let view = $derived<'audio' | 'video'>(recording.file_path ? 'audio' : 'video')
+	const showVideo = $derived(!!recording.youtube_video_id && view === 'video')
 	let comments = $derived(data.comments as unknown as Comment[])
 	const user = $derived(data.user as string | null)
 
@@ -118,8 +127,10 @@
 
 	// La page devient la vue détaillée du lecteur partagé : arriver ici sur la prise
 	// déjà en cours ne coupe pas la lecture, `load` ne retouche pas le `src`.
+	// Une prise sans piste audio a son propre lecteur et laisse le lecteur partagé tranquille.
 	$effect(() => {
 		const r = recording
+		if (!r.file_path) return
 		untrack(() =>
 			player.load({
 				recordingId: r.id,
@@ -133,6 +144,7 @@
 	})
 
 	$effect(() => {
+		if (showVideo) return
 		player.attachView()
 		return () => player.detachView()
 	})
@@ -174,11 +186,20 @@
 				{#if recording.session_location} · {recording.session_location}{/if}
 				· {recording.uploaded_by}
 			</div>
-			<!-- `file_path` ("{id}.mp3") ne sert de repli que pour les prises d'avant la
-			     migration 023, déposées quand le nom d'origine n'était pas conservé. -->
-			<div class="meta file-meta" class:fallback={!recording.source_file_name}>
-				🎵 {recording.source_file_name ?? recording.file_path}
-			</div>
+			{#if hasAudio}
+				<!-- `file_path` ("{id}.mp3") ne sert de repli que pour les prises d'avant la
+				     migration 023, déposées quand le nom d'origine n'était pas conservé. -->
+				<div class="meta file-meta" class:fallback={!recording.source_file_name}>
+					🎵 {recording.source_file_name ?? recording.file_path}
+				</div>
+			{/if}
+			{#if recording.youtube_video_id}
+				<div class="meta file-meta">
+					🎬 <a href={youtubeWatchUrl(recording.youtube_video_id)} target="_blank" rel="noopener noreferrer">
+						{recording.youtube_title ?? 'Vidéo YouTube'}
+					</a>
+				</div>
+			{/if}
 		</div>
 		<div class="header-actions">
 			{#if prevRecording}
@@ -187,7 +208,9 @@
 			{#if nextRecording}
 				<a href="/recording/{nextRecording.id}" class="btn btn-secondary btn-sm" title="Prise suivante">Prise {nextRecording.take} →</a>
 			{/if}
-			<button class="btn btn-secondary" onclick={openPlaylistModal}>+ Playlist</button>
+			{#if hasAudio}
+				<button class="btn btn-secondary" onclick={openPlaylistModal}>+ Playlist</button>
+			{/if}
 		</div>
 	</div>
 
@@ -225,19 +248,40 @@
 
 	<!-- Lecteur -->
 	<div class="player-card">
-		<AudioPlayer
-			track={playerTrack}
-			media={player.media}
-			markers={commentMarkers}
-			seekRequest={seekRequest}
-			onStateChange={(state) => {
-				playerState = state
-			}}
-			onMarkerSelect={(markerId) => {
-				highlightToken += 1
-				highlightRequest = { id: Number(markerId), token: highlightToken }
-			}}
-		/>
+		{#if hasAudio && recording.youtube_video_id}
+			<div class="view-tabs" role="tablist" aria-label="Lecteur">
+				<button role="tab" class="view-tab" class:active={view === 'audio'} aria-selected={view === 'audio'} onclick={() => (view = 'audio')}>🎵 Audio</button>
+				<button role="tab" class="view-tab" class:active={view === 'video'} aria-selected={view === 'video'} onclick={() => (view = 'video')}>🎬 Vidéo</button>
+			</div>
+		{/if}
+		{#if showVideo && recording.youtube_video_id}
+			<YouTubePlayer
+				videoId={recording.youtube_video_id}
+				markers={commentMarkers}
+				seekRequest={seekRequest}
+				onStateChange={(state) => {
+					playerState = state
+				}}
+				onMarkerSelect={(markerId) => {
+					highlightToken += 1
+					highlightRequest = { id: Number(markerId), token: highlightToken }
+				}}
+			/>
+		{:else}
+			<AudioPlayer
+				track={playerTrack}
+				media={player.media}
+				markers={commentMarkers}
+				seekRequest={seekRequest}
+				onStateChange={(state) => {
+					playerState = state
+				}}
+				onMarkerSelect={(markerId) => {
+					highlightToken += 1
+					highlightRequest = { id: Number(markerId), token: highlightToken }
+				}}
+			/>
+		{/if}
 	</div>
 
 	<CommentsPanel
@@ -308,6 +352,28 @@
 
 	.file-meta { margin-top: 0.15rem; font-size: var(--text-xs); overflow-wrap: anywhere; }
 	.file-meta.fallback { color: var(--color-text-muted); font-style: italic; }
+	.file-meta a { color: inherit; }
+
+	/* Prise audio + vidéo : un seul lecteur à l'écran à la fois */
+	.view-tabs { display: flex; gap: 0.35rem; margin-bottom: 0.8rem; }
+
+	.view-tab {
+		background: none;
+		border: 1px solid var(--color-border-light);
+		border-radius: 999px;
+		padding: 0.25rem 0.8rem;
+		font: inherit;
+		font-size: var(--text-sm);
+		color: var(--color-text-secondary);
+		cursor: pointer;
+	}
+
+	.view-tab.active {
+		border-color: var(--color-accent);
+		background: var(--color-accent-light);
+		color: var(--color-accent);
+		font-weight: 600;
+	}
 
 	/* Lecteur */
 	.player-card {

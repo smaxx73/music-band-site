@@ -378,7 +378,7 @@ export async function groupDeletionImpact(groupId: number): Promise<GroupDeletio
 			  WHERE s.group_id = ${groupId}) AS comments
 	`
 
-	const recordingIds = await groupRecordingIds(groupId)
+	const recordingIds = await groupAudioRecordingIds(groupId)
 
 	// Le volume audio est la part la plus concrète de l'impact. Un fichier manquant
 	// (déjà supprimé, jamais converti) compte pour zéro plutôt que de faire échouer l'écran.
@@ -393,12 +393,13 @@ export async function groupDeletionImpact(groupId: number): Promise<GroupDeletio
 	return { ...counts, audio_bytes: sizes.reduce((total, size) => total + size, 0) }
 }
 
-async function groupRecordingIds(groupId: number): Promise<number[]> {
+// Prises qui ont un fichier dans AUDIO_DIR : une prise vidéo seule n'en a pas.
+async function groupAudioRecordingIds(groupId: number): Promise<number[]> {
 	const rows = await sql<{ id: number }[]>`
 		SELECT r.id
 		FROM recordings r
 		JOIN sessions s ON s.id = r.session_id
-		WHERE s.group_id = ${groupId}
+		WHERE s.group_id = ${groupId} AND r.file_path IS NOT NULL
 	`
 	return rows.map((r) => r.id)
 }
@@ -424,7 +425,7 @@ export async function deleteGroup(
 	}
 
 	const impact = await groupDeletionImpact(groupId)
-	const recordingIds = await groupRecordingIds(groupId)
+	const recordingIds = await groupAudioRecordingIds(groupId)
 
 	// songs, sessions et playlists référencent groups sans ON DELETE : l'ordre est
 	// explicite plutôt que délégué à des cascades, pour que rien ne parte par accident
@@ -527,7 +528,9 @@ export async function exportGroup(
 	const [logo] = logos
 
 	const audio_files = await Promise.all(
-		(recordings as unknown as { id: number; file_hash: string | null }[]).map(async (r) => ({
+		(recordings as unknown as { id: number; file_path: string | null; file_hash: string | null }[])
+			.filter((r) => r.file_path !== null)
+			.map(async (r) => ({
 			recording_id: r.id,
 			file: `${r.id}.mp3`,
 			bytes: await stat(audioPath(r.id))

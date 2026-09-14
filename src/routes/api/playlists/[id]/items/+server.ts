@@ -26,11 +26,13 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		if (!playlist) throw Object.assign(new Error(), { code: 'playlist_not_found' })
 
 		const [rec] = await tx`
-			SELECT r.id FROM recordings r
+			SELECT r.id, r.file_path FROM recordings r
 			JOIN sessions ses ON ses.id = r.session_id
 			WHERE r.id = ${recordingId} AND ses.group_id = ${locals.user!.current_group_id}
 		`
 		if (!rec) throw Object.assign(new Error(), { code: 'recording_not_found' })
+		// La lecture en continu repose sur le lecteur audio partagé, que YouTube ne peut pas alimenter.
+		if (!rec.file_path) throw Object.assign(new Error(), { code: 'not_audio' })
 
 		const [{ next_pos }] = await tx`
 			SELECT COALESCE(MAX(position), 0) + 1 AS next_pos
@@ -49,10 +51,14 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 	}).catch((err: unknown) => {
 		const code = (err as { code?: string }).code
 		if (code === 'playlist_not_found' || code === 'recording_not_found') return null
+		if (code === 'not_audio') return 'not_audio' as const
 		throw err
 	})
 
 	if (!item) return json({ error: 'Playlist ou prise introuvable.' }, { status: 404 })
+	if (item === 'not_audio') {
+		return json({ error: "Cette prise n'a pas de piste audio : elle ne peut pas entrer dans une playlist." }, { status: 400 })
+	}
 
 	return json(item, { status: 201 })
 }

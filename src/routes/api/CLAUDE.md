@@ -30,6 +30,7 @@ api/sessions/[id]/reorder/+server.ts
 api/songs/+server.ts
 api/songs/[id]/+server.ts
 api/recordings/[id]/+server.ts
+api/youtube/+server.ts
 api/comments/+server.ts
 api/comments/[id]/reactions/+server.ts
 api/notifications/+server.ts
@@ -83,6 +84,14 @@ validée tant que l'original est en rétention (7 jours) — les prises déjà c
 touchées ; `DELETE /api/imports/[id]` l'abandonne et purge tout, y compris après validation.
 Une découpe déjà validée répond `409` à `/split` et `404` aux routes d'analyse tant qu'elle
 n'a pas été reprise.
+
+Une prise a une **piste audio** (`file_path`), une **vidéo YouTube** (`youtube_video_id`,
+`youtube_title`), ou les deux. `POST /api/youtube` (`{ session_id, song_id, video_url, duration_s? }`)
+crée une prise vidéo seule ; `POST /api/upload` accepte un champ multipart `youtube_url` pour
+rattacher la vidéo à la piste audio envoyée. Les deux passent par `resolveYouTubeVideo`
+(`src/lib/server/youtube.ts`) : lien reconnu, vidéo lisible, `409` si déjà dans le groupe. Toute
+route qui touche à `AUDIO_DIR` (peaks, suppression, volume, manifeste) filtre sur
+`file_path IS NOT NULL` ; une prise sans piste audio ne va jamais dans une playlist (`400`).
 
 Les notifications font exception au scope habituel : elles appartiennent à un destinataire.
 Le filtre `user_id = locals.user.id` **est** la vérification de droit — personne, admin compris,

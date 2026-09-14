@@ -102,8 +102,13 @@ CREATE TABLE recordings (
     session_id  INTEGER REFERENCES sessions(id) ON DELETE CASCADE,
     song_id     INTEGER REFERENCES songs(id),
     take        INTEGER NOT NULL DEFAULT 1,  -- calculé automatiquement, jamais saisi manuellement
-    file_path   TEXT NOT NULL,               -- "{id}.mp3"
-    source_file_name TEXT,                   -- nom du fichier tel que déposé, pour l'affichage
+    -- Une prise a une piste audio, une vidéo YouTube, ou les deux (contrainte recordings_source).
+    file_path   TEXT,                        -- "{id}.mp3" ; NULL = pas de piste audio (vidéo seule)
+    youtube_video_id TEXT CHECK (youtube_video_id ~ '^[A-Za-z0-9_-]{11}$'),
+                                             -- vidéo du morceau : identifiant seul, jamais l'URL saisie ;
+                                             -- rien n'est téléchargé, la lecture passe par YouTube
+    youtube_title TEXT,                      -- titre de la vidéo (oEmbed), pour l'affichage
+    source_file_name TEXT,                   -- nom du fichier audio tel que déposé, pour l'affichage
                                              -- NULL pour les prises antérieures à la migration 023
     duration_s  INTEGER,
     status      TEXT DEFAULT 'À revoir',      -- qualité libre : 'À revoir' | 'Moyen' | 'Bon' | 'Référence' | texte court personnalisé
@@ -112,7 +117,8 @@ CREATE TABLE recordings (
     uploaded_by TEXT NOT NULL,
     uploaded_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at  TIMESTAMPTZ DEFAULT now(),
-    UNIQUE (session_id, song_id, take)
+    UNIQUE (session_id, song_id, take),
+    CONSTRAINT recordings_source CHECK (file_path IS NOT NULL OR youtube_video_id IS NOT NULL)
 );
 
 -- Calcul du take à l'upload (dans une transaction) :
@@ -225,6 +231,7 @@ CREATE INDEX idx_playlists_group_id ON playlists(group_id);
 CREATE INDEX idx_user_groups_user   ON user_groups(user_id);
 CREATE INDEX idx_user_groups_group  ON user_groups(group_id);
 CREATE INDEX idx_recordings_file_hash ON recordings(file_hash);
+CREATE INDEX idx_recordings_youtube_video ON recordings(youtube_video_id) WHERE youtube_video_id IS NOT NULL;
 CREATE INDEX idx_calendar_events_group_date ON calendar_events(group_id, date);
 CREATE INDEX idx_calendar_events_user ON calendar_events(user_id) WHERE user_id IS NOT NULL;
 CREATE INDEX idx_comment_reactions_comment ON comment_reactions(comment_id);

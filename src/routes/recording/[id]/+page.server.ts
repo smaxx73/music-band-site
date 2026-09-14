@@ -33,7 +33,10 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	const [comments, peaksData, siblings] = await Promise.all([
 		commentsWithReactions(id, locals.user.id),
-		loadPeaks(id, recording.file_path as string),
+		// Une prise vidéo seule n'a pas de fichier, donc pas de forme d'onde.
+		recording.file_path
+			? loadPeaks(id, recording.file_path as string)
+			: Promise.resolve({ peaks: [] as number[], duration: null }),
 		sql`
 			SELECT id, take FROM recordings
 			WHERE session_id = ${recording.session_id} AND song_id = ${recording.song_id}

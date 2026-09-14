@@ -96,6 +96,45 @@ Premier des outils d'amélioration audio branchés à la suite de l'upload.
   Sinon les imports de plus de 7 jours sont balayés au dépôt suivant — une seule règle,
   découpe validée ou non, et pas de tâche planifiée pour un volume aussi faible
 
+## Prises vidéo YouTube (`/upload`, source « Vidéo YouTube »)
+
+Pour les lives déjà en ligne. **Une vidéo = un morceau = une prise.** Une prise a une piste
+audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migrations 025 et 026) :
+- « a une piste audio » = `file_path IS NOT NULL` : waveform, barre du bas, playlists
+- « a une vidéo » = `youtube_video_id IS NOT NULL` : lecteur YouTube sur la page de la prise
+
+- **Rien n'est téléchargé depuis YouTube** : la prise stocke l'identifiant de la vidéo
+  (`youtube_video_id`, jamais l'URL saisie) et son titre (`youtube_title`, via oEmbed)
+- Ajout depuis `/upload` : session et morceau comme pour un fichier, puis la source
+  « Vidéo YouTube ». Le lien est reconnu sous toutes ses formes (`watch?v=`, `youtu.be/`,
+  `live/`, `shorts/`, `embed/`) et un aperçu s'affiche pour vérifier la vidéo
+- **Piste audio facultative** : le son de la même prestation, déposé en fichier. Avec elle, la
+  prise suit exactement le chemin d'un upload (`POST /api/upload` + champ `youtube_url` :
+  conversion, doublon par hash, durée ffprobe) et devient jouable dans le lecteur audio et les
+  playlists. Sans elle, `POST /api/youtube` ; la durée vient alors du lecteur d'aperçu, YouTube
+  ne la donnant pas au serveur sans clé d'API
+- La vidéo est vérifiée **avant** la conversion : oEmbed répond « privée ou intégration
+  désactivée » → `400` ; YouTube injoignable depuis le serveur ne bloque pas l'ajout
+- Doublon : la même vidéo déjà présente dans le groupe actif → `409`
+- La découpe (« plusieurs prises ») ne s'applique pas à une vidéo
+- La vidéo doit être **publique ou non répertoriée** : l'authentification de l'application ne
+  la protège pas, et une vidéo privée ne s'intègre pas
+- `/recording/[id]` : avec les deux, onglets **Audio** (par défaut : c'est la piste que jouent
+  la barre du bas et les playlists) et **Vidéo**. Vidéo seule : le lecteur YouTube directement
+  (`youtube-nocookie.com`, script chargé à la demande), avec une barre de progression qui porte
+  les marqueurs de commentaires. Lancer l'un des lecteurs met l'autre en pause
+- Les commentaires horodatés sont communs aux deux lecteurs. La conversion retire le blanc
+  initial de la piste audio : un repère peut donc différer de quelques secondes entre l'audio
+  et la vidéo
+- Vues session et morceau : 🎬 devant le nom signale une vidéo. Sans piste audio, « 🎬 Voir »
+  ouvre la page de la prise ; avec, l'écoute dépliable fonctionne comme pour toute prise
+- Playlists : seules les prises avec piste audio y entrent (`400` sinon, bouton masqué)
+- Si la vidéo est recoupée dans YouTube Studio, les repères se décalent côté vidéo sans qu'on
+  puisse le détecter ; si elle est supprimée ou rendue privée, le lecteur l'affiche
+- Suppression d'une prise, d'une session ou d'un groupe : seul le fichier audio éventuel est
+  effacé, la vidéo reste sur YouTube. Le volume audio et le manifeste d'archive ne comptent
+  que les prises avec piste audio
+
 ## Liste des sessions (`/sessions`)
 
 - Liste des sessions du groupe actif, triées par date décroissante

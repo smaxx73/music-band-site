@@ -74,6 +74,9 @@ NODE_ENV=production
 - `$lib/server/` ne doit jamais être importé dans un composant client
 - WaveSurfer.js doit être importé dynamiquement (`import()`) — accès à `window`
 - En production, Caddy sert les fichiers audio directement depuis `/audio/` — pas Node
+- Une prise peut n'avoir qu'une vidéo YouTube, sans fichier : tout code qui touche à `AUDIO_DIR`,
+  au lecteur audio partagé ou aux playlists vérifie `file_path IS NOT NULL`. Voir « Prises vidéo
+  YouTube » dans docs/features.md
 
 ## Rôles et droits
 
@@ -109,7 +112,7 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
 /songs/[id]         historique d'un morceau toutes sessions confondues
 /recording/[id]     lecteur waveform + commentaires
 /playlists/[id]     lecture en continu d'une playlist
-/upload             formulaire d'upload
+/upload             formulaire d'upload (fichier audio ou vidéo YouTube)
 /upload/decoupe/[id] découpe automatique d'un enregistrement long sur les blancs
 /profile            infos du compte connecté + changement de mot de passe
 /group              infos + membres du groupe actif (consultation pour tout membre,

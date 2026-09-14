@@ -3,6 +3,8 @@
 	import { goto } from '$app/navigation'
 	import { formatDateOnly } from '$lib/date'
 	import SongDetails from '$lib/components/SongDetails.svelte'
+	import YouTubePlayer from '$lib/components/YouTubePlayer.svelte'
+	import { parseYouTubeVideoId } from '$lib/youtube'
 
 	let { data }: { data: PageData } = $props()
 
@@ -36,6 +38,17 @@
 	// Le morceau ne se choisit donc pas ici, mais segment par segment.
 	let multiTake = $state(false)
 
+	// Une prise peut aussi être une vidéo YouTube (un live en ligne) : une vidéo, un morceau.
+	// Rien n'est envoyé ni converti, seul l'identifiant de la vidéo est enregistré.
+	let source = $state<'audio' | 'youtube'>('audio')
+	let videoUrl = $state('')
+	const videoId = $derived(parseYouTubeVideoId(videoUrl))
+	// Remontée par le lecteur d'aperçu : YouTube ne la donne pas au serveur sans clé d'API.
+	let videoDurationS = $state(0)
+
+	const isSplit = $derived(source === 'audio' && multiTake)
+	const sourceReady = $derived(source === 'audio' ? !!file : !!videoId)
+
 	let uploading = $state(false)
 	let resuming = $state<string | null>(null)
 	let progress = $state(0)
@@ -60,14 +73,27 @@
 		duplicate = null
 		progress = 0
 
-		if (!multiTake && !selectedSong) { error = 'Sélectionne un morceau.'; return }
-		if (!file) { error = 'Sélectionne un fichier audio.'; return }
+		if (!isSplit && !selectedSong) { error = 'Sélectionne un morceau.'; return }
+		if (source === 'audio' && !file) { error = 'Sélectionne un fichier audio.'; return }
+		if (source === 'youtube' && !videoId) { error = 'Colle un lien YouTube valide.'; return }
 
 		uploading = true
 
 		try {
 			const sessionId = await resolveSessionId()
 			if (sessionId === null) return
+
+			if (source === 'youtube') {
+				// Avec sa piste audio, la vidéo suit le chemin d'un upload normal (conversion,
+				// doublon, waveform) ; seule, elle ne transporte aucun fichier.
+				const result = file
+					? await sendFile<{ id: number }>('/api/upload', sessionId, selectedSong, { youtube_url: videoId ?? '' })
+					: await addYouTubeVideo(sessionId)
+				successId = result.id
+				successSessionId = sessionId
+				resetForm()
+				return
+			}
 
 			if (multiTake) {
 				const audioImport = await sendFile<{ id: string }>('/api/imports', sessionId)
@@ -147,8 +173,27 @@
 		return json.id
 	}
 
+	async function addYouTubeVideo(sessionId: number): Promise<{ id: number }> {
+		const res = await fetch('/api/youtube', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				session_id: sessionId,
+				song_id: parseInt(selectedSong),
+				video_url: videoId,
+				duration_s: videoDurationS || null
+			})
+		})
+		const json = await res.json().catch(() => ({}))
+		if (res.status === 409 && json.duplicate) throw new DuplicateError(json.duplicate)
+		if (!res.ok) throw new Error(json.error ?? `Erreur ${res.status}`)
+		return json
+	}
+
 	function resetForm() {
 		file = null
+		videoUrl = ''
+		videoDurationS = 0
 		selectedSession = ''
 		selectedSong = ''
 		newDate = ''
@@ -169,11 +214,18 @@
 	 * XMLHttpRequest plutôt que fetch : c'est le seul moyen de suivre la progression
 	 * de l'envoi, qui dure sur un fichier de plusieurs dizaines de Mo.
 	 */
-	function sendFile<T>(url: string, sessionId: number, songId?: string): Promise<T> {
+	function sendFile<T>(
+		url: string,
+		sessionId: number,
+		songId?: string,
+		extraFields: Record<string, string> = {}
+	): Promise<T> {
 		return new Promise((resolve, reject) => {
 			const formData = new FormData()
 			formData.append('session_id', String(sessionId))
 			if (songId) formData.append('song_id', songId)
+			for (const [name, value] of Object.entries(extraFields)) formData.append(name, value)
+			// Le fichier en dernier : les champs sont ainsi lus avant que le flux audio n'arrive.
 			formData.append('audio', file as File)
 
 			const xhr = new XMLHttpRequest()
@@ -221,8 +273,8 @@
 
 	{#if successId}
 		<div class="message-success" style="margin-bottom: 1rem;">
-			Prise uploadée avec succès !
-			<a href="/recording/{successId}">Écouter la prise →</a>
+			Prise ajoutée avec succès !
+			<a href="/recording/{successId}">Voir la prise →</a>
 			{#if successSessionId}
 				· <a href="/sessions/{successSessionId}">Retour à la session →</a>
 			{/if}
@@ -231,7 +283,9 @@
 
 	{#if duplicate}
 		<div class="message-error" style="margin-bottom: 0.75rem;">
-			Ce fichier a déjà été uploadé : <strong>{duplicate.song_title}</strong>,
+			{source === 'youtube'
+				? (file ? 'Ce fichier ou cette vidéo existe déjà' : 'Cette vidéo a déjà été ajoutée')
+				: 'Ce fichier a déjà été uploadé'} : <strong>{duplicate.song_title}</strong>,
 			prise #{duplicate.take} ({formatDate(duplicate.session_date)}).
 			<a href="/recording/{duplicate.id}">Voir la prise →</a>
 		</div>
@@ -288,7 +342,7 @@
 		<!-- Morceau — en mode découpe, il se choisit segment par segment -->
 		<fieldset>
 			<legend>Morceau</legend>
-			{#if multiTake}
+			{#if isSplit}
 				<p class="hint">
 					Chaque segment détecté recevra son propre morceau à l'écran suivant.
 				</p>
@@ -317,9 +371,74 @@
 			{/if}
 		</fieldset>
 
-		<!-- Fichier -->
+		<!-- Source : fichier audio ou vidéo YouTube -->
 		<fieldset>
-			<legend>Fichier audio</legend>
+			<legend>Source</legend>
+			<div class="source-choice" role="radiogroup" aria-label="Source de la prise">
+				<label class="check-label">
+					<input type="radio" name="source" value="audio" bind:group={source} disabled={uploading} />
+					<span>Fichier audio</span>
+				</label>
+				<label class="check-label">
+					<input type="radio" name="source" value="youtube" bind:group={source} disabled={uploading} />
+					<span>Vidéo YouTube</span>
+				</label>
+			</div>
+
+			{#if source === 'youtube'}
+			<label class="form-label">
+				Lien de la vidéo
+				<input
+					class="form-input"
+					type="text"
+					inputmode="url"
+					placeholder="https://www.youtube.com/watch?v=…"
+					bind:value={videoUrl}
+					disabled={uploading}
+				/>
+			</label>
+			{#if videoUrl.trim() && !videoId}
+				<p class="message-error">Lien YouTube non reconnu.</p>
+			{/if}
+			<p class="hint">
+				Une vidéo = un morceau. Rien n'est téléchargé : la vidéo reste sur YouTube et doit être
+				publique ou non répertoriée.
+			</p>
+			{#if videoId}
+				<!-- Aperçu : vérifier que c'est la bonne vidéo, et récupérer sa durée. -->
+				{#key videoId}
+					<YouTubePlayer
+						{videoId}
+						onStateChange={(state) => {
+							if (state.duration) videoDurationS = state.duration
+						}}
+					/>
+				{/key}
+			{/if}
+
+			<label class="form-label audio-track">
+				<span>Piste audio <span class="hint">(facultatif)</span></span>
+				<input
+					type="file"
+					accept="audio/*"
+					disabled={uploading}
+					onchange={(e) => {
+						const input = e.currentTarget as HTMLInputElement
+						file = input.files?.[0] ?? null
+					}}
+				/>
+			</label>
+			{#if file}
+				<p class="hint">
+					{file.name} — {(file.size / 1024 / 1024).toFixed(1)} Mo
+					<button type="button" class="link-btn" onclick={() => (file = null)} disabled={uploading}>Retirer</button>
+				</p>
+			{/if}
+			<p class="hint">
+				Le son de la même vidéo, en fichier : la prise se lit alors aussi dans le lecteur audio
+				et peut entrer dans une playlist. Sans lui, la vidéo se regarde seulement sur sa page.
+			</p>
+			{:else}
 			<label class="form-label">
 				Fichier (mp3, wav, m4a, ogg… — max 200 Mo)
 				<input
@@ -346,17 +465,18 @@
 					</span>
 				</span>
 			</label>
+			{/if}
 		</fieldset>
 
 		<!-- Progression -->
-		{#if uploading}
+		{#if uploading && file}
 			<div class="progress-bar">
 				<div class="progress-bar-fill" style="width: {progress}%"></div>
 			</div>
 			<p class="hint center">
 				{#if progress < 100}
 					Envoi en cours… {progress}%
-				{:else if multiTake}
+				{:else if isSplit}
 					Préparation du fichier… (l'analyse des blancs suit)
 				{:else}
 					Conversion audio en cours…
@@ -367,10 +487,12 @@
 		<button
 			type="submit"
 			class="btn btn-primary submit-btn"
-			disabled={uploading || !file || !selectedSession || (!multiTake && !selectedSong)}
+			disabled={uploading || !sourceReady || !selectedSession || (!isSplit && !selectedSong)}
 		>
 			{#if uploading}
-				Upload en cours…
+				{source === 'youtube' ? 'Ajout en cours…' : 'Upload en cours…'}
+			{:else if source === 'youtube'}
+				Ajouter la vidéo
 			{:else if multiTake}
 				Analyser et découper
 			{:else}
@@ -540,6 +662,22 @@
 	}
 
 	.check-label input { margin-top: 0.15rem; }
+
+	.source-choice { display: flex; flex-wrap: wrap; gap: 0 1.5rem; margin-bottom: 0.9rem; }
+	.source-choice .check-label { margin-top: 0; }
+
+	.audio-track { margin-top: 0.9rem; }
+
+	.link-btn {
+		background: none;
+		border: none;
+		padding: 0;
+		margin-left: 0.4rem;
+		font: inherit;
+		color: var(--color-text-muted);
+		text-decoration: underline;
+		cursor: pointer;
+	}
 
 	.hint.block {
 		display: block;

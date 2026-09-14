@@ -171,6 +171,7 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 		SELECT r.id FROM recordings r
 		JOIN sessions s ON s.id = r.session_id
 		WHERE r.session_id = ${id} AND s.group_id = ${locals.user.current_group_id}
+		  AND r.file_path IS NOT NULL
 	`
 
 	const deleted = await sql.begin(async (tx) => {

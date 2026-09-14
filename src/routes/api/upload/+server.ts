@@ -11,6 +11,7 @@ import {
 	receiveMultipartAudio
 } from '$lib/server/upload-stream'
 import { notifyGroup } from '$lib/server/notifications'
+import { resolveYouTubeVideo } from '$lib/server/youtube'
 import type { Recording } from '$lib/types'
 
 export const POST: RequestHandler = async ({ locals, request }) => {
@@ -57,6 +58,21 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			return json({ error: 'doublon', duplicate }, { status: 409 })
 		}
 
+		// Piste audio d'une vidéo YouTube : la vidéo est vérifiée avant la conversion,
+		// qui est la partie coûteuse de l'upload.
+		let video: { videoId: string; title: string | null } | null = null
+		if (fields.youtube_url?.trim()) {
+			const resolved = await resolveYouTubeVideo(fields.youtube_url, groupId)
+			if (!resolved.ok) {
+				await unlink(rawTmpPath).catch(() => {})
+				return json(
+					{ error: resolved.error, ...(resolved.duplicate ? { duplicate: resolved.duplicate } : {}) },
+					{ status: resolved.status }
+				)
+			}
+			video = { videoId: resolved.videoId, title: resolved.title }
+		}
+
 		// Conversion ffmpeg : disk → disk, jamais en mémoire Node
 		await convertToMp3(rawTmpPath, mp3TmpPath)
 		await unlink(rawTmpPath).catch(() => {})
@@ -81,8 +97,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				WHERE session_id = ${sessionId} AND song_id = ${songId}
 			`
 			const [rec] = await tx<Recording[]>`
-				INSERT INTO recordings (session_id, song_id, take, file_path, source_file_name, duration_s, uploaded_by, uploaded_by_user_id, file_hash)
-				VALUES (${sessionId}, ${songId}, ${take}, ${'pending'}, ${sourceFileName}, ${duration}, ${user}, ${userId}, ${fileHash})
+				INSERT INTO recordings (session_id, song_id, take, file_path, source_file_name, duration_s, uploaded_by, uploaded_by_user_id, file_hash, youtube_video_id, youtube_title)
+				VALUES (${sessionId}, ${songId}, ${take}, ${'pending'}, ${sourceFileName}, ${duration}, ${user}, ${userId}, ${fileHash}, ${video?.videoId ?? null}, ${video?.title ?? null})
 				RETURNING *
 			`
 			return { ...rec, song_title: song.title }

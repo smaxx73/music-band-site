@@ -11,9 +11,11 @@ src/
 │   │   ├── ffmpeg.ts      # conversion mp3, proxy, détection des blancs, extraction, durée
 │   │   ├── upload-stream.ts # réception multipart d'un fichier audio (prise ou import)
 │   │   ├── imports.ts     # zone de transit des outils audio d'après upload
+│   │   ├── youtube.ts     # vidéo YouTube d'une prise : lien, oEmbed, doublon
 │   │   └── notifications.ts # écriture (fan-out) et lecture des notifications
 │   └── components/
 │       ├── AudioPlayer.svelte     # lecteur WaveSurfer.js
+│       ├── YouTubePlayer.svelte   # lecteur de la vidéo YouTube d'une prise (API IFrame, chargée à la demande)
 │       ├── CommentsPanel.svelte   # commentaires d'une prise + formulaire d'ajout (page lecteur)
 │       ├── MembersInput.svelte    # participants d'une session en vignettes (saisie libre)
 │       ├── CommentList.svelte     # liste de commentaires + réactions 👍/👎 (partagée)
