@@ -143,11 +143,21 @@
 		)
 	})
 
+	// Dès que la prise a sa piste audio, la page la pilote seule, onglet Vidéo compris : la
+	// barre du bas y rejouerait la même prise en double, et les commentaires suivent le
+	// lecteur affiché, pas la barre.
 	$effect(() => {
-		if (showVideo) return
+		if (!hasAudio) return
 		player.attachView()
 		return () => player.detachView()
 	})
+
+	// Un seul lecteur actif à l'écran. Revenir à l'audio n'a rien à arrêter : le lecteur
+	// vidéo est retiré de la page, et détruit avec lui.
+	function selectView(next: 'audio' | 'video') {
+		if (next === 'video') player.pause()
+		view = next
+	}
 
 	const commentMarkers = $derived(
 		comments
@@ -250,8 +260,8 @@
 	<div class="player-card">
 		{#if hasAudio && recording.youtube_video_id}
 			<div class="view-tabs" role="tablist" aria-label="Lecteur">
-				<button role="tab" class="view-tab" class:active={view === 'audio'} aria-selected={view === 'audio'} onclick={() => (view = 'audio')}>🎵 Audio</button>
-				<button role="tab" class="view-tab" class:active={view === 'video'} aria-selected={view === 'video'} onclick={() => (view = 'video')}>🎬 Vidéo</button>
+				<button role="tab" class="view-tab" class:active={view === 'audio'} aria-selected={view === 'audio'} onclick={() => selectView('audio')}>🎵 Audio</button>
+				<button role="tab" class="view-tab" class:active={view === 'video'} aria-selected={view === 'video'} onclick={() => selectView('video')}>🎬 Vidéo</button>
 			</div>
 		{/if}
 		{#if showVideo && recording.youtube_video_id}

@@ -123,6 +123,10 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
   la barre du bas et les playlists) et **Vidéo**. Vidéo seule : le lecteur YouTube directement
   (`youtube-nocookie.com`, script chargé à la demande), avec une barre de progression qui porte
   les marqueurs de commentaires. Lancer l'un des lecteurs met l'autre en pause
+- Avec les deux, la page pilote seule sa prise : la barre du bas reste masquée sur les deux
+  onglets (elle y rejouerait la même prise en double, et l'ancrage des commentaires suit le
+  lecteur affiché), et passer à l'onglet Vidéo met l'audio en pause. Une vidéo seule laisse
+  la barre du bas telle quelle, avec la prise écoutée ailleurs
 - Les commentaires horodatés sont communs aux deux lecteurs. La conversion retire le blanc
   initial de la piste audio : un repère peut donc différer de quelques secondes entre l'audio
   et la vidéo
