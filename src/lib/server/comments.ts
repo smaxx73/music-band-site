@@ -15,7 +15,7 @@ export function commentsWithReactions(recordingId: number, userId: number) {
 	return sql<CommentWithReactions[]>`
 		SELECT
 			c.id, c.recording_id, COALESCE(MAX(u.display_name), c.author) AS author,
-			c.author_user_id, c.content, c.timestamp_s, c.created_at,
+			c.author_user_id, c.content, c.timestamp_s, c.created_at, c.edited_at,
 			COUNT(cr.user_id) FILTER (WHERE cr.value = 1)::int       AS up_count,
 			COUNT(cr.user_id) FILTER (WHERE cr.value = -1)::int      AS down_count,
 			MAX(cr.value) FILTER (WHERE cr.user_id = ${userId})::int AS my_reaction

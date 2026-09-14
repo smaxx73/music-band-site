@@ -52,8 +52,6 @@
 	let uploading = $state(false)
 	let resuming = $state<string | null>(null)
 	let progress = $state(0)
-	let successId = $state<number | null>(null)
-	let successSessionId = $state<number | null>(null)
 	let error = $state<string | null>(null)
 	let duplicate = $state<{ id: number; take: number; session_date: string; song_title: string } | null>(null)
 
@@ -69,7 +67,6 @@
 		e.preventDefault()
 		if (uploading) return
 		error = null
-		successId = null
 		duplicate = null
 		progress = 0
 
@@ -89,9 +86,7 @@
 				const result = file
 					? await sendFile<{ id: number }>('/api/upload', sessionId, selectedSong, { youtube_url: videoId ?? '' })
 					: await addYouTubeVideo(sessionId)
-				successId = result.id
-				successSessionId = sessionId
-				resetForm()
+				await goto(`/recording/${result.id}`)
 				return
 			}
 
@@ -102,9 +97,8 @@
 			}
 
 			const result = await sendFile<{ id: number }>('/api/upload', sessionId, selectedSong)
-			successId = result.id
-			successSessionId = sessionId
-			resetForm()
+			// Juste après l'ajout, c'est le moment de commenter la prise : on ouvre le lecteur.
+			await goto(`/recording/${result.id}`)
 		} catch (err) {
 			if (err instanceof DuplicateError) {
 				duplicate = err.duplicate
@@ -190,18 +184,6 @@
 		return json
 	}
 
-	function resetForm() {
-		file = null
-		videoUrl = ''
-		videoDurationS = 0
-		selectedSession = ''
-		selectedSong = ''
-		newDate = ''
-		newType = 'repetition'
-		newTitle = ''
-		newLocation = ''
-	}
-
 	class DuplicateError extends Error {
 		duplicate: { id: number; take: number; session_date: string; song_title: string }
 		constructor(d: DuplicateError['duplicate']) {
@@ -270,16 +252,6 @@
 		<h1>Uploader une prise</h1>
 		<a href="/sessions" class="btn btn-ghost btn-sm back-link" onclick={(e) => { if (history.length > 1) { e.preventDefault(); history.back() } }}>← Retour</a>
 	</div>
-
-	{#if successId}
-		<div class="message-success" style="margin-bottom: 1rem;">
-			Prise ajoutée avec succès !
-			<a href="/recording/{successId}">Voir la prise →</a>
-			{#if successSessionId}
-				· <a href="/sessions/{successSessionId}">Retour à la session →</a>
-			{/if}
-		</div>
-	{/if}
 
 	{#if duplicate}
 		<div class="message-error" style="margin-bottom: 0.75rem;">

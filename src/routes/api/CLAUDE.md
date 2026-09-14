@@ -32,6 +32,7 @@ api/songs/[id]/+server.ts
 api/recordings/[id]/+server.ts
 api/youtube/+server.ts
 api/comments/+server.ts
+api/comments/[id]/+server.ts
 api/comments/[id]/reactions/+server.ts
 api/notifications/+server.ts
 api/notifications/[id]/+server.ts

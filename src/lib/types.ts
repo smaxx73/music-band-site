@@ -103,6 +103,16 @@ export function canDeleteGroupContent(
 	return canManageGroup(user, groupId)
 }
 
+// Modification d'un commentaire : son auteur seul, admins compris. Supprimer le contenu
+// d'autrui se justifie pour un admin ; lui faire dire autre chose, jamais. Un commentaire
+// non relié à un compte (migration 018) n'est donc modifiable par personne.
+export function canEditComment(
+	user: RoleBearer | null | undefined,
+	authorUserId: number | null | undefined
+): boolean {
+	return !!user && authorUserId != null && authorUserId === user.id
+}
+
 export type Group = {
 	id: number
 	name: string
@@ -192,6 +202,8 @@ export type Comment = {
 	content: string
 	timestamp_s: number | null
 	created_at: Date
+	/** NULL = jamais modifié. */
+	edited_at: Date | null
 }
 
 export type ReactionValue = 1 | -1

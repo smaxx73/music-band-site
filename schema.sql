@@ -131,7 +131,8 @@ CREATE TABLE comments (
     author_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     content      TEXT NOT NULL,
     timestamp_s  FLOAT,                      -- null = commentaire global
-    created_at   TIMESTAMPTZ DEFAULT now()
+    created_at   TIMESTAMPTZ DEFAULT now(),
+    edited_at    TIMESTAMPTZ                 -- NULL = jamais modifié ; seul l'auteur modifie
 );
 
 CREATE TABLE comment_reactions (

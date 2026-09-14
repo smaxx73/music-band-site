@@ -1,5 +1,7 @@
 <script lang="ts">
+	import { page } from '$app/state'
 	import { formatTimecode } from '$lib/youtube'
+	import { canEditComment } from '$lib/types'
 	import type { CommentWithReactions, ReactionValue } from '$lib/types'
 
 	type ReactionState = { up_count: number; down_count: number; my_reaction: ReactionValue | null }
@@ -29,6 +31,56 @@
 				my_reaction: comment.my_reaction ?? null
 			}
 		)
+	}
+
+	// Texte modifié localement : même logique que les réactions, sans rechargement.
+	let edits = $state<Record<number, { content: string; edited_at: Date | string | null }>>({})
+	let editingId = $state<number | null>(null)
+	let draft = $state('')
+	let saving = $state(false)
+	let editError = $state<string | null>(null)
+
+	function contentOf(comment: CommentWithReactions) {
+		return edits[comment.id] ?? { content: comment.content, edited_at: comment.edited_at ?? null }
+	}
+
+	function startEdit(comment: CommentWithReactions) {
+		editingId = comment.id
+		draft = contentOf(comment).content
+		editError = null
+	}
+
+	function cancelEdit() {
+		editingId = null
+		editError = null
+	}
+
+	async function saveEdit(comment: CommentWithReactions) {
+		if (saving) return
+		if (!draft.trim()) { editError = 'Le commentaire est vide.'; return }
+
+		saving = true
+		editError = null
+		try {
+			const res = await fetch(`/api/comments/${comment.id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ content: draft.trim() })
+			})
+			const json = await res.json().catch(() => ({}))
+			if (!res.ok) { editError = json.error ?? 'Erreur.'; return }
+			edits = { ...edits, [comment.id]: { content: json.content, edited_at: json.edited_at } }
+			editingId = null
+		} catch {
+			editError = 'Erreur réseau.'
+		} finally {
+			saving = false
+		}
+	}
+
+	function onEditKeydown(e: KeyboardEvent, comment: CommentWithReactions) {
+		if (e.key === 'Escape') cancelEdit()
+		else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveEdit(comment)
 	}
 
 	// Gère les heures : une vidéo YouTube peut dépasser 60 minutes.
@@ -95,6 +147,7 @@
 <ul class="comment-list" class:compact>
 	{#each comments as comment (comment.id)}
 		{@const reactions = reactionState(comment)}
+		{@const text = contentOf(comment)}
 		<li class="comment" bind:this={commentEls[comment.id]}>
 			<div class="comment-header">
 				<strong>{comment.author}</strong>
@@ -109,10 +162,35 @@
 				{:else}
 					<span class="global-badge">global</span>
 				{/if}
-				<span class="comment-date">{formatDate(comment.created_at)}</span>
+				<span class="comment-date">
+					{formatDate(comment.created_at)}
+					{#if text.edited_at}
+						<span class="edited" title="Modifié le {formatDate(text.edited_at)}">(modifié)</span>
+					{/if}
+				</span>
 			</div>
 
-			<p class="comment-content">{comment.content}</p>
+			{#if editingId === comment.id}
+				<div class="edit-form">
+					<!-- svelte-ignore a11y_autofocus -->
+					<textarea
+						bind:value={draft}
+						rows="3"
+						autofocus
+						disabled={saving}
+						onkeydown={(e) => onEditKeydown(e, comment)}
+					></textarea>
+					<div class="edit-actions">
+						<button class="btn btn-primary btn-sm" disabled={saving} onclick={() => saveEdit(comment)}>
+							{saving ? 'Enregistrement…' : 'Enregistrer'}
+						</button>
+						<button class="btn btn-ghost btn-sm" disabled={saving} onclick={cancelEdit}>Annuler</button>
+						{#if editError}<span class="reaction-error">{editError}</span>{/if}
+					</div>
+				</div>
+			{:else}
+				<p class="comment-content">{text.content}</p>
+			{/if}
 
 			<div class="reactions">
 				<button
@@ -135,6 +213,9 @@
 				</button>
 				{#if reactionError[comment.id]}
 					<span class="reaction-error">{reactionError[comment.id]}</span>
+				{/if}
+				{#if editingId !== comment.id && canEditComment(page.data.user, comment.author_user_id)}
+					<button class="edit-link" onclick={() => startEdit(comment)}>Modifier</button>
 				{/if}
 			</div>
 		</li>
@@ -242,6 +323,39 @@
 		font-size: 0.75rem;
 		font-weight: 600;
 		color: var(--color-text-secondary);
+	}
+
+	.edited {
+		font-style: italic;
+		margin-left: 0.2rem;
+	}
+
+	.edit-link {
+		margin-left: auto;
+		background: none;
+		border: none;
+		padding: 0;
+		font-size: var(--text-xs);
+		color: var(--color-text-muted);
+		cursor: pointer;
+	}
+
+	.edit-link:hover { color: var(--color-text); text-decoration: underline; }
+
+	.edit-form textarea {
+		width: 100%;
+		box-sizing: border-box;
+		font: inherit;
+		font-size: 0.9rem;
+		resize: vertical;
+	}
+
+	.edit-actions {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+		margin-top: 0.35rem;
 	}
 
 	.reaction-error {

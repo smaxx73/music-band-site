@@ -17,6 +17,9 @@
    déposé, conservé pour l'affichage seul — le fichier sur disque, lui, est toujours
    nommé depuis l'id de la prise), sauvegarde `/data/audio/{id}.mp3`, retour du
    `recording` créé
+10. L'écran enchaîne directement sur `/recording/{id}` — lecteur et commentaires — plutôt
+    que de rester sur le formulaire : c'est juste après l'ajout qu'on commente la prise.
+    Idem pour une prise vidéo YouTube. Une découpe, elle, mène à `/upload/decoupe/[id]`
 
 ## Découpe automatique d'un enregistrement (`/upload/decoupe/[id]`)
 
@@ -191,6 +194,18 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
 - La case "ancrer au timestamp" est cochée par défaut si le lecteur est en pause
 - Auteur pré-rempli depuis l'utilisateur connecté
 - Le nom du fichier déposé figure sous la ligne de métadonnées de la prise
+
+## Édition des commentaires
+
+- Lien « Modifier » sous un commentaire, depuis le lecteur comme depuis les listes dépliées
+  des vues session et morceau. Zone de texte sur place ; Ctrl/⌘+Entrée enregistre, Échap annule
+- **Réservé à l'auteur** (`canEditComment`), admins compris : un admin peut supprimer le
+  contenu d'autrui, pas lui faire dire autre chose. Un commentaire non relié à un compte
+  (antérieur à la migration 018) n'est modifiable par personne. L'API répond `403` sinon
+- Seul le texte change : l'ancrage (`timestamp_s`) reste celui d'origine
+- `PATCH /api/comments/[id]` avec `{ content }` pose `edited_at` ; « (modifié) » s'affiche
+  à côté de la date, la date de modification au survol. Les réactions sont conservées
+- Aucune notification : une modification n'annonce pas de nouveau contenu
 
 ## Réactions aux commentaires
 

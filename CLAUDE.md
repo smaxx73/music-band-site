@@ -130,7 +130,7 @@ dans docs/features.md.
 - Notifications email (les notifications d'activité, elles, existent — voir docs/features.md)
 - Purge / archivage des notifications
 - Pagination (à faire quand > 50 éléments)
-- Suppression / édition de commentaires
+- Suppression de commentaires (l'édition, elle, existe — voir docs/features.md)
 - Tests automatisés
 - Autres outils d'amélioration audio (normalisation, fondus, réduction de bruit) : seule
   la découpe sur les blancs existe — voir docs/features.md
