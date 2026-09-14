@@ -173,18 +173,19 @@
 			<!-- Stats -->
 			{#if stats}
 				<div class="stat-row">
-					<div class="stat-card">
+					<a href="/sessions" class="stat-card">
 						<span class="stat-num">{stats.session_count}</span>
 						<span class="stat-label">Sessions</span>
-					</div>
-					<div class="stat-card">
+					</a>
+					<!-- Pas de liste globale des prises : le référentiel les compte par morceau -->
+					<a href="/songs" class="stat-card">
 						<span class="stat-num">{stats.recording_count}</span>
 						<span class="stat-label">Prises</span>
-					</div>
-					<div class="stat-card">
+					</a>
+					<a href="/playlists" class="stat-card">
 						<span class="stat-num">{stats.playlist_count}</span>
 						<span class="stat-label">Playlists</span>
-					</div>
+					</a>
 				</div>
 			{/if}
 
@@ -388,6 +389,13 @@
 		display: flex;
 		flex-direction: column;
 		gap: 2px;
+		text-decoration: none;
+		color: inherit;
+		transition: border-color 0.12s;
+	}
+
+	.stat-card:hover {
+		border-color: var(--color-accent);
 	}
 
 	.stat-num {

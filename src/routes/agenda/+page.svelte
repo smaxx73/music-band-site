@@ -240,12 +240,17 @@
 		{#each calDays as day}
 			<div
 				class="day-cell"
+				class:day-clickable={day !== null}
 				class:day-empty={day === null}
 				class:day-today={day !== null && dateStr(day) === today}
 				class:day-selected={day !== null && selectedDay === day}
 			>
 				{#if day !== null}
-					<button class="day-number" onclick={() => selectDay(day)}>{day}</button>
+					<button
+						class="day-number"
+						aria-pressed={selectedDay === day}
+						onclick={() => selectDay(day)}
+					>{day}</button>
 					<div class="day-events">
 						{#each groupEventsForDay(day) as event}
 							{#if event.session_id}
@@ -485,7 +490,31 @@
 		background: var(--color-bg-subtle);
 	}
 
-	.day-selected {
+	/* Toute la case sélectionne le jour, pour viser large au doigt. Elle ne peut pas être un
+	   <button> (elle contient les liens des sessions) : le bouton du numéro étend donc sa zone
+	   de clic sur toute la case, et les liens passent au-dessus. */
+	.day-clickable {
+		position: relative;
+		transition: background 0.1s;
+	}
+
+	.day-number::after {
+		content: '';
+		position: absolute;
+		inset: 0;
+	}
+
+	a.event-badge {
+		position: relative;
+		z-index: 1;
+	}
+
+	.day-clickable:hover {
+		background: var(--color-bg-subtle);
+	}
+
+	.day-selected,
+	.day-selected:hover {
 		background: #f0f4ff;
 	}
 
@@ -511,7 +540,7 @@
 		padding: 0;
 	}
 
-	.day-number:hover {
+	.day-clickable:not(.day-today):hover .day-number {
 		background: var(--color-bg-muted);
 	}
 
