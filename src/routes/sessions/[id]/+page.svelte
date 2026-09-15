@@ -4,7 +4,6 @@
 	import SessionEditor from '$lib/components/SessionEditor.svelte'
 	import SongDetails from '$lib/components/SongDetails.svelte'
 	import RecordingComments from '$lib/components/RecordingComments.svelte'
-	import InlineRecordingPlayer from '$lib/components/InlineRecordingPlayer.svelte'
 	import { player } from '$lib/player.svelte'
 	import { canDeleteGroupContent } from '$lib/types'
 
@@ -124,22 +123,8 @@
 		openComments = { ...openComments, [id]: !openComments[id] }
 	}
 
-	// Lecteur dépliable : une seule prise à la fois, sinon plusieurs instances
-	// WaveSurfer téléchargent leur mp3 et jouent en même temps.
-	let openPlayer = $state<number | null>(null)
-	let seekRequest = $state<{ seconds: number; token: number } | null>(null)
-	let seekToken = 0
-
-	function togglePlayer(song: Song, r: RecordingRow) {
-		seekRequest = null
-
-		// Replier ne coupe pas le son : la barre du bas prend le relais.
-		if (openPlayer === r.id) {
-			openPlayer = null
-			return
-		}
-
-		openPlayer = r.id
+	/** Charge la prise dans le lecteur partagé, visible dans sa barre persistante. */
+	function playInMiniPlayer(song: Song, r: RecordingRow) {
 		player.load(
 			{
 				recordingId: r.id,
@@ -151,11 +136,6 @@
 			},
 			true
 		)
-	}
-
-	function seekInPlayer(seconds: number) {
-		seekToken += 1
-		seekRequest = { seconds, token: seekToken }
 	}
 
 	function formatDuration(s: number | null) {
@@ -529,16 +509,18 @@
 											<!-- La vidéo ne se déplie pas dans le tableau : elle se regarde sur sa page. -->
 											<a href="/recording/{r.id}" class="btn btn-secondary btn-sm" title="Regarder la vidéo">🎬 Voir</a>
 										{:else}
-										<button
-											class="btn btn-secondary btn-sm"
-											class:btn-active={openPlayer === r.id}
-											onclick={() => togglePlayer(group.song, r)}
-											title={openPlayer === r.id
-												? 'Replier la waveform (la lecture continue en bas)'
-												: 'Écouter sans quitter la page'}
-										>
-											{openPlayer === r.id ? '▲ Réduire' : '▶ Écouter'}
-										</button>
+											<div class="listen-actions">
+												<button
+													class="btn btn-secondary btn-sm"
+													onclick={() => playInMiniPlayer(group.song, r)}
+													title="Écouter dans le mini-lecteur persistant"
+												>
+													▶ Écouter
+												</button>
+												<a href="/recording/{r.id}" class="btn btn-secondary btn-sm" title="Ouvrir le lecteur complet">
+													Lecteur complet
+												</a>
+											</div>
 										{/if}
 									</td>
 									{#if editMode}
@@ -567,20 +549,13 @@
 									</td>
 									{/if}
 								</tr>
-								{#if openPlayer === r.id || openComments[r.id]}
+								{#if openComments[r.id]}
 									<tr class="comments-row">
 										<td colspan={editMode ? 10 : 8}>
-											{#if openPlayer === r.id}
-												<InlineRecordingPlayer
-													recordingId={r.id}
-													durationS={r.duration_s}
-													seekRequest={seekRequest}
-												/>
-											{/if}
 											{#if openComments[r.id]}
 												<RecordingComments
 													recordingId={r.id}
-													onSeek={openPlayer === r.id ? seekInPlayer : null}
+													onSeek={null}
 												/>
 											{/if}
 										</td>
@@ -719,8 +694,7 @@
 	.comment-count:hover { border-color: var(--color-accent); }
 	.comment-count.open { border-color: var(--color-accent); background: var(--color-accent-light); }
 
-	/* Même signal visuel que le compteur de commentaires déplié */
-	.listen-cell .btn-active { border-color: var(--color-accent); background: var(--color-accent-light); }
+	.listen-actions { display: flex; gap: 0.35rem; align-items: center; }
 
 	.comments-row > td { background: var(--color-bg-subtle); padding: 0 1rem; }
 
