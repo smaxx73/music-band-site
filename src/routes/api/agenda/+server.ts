@@ -94,6 +94,15 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			SELECT id FROM sessions WHERE id = ${session_id} AND group_id = ${locals.user.current_group_id}
 		`
 		if (!session) return json({ error: 'Session introuvable.' }, { status: 400 })
+
+		// Une session ne doit figurer qu'une fois dans l'agenda. Cette réponse
+		// idempotente couvre notamment un double-clic sur « Ajouter à l’agenda ».
+		const [existingEvent] = await sql`
+			SELECT * FROM calendar_events
+			WHERE group_id = ${locals.user.current_group_id} AND session_id = ${session_id}
+			LIMIT 1
+		`
+		if (existingEvent) return json(existingEvent)
 		resolvedSessionId = session_id
 	}
 

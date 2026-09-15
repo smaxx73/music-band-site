@@ -327,7 +327,12 @@
 									class="btn btn-ghost btn-sm delete-btn"
 									onclick={() => deleteEvent(event)}
 									title="Supprimer"
-								>✕</button>
+									aria-label="Supprimer l’événement"
+								>
+									<svg viewBox="0 0 24 24" aria-hidden="true">
+										<path d="M3 6h18M9 6V4h6v2m-8 0 1 14h8l1-14M10 10v6m4-6v6" />
+									</svg>
+								</button>
 							</div>
 						{/each}
 					</div>
@@ -354,7 +359,12 @@
 										class="btn btn-ghost btn-sm delete-btn"
 										onclick={() => deleteEvent(event)}
 										title="Supprimer"
-									>✕</button>
+										aria-label="Supprimer l’événement"
+									>
+										<svg viewBox="0 0 24 24" aria-hidden="true">
+											<path d="M3 6h18M9 6V4h6v2m-8 0 1 14h8l1-14M10 10v6m4-6v6" />
+										</svg>
+									</button>
 								{/if}
 							</div>
 						{/each}
@@ -711,6 +721,17 @@
 	.delete-btn {
 		flex-shrink: 0;
 		color: var(--color-text-muted);
+	}
+
+	.delete-btn svg {
+		width: 1rem;
+		height: 1rem;
+		display: block;
+		fill: none;
+		stroke: currentColor;
+		stroke-width: 2;
+		stroke-linecap: round;
+		stroke-linejoin: round;
 	}
 
 	/* Add form */

@@ -11,7 +11,13 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	if (isNaN(id)) error(400, 'ID invalide')
 
 	const [session] = await sql`
-		SELECT s.*, COALESCE(u.display_name, s.created_by) AS created_by
+		SELECT
+			s.*,
+			COALESCE(u.display_name, s.created_by) AS created_by,
+			EXISTS (
+				SELECT 1 FROM calendar_events e
+				WHERE e.session_id = s.id AND e.group_id = ${locals.user.current_group_id}
+			) AS has_calendar_event
 		FROM sessions s
 		LEFT JOIN users u ON u.id = s.created_by_user_id
 		WHERE s.id = ${id} AND s.group_id = ${locals.user.current_group_id}
@@ -117,6 +123,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	return {
 		session,
+		hasCalendarEvent: Boolean(session.has_calendar_event),
 		groupMembers,
 		groups: Array.from(groupMap.values()),
 		prevSession: prevSession ?? null,

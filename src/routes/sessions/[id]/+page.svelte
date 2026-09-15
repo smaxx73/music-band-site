@@ -6,6 +6,7 @@
 	import RecordingComments from '$lib/components/RecordingComments.svelte'
 	import RecordingPlaybackActions from '$lib/components/RecordingPlaybackActions.svelte'
 	import { canDeleteGroupContent } from '$lib/types'
+	import { invalidateAll } from '$app/navigation'
 
 	let { data }: { data: PageData } = $props()
 
@@ -50,6 +51,7 @@
 	// dès que `data` est rechargé (navigation, invalidation).
 	let session = $derived(data.session as unknown as SessionData)
 	let groups = $derived(data.groups as unknown as Group[])
+	const hasCalendarEvent = $derived(data.hasCalendarEvent as boolean)
 
 	// Mêmes règles qu'à l'API : l'auteur d'un contenu, ou un administrateur du groupe.
 	// L'écran n'affiche donc que des actions que le serveur acceptera.
@@ -87,6 +89,8 @@
 
 	let sessionSaving = $state(false)
 	let sessionError = $state<string | null>(null)
+	let addingToAgenda = $state(false)
+	let agendaError = $state<string | null>(null)
 
 	async function saveSession(patch: {
 		date: string
@@ -107,12 +111,39 @@
 			const json = await res.json()
 			if (!res.ok) { sessionError = json.error ?? 'Erreur.'; return false }
 			session = json as SessionData
+			await invalidateAll()
 			return true
 		} catch {
 			sessionError = 'Erreur réseau.'
 			return false
 		} finally {
 			sessionSaving = false
+		}
+	}
+
+	async function addToAgenda() {
+		addingToAgenda = true
+		agendaError = null
+		try {
+			const res = await fetch('/api/agenda', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					date: session.date,
+					type: session.type,
+					title: session.title,
+					notes: session.notes,
+					location: session.location,
+					session_id: session.id
+				})
+			})
+			const json = await res.json()
+			if (!res.ok) { agendaError = json.error ?? 'Erreur lors de l’ajout à l’agenda.'; return }
+			await invalidateAll()
+		} catch {
+			agendaError = 'Erreur réseau.'
+		} finally {
+			addingToAgenda = false
 		}
 	}
 
@@ -352,6 +383,16 @@
 		error={sessionError}
 		onSave={saveSession}
 	/>
+
+	{#if !hasCalendarEvent}
+		<div class="agenda-restore">
+			<span>Cette session ne figure pas dans l’agenda.</span>
+			<button class="btn btn-secondary btn-sm" onclick={addToAgenda} disabled={addingToAgenda}>
+				{addingToAgenda ? 'Ajout en cours…' : '＋ Ajouter à l’agenda'}
+			</button>
+			{#if agendaError}<span class="message-error">{agendaError}</span>{/if}
+		</div>
+	{/if}
 
 	<!-- Morceaux & prises -->
 	{#if groups.length === 0}
@@ -606,6 +647,19 @@
 		margin-bottom: 1.25rem;
 	}
 
+	.agenda-restore {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.6rem;
+		margin: 1rem 0;
+		padding: 0.65rem 0.8rem;
+		border: 1px dashed var(--color-border);
+		border-radius: var(--radius-sm);
+		color: var(--color-text-secondary);
+		font-size: var(--text-sm);
+	}
+
 	.session-summary {
 		margin: -1rem 0 0.75rem;
 		font-size: var(--text-sm);
@@ -848,6 +902,7 @@
 		.breadcrumb { margin-bottom: 0.5rem; }
 
 		.session-nav > * { flex: 1; }
+		.agenda-restore { align-items: stretch; }
 
 		/* Ligne 1 : prise · durée · auteur — puis fichier, notes, puis actions */
 		td.take { order: 1; font-size: var(--text-base); }
