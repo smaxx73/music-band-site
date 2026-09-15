@@ -1,16 +1,22 @@
 import sql from './db'
 import type { ActivityNotification, NotificationType } from '$lib/types'
+import { mentionCandidates } from '$lib/mentions'
 
 // Les notifications sont écrites par fan-out : une ligne par destinataire au moment
 // de l'action. C'est ce qui rend possible les actions du menu (lu / non lu / tout lu),
 // qui supposent un état de lecture propre à chaque membre.
 //
 // Règle d'or : notifier ne doit jamais faire échouer l'action notifiée. Toutes les
-// écritures passent par `notifyGroup`, qui avale ses erreurs après les avoir loguées.
+// écritures passent par `notifyGroup` ou `notifyMentions`, qui avalent leurs erreurs
+// après les avoir loguées.
 
 const EXCERPT_MAX = 160
 const DEFAULT_LIMIT = 20
 const MAX_LIMIT = 50
+
+// Type des éléments passé à sql.array : sans lui, un tableau vide ne se type pas.
+const INT4_OID = 23
+const TEXT_OID = 25
 
 export type NotifyInput = {
 	groupId: number
@@ -33,10 +39,11 @@ function truncate(value: string | null | undefined): string | null {
 }
 
 /**
- * Notifie tous les membres du groupe, sauf l'auteur de l'action.
+ * Notifie tous les membres du groupe, sauf l'auteur de l'action et `excludeUserIds`
+ * (déjà prévenus autrement, par exemple par une mention).
  * Ne lève jamais : une notification perdue est moins grave qu'un upload refusé.
  */
-export async function notifyGroup(input: NotifyInput): Promise<void> {
+export async function notifyGroup(input: NotifyInput, excludeUserIds: number[] = []): Promise<void> {
 	try {
 		await sql`
 			INSERT INTO notifications (
@@ -57,9 +64,62 @@ export async function notifyGroup(input: NotifyInput): Promise<void> {
 				${input.playlistId ?? null}
 			FROM user_groups ug
 			WHERE ug.group_id = ${input.groupId} AND ug.user_id <> ${input.actor.id}
+			  AND NOT (ug.user_id = ANY(${sql.array(excludeUserIds, INT4_OID)}))
 		`
 	} catch (err) {
 		console.error('[notifications]', err)
+	}
+}
+
+/**
+ * Notifie les membres mentionnés (`@pseudo`) dans `content`, et retourne leurs ids pour
+ * que l'appelant ne les prévienne pas une seconde fois. Seuls les membres du groupe
+ * comptent — un pseudo d'un autre groupe ne reçoit rien — et jamais l'auteur lui-même.
+ * `previousContent` (édition) : une mention déjà présente a déjà été notifiée.
+ * Ne lève jamais, comme `notifyGroup`.
+ */
+export async function notifyMentions(
+	input: Omit<NotifyInput, 'type'>,
+	content: string,
+	previousContent: string | null = null
+): Promise<number[]> {
+	const candidates = mentionCandidates(content)
+	if (candidates.length === 0) return []
+	const alreadyMentioned = previousContent ? mentionCandidates(previousContent) : []
+
+	try {
+		// Le pseudo est comparé en base : c'est elle qui sait lequel des candidats existe.
+		// Un membre déjà mentionné avant l'édition est exclu par la même comparaison.
+		const rows = await sql<{ user_id: number }[]>`
+			INSERT INTO notifications (
+				user_id, group_id, type, actor_user_id, actor_name,
+				subject, excerpt, link, session_id, recording_id, playlist_id
+			)
+			SELECT
+				ug.user_id,
+				${input.groupId},
+				'mention',
+				${input.actor.id},
+				${input.actor.display_name},
+				${truncate(input.subject)},
+				${truncate(input.excerpt)},
+				${input.link},
+				${input.sessionId ?? null},
+				${input.recordingId ?? null},
+				${input.playlistId ?? null}
+			FROM user_groups ug
+			JOIN users u ON u.id = ug.user_id
+			WHERE ug.group_id = ${input.groupId}
+			  AND ug.user_id <> ${input.actor.id}
+			  AND u.active
+			  AND lower(u.nickname) = ANY(${sql.array(candidates, TEXT_OID)})
+			  AND NOT (lower(u.nickname) = ANY(${sql.array(alreadyMentioned, TEXT_OID)}))
+			RETURNING user_id
+		`
+		return rows.map((row) => row.user_id)
+	} catch (err) {
+		console.error('[notifications]', err)
+		return []
 	}
 }
 

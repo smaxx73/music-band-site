@@ -258,7 +258,7 @@ export type CalendarEvent = {
 
 // ─── Notifications d'activité ─────────────────────────────────────────────
 
-export type NotificationType = 'recording' | 'comment' | 'session' | 'playlist' | 'agenda'
+export type NotificationType = 'recording' | 'comment' | 'mention' | 'session' | 'playlist' | 'agenda'
 
 // Une notification appartient à un destinataire précis : il n'y a pas de droit à
 // vérifier au-delà de `user_id`, mais l'affichage reste filtré par groupe actif.
@@ -284,6 +284,7 @@ export function notificationLabel(type: NotificationType): string {
 	switch (type) {
 		case 'recording': return 'a ajouté une prise'
 		case 'comment': return 'a commenté'
+		case 'mention': return "t'a mentionné sur"
 		case 'session': return 'a créé une session'
 		case 'playlist': return 'a créé la playlist'
 		case 'agenda': return 'a ajouté un événement'
@@ -294,6 +295,7 @@ export function notificationIcon(type: NotificationType): string {
 	switch (type) {
 		case 'recording': return '♪'
 		case 'comment': return '💬'
+		case 'mention': return '@'
 		case 'session': return '◎'
 		case 'playlist': return '≡'
 		case 'agenda': return '◻'

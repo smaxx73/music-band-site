@@ -2,6 +2,7 @@
 	import { page } from '$app/state'
 	import { formatTimecode } from '$lib/youtube'
 	import { canEditComment } from '$lib/types'
+	import { MENTION_PATTERN } from '$lib/mentions'
 	import type { CommentWithReactions, ReactionValue } from '$lib/types'
 
 	type ReactionState = { up_count: number; down_count: number; my_reaction: ReactionValue | null }
@@ -101,12 +102,9 @@
 	/** Les mentions sont du texte ordinaire : on les met en évidence sans interpréter de HTML. */
 	function contentParts(content: string): { text: string; mention: boolean }[] {
 		const parts: { text: string; mention: boolean }[] = []
-		// Un pseudo peut contenir davantage que des lettres ou chiffres ; une mention
-		// s'étend donc jusqu'au prochain espace, comme la saisie @ elle-même.
-		const pattern = /(^|[\s([{])(@[^\s@]+)/g
 		let position = 0
 
-		for (const match of content.matchAll(pattern)) {
+		for (const match of content.matchAll(MENTION_PATTERN)) {
 			const prefix = match[1]
 			const mentionStart = (match.index ?? 0) + prefix.length
 			if (mentionStart > position) parts.push({ text: content.slice(position, mentionStart), mention: false })

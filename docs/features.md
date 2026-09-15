@@ -198,7 +198,9 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
 - Contrôles : ⏮ retour début | ▶/⏸ | ⏭ +10s | temps courant/total | volume
 - Ajout de commentaire : global OU ancré à la position courante du lecteur
 - Mentions : taper `@` dans le commentaire propose les membres du groupe ; la mention insère
-  leur pseudo unique (`@pseudo`) et est mise en évidence dans toutes les listes de commentaires
+  leur pseudo unique (`@pseudo`) et est mise en évidence dans toutes les listes de commentaires.
+  Le membre mentionné est notifié (voir « Notifications d'activité ») ; la règle de détection
+  est partagée entre affichage et serveur dans `src/lib/mentions.ts`
 - La case "ancrer au timestamp" est cochée par défaut si le lecteur est en pause
 - Auteur pré-rempli depuis l'utilisateur connecté
 - Le nom du fichier déposé figure sous la ligne de métadonnées de la prise
@@ -213,7 +215,8 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
 - Seul le texte change : l'ancrage (`timestamp_s`) reste celui d'origine
 - `PATCH /api/comments/[id]` avec `{ content }` pose `edited_at` ; « (modifié) » s'affiche
   à côté de la date, la date de modification au survol. Les réactions sont conservées
-- Aucune notification : une modification n'annonce pas de nouveau contenu
+- Pas de notification au groupe : une modification n'annonce pas de nouveau contenu.
+  Seule exception, un membre ajouté en mention par la modification est prévenu
 
 ## Réactions aux commentaires
 
@@ -343,6 +346,11 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
   session (`session`), playlist (`playlist`), événement d'agenda (`agenda`, indisponibilité
   comprise). Une session crée déjà sa notification : l'événement d'agenda qu'elle génère
   n'en crée pas une seconde
+- **Mentions** (`mention`) : un membre cité par `@pseudo` dans un commentaire reçoit « t'a
+  mentionné » **à la place** du « a commenté » générique, pas en plus (`notifyMentions`).
+  Pseudo comparé sans casse, ponctuation finale ignorée (« @marc, »), membres actifs du
+  groupe uniquement, jamais l'auteur. À l'édition d'un commentaire, seuls les membres
+  **nouvellement** mentionnés sont notifiés
 - Notifier ne doit **jamais** faire échouer l'action notifiée : `notifyGroup` logue ses
   erreurs et n'en propage aucune
 - Le menu offre les actions habituelles : filtre « Non lues » / « Toutes », marquer une

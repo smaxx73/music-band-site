@@ -2,7 +2,7 @@ import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 import { commentsWithReactions } from '$lib/server/comments'
-import { notifyGroup } from '$lib/server/notifications'
+import { notifyGroup, notifyMentions } from '$lib/server/notifications'
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -71,15 +71,18 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		RETURNING *
 	`
 
-	await notifyGroup({
+	const notification = {
 		groupId: locals.user.current_group_id,
 		actor: locals.user,
-		type: 'comment',
 		subject: rec.song_title,
 		excerpt: content.trim(),
 		link: `/recording/${recordingId}`,
 		recordingId
-	})
+	}
+	// Un membre mentionné reçoit la mention à la place du « a commenté » générique :
+	// deux notifications pour un même commentaire noieraient celle qui lui est adressée.
+	const mentioned = await notifyMentions(notification, content)
+	await notifyGroup({ ...notification, type: 'comment' }, mentioned)
 
 	// Un commentaire tout juste créé n'a encore aucune réaction.
 	return json({ ...comment, up_count: 0, down_count: 0, my_reaction: null }, { status: 201 })
