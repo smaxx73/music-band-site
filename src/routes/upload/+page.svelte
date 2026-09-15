@@ -1,7 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types'
 	import { goto } from '$app/navigation'
-	import { page } from '$app/state'
 	import { formatDateOnly } from '$lib/date'
 	import SongDetails from '$lib/components/SongDetails.svelte'
 	import YouTubePlayer from '$lib/components/YouTubePlayer.svelte'
@@ -25,21 +24,37 @@
 	const imports = $derived(data.imports as unknown as ImportRow[])
 	const songs = $derived(data.songs as unknown as SongRow[])
 	const selectedSongData = $derived(songs.find((song) => String(song.id) === selectedSong) ?? null)
+	const requestedSessionId = $derived(data.selectedSessionId)
+	const requestedSongId = $derived(data.selectedSongId)
 
-	// « + Ajouter une prise » depuis une session arrive avec ?session_id= : la session est
-	// alors présélectionnée, à condition d'appartenir au groupe actif (donc à la liste).
-	function initialSession() {
-		const requested = page.url.searchParams.get('session_id')
-		const known = (data.sessions as unknown as SessionRow[]).some((s) => String(s.id) === requested)
-		return requested && known ? requested : ''
+	// L'identifiant est validé dans le load serveur. On le garde aussi synchronisé
+	// lorsqu'une navigation client change seulement la query string de /upload.
+	function initialSelectedSession() {
+		return requestedSessionId
 	}
 
-	let selectedSession = $state<string>(initialSession())
+	let selectedSession = $state<string>(initialSelectedSession())
+	let selectedSessionContext = $state(initialSelectedSession())
+	function initialSelectedSong() {
+		return requestedSongId
+	}
+
+	let selectedSong = $state<string>(initialSelectedSong())
+	let selectedSongContext = $state(initialSelectedSong())
+	$effect(() => {
+		if (requestedSessionId !== selectedSessionContext) {
+			selectedSession = requestedSessionId
+			selectedSessionContext = requestedSessionId
+		}
+		if (requestedSongId !== selectedSongContext) {
+			selectedSong = requestedSongId
+			selectedSongContext = requestedSongId
+		}
+	})
 	let newDate = $state('')
 	let newType = $state('repetition')
 	let newTitle = $state('')
 	let newLocation = $state('')
-	let selectedSong = $state<string>('')
 	let file = $state<File | null>(null)
 
 	// Une répétition enregistrée d'un bloc contient plusieurs morceaux : le fichier part

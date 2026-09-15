@@ -135,7 +135,7 @@
 	<SongDetails lyrics={song.lyrics} musicNotes={song.music_notes} />
 
 	{#if recordings.length === 0}
-		<p class="empty">Aucune prise pour ce morceau. <a href="/upload">Uploader →</a></p>
+		<p class="empty">Aucune prise pour ce morceau.</p>
 	{:else}
 		<p class="summary">{recordings.length} prise{recordings.length > 1 ? 's' : ''} au total</p>
 
@@ -219,6 +219,10 @@
 			</section>
 		{/each}
 	{/if}
+
+	<div class="footer-actions">
+		<a href="/upload?song_id={song.id}" class="btn upload-action">+ Ajouter une prise</a>
+	</div>
 </main>
 
 <style>
@@ -258,6 +262,18 @@
 	.ref-duration { font-size: 0.85rem; color: var(--color-text-muted); margin: 0.15rem 0 0; }
 
 	.summary { font-size: var(--text-sm); color: var(--color-text-muted); margin: 0 0 1.5rem; }
+
+	.footer-actions { margin-top: 2rem; display: flex; }
+
+	/* Même signal visuel que l'action « Uploader » de la navigation. */
+	.upload-action {
+		background: var(--color-accent);
+		border-color: var(--color-accent);
+		color: #fff;
+		font-weight: 600;
+	}
+
+	.upload-action:hover { opacity: 0.88; }
 
 	.session-section { margin-bottom: 2rem; }
 
@@ -309,6 +325,7 @@
 
 		.song-header { gap: 0.5rem; }
 		h1 { font-size: 1.25rem; flex-wrap: wrap; }
+		.footer-actions .upload-action { width: 100%; justify-content: center; }
 
 		td.take { order: 1; font-size: var(--text-base); color: var(--color-text); }
 		td.duration-cell { order: 2; font-size: var(--text-sm); color: var(--color-text-secondary); }
