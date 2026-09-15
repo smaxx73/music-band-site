@@ -265,7 +265,9 @@
 	let deletingRecordingId = $state<number | null>(null)
 	let renumbering = $state(false)
 
-	async function deleteRecording(id: number) {
+	async function deleteRecording(id: number, songTitle: string, take: number) {
+		if (!confirm(`Supprimer la prise ${take} de « ${songTitle} » ? Cette action est irréversible.`)) return
+
 		deletingRecordingId = id
 		try {
 			const res = await fetch(`/api/recordings/${id}`, { method: 'DELETE' })
@@ -557,7 +559,7 @@
 										<button
 											class="btn btn-danger btn-sm"
 											disabled={deletingRecordingId === r.id}
-											onclick={() => deleteRecording(r.id)}
+											onclick={() => deleteRecording(r.id, group.song.title, r.take)}
 										>
 											{deletingRecordingId === r.id ? '…' : 'Supprimer'}
 										</button>

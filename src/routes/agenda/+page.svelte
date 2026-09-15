@@ -173,8 +173,14 @@
 		}
 	}
 
-	async function deleteEvent(id: number) {
-		const res = await fetch(`/api/agenda/${id}`, { method: 'DELETE' })
+	async function deleteEvent(event: CalendarEventRow) {
+		const label = event.title || TYPE_LABELS[event.type]
+		const sessionWarning = event.session_id
+			? ' La session associée sera conservée, mais ne figurera plus dans l’agenda.'
+			: ''
+		if (!confirm(`Supprimer « ${label} » du ${fmtDate(event.date)} ?${sessionWarning}`)) return
+
+		const res = await fetch(`/api/agenda/${event.id}`, { method: 'DELETE' })
 		if (res.ok) await invalidateAll()
 	}
 
@@ -319,7 +325,7 @@
 								</div>
 								<button
 									class="btn btn-ghost btn-sm delete-btn"
-									onclick={() => deleteEvent(event.id)}
+									onclick={() => deleteEvent(event)}
 									title="Supprimer"
 								>✕</button>
 							</div>
@@ -346,7 +352,7 @@
 								{#if canDelete(event)}
 									<button
 										class="btn btn-ghost btn-sm delete-btn"
-										onclick={() => deleteEvent(event.id)}
+										onclick={() => deleteEvent(event)}
 										title="Supprimer"
 									>✕</button>
 								{/if}

@@ -64,6 +64,20 @@
 		if (!d) return '—'
 		return formatDateOnly(d, { day: 'numeric', month: 'long', year: 'numeric' })
 	}
+
+	function confirmGroupRoleChange(event: Event, memberName: string, currentRole: string) {
+		const select = event.currentTarget as HTMLSelectElement
+		const nextRole = select.value
+		const message = nextRole === 'admin'
+			? `Accorder le rôle d’admin du groupe à ${memberName} ?`
+			: `Retirer le rôle d’admin du groupe à ${memberName} ?`
+
+		if (!confirm(message)) {
+			select.value = currentRole
+			return
+		}
+		select.form?.requestSubmit()
+	}
 </script>
 
 <svelte:head>
@@ -182,7 +196,7 @@
 													name="role"
 													class="role-select"
 													aria-label="Rôle de {m.display_name} dans le groupe"
-													onchange={(e) => (e.currentTarget.form as HTMLFormElement).requestSubmit()}
+													onchange={(e) => confirmGroupRoleChange(e, m.display_name, m.group_role)}
 												>
 													<option value="member" selected={m.group_role === 'member'}>Membre</option>
 													<option value="admin" selected={m.group_role === 'admin'}>Admin</option>
