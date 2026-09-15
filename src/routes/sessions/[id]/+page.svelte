@@ -4,7 +4,7 @@
 	import SessionEditor from '$lib/components/SessionEditor.svelte'
 	import SongDetails from '$lib/components/SongDetails.svelte'
 	import RecordingComments from '$lib/components/RecordingComments.svelte'
-	import { player } from '$lib/player.svelte'
+	import RecordingPlaybackActions from '$lib/components/RecordingPlaybackActions.svelte'
 	import { canDeleteGroupContent } from '$lib/types'
 
 	let { data }: { data: PageData } = $props()
@@ -121,21 +121,6 @@
 
 	function toggleComments(id: number) {
 		openComments = { ...openComments, [id]: !openComments[id] }
-	}
-
-	/** Charge la prise dans le lecteur partagé, visible dans sa barre persistante. */
-	function playInMiniPlayer(song: Song, r: RecordingRow) {
-		player.load(
-			{
-				recordingId: r.id,
-				songId: song.id,
-				songTitle: song.title,
-				take: r.take,
-				sessionDate: String(session.date),
-				durationS: r.duration_s
-			},
-			true
-		)
 	}
 
 	function formatDuration(s: number | null) {
@@ -505,23 +490,15 @@
 										>{sourceName(r)}</span>
 									</td>
 									<td class="listen-cell">
-										{#if !r.file_path}
-											<!-- La vidéo ne se déplie pas dans le tableau : elle se regarde sur sa page. -->
-											<a href="/recording/{r.id}" class="btn btn-secondary btn-sm" title="Regarder la vidéo">🎬 Voir</a>
-										{:else}
-											<div class="listen-actions">
-												<button
-													class="btn btn-secondary btn-sm"
-													onclick={() => playInMiniPlayer(group.song, r)}
-													title="Écouter dans le mini-lecteur persistant"
-												>
-													▶ Écouter
-												</button>
-												<a href="/recording/{r.id}" class="btn btn-secondary btn-sm" title="Ouvrir le lecteur complet">
-													Lecteur complet
-												</a>
-											</div>
-										{/if}
+										<RecordingPlaybackActions
+											recordingId={r.id}
+											songId={group.song.id}
+											songTitle={group.song.title}
+											take={r.take}
+											sessionDate={String(session.date)}
+											durationS={r.duration_s}
+											hasAudio={!!r.file_path}
+										/>
 									</td>
 									{#if editMode}
 									<td class="reorder-cell">
@@ -693,8 +670,6 @@
 
 	.comment-count:hover { border-color: var(--color-accent); }
 	.comment-count.open { border-color: var(--color-accent); background: var(--color-accent-light); }
-
-	.listen-actions { display: flex; gap: 0.35rem; align-items: center; }
 
 	.comments-row > td { background: var(--color-bg-subtle); padding: 0 1rem; }
 

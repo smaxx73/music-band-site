@@ -3,6 +3,7 @@
 	import { formatDateOnly } from '$lib/date'
 	import SongDetails from '$lib/components/SongDetails.svelte'
 	import RecordingComments from '$lib/components/RecordingComments.svelte'
+	import RecordingPlaybackActions from '$lib/components/RecordingPlaybackActions.svelte'
 
 	let { data }: { data: PageData } = $props()
 
@@ -193,7 +194,15 @@
 										>{sourceName(r)}</span>
 									</td>
 									<td class="listen-cell">
-										<a href="/recording/{r.id}" class="btn btn-secondary btn-sm">{r.file_path ? 'Écouter' : '🎬 Voir'}</a>
+										<RecordingPlaybackActions
+											recordingId={r.id}
+											songId={song.id}
+											songTitle={song.title}
+											take={r.take}
+											sessionDate={r.session_date}
+											durationS={r.duration_s}
+											hasAudio={!!r.file_path}
+										/>
 									</td>
 								</tr>
 								{#if openComments[r.id]}

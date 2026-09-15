@@ -211,6 +211,11 @@
 			{/if}
 		</div>
 		<div class="header-actions">
+			<a
+				href="/sessions/{recording.session_id}"
+				class="btn btn-ghost btn-sm back-to-session"
+				title="Retourner à la session"
+			>← Retour à la session</a>
 			{#if prevRecording}
 				<a href="/recording/{prevRecording.id}" class="btn btn-secondary btn-sm" title="Prise précédente">← Prise {prevRecording.take}</a>
 			{/if}
