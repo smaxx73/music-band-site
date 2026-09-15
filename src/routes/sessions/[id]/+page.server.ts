@@ -22,7 +22,9 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 	// Le tuple (date, id) départage les sessions d'une même journée. La comparaison
 	// reste entièrement en SQL : renvoyer la date via JS la ferait transiter par un
 	// timestamp et risquerait un décalage d'un jour selon le fuseau.
-	const [[prevSession], [nextSession]] = await Promise.all([
+	// Requêtes indépendantes les unes des autres : lancées ensemble, une fois la session
+	// vérifiée dans le groupe actif.
+	const [[prevSession], [nextSession], rows, groupMembers] = await Promise.all([
 		sql`
 			SELECT id, date, title, type FROM sessions
 			WHERE group_id = ${locals.user.current_group_id}
@@ -36,29 +38,30 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			  AND (date, id) > (SELECT date, id FROM sessions WHERE id = ${id})
 			ORDER BY date ASC, id ASC
 			LIMIT 1
-		`
+		`,
+		sql`
+			SELECT
+				r.id, r.take, r.status, r.notes, r.duration_s, COALESCE(MAX(u.display_name), r.uploaded_by) AS uploaded_by,
+				r.uploaded_by_user_id, r.created_at, r.file_path, r.source_file_name,
+				r.youtube_video_id, r.youtube_title,
+				s.id       AS song_id,
+				s.title    AS song_title,
+				s.composer AS song_composer,
+				s.lyrics   AS song_lyrics,
+				s.music_notes AS song_music_notes,
+				s.status   AS song_status,
+				COUNT(c.id)::int AS comment_count
+			FROM recordings r
+			JOIN songs s ON s.id = r.song_id
+			LEFT JOIN users u ON u.id = r.uploaded_by_user_id
+			LEFT JOIN comments c ON c.recording_id = r.id
+			WHERE r.session_id = ${id}
+			GROUP BY r.id, s.id
+			ORDER BY s.title, r.take ASC
+		`,
+		// Participants proposés à l'édition de la session : les membres du groupe actif.
+		listGroupMemberNames(locals.user.current_group_id)
 	])
-
-	const rows = await sql`
-		SELECT
-			r.id, r.take, r.status, r.notes, r.duration_s, COALESCE(MAX(u.display_name), r.uploaded_by) AS uploaded_by,
-			r.uploaded_by_user_id, r.created_at, r.file_path, r.source_file_name,
-			r.youtube_video_id, r.youtube_title,
-			s.id       AS song_id,
-			s.title    AS song_title,
-			s.composer AS song_composer,
-			s.lyrics   AS song_lyrics,
-			s.music_notes AS song_music_notes,
-			s.status   AS song_status,
-			COUNT(c.id)::int AS comment_count
-		FROM recordings r
-		JOIN songs s ON s.id = r.song_id
-		LEFT JOIN users u ON u.id = r.uploaded_by_user_id
-		LEFT JOIN comments c ON c.recording_id = r.id
-		WHERE r.session_id = ${id}
-		GROUP BY r.id, s.id
-		ORDER BY s.title, r.take ASC
-	`
 
 	// Grouper par morceau côté serveur
 	const groupMap = new Map<number, {
@@ -111,9 +114,6 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			youtube_title: row.youtube_title
 		})
 	}
-
-	// Participants proposés à l'édition de la session : les membres du groupe actif.
-	const groupMembers = await listGroupMemberNames(locals.user.current_group_id)
 
 	return {
 		session,

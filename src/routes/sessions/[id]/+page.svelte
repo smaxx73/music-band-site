@@ -79,6 +79,12 @@
 		})
 	}
 
+	// Récapitulatif sous l'en-tête : ce qu'a produit la session, d'un coup d'œil.
+	const takeCount = $derived(groups.reduce((n, g) => n + g.recordings.length, 0))
+	const totalDurationS = $derived(
+		groups.reduce((n, g) => n + g.recordings.reduce((m, r) => m + (r.duration_s ?? 0), 0), 0)
+	)
+
 	let sessionSaving = $state(false)
 	let sessionError = $state<string | null>(null)
 
@@ -291,9 +297,8 @@
 	let deleteError = $state<string | null>(null)
 
 	async function deleteSession() {
-		const recordingCount = groups.reduce((n, g) => n + g.recordings.length, 0)
-		const msg = recordingCount > 0
-			? `Supprimer cette session et ses ${recordingCount} prise(s) ? Cette action est irréversible.`
+		const msg = takeCount > 0
+			? `Supprimer cette session et ses ${takeCount} prise(s) ? Cette action est irréversible.`
 			: 'Supprimer cette session ? Cette action est irréversible.'
 		if (!confirm(msg)) return
 
@@ -350,8 +355,13 @@
 
 	<!-- Morceaux & prises -->
 	{#if groups.length === 0}
-		<p class="empty">Aucune prise pour cette session. <a href="/upload">Uploader →</a></p>
+		<p class="empty">Aucune prise pour cette session. <a href="/upload?session_id={session.id}">Uploader →</a></p>
 	{:else}
+		<p class="session-summary">
+			{groups.length} morceau{groups.length > 1 ? 'x' : ''} · {takeCount} prise{takeCount > 1 ? 's' : ''}
+			{#if totalDurationS > 0} · {formatDuration(totalDurationS)} enregistrées{/if}
+		</p>
+
 		{#if groups.length > 1}
 			<nav class="song-toc" aria-label="Morceaux de la session">
 				{#each groups as group}
@@ -478,7 +488,12 @@
 												💬 {r.comment_count}
 											</button>
 										{:else}
-											<span class="muted">—</span>
+											<!-- Le formulaire vit dans le lecteur : on écrit mieux en réécoutant. -->
+											<a
+												href="/recording/{r.id}#commenter"
+												class="comment-add"
+												title="Ajouter un commentaire dans le lecteur complet"
+											>+ 💬</a>
 										{/if}
 									</td>
 									<td class="muted uploader-cell" data-label="Par">{r.uploaded_by}</td>
@@ -529,12 +544,13 @@
 								{#if openComments[r.id]}
 									<tr class="comments-row">
 										<td colspan={editMode ? 10 : 8}>
-											{#if openComments[r.id]}
-												<RecordingComments
-													recordingId={r.id}
-													onSeek={null}
-												/>
-											{/if}
+											<RecordingComments
+												recordingId={r.id}
+												onSeek={null}
+											/>
+											<a href="/recording/{r.id}#commenter" class="comment-reply">
+												Ajouter un commentaire dans le lecteur →
+											</a>
 										</td>
 									</tr>
 								{/if}
@@ -547,7 +563,7 @@
 	{/if}
 
 	<div class="footer-actions">
-		<a href="/upload" class="btn btn-secondary">+ Ajouter une prise</a>
+		<a href="/upload?session_id={session.id}" class="btn btn-secondary">+ Ajouter une prise</a>
 		<button class="btn btn-secondary" onclick={() => { editMode = !editMode }}>
 			{editMode ? 'Terminer' : 'Modifier les prises'}
 		</button>
@@ -568,10 +584,10 @@
 </main>
 
 <style>
-	/* Un peu plus large que les pages de lecture : le tableau des prises porte huit
-	   colonnes et doit tenir dans sa colonne sans la déborder. */
+	/* Plus large que les pages de lecture : le tableau des prises porte huit colonnes
+	   (dix en mode édition) et doit tenir sans défiler, boutons d'écoute compris. */
 	main {
-		max-width: 800px;
+		max-width: 1040px;
 		margin: 2rem auto;
 		padding: 0 1rem;
 	}
@@ -588,6 +604,12 @@
 		display: flex;
 		gap: 0.4rem;
 		margin-bottom: 1.25rem;
+	}
+
+	.session-summary {
+		margin: -1rem 0 0.75rem;
+		font-size: var(--text-sm);
+		color: var(--color-text-muted);
 	}
 
 	/* Sommaire cliquable : évite de scroller une session à plusieurs morceaux */
@@ -670,6 +692,29 @@
 
 	.comment-count:hover { border-color: var(--color-accent); }
 	.comment-count.open { border-color: var(--color-accent); background: var(--color-accent-light); }
+
+	.comment-add {
+		display: inline-block;
+		border: 1px dashed var(--color-border);
+		border-radius: 10px;
+		padding: 0.1rem 0.5rem;
+		font-size: var(--text-xs);
+		color: var(--color-text-muted);
+		text-decoration: none;
+		white-space: nowrap;
+	}
+
+	.comment-add:hover { border-color: var(--color-accent); color: var(--color-accent); }
+
+	.comment-reply {
+		display: inline-block;
+		margin-bottom: 0.8rem;
+		font-size: var(--text-sm);
+		color: var(--color-accent);
+		text-decoration: none;
+	}
+
+	.comment-reply:hover { text-decoration: underline; }
 
 	.comments-row > td { background: var(--color-bg-subtle); padding: 0 1rem; }
 
@@ -811,7 +856,8 @@
 		.quality-input { width: 8rem; padding: 0.3rem 0.45rem; font-size: 0.78rem; }
 
 		td.comments-cell { order: 7; text-align: left; }
-		.comment-count { padding: 0.25rem 0.6rem; }
+		.comment-count,
+		.comment-add { padding: 0.25rem 0.6rem; }
 
 		td.listen-cell { order: 8; margin-left: auto; }
 

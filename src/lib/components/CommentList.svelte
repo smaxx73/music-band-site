@@ -98,6 +98,26 @@
 		})
 	}
 
+	/** Les mentions sont du texte ordinaire : on les met en évidence sans interpréter de HTML. */
+	function contentParts(content: string): { text: string; mention: boolean }[] {
+		const parts: { text: string; mention: boolean }[] = []
+		// Un pseudo peut contenir davantage que des lettres ou chiffres ; une mention
+		// s'étend donc jusqu'au prochain espace, comme la saisie @ elle-même.
+		const pattern = /(^|[\s([{])(@[^\s@]+)/g
+		let position = 0
+
+		for (const match of content.matchAll(pattern)) {
+			const prefix = match[1]
+			const mentionStart = (match.index ?? 0) + prefix.length
+			if (mentionStart > position) parts.push({ text: content.slice(position, mentionStart), mention: false })
+			parts.push({ text: match[2], mention: true })
+			position = mentionStart + match[2].length
+		}
+
+		if (position < content.length) parts.push({ text: content.slice(position), mention: false })
+		return parts.length ? parts : [{ text: content, mention: false }]
+	}
+
 	let commentEls = $state<Record<number, HTMLElement>>({})
 
 	/** Appelée par le parent (bind:this) pour cibler un commentaire depuis la waveform. */
@@ -189,7 +209,7 @@
 					</div>
 				</div>
 			{:else}
-				<p class="comment-content">{comment.content}</p>
+				<p class="comment-content">{#each contentParts(comment.content) as part}{#if part.mention}<span class="mention">{part.text}</span>{:else}{part.text}{/if}{/each}</p>
 			{/if}
 
 			<div class="reactions">
@@ -282,6 +302,8 @@
 		white-space: pre-wrap;
 		color: var(--color-text);
 	}
+
+	.mention { color: var(--color-accent); font-weight: 700; }
 
 	.reactions {
 		display: flex;

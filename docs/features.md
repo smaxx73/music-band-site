@@ -160,13 +160,19 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
 - Modification possible : date, type, titre, lieu, notes, membres de la session
   (mêmes vignettes qu'à la création — `src/lib/components/MembersInput.svelte`)
 - Modification possible par prise : qualité libre, notes. La qualité se règle uniquement dans cette vue ; l'historique d'un morceau est en lecture seule.
-- Ajout d'une prise oubliée à une session passée : autorisé
+- Récapitulatif sous l'en-tête : nombre de morceaux, de prises et durée totale enregistrée
+- Ajout d'une prise oubliée à une session passée : autorisé. « + Ajouter une prise » ouvre
+  `/upload?session_id=` avec la session déjà sélectionnée (ignoré si hors du groupe actif)
 - Chaque prise affiche le **nom du fichier déposé** (`recordings.source_file_name`), tronqué
   dans la colonne et donné en entier au survol : `file_path` vaut toujours `{id}.mp3`, unique
   mais muet sur la provenance. Les prises antérieures à la migration 023 n'ont pas de nom
   d'origine — il n'a jamais été écrit — et retombent sur `{id}.mp3`, en italique grisé
 - Le compteur de commentaires d'une prise est cliquable : il déplie la liste des commentaires
   sous la ligne, chargée à la demande via `GET /api/comments?recording_id=`, sans ouvrir le lecteur
+- Commenter une prise mène au lecteur (`/recording/[id]#commenter`) : « + 💬 » à la place du
+  compteur quand la prise n'a aucun commentaire, lien sous la liste dépliée sinon. Le formulaire
+  y est centré à l'écran et prend le focus — on commente mieux en réécoutant, et l'ancrage
+  au timestamp n'existe que là
 - Mode édition : suppression de prise, déplacement dans l'ordre du morceau, puis renumérotation persistée
 - Suppression d'une prise : réservée à celui qui l'a uploadée et aux admins du groupe.
   Le bouton n'apparaît pas aux autres membres, et l'API répond `403`
@@ -191,6 +197,8 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
 - Clic sur un marqueur → seek à ce timestamp + scroll vers le commentaire
 - Contrôles : ⏮ retour début | ▶/⏸ | ⏭ +10s | temps courant/total | volume
 - Ajout de commentaire : global OU ancré à la position courante du lecteur
+- Mentions : taper `@` dans le commentaire propose les membres du groupe ; la mention insère
+  leur pseudo unique (`@pseudo`) et est mise en évidence dans toutes les listes de commentaires
 - La case "ancrer au timestamp" est cochée par défaut si le lecteur est en pause
 - Auteur pré-rempli depuis l'utilisateur connecté
 - Le nom du fichier déposé figure sous la ligne de métadonnées de la prise

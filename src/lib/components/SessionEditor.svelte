@@ -164,7 +164,10 @@
 			<h1>{session.title ?? formatDate(session.date)}</h1>
 			<button class="btn-edit" onclick={startEditSession}>Modifier</button>
 		</div>
-		<p class="meta date-meta">{formatDate(session.date)}</p>
+		<!-- Sans titre, le h1 porte déjà la date : ne pas la répéter. -->
+		{#if session.title}
+			<p class="meta date-meta">{formatDate(session.date)}</p>
+		{/if}
 		{#if session.location}
 			<p class="meta">{session.location}</p>
 		{/if}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types'
 	import { goto } from '$app/navigation'
+	import { page } from '$app/state'
 	import { formatDateOnly } from '$lib/date'
 	import SongDetails from '$lib/components/SongDetails.svelte'
 	import YouTubePlayer from '$lib/components/YouTubePlayer.svelte'
@@ -25,7 +26,15 @@
 	const songs = $derived(data.songs as unknown as SongRow[])
 	const selectedSongData = $derived(songs.find((song) => String(song.id) === selectedSong) ?? null)
 
-	let selectedSession = $state<string>('')
+	// « + Ajouter une prise » depuis une session arrive avec ?session_id= : la session est
+	// alors présélectionnée, à condition d'appartenir au groupe actif (donc à la liste).
+	function initialSession() {
+		const requested = page.url.searchParams.get('session_id')
+		const known = (data.sessions as unknown as SessionRow[]).some((s) => String(s.id) === requested)
+		return requested && known ? requested : ''
+	}
+
+	let selectedSession = $state<string>(initialSession())
 	let newDate = $state('')
 	let newType = $state('repetition')
 	let newTitle = $state('')

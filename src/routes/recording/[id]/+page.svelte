@@ -23,6 +23,7 @@
 		session_date: string; session_location: string | null
 	}
 	type Comment = CommentWithReactions
+	type MentionMember = { id: number; nickname: string; display_name: string }
 
 	const recording = $derived(data.recording as unknown as Recording)
 	// Une prise a une piste audio, une vidéo YouTube, ou les deux.
@@ -32,6 +33,7 @@
 	let view = $derived<'audio' | 'video'>(recording.file_path ? 'audio' : 'video')
 	const showVideo = $derived(!!recording.youtube_video_id && view === 'video')
 	let comments = $derived(data.comments as unknown as Comment[])
+	const groupMembers = $derived(data.groupMembers as unknown as MentionMember[])
 
 	type PlayerState = {
 		currentTime: number
@@ -301,6 +303,7 @@
 	<CommentsPanel
 		recordingId={recording.id}
 		comments={comments}
+		members={groupMembers}
 		currentTime={playerState.currentTime}
 		playerReady={playerState.ready}
 		isPlaying={playerState.isPlaying}

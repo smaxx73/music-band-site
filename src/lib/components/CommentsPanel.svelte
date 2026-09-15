@@ -1,6 +1,7 @@
 <script lang="ts">
-	import { tick } from 'svelte'
+	import { onMount, tick } from 'svelte'
 	import CommentList from '$lib/components/CommentList.svelte'
+	import MentionTextarea, { type MentionMember } from '$lib/components/MentionTextarea.svelte'
 	import type { CommentWithReactions } from '$lib/types'
 
 	type HighlightRequest = {
@@ -11,6 +12,7 @@
 	let {
 		recordingId,
 		comments,
+		members,
 		currentTime = 0,
 		playerReady = false,
 		isPlaying = false,
@@ -20,6 +22,7 @@
 	}: {
 		recordingId: number
 		comments: CommentWithReactions[]
+		members: MentionMember[]
 		currentTime?: number
 		playerReady?: boolean
 		isPlaying?: boolean
@@ -36,6 +39,16 @@
 	let formError = $state<string | null>(null)
 	let lastHighlightToken = $state<number | null>(null)
 	let list = $state<ReturnType<typeof CommentList> | null>(null)
+	let form = $state<HTMLFormElement | null>(null)
+	let input = $state<ReturnType<typeof MentionTextarea> | null>(null)
+
+	// Les vues session et morceau renvoient ici via `#commenter` : on arrive pour écrire,
+	// le curseur doit déjà être dans la zone de texte.
+	onMount(() => {
+		if (location.hash !== '#commenter') return
+		form?.scrollIntoView({ block: 'center' })
+		input?.focus()
+	})
 
 	function formatTime(s: number) {
 		if (!isFinite(s)) return '0:00'
@@ -127,17 +140,14 @@
 		</div>
 	{/if}
 
-	<form class="form-section comment-form" onsubmit={submitComment}>
+	<form id="commenter" class="form-section comment-form" onsubmit={submitComment} bind:this={form}>
 		<h3>Ajouter un commentaire</h3>
 
 		{#if formError}
 			<p class="message-error">{formError}</p>
 		{/if}
 
-		<label class="form-label">
-			Commentaire
-			<textarea class="form-input" rows="3" bind:value={content} required disabled={submitting}></textarea>
-		</label>
+		<MentionTextarea bind:this={input} members={members} bind:value={content} required disabled={submitting} />
 
 		<label class="checkbox-label">
 			<input type="checkbox" bind:checked={anchorTimestamp} disabled={submitting} />
@@ -158,7 +168,7 @@
 
 	.list-wrapper { margin-bottom: 1.5rem; }
 
-	.comment-form { margin-top: 0; }
+	.comment-form { margin-top: 0; scroll-margin-top: 1rem; }
 
 	h3 { font-size: 0.95rem; margin: 0; }
 

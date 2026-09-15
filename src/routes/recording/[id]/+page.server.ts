@@ -31,7 +31,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 
 	if (!recording) error(404, 'Prise introuvable')
 
-	const [comments, peaksData, siblings] = await Promise.all([
+	const [comments, peaksData, siblings, groupMembers] = await Promise.all([
 		commentsWithReactions(id, locals.user.id),
 		// Une prise vidéo seule n'a pas de fichier, donc pas de forme d'onde.
 		recording.file_path
@@ -41,6 +41,15 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 			SELECT id, take FROM recordings
 			WHERE session_id = ${recording.session_id} AND song_id = ${recording.song_id}
 			ORDER BY take ASC
+		`,
+		// Le pseudo est l'identifiant stable utilisé dans la syntaxe @pseudo ; le nom
+		// affiché aide à reconnaître les membres qui ont choisi un autre affichage.
+		sql<{ id: number; nickname: string; display_name: string }[]>`
+			SELECT u.id, u.nickname, u.display_name
+			FROM user_groups ug
+			JOIN users u ON u.id = ug.user_id
+			WHERE ug.group_id = ${locals.user.current_group_id} AND u.active = true
+			ORDER BY u.display_name, u.nickname
 		`
 	])
 
@@ -58,6 +67,7 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		comments,
 		peaks: peaksData.peaks,
 		peaksDuration: peaksData.duration,
+		groupMembers,
 		prevRecording,
 		nextRecording
 	}
