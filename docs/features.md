@@ -346,6 +346,8 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
   `playlist_id` en `ON DELETE CASCADE`) plutôt que de pointer vers une page supprimée
 - La pastille est comptée côté serveur dans `+layout.server.ts` — juste dès le premier rendu —
   puis rafraîchie par le menu toutes les 60 s tant qu'il reste fermé
+- Le menu est lié au groupe pour lequel il a été rendu : recréé à chaque bascule, et si un
+  autre onglet a changé de groupe (cookie commun), l'API répond `409` et l'onglet se resynchronise
 - Aucune purge : la table grandit indéfiniment, à traiter quand le volume le justifiera
 
 ## Tableau de bord (`/`)

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto, afterNavigate } from '$app/navigation'
+	import { goto, afterNavigate, invalidateAll } from '$app/navigation'
 	import {
 		notificationIcon,
 		notificationLabel,
@@ -7,7 +7,7 @@
 		type NotificationFeed
 	} from '$lib/types'
 
-	let { initialUnread = 0 }: { initialUnread?: number } = $props()
+	let { groupId, initialUnread = 0 }: { groupId: number; initialUnread?: number } = $props()
 
 	let open = $state(false)
 	let unreadOnly = $state(true)
@@ -29,13 +29,32 @@
 
 	afterNavigate(() => { open = false })
 
+	/**
+	 * Appel à l'API pour le groupe dont ce menu affiche les notifications. Le groupe actif
+	 * vit dans un cookie commun à tous les onglets : si un autre onglet a basculé, le
+	 * serveur répond 409 et on recharge les données du layout — qui recrée ce menu sur
+	 * le bon groupe — plutôt que d'afficher les notifications d'un autre groupe ici.
+	 * Retourne null quand la réponse est à ignorer.
+	 */
+	async function api(path: string, init?: RequestInit): Promise<Response | null> {
+		const separator = path.includes('?') ? '&' : '?'
+		const res = await fetch(`${path}${separator}group_id=${groupId}`, init)
+		if (res.status === 409) {
+			open = false
+			await invalidateAll()
+			return null
+		}
+		return res
+	}
+
 	async function load() {
 		loading = true
 		loadError = null
 		try {
 			const params = new URLSearchParams({ limit: '20' })
 			if (unreadOnly) params.set('unread', '1')
-			const res = await fetch(`/api/notifications?${params}`)
+			const res = await api(`/api/notifications?${params}`)
+			if (!res) return
 			const body = await res.json()
 			if (!res.ok) {
 				loadError = body.error ?? 'Erreur.'
@@ -54,8 +73,8 @@
 	/** Rafraîchit la pastille sans ouvrir le menu : une seule ligne suffit à la recompter. */
 	async function refreshCount() {
 		try {
-			const res = await fetch('/api/notifications?limit=1')
-			if (!res.ok) return
+			const res = await api('/api/notifications?limit=1')
+			if (!res?.ok) return
 			localUnread = ((await res.json()) as NotificationFeed).unread_count
 		} catch {
 			// Hors ligne ou onglet en cours de fermeture : la pastille reste sur sa valeur.
@@ -75,27 +94,30 @@
 	}
 
 	async function setRead(notification: ActivityNotification, read: boolean) {
-		const res = await fetch(`/api/notifications/${notification.id}`, {
+		const res = await api(`/api/notifications/${notification.id}`, {
 			method: 'PATCH',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ read })
 		})
-		if (!res.ok) return
+		// false seulement si l'onglet était périmé : un autre échec n'empêche pas d'ouvrir.
+		if (!res) return false
+		if (!res.ok) return true
 		const body = await res.json()
 		localUnread = body.unread_count
 		// Sous filtre « non lues », marquer comme lu retire la ligne de la liste.
 		items = unreadOnly && read
 			? items.filter((n) => n.id !== notification.id)
 			: items.map((n) => (n.id === notification.id ? body.notification : n))
+		return true
 	}
 
 	async function markAllRead() {
-		const res = await fetch('/api/notifications', {
+		const res = await api('/api/notifications', {
 			method: 'PATCH',
 			headers: { 'content-type': 'application/json' },
 			body: JSON.stringify({ read: true })
 		})
-		if (!res.ok) return
+		if (!res?.ok) return
 		localUnread = 0
 		items = unreadOnly
 			? []
@@ -106,7 +128,8 @@
 	// la page suivante recompte la pastille côté serveur, et la trouverait sinon en retard.
 	async function openNotification(event: MouseEvent, notification: ActivityNotification) {
 		event.preventDefault()
-		if (!notification.read_at) await setRead(notification, true)
+		// Groupe changé entre-temps : le lien viserait un contenu d'un autre groupe.
+		if (!notification.read_at && !(await setRead(notification, true))) return
 		open = false
 		goto(notification.link)
 	}

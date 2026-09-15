@@ -101,18 +101,31 @@ export async function unreadCount(userId: number, groupId: number | null): Promi
 }
 
 /**
+ * Le groupe actif vit dans un cookie partagé par tous les onglets : un onglet resté sur
+ * le groupe A interrogerait sinon l'API pour le groupe B, basculé ailleurs, et afficherait
+ * les notifications de B sur une page de A. Le menu envoie donc le groupe pour lequel il
+ * a été rendu ; un écart signifie que l'onglet est périmé et doit se resynchroniser.
+ */
+export function isStaleGroup(url: URL, currentGroupId: number): boolean {
+	const expected = url.searchParams.get('group_id')
+	return expected !== null && Number(expected) !== currentGroupId
+}
+
+/**
  * Marque une notification lue ou non lue. Le filtre sur `user_id` est la vérification
  * de droit : personne ne touche la notification d'un autre, admin compris.
+ * Le filtre sur le groupe garde le menu cohérent avec la pastille, comptée par groupe.
  */
 export async function markNotification(
 	userId: number,
+	groupId: number,
 	notificationId: number,
 	read: boolean
 ): Promise<ActivityNotification | null> {
 	const [updated] = await sql<{ id: number }[]>`
 		UPDATE notifications
 		SET read_at = ${read ? sql`now()` : sql`NULL`}
-		WHERE id = ${notificationId} AND user_id = ${userId}
+		WHERE id = ${notificationId} AND user_id = ${userId} AND group_id = ${groupId}
 		RETURNING id
 	`
 	if (!updated) return null

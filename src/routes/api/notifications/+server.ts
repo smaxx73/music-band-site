@@ -1,12 +1,15 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
-import { listNotifications, markAllRead, unreadCount } from '$lib/server/notifications'
+import { isStaleGroup, listNotifications, markAllRead, unreadCount } from '$lib/server/notifications'
 
-// GET /api/notifications?unread=1&limit=20 → { items, unread_count }
+const STALE_GROUP = { error: 'Le groupe actif a changé.' }
+
+// GET /api/notifications?unread=1&limit=20&group_id= → { items, unread_count }
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
 	const groupId = locals.user.current_group_id
 	if (!groupId) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
+	if (isStaleGroup(url, groupId)) return json(STALE_GROUP, { status: 409 })
 
 	const unreadOnly = url.searchParams.get('unread') === '1'
 
@@ -28,11 +31,12 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	return json({ items, unread_count })
 }
 
-// PATCH /api/notifications { read: true } → tout marquer comme lu dans le groupe actif
-export const PATCH: RequestHandler = async ({ locals, request }) => {
+// PATCH /api/notifications?group_id= { read: true } → tout marquer comme lu dans le groupe actif
+export const PATCH: RequestHandler = async ({ locals, request, url }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
 	const groupId = locals.user.current_group_id
 	if (!groupId) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
+	if (isStaleGroup(url, groupId)) return json(STALE_GROUP, { status: 409 })
 
 	const body = await request.json().catch(() => null)
 	if (body?.read !== true) {

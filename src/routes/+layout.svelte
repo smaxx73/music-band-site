@@ -109,7 +109,14 @@
 			<div class="top-actions">
 				<a href="/upload" class="top-upload" title="Uploader une prise" aria-label="Uploader une prise">+</a>
 				{#if data.user.current_group_id}
-					<NotificationsMenu initialUnread={data.unread_notifications ?? 0} />
+					<!-- Recréé à chaque bascule de groupe : liste, pastille locale et requêtes en
+					     vol appartiennent au groupe précédent et ne doivent pas lui survivre. -->
+					{#key data.user.current_group_id}
+						<NotificationsMenu
+							groupId={data.user.current_group_id}
+							initialUnread={data.unread_notifications ?? 0}
+						/>
+					{/key}
 				{/if}
 				<a
 					href="/profile"

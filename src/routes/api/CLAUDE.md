@@ -98,7 +98,10 @@ Les notifications font exception au scope habituel : elles appartiennent à un d
 Le filtre `user_id = locals.user.id` **est** la vérification de droit — personne, admin compris,
 ne marque la notification d'un autre. Une notification d'autrui répond `404`, pas `403`.
 `PATCH /api/notifications` marque tout comme lu dans le groupe actif ;
-`PATCH /api/notifications/[id]` porte `{ read: true | false }`.
+`PATCH /api/notifications/[id]` porte `{ read: true | false }` et ne touche que le groupe actif.
+Le menu passe `?group_id=` (groupe pour lequel il est rendu) sur ces trois appels : le cookie
+`band_group` étant commun aux onglets, un écart avec le groupe actif répond `409` et le client
+recharge ses données au lieu d'afficher les notifications d'un autre groupe.
 
 Ne jamais réécrire ces règles à la main : utiliser les helpers de `src/lib/types.ts`, et pour
 les membres d'un groupe passer par `src/lib/server/groups.ts`, qui renvoie un
