@@ -89,6 +89,11 @@
 		}
 	}
 
+	function handleCommentsChange(updatedComments: CommentWithReactions[]) {
+		displayComments = updatedComments
+		onCommentsChange(updatedComments)
+	}
+
 	$effect(() => {
 		if (playerReady && !isPlaying && currentTime > 0) {
 			anchorTimestamp = true
@@ -113,7 +118,12 @@
 		<p class="empty">Pas encore de commentaire.</p>
 	{:else}
 		<div class="list-wrapper">
-			<CommentList bind:this={list} comments={displayComments} {onSeek} />
+			<CommentList
+				bind:this={list}
+				comments={displayComments}
+				{onSeek}
+				onCommentsChange={handleCommentsChange}
+			/>
 		</div>
 	{/if}
 

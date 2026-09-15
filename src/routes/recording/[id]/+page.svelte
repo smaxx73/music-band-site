@@ -32,7 +32,6 @@
 	let view = $derived<'audio' | 'video'>(recording.file_path ? 'audio' : 'video')
 	const showVideo = $derived(!!recording.youtube_video_id && view === 'video')
 	let comments = $derived(data.comments as unknown as Comment[])
-	const user = $derived(data.user as string | null)
 
 	type PlayerState = {
 		currentTime: number

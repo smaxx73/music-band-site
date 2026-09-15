@@ -15,6 +15,10 @@
 	let loading = $state(true)
 	let loadError = $state<string | null>(null)
 
+	function handleCommentsChange(updatedComments: CommentWithReactions[]) {
+		comments = updatedComments
+	}
+
 	// Le composant n'est monté que lorsque le panneau est déplié : le chargement
 	// des commentaires reste à la demande, prise par prise.
 	$effect(() => {
@@ -53,7 +57,7 @@
 	{:else if comments.length === 0}
 		<p class="inline-msg">Pas encore de commentaire.</p>
 	{:else}
-		<CommentList {comments} {onSeek} compact />
+		<CommentList {comments} {onSeek} compact onCommentsChange={handleCommentsChange} />
 	{/if}
 </div>
 

@@ -9,12 +9,15 @@
 	let {
 		comments,
 		onSeek = null,
-		compact = false
+		compact = false,
+		onCommentsChange = () => {}
 	}: {
 		comments: CommentWithReactions[]
 		/** Fourni uniquement quand un lecteur est monté : rend les timestamps cliquables. */
 		onSeek?: ((seconds: number) => void) | null
 		compact?: boolean
+		/** Remonte une modification afin que toutes les vues du parent restent synchronisées. */
+		onCommentsChange?: (comments: CommentWithReactions[]) => void
 	} = $props()
 
 	// Les réactions modifiées localement priment sur la valeur reçue du serveur,
@@ -33,20 +36,14 @@
 		)
 	}
 
-	// Texte modifié localement : même logique que les réactions, sans rechargement.
-	let edits = $state<Record<number, { content: string; edited_at: Date | string | null }>>({})
 	let editingId = $state<number | null>(null)
 	let draft = $state('')
 	let saving = $state(false)
 	let editError = $state<string | null>(null)
 
-	function contentOf(comment: CommentWithReactions) {
-		return edits[comment.id] ?? { content: comment.content, edited_at: comment.edited_at ?? null }
-	}
-
 	function startEdit(comment: CommentWithReactions) {
 		editingId = comment.id
-		draft = contentOf(comment).content
+		draft = comment.content
 		editError = null
 	}
 
@@ -69,7 +66,13 @@
 			})
 			const json = await res.json().catch(() => ({}))
 			if (!res.ok) { editError = json.error ?? 'Erreur.'; return }
-			edits = { ...edits, [comment.id]: { content: json.content, edited_at: json.edited_at } }
+			onCommentsChange(
+				comments.map((current) =>
+					current.id === comment.id
+						? { ...current, ...json, author: current.author }
+						: current
+				)
+			)
 			editingId = null
 		} catch {
 			editError = 'Erreur réseau.'
@@ -147,7 +150,6 @@
 <ul class="comment-list" class:compact>
 	{#each comments as comment (comment.id)}
 		{@const reactions = reactionState(comment)}
-		{@const text = contentOf(comment)}
 		<li class="comment" bind:this={commentEls[comment.id]}>
 			<div class="comment-header">
 				<strong>{comment.author}</strong>
@@ -159,13 +161,11 @@
 					{:else}
 						<span class="timestamp-badge">⏱ {formatTime(comment.timestamp_s)}</span>
 					{/if}
-				{:else}
-					<span class="global-badge">global</span>
 				{/if}
 				<span class="comment-date">
 					{formatDate(comment.created_at)}
-					{#if text.edited_at}
-						<span class="edited" title="Modifié le {formatDate(text.edited_at)}">(modifié)</span>
+					{#if comment.edited_at}
+						<span class="edited" title="Modifié le {formatDate(comment.edited_at)}">(modifié)</span>
 					{/if}
 				</span>
 			</div>
@@ -189,7 +189,7 @@
 					</div>
 				</div>
 			{:else}
-				<p class="comment-content">{text.content}</p>
+				<p class="comment-content">{comment.content}</p>
 			{/if}
 
 			<div class="reactions">
@@ -269,14 +269,6 @@
 
 	.timestamp-link { cursor: pointer; }
 	.timestamp-link:hover { background: #ffedd5; }
-
-	.global-badge {
-		font-size: 0.72rem;
-		color: var(--color-text-muted);
-		border: 1px solid var(--color-border-light);
-		border-radius: var(--radius-sm);
-		padding: 0.1rem 0.35rem;
-	}
 
 	.comment-date {
 		color: var(--color-text-muted);
