@@ -8,6 +8,12 @@
 
 	let { data }: { data: PageData } = $props()
 
+	// `audio/*` est mal interprété par certains sélecteurs de fichiers iOS et peut
+	// rendre les M4A inaccessibles. Les extensions explicites évitent ce filtre
+	// défaillant, tandis que les MIME couvrent les autres navigateurs.
+	const acceptedAudioFiles =
+		'.mp3,.wav,.flac,.aac,.m4a,.ogg,.oga,.opus,.webm,audio/mpeg,audio/mp3,audio/wav,audio/x-wav,audio/flac,audio/x-flac,audio/aac,audio/mp4,audio/m4a,audio/x-m4a,audio/ogg,audio/opus,audio/webm,video/webm'
+
 	type SessionRow = { id: number; date: string; location: string | null }
 	type SongRow = { id: number; title: string; lyrics: string | null; music_notes: string | null }
 
@@ -416,7 +422,7 @@
 				<span>Piste audio <span class="hint">(facultatif)</span></span>
 				<input
 					type="file"
-					accept="audio/*"
+					accept={acceptedAudioFiles}
 					disabled={uploading}
 					onchange={(e) => {
 						const input = e.currentTarget as HTMLInputElement
@@ -439,7 +445,7 @@
 				Fichier (mp3, wav, m4a, ogg… — max 200 Mo)
 				<input
 					type="file"
-					accept="audio/*"
+					accept={acceptedAudioFiles}
 					disabled={uploading}
 					onchange={(e) => {
 						const input = e.currentTarget as HTMLInputElement
