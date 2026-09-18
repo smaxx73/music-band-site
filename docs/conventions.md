@@ -16,6 +16,7 @@ src/
 │   └── components/
 │       ├── AudioPlayer.svelte     # lecteur WaveSurfer.js
 │       ├── YouTubePlayer.svelte   # lecteur de la vidéo YouTube d'une prise (API IFrame, chargée à la demande)
+│       ├── YouTubeEmbed.svelte    # vidéo YouTube citée dans un commentaire (vignette, iframe au clic)
 │       ├── CommentsPanel.svelte   # commentaires d'une prise + formulaire d'ajout (page lecteur)
 │       ├── MentionTextarea.svelte # saisie de commentaire avec autocomplétion des @mentions
 │       ├── MembersInput.svelte    # participants d'une session en vignettes (saisie libre)

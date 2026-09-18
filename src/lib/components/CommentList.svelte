@@ -2,7 +2,8 @@
 	import { page } from '$app/state'
 	import { formatTimecode } from '$lib/youtube'
 	import { canEditComment } from '$lib/types'
-	import { MENTION_PATTERN } from '$lib/mentions'
+	import { commentParts, commentVideos } from '$lib/comment-content'
+	import YouTubeEmbed from '$lib/components/YouTubeEmbed.svelte'
 	import type { CommentWithReactions, ReactionValue } from '$lib/types'
 
 	type ReactionState = {
@@ -106,23 +107,6 @@
 			hour: '2-digit',
 			minute: '2-digit'
 		})
-	}
-
-	/** Les mentions sont du texte ordinaire : on les met en évidence sans interpréter de HTML. */
-	function contentParts(content: string): { text: string; mention: boolean }[] {
-		const parts: { text: string; mention: boolean }[] = []
-		let position = 0
-
-		for (const match of content.matchAll(MENTION_PATTERN)) {
-			const prefix = match[1]
-			const mentionStart = (match.index ?? 0) + prefix.length
-			if (mentionStart > position) parts.push({ text: content.slice(position, mentionStart), mention: false })
-			parts.push({ text: match[2], mention: true })
-			position = mentionStart + match[2].length
-		}
-
-		if (position < content.length) parts.push({ text: content.slice(position), mention: false })
-		return parts.length ? parts : [{ text: content, mention: false }]
 	}
 
 	let commentEls = $state<Record<number, HTMLElement>>({})
@@ -235,7 +219,10 @@
 					</div>
 				</div>
 			{:else}
-				<p class="comment-content">{#each contentParts(comment.content) as part}{#if part.mention}<span class="mention">{part.text}</span>{:else}{part.text}{/if}{/each}</p>
+				<p class="comment-content">{#each commentParts(comment.content) as part}{#if part.kind === 'mention'}<span class="mention">{part.text}</span>{:else if part.kind === 'link'}<a class="comment-link" href={part.href} target="_blank" rel="noopener noreferrer nofollow">{part.text}</a>{:else}{part.text}{/if}{/each}</p>
+				{#each commentVideos(comment.content) as video (video.videoId)}
+					<YouTubeEmbed videoId={video.videoId} startSeconds={video.startSeconds} />
+				{/each}
 			{/if}
 
 			<div class="reactions">
@@ -370,6 +357,14 @@
 	}
 
 	.mention { color: var(--color-accent); font-weight: 700; }
+
+	/* Une URL collée n'a pas d'espace : sans cela elle élargit la carte du commentaire. */
+	.comment-link {
+		color: var(--color-primary);
+		overflow-wrap: anywhere;
+	}
+
+	.comment-link:hover { text-decoration: underline; }
 
 	.reactions {
 		display: flex;

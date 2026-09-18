@@ -250,6 +250,26 @@ distincte des commentaires, qui sont datés et signés.
 - Pas de notification au groupe : une modification n'annonce pas de nouveau contenu.
   Seule exception, un membre ajouté en mention par la modification est prévenu
 
+## Liens et vidéos dans les commentaires
+
+- Toute URL `http(s)` écrite dans un commentaire devient un lien cliquable, ouvert dans un
+  nouvel onglet (`rel="noopener noreferrer nofollow"`). Le contenu reste du **texte** : il
+  est découpé à l'affichage (`src/lib/comment-content.ts`), jamais interprété comme du HTML
+- La ponctuation de la phrase n'entre pas dans le lien (« regarde https://… , c'est là ») et
+  une parenthèse finale n'y entre que si le lien en ouvre une lui-même
+- Un lien **YouTube** ajoute un lecteur sous le commentaire, sous toutes les formes déjà
+  reconnues à l'upload (`parseYouTubeVideoId`). Tant qu'on n'a pas cliqué, il n'y a qu'une
+  **vignette** : ni iframe, ni script YouTube, ni cookie — une liste de commentaires en porte
+  parfois plusieurs. L'iframe (`youtube-nocookie.com`) n'arrive qu'au clic et démarre seule
+- Le repère de départ du lien est respecté (`?t=90`, `?t=1m30s`, `?start=90`) et annoncé sur
+  la vignette : un lien collé vise souvent un passage précis
+- Lancer une de ces vidéos met le lecteur partagé en pause — un seul lecteur à la fois
+- Trois lecteurs au maximum par commentaire ; au-delà les liens restent cliquables, sans
+  vignette. La même vidéo citée deux fois n'ouvre qu'un lecteur
+- Cela vaut partout où les commentaires s'affichent (`CommentList.svelte`) : lecteur, listes
+  dépliées des vues session et morceau. **Rien n'est créé en base** : ces vidéos ne sont pas
+  des prises, contrairement à « Prises vidéo YouTube »
+
 ## Réactions aux commentaires
 
 - Chaque membre peut réagir à un commentaire par 👍 ou 👎, depuis le lecteur comme depuis

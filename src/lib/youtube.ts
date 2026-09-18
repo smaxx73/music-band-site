@@ -60,3 +60,44 @@ export function formatTimecode(seconds: number): string {
 export function youtubeWatchUrl(videoId: string): string {
 	return `https://www.youtube.com/watch?v=${videoId}`
 }
+
+/**
+ * Repère de départ porté par un lien (`?t=90`, `?t=1m30s`, `?start=90`) → secondes.
+ * Un lien collé dans un commentaire vise souvent un passage précis : le perdre
+ * obligerait à rechercher à la main ce que l'auteur avait déjà pointé.
+ */
+export function parseYouTubeStartSeconds(input: string): number {
+	let url: URL
+	try {
+		url = new URL(/^https?:\/\//i.test(input.trim()) ? input.trim() : `https://${input.trim()}`)
+	} catch {
+		return 0
+	}
+
+	const raw = url.searchParams.get('t') ?? url.searchParams.get('start')
+	if (!raw) return 0
+
+	if (/^\d+s?$/.test(raw)) return Math.min(parseInt(raw, 10), MAX_VIDEO_LENGTH_S)
+
+	const parts = raw.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/)
+	if (!parts || !parts.slice(1).some(Boolean)) return 0
+
+	const seconds =
+		parseInt(parts[1] ?? '0', 10) * 3600 +
+		parseInt(parts[2] ?? '0', 10) * 60 +
+		parseInt(parts[3] ?? '0', 10)
+	return Math.min(seconds, MAX_VIDEO_LENGTH_S)
+}
+
+/** URL d'intégration d'une vidéo, domaine sans cookie de suivi. */
+export function youtubeEmbedUrl(videoId: string, startSeconds = 0, autoplay = false): string {
+	const params = new URLSearchParams({ rel: '0', playsinline: '1' })
+	if (startSeconds > 0) params.set('start', String(Math.floor(startSeconds)))
+	if (autoplay) params.set('autoplay', '1')
+	return `https://www.youtube-nocookie.com/embed/${videoId}?${params}`
+}
+
+/** Vignette de prévisualisation : une image, aucun script, aucun cookie. */
+export function youtubeThumbnailUrl(videoId: string): string {
+	return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
+}
