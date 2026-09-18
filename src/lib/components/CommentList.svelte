@@ -5,7 +5,13 @@
 	import { MENTION_PATTERN } from '$lib/mentions'
 	import type { CommentWithReactions, ReactionValue } from '$lib/types'
 
-	type ReactionState = { up_count: number; down_count: number; my_reaction: ReactionValue | null }
+	type ReactionState = {
+		up_count: number
+		down_count: number
+		up_reactors: string[]
+		down_reactors: string[]
+		my_reaction: ReactionValue | null
+	}
 
 	let {
 		comments,
@@ -26,12 +32,15 @@
 	let overrides = $state<Record<number, ReactionState>>({})
 	let pending = $state<Record<number, boolean>>({})
 	let reactionError = $state<Record<number, string>>({})
+	let visibleReactors = $state<{ commentId: number; value: ReactionValue } | null>(null)
 
 	function reactionState(comment: CommentWithReactions): ReactionState {
 		return (
 			overrides[comment.id] ?? {
 				up_count: comment.up_count ?? 0,
 				down_count: comment.down_count ?? 0,
+				up_reactors: comment.up_reactors ?? [],
+				down_reactors: comment.down_reactors ?? [],
 				my_reaction: comment.my_reaction ?? null
 			}
 		)
@@ -154,8 +163,14 @@
 				[comment.id]: {
 					up_count: json.up_count,
 					down_count: json.down_count,
+					up_reactors: json.up_reactors ?? [],
+					down_reactors: json.down_reactors ?? [],
 					my_reaction: json.my_reaction ?? null
 				}
+			}
+			if (visibleReactors?.commentId === comment.id) {
+				const names = visibleReactors.value === 1 ? json.up_reactors : json.down_reactors
+				if (!names?.length) visibleReactors = null
 			}
 		} catch {
 			reactionError = { ...reactionError, [comment.id]: 'Erreur réseau.' }
@@ -163,11 +178,24 @@
 			pending = { ...pending, [comment.id]: false }
 		}
 	}
+
+	function toggleReactors(commentId: number, value: ReactionValue) {
+		visibleReactors =
+			visibleReactors?.commentId === commentId && visibleReactors.value === value
+				? null
+				: { commentId, value }
+	}
+
+	function namesFor(reactions: ReactionState, value: ReactionValue) {
+		return value === 1 ? reactions.up_reactors : reactions.down_reactors
+	}
 </script>
 
 <ul class="comment-list" class:compact>
 	{#each comments as comment (comment.id)}
 		{@const reactions = reactionState(comment)}
+		{@const upReactors = namesFor(reactions, 1)}
+		{@const downReactors = namesFor(reactions, -1)}
 		<li class="comment" bind:this={commentEls[comment.id]}>
 			<div class="comment-header">
 				<strong>{comment.author}</strong>
@@ -211,24 +239,58 @@
 			{/if}
 
 			<div class="reactions">
-				<button
-					class="reaction"
-					class:active={reactions.my_reaction === 1}
-					disabled={pending[comment.id]}
-					title={reactions.my_reaction === 1 ? 'Retirer mon pouce' : "J'aime"}
-					onclick={() => react(comment, 1)}
-				>
-					👍{#if reactions.up_count > 0}<span class="reaction-count">{reactions.up_count}</span>{/if}
-				</button>
-				<button
-					class="reaction"
-					class:active={reactions.my_reaction === -1}
-					disabled={pending[comment.id]}
-					title={reactions.my_reaction === -1 ? 'Retirer mon pouce' : "Je n'aime pas"}
-					onclick={() => react(comment, -1)}
-				>
-					👎{#if reactions.down_count > 0}<span class="reaction-count">{reactions.down_count}</span>{/if}
-				</button>
+				<div class="reaction-control">
+					<button
+						class="reaction"
+						class:active={reactions.my_reaction === 1}
+						disabled={pending[comment.id]}
+						title={reactions.my_reaction === 1 ? 'Retirer mon pouce' : "J'aime"}
+						onclick={() => react(comment, 1)}
+					>
+						👍
+					</button>
+					{#if upReactors.length > 0}
+						<button
+							class="reaction-count"
+							class:open={visibleReactors?.commentId === comment.id && visibleReactors.value === 1}
+							aria-describedby="reactors-{comment.id}-up"
+							aria-expanded={visibleReactors?.commentId === comment.id && visibleReactors.value === 1}
+							aria-label="Afficher les personnes ayant mis un pouce vers le haut"
+							onclick={() => toggleReactors(comment.id, 1)}
+						>
+							{upReactors.length}
+						</button>
+						<span class="reactor-tooltip" id="reactors-{comment.id}-up" role="tooltip">
+							👍 {upReactors.join(', ')}
+						</span>
+					{/if}
+				</div>
+				<div class="reaction-control">
+					<button
+						class="reaction"
+						class:active={reactions.my_reaction === -1}
+						disabled={pending[comment.id]}
+						title={reactions.my_reaction === -1 ? 'Retirer mon pouce' : "Je n'aime pas"}
+						onclick={() => react(comment, -1)}
+					>
+						👎
+					</button>
+					{#if downReactors.length > 0}
+						<button
+							class="reaction-count"
+							class:open={visibleReactors?.commentId === comment.id && visibleReactors.value === -1}
+							aria-describedby="reactors-{comment.id}-down"
+							aria-expanded={visibleReactors?.commentId === comment.id && visibleReactors.value === -1}
+							aria-label="Afficher les personnes ayant mis un pouce vers le bas"
+							onclick={() => toggleReactors(comment.id, -1)}
+						>
+							{downReactors.length}
+						</button>
+						<span class="reactor-tooltip" id="reactors-{comment.id}-down" role="tooltip">
+							👎 {downReactors.join(', ')}
+						</span>
+					{/if}
+				</div>
 				{#if reactionError[comment.id]}
 					<span class="reaction-error">{reactionError[comment.id]}</span>
 				{/if}
@@ -236,6 +298,12 @@
 					<button class="edit-link" onclick={() => startEdit(comment)}>Modifier</button>
 				{/if}
 			</div>
+			{#if visibleReactors?.commentId === comment.id}
+				{@const visibleNames = namesFor(reactions, visibleReactors.value)}
+				<div class="reaction-members-panel">
+					{visibleReactors.value === 1 ? '👍' : '👎'} {visibleNames.join(', ')}
+				</div>
+			{/if}
 		</li>
 	{/each}
 </ul>
@@ -310,6 +378,13 @@
 		margin-top: 0.45rem;
 	}
 
+	.reaction-control {
+		position: relative;
+		display: inline-flex;
+		align-items: center;
+		gap: 0.1rem;
+	}
+
 	.reaction {
 		display: inline-flex;
 		align-items: center;
@@ -332,9 +407,59 @@
 	}
 
 	.reaction-count {
+		min-width: 2rem;
+		min-height: 2rem;
+		padding: 0.2rem 0.35rem;
+		background: transparent;
+		border: none;
+		border-radius: var(--radius-md);
 		font-size: 0.75rem;
 		font-weight: 600;
 		color: var(--color-text-secondary);
+		cursor: pointer;
+	}
+
+	.reaction-count:hover,
+	.reaction-count:focus-visible,
+	.reaction-count.open { background: var(--color-bg-muted); color: var(--color-accent); }
+
+	.reactor-tooltip {
+		display: none;
+		position: absolute;
+		z-index: 2;
+		bottom: calc(100% + 0.35rem);
+		left: 0;
+		width: max-content;
+		max-width: min(18rem, calc(100vw - 2rem));
+		box-sizing: border-box;
+		padding: 0.4rem 0.55rem;
+		border-radius: var(--radius-md);
+		background: var(--color-text);
+		color: var(--color-bg);
+		font-size: var(--text-xs);
+		line-height: 1.35;
+		white-space: normal;
+		box-shadow: 0 2px 8px rgb(0 0 0 / 18%);
+	}
+
+	@media (hover: hover) {
+		.reaction-control:hover .reactor-tooltip,
+		.reaction-control:focus-within .reactor-tooltip,
+		.reaction-count:focus-visible + .reactor-tooltip { display: block; }
+	}
+
+	.reaction-members-panel {
+		margin-top: 0.35rem;
+		padding: 0.35rem 0.5rem;
+		width: fit-content;
+		border-radius: var(--radius-md);
+		background: var(--color-bg-muted);
+		font-size: var(--text-xs);
+		color: var(--color-text-secondary);
+	}
+
+	@media (hover: hover) and (pointer: fine) {
+		.reaction-members-panel { display: none; }
 	}
 
 	.edited {

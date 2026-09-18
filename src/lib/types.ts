@@ -215,10 +215,12 @@ export type CommentReaction = {
 	created_at: Date
 }
 
-// Commentaire enrichi des compteurs de réactions et de la réaction de l'utilisateur courant.
+// Commentaire enrichi des compteurs, des identités des votants et de la réaction courante.
 export type CommentWithReactions = Comment & {
 	up_count: number
 	down_count: number
+	up_reactors: string[]
+	down_reactors: string[]
 	my_reaction: ReactionValue | null
 }
 

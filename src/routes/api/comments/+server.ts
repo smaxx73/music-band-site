@@ -85,5 +85,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	await notifyGroup({ ...notification, type: 'comment' }, mentioned)
 
 	// Un commentaire tout juste créé n'a encore aucune réaction.
-	return json({ ...comment, up_count: 0, down_count: 0, my_reaction: null }, { status: 201 })
+	return json({
+		...comment,
+		up_count: 0,
+		down_count: 0,
+		up_reactors: [],
+		down_reactors: [],
+		my_reaction: null
+	}, { status: 201 })
 }

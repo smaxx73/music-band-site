@@ -224,8 +224,10 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
   les listes dépliées des vues session et morceau
 - Une seule réaction par membre et par commentaire : cliquer l'autre pouce la remplace,
   re-cliquer le même la retire (`DELETE`)
+- Sur ordinateur, le survol du compteur d'un pouce affiche les membres ayant posé cette
+  réaction ; sur écran tactile, toucher ce compteur affiche la même liste sous le commentaire
 - `POST /api/comments/[id]/reactions` avec `{ value: 1 | -1 }`, `DELETE` pour retirer ;
-  les deux retournent `{ up_count, down_count, my_reaction }`
+  les deux retournent les compteurs, les listes de votants et `my_reaction`
 - Les compteurs affichés sont mis à jour localement, sans rechargement de page
 
 ## Playlists (`/playlists/[id]`)
