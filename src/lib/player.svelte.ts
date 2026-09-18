@@ -67,7 +67,12 @@ class SharedPlayer {
 
 	seek(seconds: number) {
 		if (!this.media || !isFinite(seconds)) return
-		this.media.currentTime = Math.max(0, seconds)
+		const duration = Number.isFinite(this.duration) && this.duration > 0 ? this.duration : Infinity
+		const time = Math.max(0, Math.min(seconds, duration))
+		// `timeupdate` n'est pas immédiat après un seek : mettre aussi le store à jour
+		// évite que l'indicateur affiche brièvement l'ancienne position.
+		this.currentTime = time
+		this.media.currentTime = time
 	}
 
 	/** Ferme la barre et libère le média. */

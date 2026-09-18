@@ -13,8 +13,12 @@
 	// Masquée tant qu'une waveform de la page pilote déjà le même média.
 	const visible = $derived(player.track !== null && player.viewCount === 0)
 
-	const total = $derived(player.duration || player.track?.durationS || 0)
-	const progress = $derived(total > 0 ? (player.currentTime / total) * 100 : 0)
+	function validDuration(value: number | null | undefined) {
+		return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 0
+	}
+
+	const total = $derived(validDuration(player.duration) || validDuration(player.track?.durationS))
+	const progress = $derived(total > 0 ? Math.max(0, Math.min(100, (player.currentTime / total) * 100)) : 0)
 
 	// Sur mobile la barre est en position fixe : le bas du contenu passerait dessous.
 	// Même approche que le tiroir de navigation, qui pose déjà un style sur le body.
@@ -35,6 +39,18 @@
 		const pct = parseFloat((event.target as HTMLInputElement).value)
 		if (total > 0) player.seek((pct / 100) * total)
 	}
+
+	function syncTime() {
+		const time = el?.currentTime
+		if (typeof time === 'number' && Number.isFinite(time)) player.currentTime = Math.max(0, time)
+	}
+
+	function syncDuration() {
+		const duration = el?.duration
+		if (typeof duration === 'number' && Number.isFinite(duration) && duration > 0) {
+			player.duration = duration
+		}
+	}
 </script>
 
 <audio
@@ -42,8 +58,11 @@
 	preload="metadata"
 	onplay={() => (player.isPlaying = true)}
 	onpause={() => (player.isPlaying = false)}
-	ontimeupdate={() => (player.currentTime = el?.currentTime ?? 0)}
-	onloadedmetadata={() => (player.duration = el?.duration ?? 0)}
+	ontimeupdate={syncTime}
+	onseeking={syncTime}
+	onseeked={syncTime}
+	onloadedmetadata={syncDuration}
+	ondurationchange={syncDuration}
 	onended={() => (player.isPlaying = false)}
 ></audio>
 

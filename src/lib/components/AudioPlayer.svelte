@@ -74,6 +74,7 @@
 	let lastSeekToken = $state<number | null>(null)
 	let lastToggleToken = $state<number | null>(null)
 	let pendingAutoplay = $state(false)
+	let removeMediaDurationListener: (() => void) | null = null
 
 	function emitState() {
 		onStateChange({ currentTime, duration, isPlaying, ready })
@@ -118,13 +119,36 @@
 	}
 
 	/**
-	 * `setSrc` ne court-circuite que si l'URL est identique à `media.currentSrc`, qui est
-	 * absolue. Passer le `src` relatif de la piste rechargerait l'élément et couperait la
-	 * lecture : on renvoie donc toujours l'URL telle que l'élément la porte déjà.
+	 * WaveSurfer compare les URL sous leur forme absolue. Il faut conserver cette forme
+	 * pour une piste déjà chargée, sans jamais reprendre `currentSrc` s'il appartient à
+	 * la piste précédente (ce qui arrive juste après un changement de `src`).
 	 */
 	function sourceUrl(forTrack: AudioTrack) {
-		if (!media) return forTrack.src
-		return media.currentSrc || media.src || forTrack.src
+		const requestedUrl = new URL(forTrack.src, document.baseURI).href
+		if (!media || media.currentSrc !== requestedUrl) return requestedUrl
+		return media.currentSrc
+	}
+
+	function syncDurationFromMedia(mediaElement: HTMLAudioElement | null) {
+		const mediaDuration = mediaElement?.duration
+		if (typeof mediaDuration !== 'number' || !Number.isFinite(mediaDuration) || mediaDuration <= 0) return
+
+		// Les durées stockées et celles du cache de peaks sont arrondies à la seconde.
+		// La durée du média est la référence dès qu'elle est disponible.
+		duration = mediaDuration
+		emitState()
+	}
+
+	function observeMediaDuration(mediaElement: HTMLAudioElement) {
+		const sync = () => syncDurationFromMedia(mediaElement)
+		mediaElement.addEventListener('loadedmetadata', sync)
+		mediaElement.addEventListener('durationchange', sync)
+		sync()
+
+		return () => {
+			mediaElement.removeEventListener('loadedmetadata', sync)
+			mediaElement.removeEventListener('durationchange', sync)
+		}
 	}
 
 	async function initPlayer() {
@@ -180,6 +204,7 @@
 		})
 
 		wavesurfer = instance
+		removeMediaDurationListener = observeMediaDuration(media ?? instance.getMediaElement())
 		currentTrackId = track.id
 		mounted = true
 
@@ -235,6 +260,7 @@
 	})
 
 	onDestroy(() => {
+		removeMediaDurationListener?.()
 		wavesurfer?.destroy()
 	})
 
