@@ -1,4 +1,4 @@
-import { redirect, type Cookies } from '@sveltejs/kit'
+import { error, redirect, type Cookies } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 import type { GroupRole } from '$lib/types'
 
@@ -24,7 +24,22 @@ export type ScopedResource = 'recording' | 'session' | 'song' | 'playlist'
 
 type LinkUser = {
 	current_group_id: number | null
-	groups: { id: number; role: GroupRole }[]
+	groups: { id: number; name: string; role: GroupRole }[]
+}
+
+/**
+ * De quoi décider, côté requête : où rejouer le lien, et si l'on a le droit d'écrire.
+ *
+ * `isDataRequest` distingue une vraie navigation d'une requête de données. SvelteKit
+ * précharge les liens **au survol** (`data-sveltekit-preload-data` dans app.html) : sans
+ * cette distinction, promener la souris sur un lien suffirait à changer le groupe actif
+ * de tous les onglets, sans clic et sans que personne l'ait demandé. Une requête
+ * spéculative n'a pas à modifier d'état.
+ */
+type LinkRequest = {
+	cookies: Cookies
+	url: URL
+	isDataRequest: boolean
 }
 
 /**
@@ -54,37 +69,52 @@ async function ownerGroupId(resource: ScopedResource, id: number): Promise<numbe
  * Tout le contenu est filtré par le groupe actif, gardé dans un cookie. Un membre de
  * deux groupes qui ouvre un lien vers le groupe où il n'est pas en train de travailler
  * recevait « introuvable » — le même message que pour un id qui n'existe pas, sans rien
- * qui indique qu'il suffit de basculer. Il bascule donc ici, et l'écran le dit
- * (`group_switched_to`, posé en cookie éclair et lu par le layout).
+ * qui indique qu'il suffit de basculer.
+ *
+ * Deux issues selon la requête :
+ *
+ * - **navigation réelle** (on colle le lien reçu, on l'ouvre depuis un message) : on
+ *   bascule et on rejoue l'URL avec le nouveau cookie. Le `load` a déjà tourné pour
+ *   cette requête, `locals.user.current_group_id` n'y change plus ; et toute la page —
+ *   sélecteur de groupe, compteur de notifications — doit parler du même groupe. Cela
+ *   ne boucle pas : au second passage la ressource est dans le groupe actif.
+ * - **requête de données** (navigation interne, et surtout préchargement au survol) :
+ *   on n'écrit rien du tout et on explique, en laissant la bascule au clic de
+ *   l'utilisateur. Cf. `LinkRequest.isDataRequest`.
  *
  * Ne fait rien — l'appelant enchaîne alors sur son 404 — quand la ressource n'existe
  * pas, quand le groupe actif est déjà le bon, ou quand l'utilisateur n'est pas membre
  * du groupe propriétaire. Ce dernier cas reste un 404 et jamais un 403 : répondre
- * « accès refusé » confirmerait l'existence de la prise à qui ne doit rien en savoir.
- *
- * La redirection rejoue la même URL avec le nouveau cookie : le `load` a déjà tourné
- * pour cette requête, `locals.user.current_group_id` n'y change plus. Elle ne boucle
- * pas — au second passage le groupe actif est le bon, donc la ressource est trouvée.
+ * « accès refusé », ou nommer le groupe, confirmerait l'existence de la prise à qui ne
+ * doit rien en savoir.
  */
 export async function retargetActiveGroup(
 	user: LinkUser,
-	cookies: Cookies,
-	url: URL,
+	request: LinkRequest,
 	resource: ScopedResource,
 	id: number
 ): Promise<void> {
 	const groupId = await ownerGroupId(resource, id)
 	if (groupId === null) return
 	if (groupId === user.current_group_id) return
-	if (!user.groups.some((g) => g.id === groupId)) return
 
-	setActiveGroupCookie(cookies, groupId)
+	const group = user.groups.find((g) => g.id === groupId)
+	if (!group) return
+
+	if (request.isDataRequest) {
+		error(409, {
+			message: `Ce contenu appartient à « ${group.name} », un autre de vos groupes.`,
+			switch_group: { id: group.id, name: group.name }
+		})
+	}
+
+	setActiveGroupCookie(request.cookies, group.id)
 	// Cookie éclair : le layout le lit, l'efface et annonce la bascule une seule fois.
-	cookies.set('band_group_switched', String(groupId), {
+	request.cookies.set('band_group_switched', String(group.id), {
 		path: '/',
 		httpOnly: true,
 		sameSite: 'lax',
 		maxAge: 30
 	})
-	redirect(302, url.pathname + url.search)
+	redirect(302, request.url.pathname + request.url.search)
 }

@@ -71,7 +71,9 @@ NODE_ENV=production
   (`src/lib/server/group-scope.ts`) — jamais par un `cookies.set('band_group', …)` écrit à la
   main, dont les attributs finiraient par diverger d'un point d'écriture à l'autre
 - IMPORTANT : une page de détail groupe-scopée appelle `retargetActiveGroup` avant son `404`,
-  pour qu'un lien reçu visant un autre groupe du membre bascule au lieu d'échouer
+  pour qu'un lien reçu visant un autre groupe du membre bascule au lieu d'échouer. La bascule
+  n'écrit le cookie que sur une vraie navigation (`isDataRequest` faux) : les liens sont
+  préchargés au survol, et un survol ne doit rien changer
 - IMPORTANT : toute décision de droit passe par les helpers de `src/lib/types.ts`
   (`canManageGroup`, `canAssignGroupAdmin`, `canDeleteGroupContent`) — jamais par une
   comparaison de rôle écrite à la main, pour que l'écran et l'API appliquent la même règle

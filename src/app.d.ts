@@ -2,7 +2,12 @@
 // for information about these interfaces
 declare global {
 	namespace App {
-		// interface Error {}
+		interface Error {
+			message: string
+			// Posé quand le contenu visé appartient à un autre groupe de l'utilisateur et
+			// que la requête ne permet pas de basculer d'office — voir group-scope.ts.
+			switch_group?: { id: number; name: string }
+		}
 		interface Locals {
 			user: {
 				id: number

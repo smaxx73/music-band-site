@@ -4,7 +4,7 @@ import sql from '$lib/server/db'
 import { retargetActiveGroup } from '$lib/server/group-scope'
 import { loginRedirect } from '$lib/redirect'
 
-export const load: PageServerLoad = async ({ locals, params, cookies, url }) => {
+export const load: PageServerLoad = async ({ locals, params, cookies, url, isDataRequest }) => {
 	if (!locals.user) redirect(302, loginRedirect(url))
 	if (!locals.user.current_group_id) error(403, 'Aucun groupe actif')
 
@@ -18,7 +18,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url }) => 
 	if (!song) {
 		// Un lien reçu peut viser un autre groupe de l'utilisateur : y basculer plutôt
 		// que d'opposer un « introuvable » qui ne dit pas quoi faire.
-		await retargetActiveGroup(locals.user, cookies, url, 'song', id)
+		await retargetActiveGroup(locals.user, { cookies, url, isDataRequest }, 'song', id)
 		error(404, 'Morceau introuvable')
 	}
 

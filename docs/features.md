@@ -244,6 +244,15 @@ Toutes les pages de contenu sont des permaliens (`/recording/12`, `/sessions/4`,
   que pour un id qui n'existe pas. La bascule a lieu dans le `load`
   (`src/lib/server/group-scope.ts`), l'URL est rejouée avec le nouveau cookie, et un bandeau
   l'annonce — le cookie étant commun aux onglets, la taire serait plus déroutant que le dire
+- **Seule une vraie navigation bascule** (`isDataRequest` est faux) : coller le lien reçu,
+  l'ouvrir depuis un message, revenir de la connexion. SvelteKit précharge les liens **au
+  survol** (`data-sveltekit-preload-data` dans `src/app.html`) ; sans cette distinction,
+  promener la souris sur un lien changerait le groupe actif de tous les onglets, sans clic.
+  Une requête spéculative n'écrit rien
+- Sur une requête de données — navigation interne à la SPA, préchargement — la page répond
+  donc `409` avec un écran qui nomme le groupe et propose de basculer **au clic**
+  (`src/routes/+error.svelte`, via `App.Error.switch_group`). Le contenu d'un groupe dont on
+  n'est pas membre, lui, ne produit jamais cet écran : il reste un `404` muet
 - Cette bascule ne vaut que pour **ses propres** groupes. Le contenu d'un groupe dont on n'est
   pas membre reste un `404` et jamais un `403` : « accès refusé » confirmerait l'existence de
   la prise à qui ne doit rien en savoir

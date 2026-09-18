@@ -5,7 +5,7 @@ import { retargetActiveGroup } from '$lib/server/group-scope'
 import { listGroupMemberNames } from '$lib/server/groups'
 import { loginRedirect } from '$lib/redirect'
 
-export const load: PageServerLoad = async ({ locals, params, cookies, url }) => {
+export const load: PageServerLoad = async ({ locals, params, cookies, url, isDataRequest }) => {
 	if (!locals.user) redirect(302, loginRedirect(url))
 	if (!locals.user.current_group_id) error(403, 'Aucun groupe actif')
 
@@ -27,7 +27,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url }) => 
 	if (!session) {
 		// Un lien reçu peut viser un autre groupe de l'utilisateur : y basculer plutôt
 		// que d'opposer un « introuvable » qui ne dit pas quoi faire.
-		await retargetActiveGroup(locals.user, cookies, url, 'session', id)
+		await retargetActiveGroup(locals.user, { cookies, url, isDataRequest }, 'session', id)
 		error(404, 'Session introuvable')
 	}
 
