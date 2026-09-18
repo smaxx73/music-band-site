@@ -159,14 +159,24 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
 - Chaque morceau : toutes ses prises + qualité + nombre de commentaires
 - Modification possible : date, type, titre, lieu, notes, membres de la session
   (mêmes vignettes qu'à la création — `src/lib/components/MembersInput.svelte`)
-- Modification possible par prise : qualité libre, notes. La qualité se règle uniquement dans cette vue ; l'historique d'un morceau est en lecture seule.
+- Modification possible par prise : la **qualité libre**, et elle seule. Elle se règle
+  uniquement dans cette vue ; l'historique d'un morceau est en lecture seule. La note d'une
+  prise, elle, s'écrit dans le lecteur — voir « Note d'une prise »
 - Récapitulatif sous l'en-tête : nombre de morceaux, de prises et durée totale enregistrée
 - Ajout d'une prise oubliée à une session passée : autorisé. « + Ajouter une prise » ouvre
   `/upload?session_id=` avec la session déjà sélectionnée (ignoré si hors du groupe actif)
+- Une prise est une **ligne-carte**, pas une ligne de tableau (`RecordingRow.svelte`,
+  partagé avec la vue morceau) : rang du haut pour ce qui identifie et ce qui agit
+  (n° de prise, durée, qualité, note, commentaires, écoute), rang du bas en gris pour la
+  provenance (fichier, déposant). Les rangs se replient seuls quand la place manque — il
+  n'y a plus de largeur en dessous de laquelle la page change de forme, ni de défilement
+  horizontal. Voir « Tableaux et mobile » dans docs/conventions.md
 - Chaque prise affiche le **nom du fichier déposé** (`recordings.source_file_name`), tronqué
-  dans la colonne et donné en entier au survol : `file_path` vaut toujours `{id}.mp3`, unique
-  mais muet sur la provenance. Les prises antérieures à la migration 023 n'ont pas de nom
-  d'origine — il n'a jamais été écrit — et retombent sur `{id}.mp3`, en italique grisé
+  et donné en entier au survol : `file_path` vaut toujours `{id}.mp3`, unique mais muet sur
+  la provenance. Les prises antérieures à la migration 023 n'ont pas de nom d'origine — il
+  n'a jamais été écrit — et retombent sur `{id}.mp3`, en italique grisé
+- La **qualité** est une pastille : elle ne devient un sélecteur qu'au clic. Une valeur qui
+  change rarement n'a pas à occuper la largeur d'un menu déroulant sur chaque ligne
 - Le compteur de commentaires d'une prise est cliquable : il déplie la liste des commentaires
   sous la ligne, chargée à la demande via `GET /api/comments?recording_id=`, sans ouvrir le lecteur
 - Commenter une prise mène au lecteur (`/recording/[id]#commenter`) : « + 💬 » à la place du
@@ -186,7 +196,9 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
 - Toutes les prises de ce morceau, toutes sessions confondues
 - Triées par date de session décroissante
 - Objectif : visualiser l'évolution du morceau dans le temps
-- Les prises affichent leur libellé de qualité libre et le nom du fichier déposé
+- Mêmes lignes-cartes que la vue session (`RecordingRow.svelte`), en lecture seule :
+  la qualité s'y lit en badge, sans sélecteur, et aucune action d'édition n'y figure
+- Les prises affichent leur libellé de qualité libre, le nom du fichier déposé et leur note
 - Le compteur de commentaires déplie la liste des commentaires de la prise, sans ouvrir le lecteur
 
 ## Lecteur audio (`/recording/[id]`)
@@ -203,7 +215,27 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
   est partagée entre affichage et serveur dans `src/lib/mentions.ts`
 - La case "ancrer au timestamp" est cochée par défaut si le lecteur est en pause
 - Auteur pré-rempli depuis l'utilisateur connecté
-- Le nom du fichier déposé figure sous la ligne de métadonnées de la prise
+- Le nom du fichier déposé figure sous la ligne de métadonnées de la prise, la note
+  de la prise juste en dessous
+
+## Note d'une prise
+
+`recordings.notes` : une phrase sur la prise elle-même (« reprendre l'intro, trop rapide »),
+distincte des commentaires, qui sont datés et signés.
+
+- **Elle s'écrit dans le lecteur**, comme un commentaire : on écrit sur une prise là où on
+  l'écoute. Les vues session et morceau l'affichent mais ne la modifient pas
+- Sous l'en-tête de `/recording/[id]` : cliquer la note l'ouvre en saisie, Ctrl/⌘+Entrée
+  enregistre, Échap annule. Sans note, un « + 📝 Ajouter une note » discret la propose
+- `#notes` ouvre directement la saisie, focus dans la zone de texte — comme `#commenter`.
+  C'est la cible des liens « Modifier dans le lecteur → » et « + 📝 » des listes
+- `PATCH /api/recordings/[id]` avec `{ notes }` ; une note vide vaut `NULL`
+- Modifiable par tout membre du groupe : c'est une annotation de travail sur la prise,
+  pas une parole attribuée à quelqu'un
+- Dans les listes, la note tient sur une ligne tronquée sous la prise et se déplie au clic
+  (pastille 📝 ou la note elle-même). Trois mots de contexte ne valent pas un clic ; une
+  note longue, elle, ne doit pas déformer la ligne
+- Pas de notification : une note n'annonce pas de nouveau contenu au groupe
 
 ## Édition des commentaires
 

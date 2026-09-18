@@ -2,8 +2,8 @@
 	import type { PageData } from './$types'
 	import { formatDateOnly } from '$lib/date'
 	import SongDetails from '$lib/components/SongDetails.svelte'
-	import RecordingComments from '$lib/components/RecordingComments.svelte'
-	import RecordingPlaybackActions from '$lib/components/RecordingPlaybackActions.svelte'
+	import RecordingRow from '$lib/components/RecordingRow.svelte'
+	import type { RecordingListItem } from '$lib/types'
 
 	let { data }: { data: PageData } = $props()
 
@@ -14,34 +14,16 @@
 		lyrics: string | null
 		music_notes: string | null; status: string
 	}
-	type RecordingRow = {
-		id: number; take: number; status: string; notes: string | null
-		duration_s: number | null; uploaded_by: string
-		session_id: number; session_date: string; session_location: string | null
-		comment_count: number; file_path: string | null; source_file_name: string | null
-		youtube_video_id: string | null; youtube_title: string | null
+	// La vue morceau ajoute au socle partagé la session d'où vient la prise : c'est ce
+	// qui la situe dans le temps, toutes sessions confondues.
+	type SongRecording = RecordingListItem & {
+		session_id: number
+		session_date: string
+		session_location: string | null
 	}
 
-	// `file_path` ("{id}.mp3") ne sert de nom affiché que pour les prises d'avant la
-	// migration 023, déposées quand le nom d'origine n'était pas encore conservé.
-	// 🎬 signale une vidéo : seule (son titre), ou accompagnée de sa piste audio (le fichier).
-	const sourceName = (r: RecordingRow) =>
-		r.file_path
-			? `${r.youtube_video_id ? '🎬 ' : ''}${r.source_file_name ?? r.file_path}`
-			: `🎬 ${r.youtube_title ?? 'Vidéo YouTube'}`
-	const sourceTitle = (r: RecordingRow) =>
-		[
-			r.file_path &&
-				(r.source_file_name
-					? `Fichier déposé : ${r.source_file_name}`
-					: "Nom d'origine inconnu — prise déposée avant sa conservation"),
-			r.youtube_video_id && `Vidéo YouTube : ${r.youtube_title ?? r.youtube_video_id}`
-		]
-			.filter(Boolean)
-			.join('\n')
-
 	const song = $derived(data.song as unknown as Song)
-	const recordings = $derived(data.recordings as unknown as RecordingRow[])
+	const recordings = $derived(data.recordings as unknown as SongRecording[])
 
 	const SONG_STATUS_LABELS: Record<string, string> = {
 		en_apprentissage: 'En apprentissage',
@@ -49,27 +31,10 @@
 		abandonne: 'Abandonné'
 	}
 
-	const QUALITY_CLASS: Record<string, string> = {
-		'À revoir': 'a-revoir', 'à revoir': 'a-revoir',
-		'Moyen': 'moyen', 'moyen': 'moyen',
-		'Bon': 'bon', 'bon': 'bon',
-		'Référence': 'reference', 'référence': 'reference',
-		'en_cours': 'a-revoir', 'au_point': 'bon', 'repertoire': 'reference',
-	}
-
-	function qualityClass(q: string) { return QUALITY_CLASS[q] ?? 'custom' }
-
 	function formatDate(d: string | Date) {
 		return formatDateOnly(d, {
 			day: 'numeric', month: 'long', year: 'numeric'
 		})
-	}
-
-	// Commentaires dépliables : lisibles sans ouvrir le lecteur.
-	let openComments = $state<Record<number, boolean>>({})
-
-	function toggleComments(id: number) {
-		openComments = { ...openComments, [id]: !openComments[id] }
 	}
 
 	function formatDuration(s: number | null) {
@@ -79,7 +44,7 @@
 		return `${m}:${String(sec).padStart(2, '0')}`
 	}
 
-	type SessionGroup = { session_id: number; session_date: string; session_location: string | null; recordings: RecordingRow[] }
+	type SessionGroup = { session_id: number; session_date: string; session_location: string | null; recordings: SongRecording[] }
 
 	const sessionGroups = $derived(() => {
 		const map = new Map<number, SessionGroup>()
@@ -148,73 +113,15 @@
 					{/if}
 				</h2>
 
-				<div class="table-scroll">
-					<table class="data-table">
-						<thead>
-							<tr>
-								<th>Prise</th>
-								<th>Durée</th>
-								<th>Qualité</th>
-								<th>Commentaires</th>
-								<th>Par</th>
-								<th>Fichier</th>
-								<th></th>
-							</tr>
-						</thead>
-						<tbody>
-							{#each group.recordings as r}
-								<tr>
-									<td class="take">Prise {r.take}</td>
-									<td class="duration-cell">{formatDuration(r.duration_s)}</td>
-									<td class="quality-cell">
-										<span class="badge badge-quality-{qualityClass(r.status)}">
-											{r.status}
-										</span>
-									</td>
-									<td class="center comments-cell">
-										{#if r.comment_count > 0}
-											<button
-												class="comment-count"
-												class:open={openComments[r.id]}
-												onclick={() => toggleComments(r.id)}
-												title={openComments[r.id] ? 'Masquer les commentaires' : 'Lire les commentaires'}
-											>
-												💬 {r.comment_count}
-											</button>
-										{:else}
-											<span class="muted">—</span>
-										{/if}
-									</td>
-									<td class="muted uploader-cell" data-label="Par">{r.uploaded_by}</td>
-									<td class="file-cell" data-label="Fichier">
-										<span
-											class="file-name"
-											class:fallback={!!r.file_path && !r.source_file_name}
-											title={sourceTitle(r)}
-										>{sourceName(r)}</span>
-									</td>
-									<td class="listen-cell">
-										<RecordingPlaybackActions
-											recordingId={r.id}
-											songId={song.id}
-											songTitle={song.title}
-											take={r.take}
-											sessionDate={r.session_date}
-											durationS={r.duration_s}
-											hasAudio={!!r.file_path}
-										/>
-									</td>
-								</tr>
-								{#if openComments[r.id]}
-									<tr class="comments-row">
-										<td colspan="7">
-											<RecordingComments recordingId={r.id} />
-										</td>
-									</tr>
-								{/if}
-							{/each}
-						</tbody>
-					</table>
+				<div class="recording-list">
+					{#each group.recordings as r (r.id)}
+						<RecordingRow
+							recording={r}
+							songId={song.id}
+							songTitle={song.title}
+							sessionDate={r.session_date}
+						/>
+					{/each}
 				</div>
 			</section>
 		{/each}
@@ -283,69 +190,13 @@
 
 	.location { font-weight: 400; color: #777; font-size: 0.9rem; }
 
-	td.take { font-weight: 600; color: var(--color-text-secondary); }
-
-	/* Nom tronqué, donné en entier par le titre : un « ZOOM0042_LR.WAV » ne doit pas
-	   élargir le tableau pour tout le monde. */
-	td.file-cell { max-width: 6rem; }
-
-	.file-name {
-		display: block;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-		font-size: var(--text-xs);
-		color: var(--color-text-secondary);
-	}
-
-	.file-name.fallback { color: var(--color-text-muted); font-style: italic; }
-	td.center { text-align: center; }
-	.muted { color: #aaa; font-size: 0.8rem; }
-
-	.comment-count {
-		display: inline-block;
-		background: var(--color-abandoned-bg);
-		color: #444;
-		border: 1px solid transparent;
-		border-radius: 10px;
-		padding: 0.1rem 0.5rem;
-		font-size: var(--text-xs);
-		font-weight: 600;
-		cursor: pointer;
-	}
-
-	.comment-count:hover { border-color: var(--color-accent); }
-	.comment-count.open { border-color: var(--color-accent); background: var(--color-accent-light); }
-
-	.comments-row > td { background: var(--color-bg-subtle); padding: 0 1rem; }
-
-	/* ─── Responsive : chaque prise devient une carte ─── */
+	/* Les prises se replient toutes seules (voir RecordingRow) : il ne reste ici que
+	   ce qui entoure la liste. */
 	@media (max-width: 640px) {
 		main { margin: 1rem auto; padding: 0 0.75rem; }
 
 		.song-header { gap: 0.5rem; }
 		h1 { font-size: 1.25rem; flex-wrap: wrap; }
 		.footer-actions .upload-action { width: 100%; justify-content: center; }
-
-		td.take { order: 1; font-size: var(--text-base); color: var(--color-text); }
-		td.duration-cell { order: 2; font-size: var(--text-sm); color: var(--color-text-secondary); }
-		td.uploader-cell { order: 3; margin-left: auto; }
-		td.file-cell { order: 4; flex: 1 1 100%; max-width: none; }
-		.file-name { display: inline; }
-
-		td.quality-cell { order: 5; }
-		td.comments-cell { order: 6; text-align: left; }
-		td.listen-cell { order: 7; margin-left: auto; }
-
-		.comment-count { padding: 0.25rem 0.6rem; }
-
-		.data-table tr.comments-row {
-			display: block;
-			border: none;
-			padding: 0;
-			margin: -0.5rem 0 0.7rem;
-		}
-
-		.comments-row > td { padding: 0 0.7rem; border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
 	}
 </style>

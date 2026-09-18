@@ -20,6 +20,7 @@ src/
 │       ├── MentionTextarea.svelte # saisie de commentaire avec autocomplétion des @mentions
 │       ├── MembersInput.svelte    # participants d'une session en vignettes (saisie libre)
 │       ├── CommentList.svelte     # liste de commentaires + réactions 👍/👎 (partagée)
+│       ├── RecordingRow.svelte     # une prise en ligne-carte (vues session et morceau)
 │       ├── RecordingComments.svelte # commentaires d'une prise chargés à la demande (hors lecteur)
 │       ├── NotificationsMenu.svelte # cloche + menu des notifications (barre du haut)
 │       ├── PlaylistQueue.svelte   # file de lecture playlist
@@ -90,6 +91,16 @@ type Recording = {
 - Les doublons sont détectés par `recordings.file_hash` avant conversion
 
 ## Tableaux et mobile
+
+Un tableau sert à **comparer des valeurs alignées** d'une ligne à l'autre. Une liste dont
+chaque ligne porte surtout des contrôles n'en est pas un : elle se construit en flex, et se
+replie seule. C'est le cas des prises (`RecordingRow.svelte`) — ne pas les remettre en
+tableau. Les règles ci-dessous valent pour les vrais tableaux : `/songs`, `/admin/users`,
+`/admin/groups`, `/playlists`.
+
+Attention à la largeur réellement disponible : la colonne de contenu vaut la fenêtre **moins
+les 188 px de la sidebar**. Un tableau confortable à 640 px de bascule ne l'est pas à 900 px
+de fenêtre.
 
 - Tout tableau porte `class="data-table"` (styles dans `src/app.css`) — ne jamais redéfinir
   `table` / `th` / `td` dans le `<style>` d'une page

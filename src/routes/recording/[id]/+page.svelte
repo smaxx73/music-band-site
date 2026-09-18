@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types'
-	import { untrack } from 'svelte'
+	import { onMount, tick, untrack } from 'svelte'
 	import { player } from '$lib/player.svelte'
 	import { formatDateOnly } from '$lib/date'
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte'
@@ -25,7 +25,9 @@
 	type Comment = CommentWithReactions
 	type MentionMember = { id: number; nickname: string; display_name: string }
 
-	const recording = $derived(data.recording as unknown as Recording)
+	// $derived inscriptible : la note enregistrée s'affiche tout de suite, et `data`
+	// reprend la main à la prochaine navigation.
+	let recording = $derived(data.recording as unknown as Recording)
 	// Une prise a une piste audio, une vidéo YouTube, ou les deux.
 	const hasAudio = $derived(!!recording.file_path)
 	// Avec les deux, l'audio s'affiche d'abord : c'est lui que jouent la barre du bas et les
@@ -160,6 +162,54 @@
 		view = next
 	}
 
+	// Note de la prise : les vues session et morceau l'affichent, mais renvoient ici
+	// pour l'écrire — on écrit sur une prise là où on l'écoute, comme un commentaire.
+	// `#notes` ouvre directement la saisie.
+	let notesDraft = $state<string | null>(null)
+	let notesSaving = $state(false)
+	let notesError = $state<string | null>(null)
+	let notesField = $state<HTMLTextAreaElement | null>(null)
+	let notesBlock = $state<HTMLElement | null>(null)
+
+	async function startEditNotes() {
+		notesDraft = recording.notes ?? ''
+		notesError = null
+		await tick()
+		notesField?.focus()
+	}
+
+	function cancelEditNotes() {
+		notesDraft = null
+		notesError = null
+	}
+
+	async function saveNotes() {
+		const value = (notesDraft ?? '').trim()
+		notesSaving = true
+		notesError = null
+		try {
+			const res = await fetch(`/api/recordings/${recording.id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ notes: value || null })
+			})
+			const json = await res.json()
+			if (!res.ok) { notesError = json.error ?? 'Erreur.'; return }
+			recording = { ...recording, notes: json.notes }
+			notesDraft = null
+		} catch {
+			notesError = 'Erreur réseau.'
+		} finally {
+			notesSaving = false
+		}
+	}
+
+	onMount(() => {
+		if (location.hash !== '#notes') return
+		notesBlock?.scrollIntoView({ block: 'center' })
+		startEditNotes()
+	})
+
 	const commentMarkers = $derived(
 		comments
 			.filter((comment) => comment.timestamp_s !== null && comment.timestamp_s !== undefined)
@@ -211,6 +261,38 @@
 					</a>
 				</div>
 			{/if}
+
+			<!-- Note de la prise : c'est ici qu'elle s'écrit, les listes ne font que la lire. -->
+			<div class="take-notes" id="notes" bind:this={notesBlock}>
+				{#if notesDraft !== null}
+					<textarea
+						class="notes-field"
+						rows="2"
+						placeholder="Note sur cette prise…"
+						bind:value={notesDraft}
+						bind:this={notesField}
+						disabled={notesSaving}
+						onkeydown={(e) => {
+							if (e.key === 'Escape') cancelEditNotes()
+							else if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) saveNotes()
+						}}
+					></textarea>
+					<div class="notes-actions">
+						<button class="btn btn-primary btn-sm" onclick={saveNotes} disabled={notesSaving}>
+							{notesSaving ? 'Enregistrement…' : 'Enregistrer'}
+						</button>
+						<button class="btn btn-ghost btn-sm" onclick={cancelEditNotes} disabled={notesSaving}>Annuler</button>
+						<span class="notes-hint">Ctrl/⌘+Entrée pour enregistrer</span>
+					</div>
+				{:else if recording.notes}
+					<button class="notes-display" onclick={startEditNotes} title="Cliquer pour modifier">
+						📝 {recording.notes}
+					</button>
+				{:else}
+					<button class="notes-add" onclick={startEditNotes}>+ 📝 Ajouter une note</button>
+				{/if}
+				{#if notesError}<p class="notes-error">{notesError}</p>{/if}
+			</div>
 		</div>
 		<div class="header-actions">
 			<a
@@ -370,6 +452,54 @@
 	.file-meta { margin-top: 0.15rem; font-size: var(--text-xs); overflow-wrap: anywhere; }
 	.file-meta.fallback { color: var(--color-text-muted); font-style: italic; }
 	.file-meta a { color: inherit; }
+
+	/* Note de la prise : discrète tant qu'il n'y en a pas, lisible dès qu'il y en a une. */
+	.take-notes { margin-top: 0.5rem; }
+
+	.notes-display,
+	.notes-add {
+		display: block;
+		max-width: 100%;
+		background: none;
+		border: 1px solid transparent;
+		border-radius: var(--radius-sm);
+		padding: 0.25rem 0.4rem;
+		margin-left: -0.4rem;
+		font-family: inherit;
+		font-size: var(--text-sm);
+		color: var(--color-text-secondary);
+		text-align: left;
+		white-space: pre-wrap;
+		overflow-wrap: anywhere;
+		cursor: pointer;
+	}
+
+	.notes-display:hover,
+	.notes-add:hover { border-color: var(--color-border-light); background: var(--color-bg-subtle); }
+
+	.notes-add { color: var(--color-text-muted); border-style: dashed; border-color: var(--color-border-light); }
+
+	.notes-field {
+		width: 100%;
+		max-width: 34rem;
+		font-family: inherit;
+		font-size: var(--text-sm);
+		padding: 0.4rem 0.5rem;
+		border: 1px solid var(--color-border-input);
+		border-radius: var(--radius-md);
+		resize: vertical;
+	}
+
+	.notes-actions {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+		margin-top: 0.3rem;
+	}
+
+	.notes-hint { font-size: var(--text-xs); color: var(--color-text-muted); }
+	.notes-error { margin: 0.3rem 0 0; font-size: var(--text-xs); color: var(--color-error); }
 
 	/* Prise audio + vidéo : un seul lecteur à l'écran à la fois */
 	.view-tabs { display: flex; gap: 0.35rem; margin-bottom: 0.8rem; }

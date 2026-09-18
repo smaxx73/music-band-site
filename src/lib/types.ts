@@ -194,6 +194,28 @@ export type Recording = {
 	created_at: Date
 }
 
+/**
+ * Ce qu'une liste de prises a besoin d'afficher : la prise, plus le nombre de
+ * commentaires calculé par la requête. Les vues session et morceau sélectionnent des
+ * colonnes différentes autour (auteur du contenu, date de session) : elles étendent ce
+ * socle, que `RecordingRow.svelte` suffit à rendre.
+ */
+export type RecordingListItem = Pick<
+	Recording,
+	| 'id'
+	| 'take'
+	| 'status'
+	| 'notes'
+	| 'duration_s'
+	| 'uploaded_by'
+	| 'file_path'
+	| 'source_file_name'
+	| 'youtube_video_id'
+	| 'youtube_title'
+> & {
+	comment_count: number
+}
+
 export type Comment = {
 	id: number
 	recording_id: number
