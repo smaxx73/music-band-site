@@ -75,6 +75,10 @@ export function receiveMultipartAudio(
 	return new Promise((resolve) => {
 		const bb = busboy({
 			headers: { 'content-type': contentType },
+			// Les navigateurs envoient habituellement `filename` en UTF-8 sans le
+			// paramètre étendu `filename*`. Busboy suppose Latin-1 dans ce cas, ce
+			// qui transformait par exemple « répète.wav » en « rÃ©pÃ¨te.wav ».
+			defParamCharset: 'utf8',
 			limits: { fileSize: maxSize }
 		})
 
