@@ -61,10 +61,17 @@ NODE_ENV=production
 - IMPORTANT : le calcul du `take` doit se faire dans une transaction
 - IMPORTANT : les morceaux avec statut `abandonne` n'apparaissent pas dans le sélecteur d'upload
 - IMPORTANT : un fichier déposé mais pas encore validé (import à découper) ne va JAMAIS dans
-  `AUDIO_DIR` — Caddy sert ce dossier sans authentification. Voir `src/lib/server/imports.ts`
+  `AUDIO_DIR` — ce dossier est celui des prises validées, exposé sous `/audio/`, où l'accès
+  s'autorise par l'id de la prise. Un fichier que personne n'a validé n'y a pas d'identité et
+  rien à y faire. Voir `src/lib/server/imports.ts`
 - IMPORTANT : sur un import à découper, on analyse et on préécoute le proxy léger, mais le
   rendu final est TOUJOURS taillé dans l'original conservé — jamais dans le proxy
 - IMPORTANT : toutes les données groupe-scopées doivent être filtrées par `locals.user.current_group_id`
+- IMPORTANT : le groupe actif ne s'écrit qu'avec `setActiveGroupCookie`
+  (`src/lib/server/group-scope.ts`) — jamais par un `cookies.set('band_group', …)` écrit à la
+  main, dont les attributs finiraient par diverger d'un point d'écriture à l'autre
+- IMPORTANT : une page de détail groupe-scopée appelle `retargetActiveGroup` avant son `404`,
+  pour qu'un lien reçu visant un autre groupe du membre bascule au lieu d'échouer
 - IMPORTANT : toute décision de droit passe par les helpers de `src/lib/types.ts`
   (`canManageGroup`, `canAssignGroupAdmin`, `canDeleteGroupContent`) — jamais par une
   comparaison de rôle écrite à la main, pour que l'écran et l'API appliquent la même règle
@@ -73,7 +80,10 @@ NODE_ENV=production
 - Ne jamais exposer de mot de passe ou hash de mot de passe dans le code client ou les logs
 - `$lib/server/` ne doit jamais être importé dans un composant client
 - WaveSurfer.js doit être importé dynamiquement (`import()`) — accès à `window`
-- En production, Caddy sert les fichiers audio directement depuis `/audio/` — pas Node
+- IMPORTANT : `/audio/` passe TOUJOURS par Node, qui vérifie la session et le groupe actif
+  avant d'ouvrir le fichier. Caddy proxyfie ce chemin, il ne le sert pas : une règle
+  `file_server` sur `AUDIO_DIR` rendrait chaque prise publiquement téléchargeable, hors
+  authentification et hors cloisonnement par groupe. Voir `deploy.md`
 - Une prise peut n'avoir qu'une vidéo YouTube, sans fichier : tout code qui touche à `AUDIO_DIR`,
   au lecteur audio partagé ou aux playlists vérifie `file_path IS NOT NULL`. Voir « Prises vidéo
   YouTube » dans docs/features.md
@@ -110,7 +120,8 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
 /sessions/[id]      détail session → morceaux groupés → prises
 /songs              liste + gestion du référentiel de morceaux (tout membre du groupe actif)
 /songs/[id]         historique d'un morceau toutes sessions confondues
-/recording/[id]     lecteur waveform + commentaires
+/recording/[id]     lecteur waveform + commentaires (`?t=1:23` ouvre au repère,
+                    `#comment-<id>` cible un commentaire)
 /playlists/[id]     lecture en continu d'une playlist
 /upload             formulaire d'upload (fichier audio ou vidéo YouTube)
 /upload/decoupe/[id] découpe automatique d'un enregistrement long sur les blancs
@@ -121,6 +132,11 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
 /admin/groups       gestion des groupes et membres
 /agenda             agenda partagé du groupe (indisponibilités + toutes les sessions)
 ```
+
+Les pages de contenu sont des permaliens destinés à être partagés entre membres : la
+destination survit à la connexion (`?redirectTo=`) et un lien vers un autre de ses groupes
+bascule le groupe actif au lieu de répondre « introuvable ». Voir « Partager un lien vers du
+contenu » dans docs/features.md.
 
 Les notifications d'activité n'ont pas de route : elles vivent dans la cloche de la barre
 du haut, alimentée par `src/lib/server/notifications.ts`. Voir « Notifications d'activité »
@@ -139,3 +155,6 @@ dans docs/features.md.
 - Waveform zoomable avec marqueurs déplaçables : la retouche des bornes se fait au clavier
   et au bouton (±0,5 s / ±5 s, couper, fusionner)
 - Recherche full-text
+- Partage hors du groupe : aucun lien public ni lien à jeton. Tout lien exige un compte et
+  l'appartenance au groupe du contenu — voir « Partager un lien vers du contenu » dans
+  docs/features.md

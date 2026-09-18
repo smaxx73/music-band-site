@@ -81,12 +81,16 @@ type Recording = {
 ## Fichiers audio
 - Stockés dans `/data/audio/{recording_id}.mp3`
 - Convertis en mp3 128kbps à l'upload via ffmpeg
-- Caddy les sert depuis `/audio/` en production ; Node ne les sert qu'en développement
+- Servis par Node (`src/routes/audio/[id]/+server.ts`), en développement comme en production :
+  la route vérifie la session et l'appartenance de la prise au groupe actif avant d'ouvrir le
+  fichier. Caddy proxyfie `/audio/*` vers l'application et ne sert jamais `AUDIO_DIR` lui-même —
+  la protection ne doit pas dépendre de la configuration du proxy
 - `BODY_SIZE_LIMIT` configuré dans `docker-compose.yml` (200M), aligné sur `MAX_UPLOAD_SIZE`
   de `src/lib/server/upload-stream.ts` — les deux doivent bouger ensemble
 - Ne jamais les charger entièrement en mémoire Node
 - Un fichier déposé mais pas encore validé (import à découper) reste **hors** `AUDIO_DIR` :
-  Caddy sert ce dossier sans authentification. Voir `src/lib/server/imports.ts`
+  ce dossier est celui des prises validées, dont l'accès s'autorise par l'id de la prise. Il
+  vit dans le répertoire temporaire du conteneur. Voir `src/lib/server/imports.ts`
 - Un import tient en deux fichiers : l'**original** intact, dans lequel les prises sont
   taillées, et un **proxy** léger qui porte l'analyse et la préécoute. On travaille sur le
   proxy, on rend depuis l'original — jamais l'inverse

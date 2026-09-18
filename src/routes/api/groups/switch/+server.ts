@@ -1,5 +1,6 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
+import { setActiveGroupCookie } from '$lib/server/group-scope'
 
 export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -19,12 +20,7 @@ export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 		return json({ error: "Vous n'appartenez pas à ce groupe." }, { status: 403 })
 	}
 
-	cookies.set('band_group', String(group_id), {
-		path: '/',
-		httpOnly: true,
-		sameSite: 'lax',
-		maxAge: 60 * 60 * 24 * 365
-	})
+	setActiveGroupCookie(cookies, group_id)
 
 	return json({ success: true })
 }

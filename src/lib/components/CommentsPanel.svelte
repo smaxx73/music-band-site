@@ -210,6 +210,7 @@
 			<CommentList
 				bind:this={list}
 				comments={orderedComments}
+				{recordingId}
 				{onSeek}
 				{maxVisible}
 				{separatorBeforeId}

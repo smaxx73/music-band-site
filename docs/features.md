@@ -38,9 +38,10 @@ Premier des outils d'amélioration audio branchés à la suite de l'upload.
   (contrairement à `convertToMp3`), et le délai d'encodage mp3 est décrit par l'en-tête
   LAME puis retiré au décodage. Une borne trouvée sur le proxy vaut telle quelle dans
   l'original — vérifié à 20 µs près
-- Les octets ne sont **jamais** dans `AUDIO_DIR` : en production Caddy sert ce dossier tel
-  quel sous `/audio/`, sans passer par Node ni par l'authentification. Un fichier que
-  personne n'a validé n'a rien à y faire — il vit dans le répertoire temporaire du conteneur
+- Les octets ne sont **jamais** dans `AUDIO_DIR` : ce dossier est celui des prises validées,
+  exposé sous `/audio/`, où chaque fichier s'autorise par l'id de la prise qui le porte. Un
+  fichier que personne n'a validé n'a pas cet id et n'a rien à y faire — il vit dans le
+  répertoire temporaire du conteneur
 - Un import est **personnel** : seul son déposant le voit, et seulement dans le groupe où
   il l'a déposé. Rien n'est encore publié, personne d'autre n'a à le voir
 - Détection des blancs par `silencedetect` (`src/lib/server/ffmpeg.ts`). Le complémentaire
@@ -208,7 +209,8 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
 ## Lecteur audio (`/recording/[id]`)
 
 - WaveSurfer.js initialisé dans `onMount`, importé dynamiquement
-- URL audio : `/audio/{recording_id}.mp3` (Caddy en production, Node seulement en dev)
+- URL audio : `/audio/{recording_id}.mp3`, servie par Node, qui vérifie la session et le
+  groupe actif avant d'ouvrir le fichier (Caddy proxyfie ce chemin, il ne le sert pas)
 - Commentaires avec `timestamp_s` → marqueurs sur la waveform
 - Clic sur un marqueur → seek à ce timestamp + scroll vers le commentaire
 - Contrôles : ⏮ retour début | ▶/⏸ | ⏭ +10s | temps courant/total | volume
@@ -224,6 +226,51 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
 - Auteur pré-rempli depuis l'utilisateur connecté
 - Le nom du fichier déposé figure sous la ligne de métadonnées de la prise, la note
   de la prise juste en dessous
+
+## Partager un lien vers du contenu
+
+Toutes les pages de contenu sont des permaliens (`/recording/12`, `/sessions/4`, `/songs/7`,
+`/playlists/3`). Trois choses les rendaient inutilisables dès qu'on les envoyait à quelqu'un.
+
+- **La destination survit à la connexion.** Un lien reçu s'ouvre presque toujours sur une
+  session expirée : la page visée est mise de côté dans `?redirectTo=` avant la redirection
+  vers `/login`, et rejouée une fois connecté. Sans cela, tout lien partagé atterrissait sur
+  le tableau de bord et il fallait redire de vive voix ce qu'on partageait. La valeur vient de
+  l'URL, donc de n'importe qui : seul un chemin interne est accepté (`src/lib/redirect.ts`),
+  un `//exemple.com` ferait du formulaire de connexion une redirection ouverte
+- **Un lien vers un autre de ses groupes bascule le groupe actif.** Tout le contenu est filtré
+  par `current_group_id`, gardé en cookie : un membre de deux groupes qui ouvrait un lien vers
+  le groupe où il n'était pas en train de travailler recevait « introuvable », le même message
+  que pour un id qui n'existe pas. La bascule a lieu dans le `load`
+  (`src/lib/server/group-scope.ts`), l'URL est rejouée avec le nouveau cookie, et un bandeau
+  l'annonce — le cookie étant commun aux onglets, la taire serait plus déroutant que le dire
+- Cette bascule ne vaut que pour **ses propres** groupes. Le contenu d'un groupe dont on n'est
+  pas membre reste un `404` et jamais un `403` : « accès refusé » confirmerait l'existence de
+  la prise à qui ne doit rien en savoir
+- Cela vaut aussi pour les liens internes : les notifications stockent des chemins relatifs,
+  et la cloche pouvait donc mener à un « introuvable » à l'intérieur de l'application
+
+### Repère et commentaire dans l'URL
+
+Ce qu'on partage d'une prise, c'est presque toujours un passage ou un commentaire précis.
+
+- `?t=` ouvre le lecteur au repère : `?t=83`, `?t=1:23` et `?t=1:02:03` sont acceptés
+  (`parseTimecode`, `src/lib/youtube.ts`, partagé avec la saisie d'un repère à l'édition d'un
+  commentaire). Le lecteur n'a pas besoin d'être prêt : la demande est rejouée dès qu'il l'est,
+  pour l'audio comme pour la vidéo YouTube
+- `#comment-<id>` amène le commentaire à l'écran et le met en évidence, en dépliant d'abord les
+  plus anciens s'il en fait partie — la même mécanique que les marqueurs de la waveform
+- **« 🔗 Copier le lien »** sur la page de la prise reprend la position courante du lecteur :
+  partager depuis 1:23 partage 1:23. Chaque commentaire a le sien, qui porte son repère **et**
+  son ancre (`?t=83#comment-5000`) : le destinataire arrive au bon endroit du morceau, pas
+  seulement sur la page. Aller chercher l'URL dans la barre d'adresse est la manœuvre qui
+  décourage de partager, sur téléphone surtout
+- Le presse-papiers demande un contexte sécurisé : s'il est refusé, le bouton le dit et l'URL
+  reste atteignable depuis la barre d'adresse
+
+Rien de tout cela ne sort du groupe : il n'existe pas de lien public ni de lien à jeton, et
+`/audio/` vérifie la session et le groupe actif comme le reste. Partager, ici, veut dire
+partager avec les membres du groupe.
 
 ## Naviguer dans une prise très commentée
 

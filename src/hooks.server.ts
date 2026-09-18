@@ -2,6 +2,7 @@ import type { Handle } from '@sveltejs/kit'
 import { verifyCookie } from '$lib/server/auth'
 import sql from '$lib/server/db'
 import { authSecret } from '$lib/server/config'
+import { setActiveGroupCookie } from '$lib/server/group-scope'
 
 export const handle: Handle = async ({ event, resolve }) => {
 	// Valider la configuration dès la première requête, même sans cookie de session.
@@ -48,12 +49,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 				if (!current_group_id && groups.length > 0) {
 					current_group_id = groups[0].id
 					// Persister le groupe actif en cookie
-					event.cookies.set('band_group', String(current_group_id), {
-						path: '/',
-						httpOnly: true,
-						sameSite: 'lax',
-						maxAge: 60 * 60 * 24 * 365
-					})
+					setActiveGroupCookie(event.cookies, current_group_id)
 				}
 
 				event.locals.user = { ...user, current_group_id, groups }

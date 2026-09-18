@@ -2,9 +2,10 @@ import type { PageServerLoad } from './$types'
 import { redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 import { listGroupMemberNames } from '$lib/server/groups'
+import { loginRedirect } from '$lib/redirect'
 
-export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) redirect(302, '/login')
+export const load: PageServerLoad = async ({ locals, url }) => {
+	if (!locals.user) redirect(302, loginRedirect(url))
 	if (!locals.user.current_group_id) return { sessions: [], groupMembers: [] }
 
 	const sessions = await sql`

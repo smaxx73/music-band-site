@@ -1,9 +1,11 @@
 import type { PageServerLoad } from './$types'
 import { error, redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
+import { retargetActiveGroup } from '$lib/server/group-scope'
+import { loginRedirect } from '$lib/redirect'
 
-export const load: PageServerLoad = async ({ locals, params }) => {
-	if (!locals.user) redirect(302, '/login')
+export const load: PageServerLoad = async ({ locals, params, cookies, url }) => {
+	if (!locals.user) redirect(302, loginRedirect(url))
 	if (!locals.user.current_group_id) error(403, 'Aucun groupe actif')
 
 	const id = parseInt(params.id)
@@ -13,7 +15,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		SELECT * FROM songs
 		WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
 	`
-	if (!song) error(404, 'Morceau introuvable')
+	if (!song) {
+		// Un lien reçu peut viser un autre groupe de l'utilisateur : y basculer plutôt
+		// que d'opposer un « introuvable » qui ne dit pas quoi faire.
+		await retargetActiveGroup(locals.user, cookies, url, 'song', id)
+		error(404, 'Morceau introuvable')
+	}
 
 	const recordings = await sql`
 		SELECT

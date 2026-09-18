@@ -3,9 +3,10 @@ import { error, redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 import { analyzeImport, importPeaks, loadImport } from '$lib/server/imports'
 import { SPLIT_DEFAULTS } from '$lib/types'
+import { loginRedirect } from '$lib/redirect'
 
-export const load: PageServerLoad = async ({ locals, params }) => {
-	if (!locals.user) redirect(302, '/login')
+export const load: PageServerLoad = async ({ locals, params, url }) => {
+	if (!locals.user) redirect(302, loginRedirect(url))
 	if (!locals.user.current_group_id) redirect(302, '/upload')
 
 	const groupId = locals.user.current_group_id

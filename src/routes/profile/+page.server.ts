@@ -3,6 +3,7 @@ import { error, fail, redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 import { hashPassword, signCookie, verifyPassword } from '$lib/server/auth'
 import { authSecret } from '$lib/server/config'
+import { loginRedirect } from '$lib/redirect'
 
 const DISPLAY_NAME_FORMATS = [
 	'nickname',
@@ -11,8 +12,8 @@ const DISPLAY_NAME_FORMATS = [
 	'first_name_last_name'
 ] as const
 
-export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) redirect(302, '/login')
+export const load: PageServerLoad = async ({ locals, url }) => {
+	if (!locals.user) redirect(302, loginRedirect(url))
 
 	const [account] = await sql<{ created_at: Date }[]>`
 		SELECT created_at FROM users WHERE id = ${locals.user.id}

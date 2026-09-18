@@ -64,6 +64,7 @@
 		     les plus anciens se lisent dans le lecteur, où l'on peut aussi les écouter. -->
 		<CommentList
 			{comments}
+			{recordingId}
 			{onSeek}
 			compact
 			maxVisible={INLINE_MAX}

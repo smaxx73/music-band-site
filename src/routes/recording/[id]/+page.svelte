@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types'
 	import { onMount, tick, untrack } from 'svelte'
+	import { page } from '$app/state'
 	import { player } from '$lib/player.svelte'
 	import { formatDateOnly } from '$lib/date'
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte'
@@ -8,7 +9,7 @@
 	import SongDetails from '$lib/components/SongDetails.svelte'
 	import Modal from '$lib/components/Modal.svelte'
 	import YouTubePlayer from '$lib/components/YouTubePlayer.svelte'
-	import { youtubeWatchUrl } from '$lib/youtube'
+	import { youtubeWatchUrl, formatTimecode, parseTimecode } from '$lib/youtube'
 	import type { CommentWithReactions } from '$lib/types'
 
 	let { data }: { data: PageData } = $props()
@@ -204,11 +205,54 @@
 		}
 	}
 
+	// --- Liens entrants et lien à partager ---
+	//
+	// Ce qu'on partage d'une prise, c'est presque toujours un passage (« écoute à 1:23 »)
+	// ou un commentaire précis. Les deux s'adressent donc dans l'URL : `?t=` pour la
+	// position, `#comment-<id>` pour le commentaire. La mécanique existait déjà à
+	// l'intérieur de la page — marqueurs de la waveform, mise en évidence — il ne lui
+	// manquait que d'être atteignable de l'extérieur.
 	onMount(() => {
+		const t = parseTimecode(page.url.searchParams.get('t'))
+		// Le lecteur n'est pas encore prêt : il rejoue la demande dès qu'il l'est.
+		if (t !== null) seekTo(t)
+
+		const targeted = location.hash.match(/^#comment-(\d+)$/)
+		if (targeted) {
+			highlightToken += 1
+			highlightRequest = { id: Number(targeted[1]), token: highlightToken }
+		}
+
 		if (location.hash !== '#notes') return
 		notesBlock?.scrollIntoView({ block: 'center' })
 		startEditNotes()
 	})
+
+	// Copier le lien plutôt que d'aller le chercher dans la barre d'adresse : sur
+	// téléphone, c'est la manœuvre qui décourage de partager.
+	let linkCopied = $state(false)
+	let linkCopyFailed = $state(false)
+	const shareTime = $derived(
+		playerState.currentTime > 1 ? Math.floor(playerState.currentTime) : null
+	)
+
+	async function copyLink() {
+		const target = new URL(`/recording/${recording.id}`, location.origin)
+		// Le repère suit le lecteur : partager depuis 1:23 partage 1:23.
+		if (shareTime !== null) target.searchParams.set('t', String(shareTime))
+		linkCopied = false
+		linkCopyFailed = false
+		try {
+			await navigator.clipboard.writeText(target.toString())
+			linkCopied = true
+			setTimeout(() => (linkCopied = false), 2000)
+		} catch {
+			// Presse-papiers refusé (contexte non sécurisé, permission) : l'URL reste
+			// dans la barre d'adresse, on ne fait que le dire.
+			linkCopyFailed = true
+			setTimeout(() => (linkCopyFailed = false), 3000)
+		}
+	}
 
 	// Le lecteur reste à l'écran pendant qu'on lit les commentaires : la waveform et ses
 	// marqueurs sont l'index de la discussion, ils n'ont pas à disparaître au premier
@@ -317,6 +361,18 @@
 			{#if nextRecording}
 				<a href="/recording/{nextRecording.id}" class="btn btn-secondary btn-sm" title="Prise suivante">Prise {nextRecording.take} →</a>
 			{/if}
+			<button
+				class="btn btn-secondary btn-sm"
+				onclick={copyLink}
+				title={shareTime !== null
+					? `Copier le lien vers cette prise à ${formatTimecode(shareTime)}`
+					: 'Copier le lien vers cette prise'}
+			>
+				{#if linkCopied}✓ Lien copié
+				{:else if linkCopyFailed}Copie impossible
+				{:else}🔗 Copier le lien{#if shareTime !== null}&nbsp;({formatTimecode(shareTime)}){/if}
+				{/if}
+			</button>
 			{#if hasAudio}
 				<button class="btn btn-secondary" onclick={openPlaylistModal}>+ Playlist</button>
 			{/if}

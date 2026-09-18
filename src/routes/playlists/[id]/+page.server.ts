@@ -1,10 +1,12 @@
 import type { PageServerLoad } from './$types'
 import { error, redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
+import { retargetActiveGroup } from '$lib/server/group-scope'
 import { loadPeaks } from '$lib/server/peaks'
+import { loginRedirect } from '$lib/redirect'
 
-export const load: PageServerLoad = async ({ locals, params }) => {
-	if (!locals.user) redirect(302, '/login')
+export const load: PageServerLoad = async ({ locals, params, cookies, url }) => {
+	if (!locals.user) redirect(302, loginRedirect(url))
 	if (!locals.user.current_group_id) error(403, 'Aucun groupe actif')
 
 	const id = parseInt(params.id)
@@ -16,7 +18,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		LEFT JOIN users u ON u.id = p.created_by_user_id
 		WHERE p.id = ${id} AND p.group_id = ${locals.user.current_group_id}
 	`
-	if (!playlist) error(404, 'Playlist introuvable')
+	if (!playlist) {
+		// Un lien reçu peut viser un autre groupe de l'utilisateur : y basculer plutôt
+		// que d'opposer un « introuvable » qui ne dit pas quoi faire.
+		await retargetActiveGroup(locals.user, cookies, url, 'playlist', id)
+		error(404, 'Playlist introuvable')
+	}
 
 	const items = await sql`
 		SELECT

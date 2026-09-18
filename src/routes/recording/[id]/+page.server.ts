@@ -1,11 +1,13 @@
 import type { PageServerLoad } from './$types'
 import { error, redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
+import { retargetActiveGroup } from '$lib/server/group-scope'
 import { loadPeaks } from '$lib/server/peaks'
 import { commentsWithReactions } from '$lib/server/comments'
+import { loginRedirect } from '$lib/redirect'
 
-export const load: PageServerLoad = async ({ locals, params }) => {
-	if (!locals.user) redirect(302, '/login')
+export const load: PageServerLoad = async ({ locals, params, cookies, url }) => {
+	if (!locals.user) redirect(302, loginRedirect(url))
 	if (!locals.user.current_group_id) error(403, 'Aucun groupe actif')
 
 	const id = parseInt(params.id)
@@ -29,7 +31,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		WHERE r.id = ${id} AND ses.group_id = ${locals.user.current_group_id}
 	`
 
-	if (!recording) error(404, 'Prise introuvable')
+	if (!recording) {
+		// Un lien reçu peut viser un autre groupe de l'utilisateur : y basculer plutôt
+		// que d'opposer un « introuvable » qui ne dit pas quoi faire.
+		await retargetActiveGroup(locals.user, cookies, url, 'recording', id)
+		error(404, 'Prise introuvable')
+	}
 
 	const [comments, peaksData, siblings, groupMembers] = await Promise.all([
 		commentsWithReactions(id, locals.user.id),

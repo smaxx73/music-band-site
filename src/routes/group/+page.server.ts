@@ -15,12 +15,13 @@ import {
 	type GroupOpResult
 } from '$lib/server/groups'
 import { canAssignGroupAdmin, canManageGroup, isAdmin } from '$lib/types'
+import { loginRedirect } from '$lib/redirect'
 
 // Portée sur le groupe actif. Consultation pour tout membre ; gestion des membres,
 // du nom et modération pour l'admin du groupe — l'administration transverse
 // (créer/supprimer un groupe, tous groupes confondus) reste sur /admin/groups.
-export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) redirect(302, '/login')
+export const load: PageServerLoad = async ({ locals, url }) => {
+	if (!locals.user) redirect(302, loginRedirect(url))
 	if (!locals.user.current_group_id) {
 		return { group: null, members: [], canSeeGlobalRole: false, canManage: false, canAssignAdmin: false }
 	}

@@ -1,6 +1,7 @@
 import type { PageServerLoad } from './$types'
 import { redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
+import { loginRedirect } from '$lib/redirect'
 
 function currentMonth(): string {
 	const now = new Date()
@@ -8,7 +9,7 @@ function currentMonth(): string {
 }
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-	if (!locals.user) redirect(302, '/login')
+	if (!locals.user) redirect(302, loginRedirect(url))
 
 	const monthParam = url.searchParams.get('month')
 	const month = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : currentMonth()

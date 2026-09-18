@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { tick, untrack } from 'svelte'
 	import { page } from '$app/state'
-	import { formatTimecode } from '$lib/youtube'
+	import { formatTimecode, parseTimecode } from '$lib/youtube'
 	import { formatDateTime, formatDateTimeFull } from '$lib/date'
 	import { canEditComment } from '$lib/types'
 	import { commentParts, commentVideos } from '$lib/comment-content'
@@ -18,6 +18,7 @@
 
 	let {
 		comments,
+		recordingId = null,
 		onSeek = null,
 		compact = false,
 		currentTime = null,
@@ -29,6 +30,8 @@
 		onCommentsChange = () => {}
 	}: {
 		comments: CommentWithReactions[]
+		/** Prise à laquelle ces commentaires appartiennent : donne son lien à chacun. */
+		recordingId?: number | null
 		/** Fourni uniquement quand un lecteur est monté : rend les timestamps cliquables. */
 		onSeek?: ((seconds: number) => void) | null
 		compact?: boolean
@@ -116,31 +119,10 @@
 		editError = null
 	}
 
-	/** Accepte les formats courants : « 83 », « 1:23 » ou « 1:02:03 ». */
-	function parseTimestamp(value: string): number | null {
-		const trimmed = value.trim()
-		if (!trimmed) return null
-
-		if (/^\d+(?:\.\d+)?$/.test(trimmed)) return Number(trimmed)
-
-		const parts = trimmed.split(':')
-		if (parts.length < 2 || parts.length > 3) return null
-		if (!parts.slice(0, -1).every((part) => /^\d+$/.test(part))) return null
-		if (!/^\d+(?:\.\d+)?$/.test(parts.at(-1) as string)) return null
-
-		const values = parts.map(Number)
-		const seconds = values.at(-1) as number
-		const minutes = values.at(-2) as number
-		if (seconds >= 60 || minutes >= 60) return null
-		return parts.length === 3
-			? values[0] * 3600 + minutes * 60 + seconds
-			: minutes * 60 + seconds
-	}
-
 	async function saveEdit(comment: CommentWithReactions) {
 		if (saving) return
 		if (!draft.trim()) { editError = 'Le commentaire est vide.'; return }
-		const timestamp = parseTimestamp(timestampDraft)
+		const timestamp = parseTimecode(timestampDraft)
 		if (timestampDraft.trim() && (timestamp === null || !Number.isFinite(timestamp))) {
 			editError = 'Utilisez un repère en secondes, mm:ss ou h:mm:ss.'
 			return
@@ -178,6 +160,30 @@
 
 	// Gère les heures : une vidéo YouTube peut dépasser 60 minutes.
 	const formatTime = formatTimecode
+
+	// Un commentaire est ce qu'on partage le plus volontiers d'une prise (« regarde ce
+	// qu'a écrit Marc ») : il lui faut son propre lien. Le repère l'accompagne, pour que
+	// le destinataire arrive au bon endroit du morceau et pas seulement sur la page.
+	let copiedCommentId = $state<number | null>(null)
+
+	async function copyCommentLink(comment: CommentWithReactions) {
+		if (recordingId === null) return
+		const target = new URL(`/recording/${recordingId}`, location.origin)
+		if (comment.timestamp_s !== null && comment.timestamp_s !== undefined) {
+			target.searchParams.set('t', String(Math.floor(comment.timestamp_s)))
+		}
+		target.hash = `comment-${comment.id}`
+		try {
+			await navigator.clipboard.writeText(target.toString())
+			copiedCommentId = comment.id
+			setTimeout(() => {
+				if (copiedCommentId === comment.id) copiedCommentId = null
+			}, 2000)
+		} catch {
+			// Presse-papiers refusé : rien à rattraper ici, le lien reste atteignable
+			// depuis la page elle-même.
+		}
+	}
 
 	let commentEls = $state<Record<number, HTMLElement>>({})
 
@@ -294,7 +300,12 @@
 		{#if separatorBeforeId === comment.id}
 			<li class="group-separator">{separatorLabel}</li>
 		{/if}
-		<li class="comment" class:active={activeId === comment.id} bind:this={commentEls[comment.id]}>
+		<li
+			class="comment"
+			id="comment-{comment.id}"
+			class:active={activeId === comment.id}
+			bind:this={commentEls[comment.id]}
+		>
 			<div class="comment-header">
 				<strong>{comment.author}</strong>
 				{#if comment.timestamp_s !== null && comment.timestamp_s !== undefined}
@@ -416,6 +427,16 @@
 				</div>
 				{#if reactionError[comment.id]}
 					<span class="reaction-error">{reactionError[comment.id]}</span>
+				{/if}
+				{#if recordingId !== null}
+					<button
+						class="link-copy"
+						title="Copier le lien vers ce commentaire"
+						aria-label="Copier le lien vers ce commentaire"
+						onclick={() => copyCommentLink(comment)}
+					>
+						{copiedCommentId === comment.id ? '✓ Copié' : '🔗'}
+					</button>
 				{/if}
 				{#if editingId !== comment.id && canEditComment(page.data.user, comment.author_user_id)}
 					<button class="edit-link" onclick={() => startEdit(comment)}>Modifier</button>
@@ -643,6 +664,21 @@
 	}
 
 	.edit-link:hover { color: var(--color-text); text-decoration: underline; }
+
+	.link-copy {
+		margin-left: auto;
+		background: none;
+		border: none;
+		padding: 0;
+		font-size: var(--text-xs);
+		color: var(--color-text-muted);
+		cursor: pointer;
+	}
+
+	.link-copy:hover { color: var(--color-text); }
+
+	/* Les deux poussent à droite : sans cela, l'espace libre se partagerait entre eux. */
+	.link-copy + .edit-link { margin-left: 0.6rem; }
 
 	.edit-form textarea {
 		width: 100%;

@@ -15,10 +15,10 @@ import {
  * Zone de transit des outils audio d'après upload.
  *
  * Un import est un fichier déjà déposé mais pas encore devenu des prises. Ses octets
- * n'habitent volontairement PAS `AUDIO_DIR` : en production Caddy sert ce dossier tel
- * quel sous `/audio/`, sans passer par Node ni par l'authentification. Un fichier que
- * personne n'a encore validé n'a rien à y faire. Le répertoire temporaire du conteneur
- * convient : un import vit quelques minutes, le temps de la découpe.
+ * n'habitent volontairement PAS `AUDIO_DIR` : ce dossier est celui des prises validées,
+ * exposé sous `/audio/`, où l'accès s'autorise par l'id de la prise. Un fichier que
+ * personne n'a encore validé n'a pas cet id et n'a rien à y faire. Le répertoire temporaire
+ * du conteneur convient : un import vit quelques minutes, le temps de la découpe.
  *
  * Chaque import tient en deux fichiers :
  * - **l'original**, conservé intact, dans lequel les prises seront taillées. C'est lui

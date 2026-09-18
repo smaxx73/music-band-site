@@ -2,11 +2,12 @@ import type { PageServerLoad, Actions } from './$types'
 import { error, fail, redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 import type { Song } from '$lib/types'
+import { loginRedirect } from '$lib/redirect'
 
 type SongWithTakeCount = Song & { take_count: number }
 
-export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) redirect(302, '/login')
+export const load: PageServerLoad = async ({ locals, url }) => {
+	if (!locals.user) redirect(302, loginRedirect(url))
 	if (!locals.user.current_group_id) return { songs: [] }
 
 	const songs = await sql<SongWithTakeCount[]>`

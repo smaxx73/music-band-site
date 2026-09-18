@@ -177,6 +177,13 @@
 
 			<!-- Page content -->
 			<div class="app-content">
+				{#if data.group_switched_to}
+					<!-- Un lien reçu visait un autre groupe : la bascule a déjà eu lieu, mais
+					     elle vaut pour tous les onglets — la taire serait plus déroutant. -->
+					<div class="group-switch-banner">
+						Groupe actif basculé sur <strong>{data.group_switched_to}</strong> pour ouvrir ce lien.
+					</div>
+				{/if}
 				{#if data.user.groups.length === 0}
 					<div class="no-group-banner">
 						{#if isAdmin(data.user.role)}
@@ -475,6 +482,18 @@
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
+
+	/* ─── Bascule de groupe sur lien entrant ─────── */
+	.group-switch-banner {
+		background: var(--color-bg-subtle);
+		border-bottom: 1px solid var(--color-border);
+		padding: 0.5rem 1rem;
+		font-size: 0.82rem;
+		text-align: center;
+		color: var(--color-text-muted);
+	}
+
+	.group-switch-banner strong { color: var(--color-text); }
 
 	/* ─── No-group banner ────────────────────────── */
 	.no-group-banner {

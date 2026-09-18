@@ -3,13 +3,15 @@ import { fail, redirect } from '@sveltejs/kit'
 import { signCookie, verifyPassword } from '$lib/server/auth'
 import sql from '$lib/server/db'
 import { authSecret } from '$lib/server/config'
+import { safeRedirectTarget } from '$lib/redirect'
 
-export const load: PageServerLoad = ({ locals }) => {
-	if (locals.user) redirect(302, '/')
+export const load: PageServerLoad = ({ locals, url }) => {
+	// Déjà connecté : la destination du lien vaut toujours, on n'a fait que passer ici.
+	if (locals.user) redirect(302, safeRedirectTarget(url.searchParams.get('redirectTo')) ?? '/')
 }
 
 export const actions: Actions = {
-	default: async ({ request, cookies }) => {
+	default: async ({ request, cookies, url }) => {
 		const data = await request.formData()
 		const nickname = (data.get('nickname') as string | null)?.trim()
 		const password = data.get('password') as string | null
@@ -34,6 +36,7 @@ export const actions: Actions = {
 			maxAge: 60 * 60 * 24 * 30 // 30 jours
 		})
 
-		redirect(302, '/')
+		// Le formulaire poste sur l'URL courante : `?redirectTo=` a traversé la saisie.
+		redirect(302, safeRedirectTarget(url.searchParams.get('redirectTo')) ?? '/')
 	}
 }

@@ -57,6 +57,32 @@ export function formatTimecode(seconds: number): string {
 		: `${m}:${String(s).padStart(2, '0')}`
 }
 
+/**
+ * « 83 », « 1:23 » ou « 1:02:03 » → secondes. `null` si ce n'est aucun des trois.
+ *
+ * Sert partout où un repère est écrit à la main plutôt que pris au lecteur : saisie à
+ * l'édition d'un commentaire, `?t=` d'un lien partagé.
+ */
+export function parseTimecode(value: string | null | undefined): number | null {
+	const trimmed = (value ?? '').trim()
+	if (!trimmed) return null
+
+	if (/^\d+(?:\.\d+)?$/.test(trimmed)) return Number(trimmed)
+
+	const parts = trimmed.split(':')
+	if (parts.length < 2 || parts.length > 3) return null
+	if (!parts.slice(0, -1).every((part) => /^\d+$/.test(part))) return null
+	if (!/^\d+(?:\.\d+)?$/.test(parts.at(-1) as string)) return null
+
+	const values = parts.map(Number)
+	const seconds = values.at(-1) as number
+	const minutes = values.at(-2) as number
+	if (seconds >= 60 || minutes >= 60) return null
+	return parts.length === 3
+		? values[0] * 3600 + minutes * 60 + seconds
+		: minutes * 60 + seconds
+}
+
 export function youtubeWatchUrl(videoId: string): string {
 	return `https://www.youtube.com/watch?v=${videoId}`
 }

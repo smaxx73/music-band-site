@@ -2,9 +2,10 @@ import type { PageServerLoad } from './$types'
 import { redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 import { listRecentImports } from '$lib/server/imports'
+import { loginRedirect } from '$lib/redirect'
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-	if (!locals.user) redirect(302, '/login')
+	if (!locals.user) redirect(302, loginRedirect(url))
 	if (!locals.user.current_group_id) {
 		return { sessions: [], songs: [], imports: [], selectedSessionId: '', selectedSongId: '' }
 	}

@@ -1,10 +1,12 @@
 import type { PageServerLoad } from './$types'
 import { error, redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
+import { retargetActiveGroup } from '$lib/server/group-scope'
 import { listGroupMemberNames } from '$lib/server/groups'
+import { loginRedirect } from '$lib/redirect'
 
-export const load: PageServerLoad = async ({ locals, params }) => {
-	if (!locals.user) redirect(302, '/login')
+export const load: PageServerLoad = async ({ locals, params, cookies, url }) => {
+	if (!locals.user) redirect(302, loginRedirect(url))
 	if (!locals.user.current_group_id) error(403, 'Aucun groupe actif')
 
 	const id = parseInt(params.id)
@@ -22,7 +24,12 @@ export const load: PageServerLoad = async ({ locals, params }) => {
 		LEFT JOIN users u ON u.id = s.created_by_user_id
 		WHERE s.id = ${id} AND s.group_id = ${locals.user.current_group_id}
 	`
-	if (!session) error(404, 'Session introuvable')
+	if (!session) {
+		// Un lien reçu peut viser un autre groupe de l'utilisateur : y basculer plutôt
+		// que d'opposer un « introuvable » qui ne dit pas quoi faire.
+		await retargetActiveGroup(locals.user, cookies, url, 'session', id)
+		error(404, 'Session introuvable')
+	}
 
 	// Sessions adjacentes du groupe, pour la navigation précédent/suivant.
 	// Le tuple (date, id) départage les sessions d'une même journée. La comparaison
