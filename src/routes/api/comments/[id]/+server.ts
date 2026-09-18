@@ -12,10 +12,27 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	const commentId = parseInt(params.id)
 	if (isNaN(commentId)) return json({ error: 'ID invalide.' }, { status: 400 })
 
-	const body = await request.json().catch(() => ({}))
+	const payload: unknown = await request.json().catch(() => ({}))
+	const body = payload && typeof payload === 'object' && !Array.isArray(payload)
+		? payload as Record<string, unknown>
+		: {}
+	const hasContent = Object.hasOwn(body, 'content')
+	const hasTimestamp = Object.hasOwn(body, 'timestamp_s')
 	const content: unknown = body.content
-	if (typeof content !== 'string' || !content.trim()) {
-		return json({ error: 'content est obligatoire.' }, { status: 400 })
+	const timestampS: unknown = body.timestamp_s
+
+	if (hasContent && (typeof content !== 'string' || !content.trim())) {
+		return json({ error: 'content ne peut pas être vide.' }, { status: 400 })
+	}
+	if (
+		hasTimestamp &&
+		timestampS !== null &&
+		(typeof timestampS !== 'number' || !Number.isFinite(timestampS) || timestampS < 0)
+	) {
+		return json({ error: 'timestamp_s invalide.' }, { status: 400 })
+	}
+	if (!hasContent && !hasTimestamp) {
+		return json({ error: 'Aucune modification à enregistrer.' }, { status: 400 })
 	}
 
 	const [existing] = await sql<{
@@ -33,27 +50,38 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		return json({ error: "Seul l'auteur peut modifier ce commentaire." }, { status: 403 })
 	}
 
-	const [comment] = await sql`
-		UPDATE comments
-		SET content = ${content.trim()}, edited_at = now()
-		WHERE id = ${commentId}
-		RETURNING id, recording_id, author_user_id, content, timestamp_s, created_at, edited_at
-	`
+	const nextContent = hasContent ? (content as string).trim() : existing.content
+	const nextTimestamp: number | null = typeof timestampS === 'number' ? timestampS : null
+	const [comment] = hasTimestamp
+		? await sql`
+			UPDATE comments
+			SET content = ${nextContent}, timestamp_s = ${nextTimestamp}, edited_at = now()
+			WHERE id = ${commentId}
+			RETURNING id, recording_id, author_user_id, content, timestamp_s, created_at, edited_at
+		`
+		: await sql`
+			UPDATE comments
+			SET content = ${nextContent}, edited_at = now()
+			WHERE id = ${commentId}
+			RETURNING id, recording_id, author_user_id, content, timestamp_s, created_at, edited_at
+		`
 
 	// La modification n'annonce pas un nouveau contenu au groupe. Seule exception : un
 	// membre qu'on vient d'ajouter en mention, qui sinon n'en saurait jamais rien.
-	await notifyMentions(
-		{
-			groupId: locals.user.current_group_id,
-			actor: locals.user,
-			subject: existing.song_title,
-			excerpt: content.trim(),
-			link: `/recording/${existing.recording_id}`,
-			recordingId: existing.recording_id
-		},
-		content,
-		existing.content
-	)
+	if (nextContent !== existing.content) {
+		await notifyMentions(
+			{
+				groupId: locals.user.current_group_id,
+				actor: locals.user,
+				subject: existing.song_title,
+				excerpt: nextContent,
+				link: `/recording/${existing.recording_id}`,
+				recordingId: existing.recording_id
+			},
+			nextContent,
+			existing.content
+		)
+	}
 
 	return json({
 		...comment,

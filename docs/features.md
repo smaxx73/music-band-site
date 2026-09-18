@@ -303,8 +303,9 @@ distincte des commentaires, qui sont datés et signés.
 - **Réservé à l'auteur** (`canEditComment`), admins compris : un admin peut supprimer le
   contenu d'autrui, pas lui faire dire autre chose. Un commentaire non relié à un compte
   (antérieur à la migration 018) n'est modifiable par personne. L'API répond `403` sinon
-- Seul le texte change : l'ancrage (`timestamp_s`) reste celui d'origine
-- `PATCH /api/comments/[id]` avec `{ content }` pose `edited_at` ; « (modifié) » s'affiche
+- Le texte et l'ancrage (`timestamp_s`) sont modifiables. L'ancrage accepte les secondes,
+  `mm:ss` ou `h:mm:ss` et peut être supprimé pour rendre le commentaire général
+- `PATCH /api/comments/[id]` avec `{ content, timestamp_s }` pose `edited_at` ; « (modifié) » s'affiche
   à côté de la date, la date de modification au survol. Les réactions sont conservées
 - L'horodatage d'un commentaire **se réduit à l'heure quand il date du jour**
   (`formatDateTime`, `src/lib/date.ts`) : à la date du jour, la date n'apprend rien.

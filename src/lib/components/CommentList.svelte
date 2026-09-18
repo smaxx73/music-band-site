@@ -98,12 +98,16 @@
 
 	let editingId = $state<number | null>(null)
 	let draft = $state('')
+	let timestampDraft = $state('')
 	let saving = $state(false)
 	let editError = $state<string | null>(null)
 
 	function startEdit(comment: CommentWithReactions) {
 		editingId = comment.id
 		draft = comment.content
+		timestampDraft = comment.timestamp_s === null || comment.timestamp_s === undefined
+			? ''
+			: formatTimecode(comment.timestamp_s)
 		editError = null
 	}
 
@@ -112,9 +116,35 @@
 		editError = null
 	}
 
+	/** Accepte les formats courants : « 83 », « 1:23 » ou « 1:02:03 ». */
+	function parseTimestamp(value: string): number | null {
+		const trimmed = value.trim()
+		if (!trimmed) return null
+
+		if (/^\d+(?:\.\d+)?$/.test(trimmed)) return Number(trimmed)
+
+		const parts = trimmed.split(':')
+		if (parts.length < 2 || parts.length > 3) return null
+		if (!parts.slice(0, -1).every((part) => /^\d+$/.test(part))) return null
+		if (!/^\d+(?:\.\d+)?$/.test(parts.at(-1) as string)) return null
+
+		const values = parts.map(Number)
+		const seconds = values.at(-1) as number
+		const minutes = values.at(-2) as number
+		if (seconds >= 60 || minutes >= 60) return null
+		return parts.length === 3
+			? values[0] * 3600 + minutes * 60 + seconds
+			: minutes * 60 + seconds
+	}
+
 	async function saveEdit(comment: CommentWithReactions) {
 		if (saving) return
 		if (!draft.trim()) { editError = 'Le commentaire est vide.'; return }
+		const timestamp = parseTimestamp(timestampDraft)
+		if (timestampDraft.trim() && (timestamp === null || !Number.isFinite(timestamp))) {
+			editError = 'Utilisez un repère en secondes, mm:ss ou h:mm:ss.'
+			return
+		}
 
 		saving = true
 		editError = null
@@ -122,7 +152,7 @@
 			const res = await fetch(`/api/comments/${comment.id}`, {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ content: draft.trim() })
+				body: JSON.stringify({ content: draft.trim(), timestamp_s: timestamp })
 			})
 			const json = await res.json().catch(() => ({}))
 			if (!res.ok) { editError = json.error ?? 'Erreur.'; return }
@@ -292,8 +322,30 @@
 						rows="3"
 						autofocus
 						disabled={saving}
-						onkeydown={(e) => onEditKeydown(e, comment)}
-					></textarea>
+							onkeydown={(e) => onEditKeydown(e, comment)}
+						></textarea>
+					<div class="timestamp-editor">
+						<label for="comment-timestamp-{comment.id}">Repère dans la prise</label>
+						<input
+							id="comment-timestamp-{comment.id}"
+							type="text"
+							inputmode="decimal"
+							placeholder="mm:ss"
+							aria-describedby="comment-timestamp-help-{comment.id}"
+							bind:value={timestampDraft}
+							disabled={saving}
+							onkeydown={(e) => onEditKeydown(e, comment)}
+						/>
+						<span id="comment-timestamp-help-{comment.id}">Secondes, mm:ss ou h:mm:ss</span>
+						{#if timestampDraft.trim()}
+							<button
+								type="button"
+								class="remove-timestamp"
+								disabled={saving}
+								onclick={() => (timestampDraft = '')}
+							>Supprimer le timestamp</button>
+						{/if}
+					</div>
 					<div class="edit-actions">
 						<button class="btn btn-primary btn-sm" disabled={saving} onclick={() => saveEdit(comment)}>
 							{saving ? 'Enregistrement…' : 'Enregistrer'}
@@ -599,6 +651,40 @@
 		font-size: 0.9rem;
 		resize: vertical;
 	}
+
+	.timestamp-editor {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.35rem 0.55rem;
+		margin-top: 0.45rem;
+		font-size: var(--text-xs);
+		color: var(--color-text-secondary);
+	}
+
+	.timestamp-editor label { font-weight: 600; }
+
+	.timestamp-editor input {
+		width: 6.5rem;
+		box-sizing: border-box;
+		padding: 0.25rem 0.4rem;
+		font: inherit;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.timestamp-editor span { color: var(--color-text-muted); }
+
+	.remove-timestamp {
+		background: none;
+		border: none;
+		padding: 0;
+		font: inherit;
+		color: var(--color-text-muted);
+		text-decoration: underline;
+		cursor: pointer;
+	}
+
+	.remove-timestamp:hover:not(:disabled) { color: var(--color-text); }
 
 	.edit-actions {
 		display: flex;
