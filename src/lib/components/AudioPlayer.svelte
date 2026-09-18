@@ -68,6 +68,7 @@
 	let currentTime = $state(0)
 	let duration = $state(0)
 	let volume = $state(1)
+	let volumeExpanded = $state(false)
 	let mounted = false
 	let currentTrackId = $state<AudioTrack['id'] | null>(null)
 	let lastSeekToken = $state<number | null>(null)
@@ -292,18 +293,29 @@
 			<span>{formatTime(duration)}</span>
 		</div>
 
-		<label class="volume-label">
-			🔊
-			<input
-				type="range"
-				min="0"
-				max="1"
-				step="0.05"
-				value={volume}
-				oninput={setVolume}
-				class="volume-slider"
-			/>
-		</label>
+		<div class="volume-control" class:expanded={volumeExpanded}>
+			<button
+				class="volume-toggle"
+				type="button"
+				onclick={() => (volumeExpanded = !volumeExpanded)}
+				aria-label="Régler le volume"
+				aria-expanded={volumeExpanded}
+			>
+				{volume === 0 ? '🔇' : '🔊'}
+			</button>
+			<div class="volume-popover">
+				<input
+					type="range"
+					min="0"
+					max="1"
+					step="0.05"
+					value={volume}
+					oninput={setVolume}
+					class="volume-slider"
+					aria-label="Volume"
+				/>
+			</div>
+		</div>
 	</div>
 </div>
 
@@ -393,11 +405,20 @@
 	.current { font-weight: 700; }
 	.sep { color: #bbb; }
 
-	.volume-label {
+	.volume-control {
 		display: flex;
 		align-items: center;
 		gap: 0.4rem;
 		font-size: 0.9rem;
+	}
+
+	.volume-toggle {
+		display: none;
+	}
+
+	.volume-popover {
+		display: flex;
+		align-items: center;
 	}
 
 	.volume-slider {
@@ -405,22 +426,56 @@
 		accent-color: var(--color-primary);
 	}
 
-	/* Sous 640px la rangée ne tient plus : le volume passe à la ligne */
+	/* Sur mobile, le volume reste compact pour éviter d'ajouter une ligne au lecteur. */
 	@media (max-width: 640px) {
-		.controls { gap: 0.55rem 0.75rem; }
+		.controls {
+			flex-wrap: nowrap;
+			gap: 0.4rem;
+		}
 
-		.controls-left { order: 1; }
-		.time { order: 2; }
+		.controls-left { gap: 0.25rem; }
+		.time { white-space: nowrap; }
 
-		.volume-label {
-			order: 3;
-			flex: 1 1 100%;
+		.volume-control {
+			flex: 0 0 auto;
+			position: relative;
+		}
+
+		.volume-toggle {
+			display: inline-flex;
+			align-items: center;
+			justify-content: center;
+			width: 34px;
+			height: 34px;
+			padding: 0;
+			border: 1px solid var(--color-border-light);
+			border-radius: var(--radius-lg);
+			background: none;
+			font-size: 0.9rem;
+			cursor: pointer;
+		}
+
+		.volume-popover {
+			display: none;
+		}
+
+		.volume-control.expanded .volume-popover {
+			display: flex;
+			align-items: center;
+			position: absolute;
+			right: 0;
+			bottom: calc(100% + 0.5rem);
+			width: 164px;
+			height: 42px;
+			padding: 0 0.65rem;
+			border: 1px solid var(--color-border-light);
+			border-radius: var(--radius-lg);
+			background: var(--color-bg-subtle);
+			box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 		}
 
 		.volume-slider {
-			flex: 1;
-			width: auto;
-			min-width: 0;
+			width: 100%;
 			height: 1.5rem;
 		}
 	}
