@@ -210,6 +210,16 @@
 		startEditNotes()
 	})
 
+	// Le lecteur reste à l'écran pendant qu'on lit les commentaires : la waveform et ses
+	// marqueurs sont l'index de la discussion, ils n'ont pas à disparaître au premier
+	// défilement. Il ne se colle que s'il laisse de quoi lire — une vidéo 16/9 sur un
+	// téléphone occuperait la moitié de l'écran.
+	let innerHeight = $state(0)
+	let playerHeight = $state(0)
+	const stickyPlayer = $derived(
+		playerHeight > 0 && innerHeight > 0 && playerHeight <= innerHeight * 0.45
+	)
+
 	const commentMarkers = $derived(
 		comments
 			.filter((comment) => comment.timestamp_s !== null && comment.timestamp_s !== undefined)
@@ -225,8 +235,9 @@
 	<title>{recording.song_title} — Prise {recording.take}</title>
 </svelte:head>
 
+<svelte:window bind:innerHeight />
 
-<main>
+<main style="--comment-scroll-margin: {stickyPlayer ? playerHeight + 24 : 16}px">
 	<!-- Fil d'Ariane -->
 	<nav class="breadcrumb">
 		<a href="/sessions">Sessions</a> /
@@ -345,7 +356,7 @@
 	{/if}
 
 	<!-- Lecteur -->
-	<div class="player-card">
+	<div class="player-card" class:sticky={stickyPlayer} bind:clientHeight={playerHeight}>
 		{#if hasAudio && recording.youtube_video_id}
 			<div class="view-tabs" role="tablist" aria-label="Lecteur">
 				<button role="tab" class="view-tab" class:active={view === 'audio'} aria-selected={view === 'audio'} onclick={() => selectView('audio')}>🎵 Audio</button>
@@ -531,6 +542,14 @@
 		margin-bottom: 2rem;
 	}
 
+	/* Collé en haut de la colonne qui défile (`.app-content` sur ordinateur, la page
+	   elle-même sous la barre du haut sur mobile). */
+	.player-card.sticky {
+		position: sticky;
+		top: 0;
+		z-index: 5;
+	}
+
 	/* ─── Responsive ───────────────────── */
 	@media (max-width: 640px) {
 		main { margin: 1rem auto; padding: 0 0.75rem; }
@@ -547,5 +566,8 @@
 		h1 { font-size: 1.2rem; flex-wrap: wrap; }
 
 		.player-card { padding: 0.85rem 0.8rem; }
+
+		/* La barre du haut y est elle-même collée : on se pose dessous, pas dessus. */
+		.player-card.sticky { top: 44px; }
 	}
 </style>

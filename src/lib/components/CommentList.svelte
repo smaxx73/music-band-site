@@ -1,6 +1,8 @@
 <script lang="ts">
+	import { tick, untrack } from 'svelte'
 	import { page } from '$app/state'
 	import { formatTimecode } from '$lib/youtube'
+	import { formatDateTime, formatDateTimeFull } from '$lib/date'
 	import { canEditComment } from '$lib/types'
 	import { commentParts, commentVideos } from '$lib/comment-content'
 	import YouTubeEmbed from '$lib/components/YouTubeEmbed.svelte'
@@ -18,15 +20,62 @@
 		comments,
 		onSeek = null,
 		compact = false,
+		currentTime = null,
+		follow = false,
+		maxVisible = null,
+		moreHref = null,
+		separatorBeforeId = null,
+		separatorLabel = '',
 		onCommentsChange = () => {}
 	}: {
 		comments: CommentWithReactions[]
 		/** Fourni uniquement quand un lecteur est monté : rend les timestamps cliquables. */
 		onSeek?: ((seconds: number) => void) | null
 		compact?: boolean
+		/** Position du lecteur, quand il y en a un : marque le commentaire en cours. */
+		currentTime?: number | null
+		/** Fait suivre la liste à la lecture, commentaire ancré après commentaire ancré. */
+		follow?: boolean
+		/** Au-delà, seuls les derniers sont montés : une discussion se lit par la fin. */
+		maxVisible?: number | null
+		/** Fourni quand les plus anciens se lisent ailleurs (lien) plutôt qu'ici (bouton). */
+		moreHref?: string | null
+		/** Sépare deux blocs dans une liste triée autrement que par date. */
+		separatorBeforeId?: number | null
+		separatorLabel?: string
 		/** Remonte une modification afin que toutes les vues du parent restent synchronisées. */
 		onCommentsChange?: (comments: CommentWithReactions[]) => void
 	} = $props()
+
+	// Les plus anciens sont repliés tant qu'on ne les demande pas : au-delà d'une
+	// vingtaine, la fin de la discussion et le formulaire seraient hors de l'écran.
+	let expanded = $state(false)
+
+	const hiddenCount = $derived(
+		maxVisible !== null && !expanded && comments.length > maxVisible
+			? comments.length - maxVisible
+			: 0
+	)
+	const visibleComments = $derived(hiddenCount > 0 ? comments.slice(hiddenCount) : comments)
+
+	/**
+	 * Dernier commentaire ancré que la lecture a dépassé : c'est celui dont on parle
+	 * à cet instant du morceau. Aucun tant que la lecture n'a atteint le premier.
+	 */
+	const activeId = $derived.by(() => {
+		if (currentTime === null || !isFinite(currentTime)) return null
+		let bestId: number | null = null
+		let bestTime = -1
+		for (const comment of comments) {
+			const t = comment.timestamp_s
+			if (t === null || t === undefined) continue
+			if (t <= currentTime && t >= bestTime) {
+				bestTime = t
+				bestId = comment.id
+			}
+		}
+		return bestId
+	})
 
 	// Les réactions modifiées localement priment sur la valeur reçue du serveur,
 	// pour éviter de recharger toute la page à chaque pouce.
@@ -100,26 +149,44 @@
 	// Gère les heures : une vidéo YouTube peut dépasser 60 minutes.
 	const formatTime = formatTimecode
 
-	function formatDate(d: string | Date) {
-		return new Date(d).toLocaleString('fr-FR', {
-			day: 'numeric',
-			month: 'short',
-			hour: '2-digit',
-			minute: '2-digit'
-		})
-	}
-
 	let commentEls = $state<Record<number, HTMLElement>>({})
 
-	/** Appelée par le parent (bind:this) pour cibler un commentaire depuis la waveform. */
-	export function highlightComment(commentId: number) {
+	/**
+	 * Amène un commentaire à l'écran, en dépliant d'abord les anciens s'il en fait partie :
+	 * un marqueur de la waveform peut viser un commentaire encore replié.
+	 */
+	async function revealComment(commentId: number, flash: boolean) {
+		if (!commentEls[commentId]) {
+			expanded = true
+			await tick()
+		}
 		const el = commentEls[commentId]
 		if (!el) return
 
 		el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+		if (!flash) return
 		el.classList.add('highlight')
 		setTimeout(() => el.classList.remove('highlight'), 1500)
 	}
+
+	/** Appelée par le parent (bind:this) pour cibler un commentaire depuis la waveform. */
+	export function highlightComment(commentId: number) {
+		revealComment(commentId, true)
+	}
+
+	// Suivi de lecture : on ne déplace la page qu'au changement de commentaire courant,
+	// jamais à chaque quart de seconde de lecture.
+	let followedId: number | null = null
+	$effect(() => {
+		if (!follow) {
+			followedId = null
+			return
+		}
+		const id = activeId
+		if (id === null || id === followedId) return
+		followedId = id
+		untrack(() => revealComment(id, false))
+	})
 
 	async function react(comment: CommentWithReactions, value: ReactionValue) {
 		if (pending[comment.id]) return
@@ -175,12 +242,29 @@
 	}
 </script>
 
+{#if hiddenCount > 0}
+	<div class="older">
+		{#if moreHref}
+			<a href={moreHref} class="older-link">
+				Voir les {hiddenCount} commentaire{hiddenCount > 1 ? 's' : ''} précédent{hiddenCount > 1 ? 's' : ''} dans le lecteur →
+			</a>
+		{:else}
+			<button type="button" class="older-link" onclick={() => (expanded = true)}>
+				↑ Afficher les {hiddenCount} commentaire{hiddenCount > 1 ? 's' : ''} précédent{hiddenCount > 1 ? 's' : ''}
+			</button>
+		{/if}
+	</div>
+{/if}
+
 <ul class="comment-list" class:compact>
-	{#each comments as comment (comment.id)}
+	{#each visibleComments as comment (comment.id)}
 		{@const reactions = reactionState(comment)}
 		{@const upReactors = namesFor(reactions, 1)}
 		{@const downReactors = namesFor(reactions, -1)}
-		<li class="comment" bind:this={commentEls[comment.id]}>
+		{#if separatorBeforeId === comment.id}
+			<li class="group-separator">{separatorLabel}</li>
+		{/if}
+		<li class="comment" class:active={activeId === comment.id} bind:this={commentEls[comment.id]}>
 			<div class="comment-header">
 				<strong>{comment.author}</strong>
 				{#if comment.timestamp_s !== null && comment.timestamp_s !== undefined}
@@ -193,9 +277,9 @@
 					{/if}
 				{/if}
 				<span class="comment-date">
-					{formatDate(comment.created_at)}
+					{formatDateTime(comment.created_at)}
 					{#if comment.edited_at}
-						<span class="edited" title="Modifié le {formatDate(comment.edited_at)}">(modifié)</span>
+						<span class="edited" title="Modifié le {formatDateTimeFull(comment.edited_at)}">(modifié)</span>
 					{/if}
 				</span>
 			</div>
@@ -315,7 +399,41 @@
 		border-radius: var(--radius-lg);
 		padding: 0.75rem 1rem;
 		transition: background 0.6s;
+		/* Le lecteur reste collé en haut : un commentaire visé ne doit pas finir dessous. */
+		scroll-margin-top: var(--comment-scroll-margin, 1rem);
+		scroll-margin-bottom: 1rem;
 	}
+
+	/* Commentaire que la lecture vient de dépasser : le repère suit la musique. */
+	.comment.active {
+		border-color: var(--color-accent);
+		box-shadow: inset 3px 0 0 var(--color-accent);
+	}
+
+	.group-separator {
+		margin: 0.4rem 0 0.1rem;
+		font-size: var(--text-xs);
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.04em;
+		color: var(--color-text-muted);
+	}
+
+	.older { margin-bottom: 0.5rem; }
+
+	.older-link {
+		display: inline-block;
+		background: none;
+		border: none;
+		padding: 0;
+		font: inherit;
+		font-size: var(--text-xs);
+		color: var(--color-text-muted);
+		text-decoration: none;
+		cursor: pointer;
+	}
+
+	.older-link:hover { color: var(--color-accent); text-decoration: underline; }
 
 	.compact .comment {
 		padding: 0.5rem 0.7rem;

@@ -13,7 +13,12 @@
 		rows = 3,
 		disabled = false,
 		required = false,
-		label = 'Commentaire'
+		label = 'Commentaire',
+		placeholder = '',
+		hideLabel = false,
+		autogrow = false,
+		bare = false,
+		onSubmitShortcut = null
 	}: {
 		members: MentionMember[]
 		value?: string
@@ -21,9 +26,38 @@
 		disabled?: boolean
 		required?: boolean
 		label?: string
+		placeholder?: string
+		/** Le libellé reste lu par les lecteurs d'écran, mais quitte l'écran : le
+		    placeholder le porte déjà, et deux fois la même chose coûte une ligne. */
+		hideLabel?: boolean
+		/** Deux lignes au repos, la hauteur du texte dès qu'on écrit. */
+		autogrow?: boolean
+		/** Sans cadre : c'est le conteneur qui porte la bordure et reçoit le focus. */
+		bare?: boolean
+		/** Ctrl/⌘+Entrée, comme la note d'une prise et l'édition d'un commentaire. */
+		onSubmitShortcut?: (() => void) | null
 	} = $props()
 
 	let textarea = $state<HTMLTextAreaElement | null>(null)
+
+	// Hauteur des `rows` demandées, mesurée avant toute hauteur imposée : c'est le
+	// plancher de la zone, une ligne écrite ne doit pas la faire rétrécir.
+	let baseHeight = 0
+
+	// Le plafond, lui, est posé en CSS (`max-height`) : il borne ce que le style inline
+	// demande, et la barre de défilement reprend la main au-delà.
+	function autosize() {
+		if (!autogrow || !textarea) return
+		if (!baseHeight) baseHeight = textarea.offsetHeight
+		textarea.style.height = 'auto'
+		textarea.style.height = `${Math.max(textarea.scrollHeight, baseHeight)}px`
+	}
+
+	// Vaut aussi pour la remise à zéro après envoi : la zone doit redescendre.
+	$effect(() => {
+		value
+		autosize()
+	})
 	let caret = $state(0)
 	let selectedIndex = $state(0)
 	let dismissed = $state(false)
@@ -74,6 +108,14 @@
 	}
 
 	function onKeydown(event: KeyboardEvent) {
+		// Le raccourci d'envoi passe avant la liste de mentions : avec un modificateur,
+		// l'intention est explicite, elle n'a pas à choisir un membre au passage.
+		if (onSubmitShortcut && event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+			event.preventDefault()
+			onSubmitShortcut()
+			return
+		}
+
 		if (!suggestions.length) return
 
 		if (event.key === 'ArrowDown') {
@@ -92,16 +134,19 @@
 	}
 </script>
 
-<div class="mention-input">
+<div class="mention-input" class:no-hint={!!placeholder}>
 	<label class="form-label">
-		{label}
+		<span class:visually-hidden={hideLabel}>{label}</span>
 		<textarea
 			bind:this={textarea}
 			class="form-input"
+			class:autogrow
+			class:bare
 			bind:value
 			{rows}
 			{required}
 			{disabled}
+			{placeholder}
 			aria-autocomplete="list"
 			oninput={(event) => updateCaret(event.currentTarget)}
 			onclick={(event) => updateCaret(event.currentTarget)}
@@ -129,17 +174,48 @@
 			{/each}
 		</div>
 	{/if}
-	<p class="hint">Tapez @ pour mentionner un membre du groupe.</p>
+	{#if !placeholder}
+		<p class="hint">Tapez @ pour mentionner un membre du groupe.</p>
+	{/if}
 </div>
 
 <style>
 	.mention-input { position: relative; }
+
+	/* Hors de l'écran, mais bien lu par les lecteurs d'écran et toujours cliquable. */
+	.visually-hidden {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		margin: -1px;
+		padding: 0;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+
+	.bare {
+		border: 0;
+		background: transparent;
+		border-radius: 0;
+		padding: 0;
+	}
+
+	.bare:focus, .bare:focus-visible { outline: none; box-shadow: none; }
+
+	/* Écrire reste confortable : la zone grandit avec le texte, jusqu'à ~8 lignes. */
+	.autogrow {
+		max-height: 12rem;
+		overflow-y: auto;
+		resize: none;
+	}
 
 	.suggestions {
 		position: absolute;
 		z-index: 2;
 		left: 0;
 		right: 0;
+		/* Le bas du bloc, c'est la ligne d'aide : la liste se pose juste sous la zone. */
 		top: calc(100% - 1.6rem);
 		max-height: 13rem;
 		overflow-y: auto;
@@ -163,6 +239,9 @@
 		text-align: left;
 		cursor: pointer;
 	}
+
+	/* Sans ligne d'aide, ce bas-là est déjà celui de la zone de saisie. */
+	.no-hint .suggestions { top: calc(100% + 0.25rem); }
 
 	.suggestions button:hover,
 	.suggestions button.active { background: var(--color-accent-light); }

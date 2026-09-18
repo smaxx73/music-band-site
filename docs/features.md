@@ -179,6 +179,9 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
   change rarement n'a pas à occuper la largeur d'un menu déroulant sur chaque ligne
 - Le compteur de commentaires d'une prise est cliquable : il déplie la liste des commentaires
   sous la ligne, chargée à la demande via `GET /api/comments?recording_id=`, sans ouvrir le lecteur
+- Cette liste dépliée s'arrête aux **5 derniers** commentaires, avec « Voir les N précédents
+  dans le lecteur → » : une ligne dépliée ne doit pas pousser les prises suivantes hors de
+  l'écran, et une vraie discussion se lit là où on peut la réécouter
 - Commenter une prise mène au lecteur (`/recording/[id]#commenter`) : « + 💬 » à la place du
   compteur quand la prise n'a aucun commentaire, lien sous la liste dépliée sinon. Le formulaire
   y est centré à l'écran et prend le focus — on commente mieux en réécoutant, et l'ancrage
@@ -199,7 +202,8 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
 - Mêmes lignes-cartes que la vue session (`RecordingRow.svelte`), en lecture seule :
   la qualité s'y lit en badge, sans sélecteur, et aucune action d'édition n'y figure
 - Les prises affichent leur libellé de qualité libre, le nom du fichier déposé et leur note
-- Le compteur de commentaires déplie la liste des commentaires de la prise, sans ouvrir le lecteur
+- Le compteur de commentaires déplie la liste des commentaires de la prise, sans ouvrir le
+  lecteur — mêmes 5 derniers qu'en vue session, avec le renvoi vers le lecteur au-delà
 
 ## Lecteur audio (`/recording/[id]`)
 
@@ -208,15 +212,70 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
 - Commentaires avec `timestamp_s` → marqueurs sur la waveform
 - Clic sur un marqueur → seek à ce timestamp + scroll vers le commentaire
 - Contrôles : ⏮ retour début | ▶/⏸ | ⏭ +10s | temps courant/total | volume
-- Ajout de commentaire : global OU ancré à la position courante du lecteur
+- Le lecteur reste collé en haut de la page tant qu'il laisse de quoi lire, et la liste peut
+  suivre la lecture — voir « Naviguer dans une prise très commentée »
+- Ajout de commentaire : global OU ancré à la position courante du lecteur. Le formulaire
+  tient en deux lignes au repos — voir « Boîte d'ajout d'un commentaire »
 - Mentions : taper `@` dans le commentaire propose les membres du groupe ; la mention insère
   leur pseudo unique (`@pseudo`) et est mise en évidence dans toutes les listes de commentaires.
   Le membre mentionné est notifié (voir « Notifications d'activité ») ; la règle de détection
   est partagée entre affichage et serveur dans `src/lib/mentions.ts`
-- La case "ancrer au timestamp" est cochée par défaut si le lecteur est en pause
+- L'ancrage est actif par défaut si le lecteur est en pause, inactif dès qu'il joue
 - Auteur pré-rempli depuis l'utilisateur connecté
 - Le nom du fichier déposé figure sous la ligne de métadonnées de la prise, la note
   de la prise juste en dessous
+
+## Naviguer dans une prise très commentée
+
+Tout est chargé d'un coup (`commentsWithReactions`) : le nombre de commentaires d'une prise
+est borné par la taille du groupe. Ce qui manquait n'était pas la pagination, mais de quoi
+s'orienter dans la liste.
+
+- **Le lecteur reste collé en haut** pendant qu'on lit : la waveform et ses marqueurs sont
+  l'index de la discussion, ils n'ont pas à disparaître au premier défilement. Il ne se colle
+  que s'il laisse de quoi lire (au plus 45 % de la hauteur de fenêtre) — une vidéo 16/9 sur un
+  téléphone occuperait la moitié de l'écran. Les commentaires portent la marge de défilement
+  correspondante (`--comment-scroll-margin`), pour qu'un commentaire visé ne finisse pas dessous
+- **Commentaire courant** : le dernier commentaire ancré que la lecture a dépassé est marqué
+  d'un liseré. Avec « Suivre la lecture », la liste défile toute seule d'un commentaire au
+  suivant — on relit les retours au rythme où ils ont été posés. Le défilement n'a lieu qu'au
+  changement de commentaire, jamais à chaque quart de seconde
+- **Deux ordres** : « Chronologique » (celui de l'écriture, par défaut) et « Dans le morceau »
+  (par `timestamp_s` croissant, les commentaires généraux regroupés en fin de liste sous leur
+  propre libellé). Sur une prise longuement commentée, c'est le second qu'on suit en réécoutant.
+  Les deux boutons n'apparaissent qu'à partir de deux commentaires ancrés
+- **Les plus anciens sont repliés** au-delà de 20, derrière « ↑ Afficher les N commentaires
+  précédents » : une discussion se lit par la fin, et le formulaire doit rester à portée. Le
+  repli ne vaut qu'en ordre chronologique — ailleurs, « les plus anciens » ne sont pas ceux du
+  haut. Viser un commentaire replié (marqueur de la waveform, suivi de lecture) déplie d'abord
+- Ce repli n'est **pas** de la pagination : rien n'est rechargé, tout est déjà là
+
+## Boîte d'ajout d'un commentaire
+
+Neuf commentaires sur dix tiennent en une phrase : le formulaire ne doit pas occuper un
+tiers de l'écran en l'attendant.
+
+- C'est une **zone de saisie de discussion**, pas un panneau de formulaire : le cadre est le
+  champ lui-même (pas de `.form-section`), et les actions tiennent sur sa droite
+- **Pas de titre ni de libellé visible** : la section s'annonce déjà « Commentaires (n) », et
+  le placeholder « Écrire un commentaire… (@ pour mentionner) » porte l'intitulé comme la
+  règle du `@`, à l'endroit où l'on va taper. Le libellé reste dans le DOM pour les lecteurs
+  d'écran (`hideLabel`)
+- Le **bouton d'envoi est dans le cadre**, en rond à droite, avec la pastille d'ancrage. Ils
+  sont **voisins** de la saisie, jamais posés par-dessus : le texte ne passe pas dessous et
+  ils restent en bas quand la zone grandit. Cible de 34 px, portée à 40 px sous 640 px — au
+  doigt, une cible de 34 px se rate
+- Le bouton est **désactivé tant que le champ est vide**, et le raccourci clavier l'est avec
+  lui : à vide, rien ne promet un envoi et aucune infobulle du navigateur ne se déclenche.
+  L'icône ➤ porte son intitulé en `aria-label` et le raccourci en `title`
+- **Deux lignes au repos**, la hauteur du texte dès qu'on écrit (`autogrow`), plafonnée à
+  ~8 lignes avant défilement. Le plancher est la hauteur des `rows` demandées, mesurée avant
+  toute hauteur imposée
+- **Ctrl/⌘+Entrée envoie**, comme la note d'une prise et l'édition d'un commentaire. Le
+  raccourci passe avant la liste de mentions : avec un modificateur, l'intention est explicite
+- L'ancrage est une **pastille ⏱ 1:23**, pas une case à cocher : elle montre le repère
+  **avant** qu'on l'active, et disparaît quand le lecteur n'a pas de position (l'ancrage
+  retombe alors avec elle)
 
 ## Note d'une prise
 
@@ -247,6 +306,12 @@ distincte des commentaires, qui sont datés et signés.
 - Seul le texte change : l'ancrage (`timestamp_s`) reste celui d'origine
 - `PATCH /api/comments/[id]` avec `{ content }` pose `edited_at` ; « (modifié) » s'affiche
   à côté de la date, la date de modification au survol. Les réactions sont conservées
+- L'horodatage d'un commentaire **se réduit à l'heure quand il date du jour**
+  (`formatDateTime`, `src/lib/date.ts`) : à la date du jour, la date n'apprend rien.
+  À l'inverse, **l'année apparaît dès qu'on sort de l'année en cours** (« 17 sept. 2025,
+  10:33 »), pour qu'une vieille prise ne se lise pas comme celle d'hier. L'infobulle
+  « Modifié le… » garde toujours sa date (`formatDateTimeFull`) — « Modifié le 12:35 »
+  ne voudrait rien dire
 - Pas de notification au groupe : une modification n'annonce pas de nouveau contenu.
   Seule exception, un membre ajouté en mention par la modification est prévenu
 

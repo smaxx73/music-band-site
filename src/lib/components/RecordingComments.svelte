@@ -11,6 +11,9 @@
 		onSeek?: ((seconds: number) => void) | null
 	} = $props()
 
+	/** Une ligne dépliée ne doit pas pousser les prises suivantes hors de l'écran. */
+	const INLINE_MAX = 5
+
 	let comments = $state<CommentWithReactions[]>([])
 	let loading = $state(true)
 	let loadError = $state<string | null>(null)
@@ -57,7 +60,16 @@
 	{:else if comments.length === 0}
 		<p class="inline-msg">Pas encore de commentaire.</p>
 	{:else}
-		<CommentList {comments} {onSeek} compact onCommentsChange={handleCommentsChange} />
+		<!-- Ces listes servent à jeter un œil, pas à lire une discussion : au-delà de cinq,
+		     les plus anciens se lisent dans le lecteur, où l'on peut aussi les écouter. -->
+		<CommentList
+			{comments}
+			{onSeek}
+			compact
+			maxVisible={INLINE_MAX}
+			moreHref="/recording/{recordingId}"
+			onCommentsChange={handleCommentsChange}
+		/>
 	{/if}
 </div>
 
