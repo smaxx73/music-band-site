@@ -84,7 +84,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		const recording = (await sql.begin(async (tx) => {
 			// Vérifier que session et morceau existent et appartiennent au groupe actif
 			const [song] = await tx<{ id: number; title: string }[]>`
-				SELECT id, title FROM songs WHERE id = ${songId} AND group_id = ${groupId}
+				SELECT id, title FROM songs WHERE id = ${songId} AND group_id = ${groupId} FOR UPDATE
 			`
 			if (!song) throw Object.assign(new Error('song_not_found'), { code: 'song_not_found' })
 
@@ -94,7 +94,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			const [{ take }] = await tx`
 				SELECT COALESCE(MAX(take), 0) + 1 AS take
 				FROM recordings
-				WHERE session_id = ${sessionId} AND song_id = ${songId}
+				WHERE song_id = ${songId}
 			`
 			const [rec] = await tx<Recording[]>`
 				INSERT INTO recordings (session_id, song_id, take, file_path, source_file_name, duration_s, uploaded_by, uploaded_by_user_id, file_hash, youtube_video_id, youtube_title)

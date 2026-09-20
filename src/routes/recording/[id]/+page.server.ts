@@ -46,7 +46,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 			: Promise.resolve({ peaks: [] as number[], duration: null }),
 		sql`
 			SELECT id, take FROM recordings
-			WHERE session_id = ${recording.session_id} AND song_id = ${recording.song_id}
+			WHERE song_id = ${recording.song_id}
 			ORDER BY take ASC
 		`,
 		// Le pseudo est l'identifiant stable utilisé dans la syntaxe @pseudo ; le nom

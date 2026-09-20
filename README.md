@@ -8,7 +8,7 @@ Application web privée pour partager et archiver les enregistrements de répét
 
 - **Upload** de fichiers audio (jusqu'à 200 Mo) avec conversion automatique en MP3 128 kbps via ffmpeg et suppression des silences en début/fin
 - Détection des doublons par empreinte SHA-256 avant conversion
-- **Numérotation automatique des prises** par morceau et par session (Prise 1, 2, 3…)
+- **Numérotation automatique des prises** globale par morceau (Prise 1, 2, 3…)
 - **Lecteur audio** avec visualisation de la forme d'onde (WaveSurfer.js), contrôles ⏮ ▶/⏸ ⏭ +10s et réglage du volume
 - **Qualité par prise** : À revoir / Moyen / Bon / Référence ou libellé court personnalisé — se règle uniquement dans le détail d'une session
 
@@ -17,7 +17,7 @@ Application web privée pour partager et archiver les enregistrements de répét
 - Création de sessions avec type (répétition, concert, studio, autre), titre optionnel, date, lieu, membres présents et notes
 - Vue session : prises groupées par morceau, qualité et notes éditables inline ; l'historique d'un morceau est en lecture seule
 - Ajout de prises à une session passée
-- Mode édition pour supprimer des prises, réordonner les prises d'un morceau et renuméroter
+- Mode édition pour supprimer des prises ; leur numéro global par morceau est conservé
 - Suppression d'une session avec suppression des fichiers audio associés
 
 ### Morceaux

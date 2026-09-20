@@ -12,7 +12,7 @@
 6. Conversion ffmpeg → mp3 128kbps + suppression silence début/fin
 7. Extraction durée via ffprobe
 8. Calcul du `take` dans une transaction :
-   `SELECT COALESCE(MAX(take), 0) + 1 FROM recordings WHERE session_id=$1 AND song_id=$2`
+   `SELECT COALESCE(MAX(take), 0) + 1 FROM recordings WHERE song_id=$1`
 9. Insertion en base avec `file_hash` et `source_file_name` (le nom du fichier tel que
    déposé, conservé pour l'affichage seul — le fichier sur disque, lui, est toujours
    nommé depuis l'id de la prise), sauvegarde `/data/audio/{id}.mp3`, retour du
@@ -228,7 +228,7 @@ note, 💬 s'il y a des commentaires — plus l'écoute, et un menu ⋮ recueill
 - Le groupe de commandes **ne se scinde jamais** : il rejoint le rang de l'identité quand il
   y tient, et bascule d'un bloc au rang suivant sinon. Flexbox coupe les lignes avant de
   rétrécir, donc l'identité n'est jamais écrasée pour garder les boutons à côté
-- Mode édition : suppression de prise, déplacement dans l'ordre du morceau, puis renumérotation persistée
+- Mode édition : suppression de prise ; le numéro reste global au morceau et n'est pas renuméroté
 - Suppression d'une prise : réservée à celui qui l'a uploadée et aux admins du groupe.
   Le bouton n'apparaît pas aux autres membres, et l'API répond `403`
 - Suppression d'une session : réservée à son créateur et aux admins du groupe.

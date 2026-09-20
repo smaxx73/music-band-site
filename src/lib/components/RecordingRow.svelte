@@ -13,11 +13,8 @@
 		editableQuality = false,
 		editMode = false,
 		canDelete = false,
-		canMoveUp = false,
-		canMoveDown = false,
 		deleting = false,
 		onQualityChange = null,
-		onMove = null,
 		onDelete = null
 	}: {
 		recording: RecordingListItem
@@ -28,12 +25,9 @@
 		editableQuality?: boolean
 		editMode?: boolean
 		canDelete?: boolean
-		canMoveUp?: boolean
-		canMoveDown?: boolean
 		deleting?: boolean
 		/** Prévient la page pour qu'elle mette sa copie locale à jour. */
 		onQualityChange?: ((status: string) => void) | null
-		onMove?: ((direction: -1 | 1) => void) | null
 		onDelete?: (() => void) | null
 	} = $props()
 
@@ -360,8 +354,6 @@
 
 		{#if editMode}
 			<div class="row-edit">
-				<button class="btn-reorder" disabled={!canMoveUp} onclick={() => onMove?.(-1)} title="Monter">↑</button>
-				<button class="btn-reorder" disabled={!canMoveDown} onclick={() => onMove?.(1)} title="Descendre">↓</button>
 				{#if canDelete}
 					<button class="btn btn-danger btn-sm" disabled={deleting} onclick={() => onDelete?.()}>
 						{deleting ? '…' : 'Supprimer'}
@@ -588,11 +580,11 @@
 	@media (max-width: 640px) {
 		/* Les pastilles sont des commandes, pas seulement des décorations : elles
 		   gardent donc une cible confortable à toucher. */
-		.chip, .btn-reorder, .btn-mini { min-width: 44px; min-height: 44px; }
+		.chip, .btn-mini { min-width: 44px; min-height: 44px; }
 		.row-actions :global(.btn) { min-height: 44px; }
 
 		.chip { font-size: var(--text-sm); }
-		.btn-reorder, .btn-mini { font-size: 0.9rem; }
+		.btn-mini { font-size: 0.9rem; }
 
 		/* Une entrée de menu se touche : la cible prime sur la compacité. */
 		:global(.row-menu-item) { min-height: 44px; }
@@ -634,21 +626,6 @@
 		gap: 0.3rem;
 		margin-left: auto;
 	}
-
-	.btn-reorder {
-		background: none;
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-sm);
-		padding: 0.1rem 0.35rem;
-		font-size: 0.78rem;
-		font-family: inherit;
-		cursor: pointer;
-		color: var(--color-text-secondary);
-		line-height: 1;
-	}
-
-	.btn-reorder:hover:not(:disabled) { background: var(--color-bg-subtle); }
-	.btn-reorder:disabled { opacity: var(--disabled-opacity); cursor: not-allowed; }
 
 	.row-note { margin-top: 0.35rem; }
 

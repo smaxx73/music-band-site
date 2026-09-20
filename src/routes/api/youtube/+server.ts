@@ -46,6 +46,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			const [song] = await tx<{ id: number; title: string }[]>`
 				SELECT id, title FROM songs
 				WHERE id = ${songId} AND group_id = ${groupId} AND status != 'abandonne'
+				FOR UPDATE
 			`
 			if (!song) throw Object.assign(new Error('song_not_found'), { code: 'song_not_found' })
 
@@ -55,7 +56,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			const [{ take }] = await tx`
 				SELECT COALESCE(MAX(take), 0) + 1 AS take
 				FROM recordings
-				WHERE session_id = ${sessionId} AND song_id = ${songId}
+				WHERE song_id = ${songId}
 			`
 			const [rec] = await tx<Recording[]>`
 				INSERT INTO recordings (

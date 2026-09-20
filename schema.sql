@@ -101,7 +101,7 @@ CREATE TABLE recordings (
     id          SERIAL PRIMARY KEY,
     session_id  INTEGER REFERENCES sessions(id) ON DELETE CASCADE,
     song_id     INTEGER REFERENCES songs(id),
-    take        INTEGER NOT NULL DEFAULT 1,  -- calculé automatiquement, jamais saisi manuellement
+    take        INTEGER NOT NULL DEFAULT 1,  -- compteur global du morceau, calculé automatiquement
     -- Une prise a une piste audio, une vidéo YouTube, ou les deux (contrainte recordings_source).
     file_path   TEXT,                        -- "{id}.mp3" ; NULL = pas de piste audio (vidéo seule)
     youtube_video_id TEXT CHECK (youtube_video_id ~ '^[A-Za-z0-9_-]{11}$'),
@@ -117,12 +117,12 @@ CREATE TABLE recordings (
     uploaded_by TEXT NOT NULL,
     uploaded_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at  TIMESTAMPTZ DEFAULT now(),
-    UNIQUE (session_id, song_id, take),
+    UNIQUE (song_id, take),
     CONSTRAINT recordings_source CHECK (file_path IS NOT NULL OR youtube_video_id IS NOT NULL)
 );
 
 -- Calcul du take à l'upload (dans une transaction) :
--- SELECT COALESCE(MAX(take), 0) + 1 FROM recordings WHERE session_id = $1 AND song_id = $2;
+-- SELECT COALESCE(MAX(take), 0) + 1 FROM recordings WHERE song_id = $1;
 
 -- Une setlist est un programme : l'ordre dans lequel le groupe jouera ses morceaux.
 -- Elle vise le référentiel (`songs`), là où une playlist vise des prises précises.

@@ -149,7 +149,6 @@
 
 	let editMode = $state(false)
 	let deletingRecordingId = $state<number | null>(null)
-	let renumbering = $state(false)
 
 	async function deleteRecording(id: number, songTitle: string, take: number) {
 		if (!confirm(`Supprimer la prise ${take} de « ${songTitle} » ? Cette action est irréversible.`)) return
@@ -166,45 +165,6 @@
 			alert('Erreur réseau.')
 		} finally {
 			deletingRecordingId = null
-		}
-	}
-
-	function moveRecording(songId: number, recordingId: number, direction: -1 | 1) {
-		groups = groups.map((g) => {
-			if (g.song.id !== songId) return g
-			const idx = g.recordings.findIndex((r) => r.id === recordingId)
-			if (idx === -1) return g
-			const newIdx = idx + direction
-			if (newIdx < 0 || newIdx >= g.recordings.length) return g
-			const recs = [...g.recordings]
-			;[recs[idx], recs[newIdx]] = [recs[newIdx], recs[idx]]
-			return { ...g, recordings: recs }
-		})
-	}
-
-	async function renumber() {
-		renumbering = true
-		try {
-			const res = await fetch(`/api/sessions/${session.id}/reorder`, {
-				method: 'PATCH',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					groups: groups.map((g) => ({
-						song_id: g.song.id,
-						recording_ids: g.recordings.map((r) => r.id)
-					}))
-				})
-			})
-			const json = await res.json()
-			if (!res.ok) { alert(json.error ?? 'Erreur.'); return }
-			groups = groups.map((g) => ({
-				...g,
-				recordings: g.recordings.map((r, i) => ({ ...r, take: i + 1 }))
-			}))
-		} catch {
-			alert('Erreur réseau.')
-		} finally {
-			renumbering = false
 		}
 	}
 
@@ -313,7 +273,7 @@
 					compact
 				/>
 				<div class="recording-list">
-					{#each group.recordings as r, i (r.id)}
+					{#each group.recordings as r (r.id)}
 						<RecordingRow
 							recording={r}
 							songId={group.song.id}
@@ -322,11 +282,8 @@
 							editableQuality
 							{editMode}
 							canDelete={canDeleteRecording(r)}
-							canMoveUp={i > 0}
-							canMoveDown={i < group.recordings.length - 1}
 							deleting={deletingRecordingId === r.id}
 							onQualityChange={(status) => applyQuality(r.id, status)}
-							onMove={(direction) => moveRecording(group.song.id, r.id, direction)}
 							onDelete={() => deleteRecording(r.id, group.song.title, r.take)}
 						/>
 					{/each}
@@ -340,11 +297,6 @@
 		<button class="btn btn-secondary" onclick={() => { editMode = !editMode }}>
 			{editMode ? 'Terminer' : 'Modifier les prises'}
 		</button>
-		{#if editMode}
-		<button class="btn btn-secondary" onclick={renumber} disabled={renumbering}>
-			{renumbering ? '…' : 'Renuméroter'}
-		</button>
-		{/if}
 		{#if canDeleteSession}
 		<button class="btn btn-danger" onclick={deleteSession} disabled={deleting}>
 			{deleting ? 'Suppression…' : 'Supprimer la session'}

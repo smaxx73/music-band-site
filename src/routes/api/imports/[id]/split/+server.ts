@@ -108,15 +108,25 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 			})
 		}
 
-		// 2. Takes et insertions dans une seule transaction : les segments d'un même
-		//    morceau se numérotent alors à la suite, sans trou ni collision.
+		// 2. Takes et insertions dans une seule transaction. Verrouiller les morceaux
+		//    dans un ordre stable empêche deux ajouts simultanés de leur attribuer le
+		//    même numéro, y compris si plusieurs morceaux sont découpés en parallèle.
 		const created = (await sql.begin(async (tx) => {
+			const songIds = [...new Set(prepared.map((slice) => slice.songId))].sort((a, b) => a - b)
+			for (const songId of songIds) {
+				await tx`
+					SELECT id FROM songs
+					WHERE id = ${songId} AND group_id = ${groupId}
+					FOR UPDATE
+				`
+			}
+
 			const rows: (Recording & { song_title: string })[] = []
 			for (const slice of prepared) {
 				const [{ take }] = await tx<{ take: number }[]>`
 					SELECT COALESCE(MAX(take), 0) + 1 AS take
 					FROM recordings
-					WHERE session_id = ${sessionId} AND song_id = ${slice.songId}
+					WHERE song_id = ${slice.songId}
 				`
 				// Toutes les prises d'une découpe portent le nom du fichier déposé : elles
 				// viennent réellement du même enregistrement, et c'est ce que l'on cherche
