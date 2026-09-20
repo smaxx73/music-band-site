@@ -279,9 +279,29 @@
 	}
 </script>
 
+
 <svelte:head>
 	<title>{setlist.name}</title>
 </svelte:head>
+
+<!-- Le programme et les informations forment un seul objet : en édition, ils tiennent
+     dans la même boîte, et « Enregistrer » la referme d'un bloc. Sortis de la boîte,
+     les morceaux se retouchaient sans que rien ne dise à quoi le bouton s'appliquait. -->
+{#snippet programMeta()}
+	<span class="program-meta">
+		{items.length} morceau{items.length > 1 ? 'x' : ''}
+		{#if items.length > 0}· {formatSetlistDuration(total)}{/if}
+	</span>
+{/snippet}
+
+{#snippet durationHint()}
+	{#if total.missing > 0}
+		<p class="hint">
+			{total.missing} morceau{total.missing > 1 ? 'x' : ''} sans durée de référence :
+			le total est un minimum. La durée se renseigne dans <a href="/songs">Morceaux</a>.
+		</p>
+	{/if}
+{/snippet}
 
 <main>
 	<nav class="breadcrumb">
@@ -289,7 +309,7 @@
 	</nav>
 
 	{#if editing}
-		<form class="form-section" onsubmit={saveInfo}>
+		<form class="form-section editor" onsubmit={saveInfo}>
 			{#if infoError}<p class="message-error">{infoError}</p>{/if}
 			<label class="form-label">
 				Nom
@@ -299,14 +319,36 @@
 				Description
 				<input class="form-input" type="text" bind:value={descDraft} disabled={savingInfo} />
 			</label>
-			<div class="edit-actions">
-				<button type="button" class="btn btn-secondary btn-sm" onclick={openAddModal}>
-					+ Ajouter des morceaux
-				</button>
-				<button type="submit" class="btn btn-primary btn-sm" disabled={savingInfo}>
+
+			<div class="program">
+				<div class="program-head">
+					<h2>Programme</h2>
+					{@render programMeta()}
+					<button type="button" class="btn btn-secondary btn-sm add-btn" onclick={openAddModal}>
+						+ Ajouter des morceaux
+					</button>
+				</div>
+				{@render durationHint()}
+				{#if items.length === 0}
+					<p class="empty">Cette setlist est vide.</p>
+				{:else}
+					<SetlistSongs
+						{items}
+						editable
+						surface="tray"
+						error={saveError}
+						{busy}
+						onReorder={reorder}
+						onRemove={removeItem}
+					/>
+				{/if}
+			</div>
+
+			<div class="form-actions">
+				<button type="submit" class="btn btn-primary" disabled={savingInfo}>
 					{savingInfo ? 'Enregistrement…' : 'Enregistrer'}
 				</button>
-				<button type="button" class="btn btn-ghost btn-sm" disabled={savingInfo} onclick={cancelEdit}>
+				<button type="button" class="btn btn-ghost" disabled={savingInfo} onclick={cancelEdit}>
 					Annuler
 				</button>
 			</div>
@@ -316,50 +358,47 @@
 			<div>
 				<h1>{setlist.name}</h1>
 				{#if setlist.description}<p class="desc">{setlist.description}</p>{/if}
-				<p class="meta">
-					{items.length} morceau{items.length > 1 ? 'x' : ''}
-					{#if items.length > 0}· {formatSetlistDuration(total)}{/if}
-					· créée par {setlist.created_by} le {formatDateTimeFull(setlist.created_at)}
-				</p>
-				{#if total.missing > 0}
-					<p class="hint">
-						{total.missing} morceau{total.missing > 1 ? 'x' : ''} sans durée de référence :
-						le total est un minimum. La durée se renseigne dans <a href="/songs">Morceaux</a>.
-					</p>
+				<p class="meta">créée par {setlist.created_by} le {formatDateTimeFull(setlist.created_at)}</p>
+			</div>
+			<div class="setlist-actions">
+				<button class="btn btn-secondary btn-sm" onclick={startEdit}>Modifier</button>
+				{#if canDelete}
+					<button class="btn btn-danger btn-sm" disabled={deleting} onclick={() => (confirmDeleteOpen = true)}>
+						{deleting ? 'Suppression…' : 'Supprimer'}
+					</button>
 				{/if}
 			</div>
 		</div>
-	{/if}
 
-	{#if items.length === 0}
-		<div class="empty-state">
-			<p class="empty">Cette setlist est vide.</p>
-			{#if editing}
-				<button class="btn btn-primary" onclick={openAddModal}>+ Ajouter des morceaux</button>
-			{/if}
-		</div>
-	{:else}
-		<SetlistSongs {items} editable={editing} error={saveError} {busy} onReorder={reorder} onRemove={removeItem} />
-	{/if}
+		<!-- Hors édition, la seule erreur possible vient de la suppression : elle se lit
+		     près du bouton qui l'a provoquée, pas au milieu du programme. -->
+		{#if saveError}<p class="message-error">{saveError}</p>{/if}
 
-	{#if !editing}
-		<div class="setlist-actions">
-			<button class="btn btn-ghost btn-sm" onclick={startEdit}>Modifier</button>
-			{#if canDelete}
-				<button class="btn btn-ghost btn-sm danger" disabled={deleting} onclick={() => (confirmDeleteOpen = true)}>
-					{deleting ? 'Suppression…' : 'Supprimer'}
-				</button>
+		<div class="program">
+			<div class="program-head">
+				<h2>Programme</h2>
+				{@render programMeta()}
+			</div>
+			{@render durationHint()}
+			{#if items.length === 0}
+				<p class="empty">Cette setlist est vide.</p>
+			{:else}
+				<SetlistSongs {items} />
 			{/if}
 		</div>
 	{/if}
 
-	<CommentsPanel
-		thread={{ kind: 'setlist', id: setlist.id }}
-		{comments}
-		members={groupMembers}
-		{highlightRequest}
-		onCommentsChange={(updated) => { comments = updated }}
-	/>
+	<!-- Les commentaires sont une autre discussion que le programme : le filet et la
+	     respiration disent où l'un finit et où l'autre commence. -->
+	<div class="comments">
+		<CommentsPanel
+			thread={{ kind: 'setlist', id: setlist.id }}
+			{comments}
+			members={groupMembers}
+			{highlightRequest}
+			onCommentsChange={(updated) => { comments = updated }}
+		/>
+	</div>
 
 	<ConfirmDialog
 		open={confirmCancelOpen}
@@ -415,19 +454,27 @@
 <style>
 	main { max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
 
-	.setlist-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
+	.setlist-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
 	h1 { font-size: 1.4rem; margin: 0 0 0.3rem; }
 	.desc { font-size: var(--text-sm); color: #666; margin: 0 0 0.3rem; }
 	.meta { font-size: var(--text-xs); color: var(--color-text-muted); margin: 0; }
-	.hint { font-size: var(--text-xs); color: var(--color-text-muted); margin: 0.35rem 0 0; }
+	.hint { font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 0.6rem; }
 
-	.setlist-actions { display: flex; justify-content: flex-end; gap: 0.4rem; margin: 1rem 0; flex-wrap: wrap; }
-	.danger { color: var(--color-error); }
+	.setlist-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; flex-shrink: 0; }
 
-	.edit-actions { display: flex; gap: 0.5rem; }
+	/* En édition, le programme est un bloc de la boîte : le filet du haut le détache
+	   des champs sans lui donner un second cadre à l'intérieur du premier. */
+	.editor .program { border-top: 1px solid var(--color-border-light); padding-top: var(--space-3); }
 
-	.empty-state { text-align: center; padding: 2rem 0; }
-	.empty-state .empty { margin-top: 0; }
+	.program-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0.3rem 0.6rem; margin-bottom: 0.6rem; }
+	.program-head h2 { font-size: var(--text-lg); margin: 0; }
+	.program-meta { font-size: var(--text-xs); color: var(--color-text-muted); }
+	/* Poussé à droite, l'ajout reste à hauteur du titre qu'il complète. */
+	.add-btn { margin-left: auto; }
+
+	.empty { margin: 0.5rem 0; }
+
+	.comments { margin-top: var(--space-8); padding-top: var(--space-5); border-top: 1px solid var(--color-border-light); }
 
 	.add-modal-content { padding: 0.9rem 1.25rem 1.25rem; }
 	.modal-hint, .modal-error { font-size: var(--text-sm); margin: 0 0 0.75rem; }
@@ -448,6 +495,8 @@
 		main { margin: 1rem auto; padding: 0 0.75rem; }
 		h1 { font-size: 1.2rem; }
 		.setlist-header { align-items: stretch; flex-direction: column; }
+		/* Le bouton d'ajout prend sa propre ligne plutôt que de serrer le titre. */
+		.add-btn { margin-left: 0; width: 100%; }
 		.song-options button { align-items: flex-start; flex-direction: column; gap: 0.2rem; }
 	}
 </style>

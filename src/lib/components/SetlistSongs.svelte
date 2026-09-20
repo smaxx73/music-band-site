@@ -5,6 +5,7 @@
 	let {
 		items,
 		editable = false,
+		surface = 'page',
 		error = null,
 		busy = false,
 		onReorder = () => {},
@@ -13,6 +14,12 @@
 		items: SetlistItemView[]
 		/** Les actions sur le programme ne sont disponibles qu'en mode édition. */
 		editable?: boolean
+		/**
+		 * Où la liste est posée : à plat sur la page, ou sur le plateau creusé d'une
+		 * boîte d'édition. Sur le plateau, une ligne transparente prendrait le fond du
+		 * plateau et se lirait comme un creux ; elle porte donc le fond de la page.
+		 */
+		surface?: 'page' | 'tray'
 		error?: string | null
 		busy?: boolean
 		onReorder?: (fromIndex: number, toIndex: number) => void
@@ -55,7 +62,7 @@
 	<p class="message-error" style="margin-bottom: 0.75rem;">{error}</p>
 {/if}
 
-<ol class="setlist">
+<ol class="setlist" class:on-tray={surface === 'tray'}>
 	{#each items as item, i (item.id)}
 		<li
 			class="item"
@@ -139,6 +146,11 @@
 	.item:hover { background: var(--color-bg-subtle); }
 	.item.drag-over { border-color: var(--color-primary); border-style: dashed; }
 
+	/* Cartes en `--color-bg` sur le plateau `--color-bg-subtle` — la même façon de
+	   poser une liste dans une boîte que les commentaires. */
+	.on-tray .item { background: var(--color-bg); }
+	.on-tray .item:hover { background: var(--color-bg-muted); }
+
 	.drag-handle { color: #ccc; cursor: grab; user-select: none; }
 	.drag-handle:active { cursor: grabbing; }
 
@@ -146,7 +158,7 @@
 		font-size: var(--text-xs);
 		color: var(--color-text-muted);
 		width: 1.5rem;
-		text-align: right;
+		text-align: center;
 		flex-shrink: 0;
 	}
 
