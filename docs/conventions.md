@@ -22,7 +22,8 @@ src/
 │       ├── MembersInput.svelte    # participants d'une session en vignettes (saisie libre)
 │       ├── CommentList.svelte     # liste de commentaires + réactions 👍/👎 (partagée) ;
 │       │                          #   commentaire courant, suivi de lecture, repli des plus anciens
-│       ├── RecordingRow.svelte     # une prise en ligne-carte (vues session et morceau)
+│       ├── RecordingRow.svelte     # une prise en ligne-carte (vues session et morceau) ;
+│       │                          #   porte le menu ⋮ de la prise
 │       ├── RecordingComments.svelte # commentaires d'une prise chargés à la demande (hors lecteur)
 │       ├── NotificationsMenu.svelte # cloche + menu des notifications (barre du haut)
 │       ├── PlaylistQueue.svelte   # file de lecture playlist

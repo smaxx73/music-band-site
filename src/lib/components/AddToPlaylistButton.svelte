@@ -4,12 +4,18 @@
 	let {
 		recordingId,
 		hasAudio,
-		label = '+ Playlist',
+		label = null,
+		open = $bindable(false),
 		buttonClass = 'btn btn-secondary btn-sm'
 	}: {
 		recordingId: number
 		hasAudio: boolean
-		label?: string
+		/** Libellé visible. `null` = icône seule, pour les grappes de commandes serrées
+		    (une ligne de prise) ; ailleurs le bouton se nomme, comme ses voisins. */
+		label?: string | null
+		/** Ouvre la modale depuis le parent — une entrée de menu, par exemple. Le
+		    panneau du menu ne peut pas l'héberger : il se démonte en se fermant. */
+		open?: boolean
 		buttonClass?: string
 	} = $props()
 
@@ -20,7 +26,6 @@
 		contains_recording: boolean
 	}
 
-	let open = $state(false)
 	let playlists = $state<Playlist[]>([])
 	let loading = $state(false)
 	let addingId = $state<number | null>(null)
@@ -34,8 +39,12 @@
 		return body.error ?? fallback
 	}
 
-	async function show() {
-		open = true
+	// L'ouverture vient du bouton ou du parent : le chargement suit l'état, pas le clic.
+	$effect(() => {
+		if (open) void loadPlaylists()
+	})
+
+	async function loadPlaylists() {
 		error = null
 		showCreate = false
 		newName = ''
@@ -106,7 +115,19 @@
 </script>
 
 {#if hasAudio}
-	<button class={buttonClass} onclick={show}>{label}</button>
+	<button
+		class="{buttonClass} playlist-add-button"
+		class:btn-icon={!label}
+		onclick={() => (open = true)}
+		title="Ajouter à une playlist"
+		aria-label={label ? undefined : 'Ajouter à une playlist'}
+	>
+		<!-- Icône standard « playlist avec ajout » : les trois pistes et le signe +. -->
+		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+			<path d="M3 6h11M3 12h11M3 18h7M18 14v6M15 17h6" />
+		</svg>
+		{#if label}<span>{label}</span>{/if}
+	</button>
 
 	{#if open}
 		<Modal title="Ajouter à une playlist" size="sm" onClose={() => (open = false)}>
@@ -159,6 +180,7 @@
 
 <style>
 	.playlist-picker { min-width: min(100%, 24rem); }
+	.playlist-add-button { gap: 0.35rem; }
 	.modal-list { list-style: none; padding: 0.35rem 0; margin: 0; max-height: 18rem; overflow-y: auto; }
 	.modal-item {
 		box-sizing: border-box; width: 100%; background: none; border: 0; padding: 0.7rem 1.25rem;

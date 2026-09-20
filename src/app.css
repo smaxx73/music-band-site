@@ -154,6 +154,24 @@ body {
   font-size: 0.8rem;
 }
 
+/* Bouton réduit à son icône. Un seul jeu de traits pour toutes : même grille de 24,
+   même épaisseur, couleur héritée du texte — un glyphe typographique ou un emoji se
+   rendraient différemment d'une plateforme à l'autre, côte à côte sur la même rangée. */
+.btn-icon {
+  min-width: 2.15rem;
+  padding-inline: 0.45rem;
+}
+
+.btn svg {
+  width: 1.1rem;
+  height: 1.1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
 /* ─── Badges ─────────────────────────────────────────── */
 .badge {
   display: inline-block;
@@ -272,6 +290,18 @@ body {
    porte chaque cellule qui en a besoin. Les pages n'ont plus qu'à ordonner leurs
    cellules (`order`) ; le passage en cartes, lui, est décrit ici une seule fois. */
 @media (max-width: 640px) {
+  /* Un bouton réduit à son icône doit rester une cible confortable au doigt : la
+     contrainte porte sur `.btn-icon`, pas sur tous les boutons de l'application. */
+  .btn-icon {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .btn-icon svg {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
   .data-table,
   .data-table tbody,
   .data-table tr,

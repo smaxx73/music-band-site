@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { player } from '$lib/player.svelte'
-	import AddToPlaylistButton from '$lib/components/AddToPlaylistButton.svelte'
 
 	let {
 		recordingId,
@@ -35,25 +34,21 @@
 	}
 </script>
 
+<!-- Écouter ici, et rien d'autre. Ouvrir le lecteur complet et ajouter à une playlist
+     sont voisins sur la ligne au-dessus de 640 px, et passent dans le menu ⋮ en dessous —
+     c'est `RecordingRow` qui arbitre, cette commande-ci ne disparaît jamais. -->
 {#if hasAudio}
-	<div class="playback-actions">
-		<button
-			class="btn btn-secondary btn-sm mini-player-button"
-			onclick={playInMiniPlayer}
-			title="Écouter dans le mini-lecteur persistant"
-			aria-label="Écouter dans le mini-lecteur persistant"
-		>▶</button>
-		<a href="/recording/{recordingId}" class="btn btn-secondary btn-sm" title="Ouvrir le lecteur complet">
-			Lecteur complet
-		</a>
-		<AddToPlaylistButton {recordingId} {hasAudio} label="+ Playlist" />
-	</div>
+	<button
+		class="btn btn-secondary btn-sm btn-icon"
+		onclick={playInMiniPlayer}
+		title="Écouter dans le mini-lecteur persistant"
+		aria-label="Écouter dans le mini-lecteur persistant"
+	>
+		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+			<path d="M6 4l14 8-14 8z" />
+		</svg>
+	</button>
 {:else}
 	<!-- Une vidéo sans piste audio se regarde uniquement sur sa page dédiée. -->
 	<a href="/recording/{recordingId}" class="btn btn-secondary btn-sm" title="Regarder la vidéo">🎬 Voir</a>
 {/if}
-
-<style>
-	.playback-actions { display: flex; gap: 0.35rem; align-items: center; }
-	.mini-player-button { min-width: 2rem; padding-inline: 0.45rem; }
-</style>

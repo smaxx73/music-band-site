@@ -330,7 +330,12 @@
 				{/if}
 			</button>
 			{#if hasAudio}
-				<AddToPlaylistButton recordingId={recording.id} {hasAudio} buttonClass="btn btn-secondary" />
+				<AddToPlaylistButton
+					recordingId={recording.id}
+					{hasAudio}
+					label="Ajouter à une playlist"
+					buttonClass="btn btn-secondary btn-sm"
+				/>
 			{/if}
 		</div>
 	</div>

@@ -168,10 +168,11 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
   `/upload?session_id=` avec la session déjà sélectionnée (ignoré si hors du groupe actif)
 - Une prise est une **ligne-carte**, pas une ligne de tableau (`RecordingRow.svelte`,
   partagé avec la vue morceau) : rang du haut pour ce qui identifie et ce qui agit
-  (n° de prise, durée, qualité, note, commentaires, écoute), rang du bas en gris pour la
-  provenance (fichier, déposant). Les rangs se replient seuls quand la place manque — il
-  n'y a plus de largeur en dessous de laquelle la page change de forme, ni de défilement
-  horizontal. Voir « Tableaux et mobile » dans docs/conventions.md
+  (n° de prise, durée, qualité, note, commentaires, écoute, et sous 640 px le menu ⋮), rang
+  du bas en gris pour la provenance (fichier, déposant). Les rangs se replient seuls quand
+  la place manque — il n'y a plus de largeur en dessous de laquelle la page change de forme,
+  ni de défilement horizontal. Voir « Commandes d'une prise » plus bas et « Tableaux et
+  mobile » dans docs/conventions.md
 - Chaque prise affiche le **nom du fichier déposé** (`recordings.source_file_name`), tronqué
   et donné en entier au survol : `file_path` vaut toujours `{id}.mp3`, unique mais muet sur
   la provenance. Les prises antérieures à la migration 023 n'ont pas de nom d'origine — il
@@ -184,9 +185,41 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
   dans le lecteur → » : une ligne dépliée ne doit pas pousser les prises suivantes hors de
   l'écran, et une vraie discussion se lit là où on peut la réécouter
 - Commenter une prise mène au lecteur (`/recording/[id]#commenter`) : « + 💬 » à la place du
-  compteur quand la prise n'a aucun commentaire, lien sous la liste dépliée sinon. Le formulaire
-  y est centré à l'écran et prend le focus — on commente mieux en réécoutant, et l'ancrage
-  au timestamp n'existe que là
+  compteur quand la prise n'a aucun commentaire — entrée du menu ⋮ sous 640 px —, et bouton
+  « 💬 Commenter dans le lecteur » en bas de la liste dépliée sinon. Ce qui clôt un tiroir
+  est une action, pas une note de bas de page : sous une liste de commentaires, commenter
+  est la suite naturelle et se voit comme telle. Le formulaire y est
+  centré à l'écran et prend le focus — on commente mieux en réécoutant, et l'ancrage au
+  timestamp n'existe que là
+
+### Commandes d'une prise, et menu ⋮ sous 640 px
+
+**Au-dessus de 640 px, toutes les commandes sont sur la ligne** : pastille 📝 (ou « + 📝 »
+en pointillés s'il n'y a pas de note), 💬 (ou « + 💬 »), écouter ▶, ouvrir le lecteur
+complet, ajouter à une playlist. La place ne manque pas, rien n'a à être caché.
+
+**Sous 640 px**, les mêmes commandes demandent 242 px de cibles tactiles là où la carte en
+offre 274 au plus : la ligne ne garde alors que ce qu'il y a **à lire** — 📝 s'il y a une
+note, 💬 s'il y a des commentaires — plus l'écoute, et un menu ⋮ recueille le reste.
+
+- **Composition stable** du menu, indépendante de ce que la prise contient déjà : ouvrir le
+  lecteur complet, ajouter à une playlist, ajouter ou modifier la note, ajouter un
+  commentaire. Un menu qui ne grouperait que les ajouts fondrait à une seule entrée sur une
+  prise déjà annotée et commentée, et vaudrait alors moins que le bouton qu'il remplace
+- Une prise **sans piste audio** n'a ni playlist ni lecteur complet dans son menu :
+  « 🎬 Voir » mène déjà à sa page, et une vidéo seule n'entre pas dans une playlist
+- Les deux jeux de commandes **coexistent dans le DOM**, l'un des deux en `display: none`
+  selon la largeur — ce qui les retire aussi de l'arbre d'accessibilité, donc rien n'est
+  annoncé deux fois. Le bouton playlist, lui, est **une seule instance** : c'est lui qui
+  porte la modale, et l'entrée de menu l'ouvre par un `bind:`
+- Le ⋮ ne porte **pas de cadre** : un menu de débordement n'est pas une commande de plus,
+  c'est l'accès au reste. Il s'assoit au bord droit de la carte, et ne prend un fond qu'au
+  survol et tant que son panneau est ouvert
+- Ferme au clic extérieur et à Échap, qui rend le focus au bouton. Les écouteurs ne sont
+  posés que pendant l'ouverture — une session affiche des dizaines de prises
+- Le groupe de commandes **ne se scinde jamais** : il rejoint le rang de l'identité quand il
+  y tient, et bascule d'un bloc au rang suivant sinon. Flexbox coupe les lignes avant de
+  rétrécir, donc l'identité n'est jamais écrasée pour garder les boutons à côté
 - Mode édition : suppression de prise, déplacement dans l'ordre du morceau, puis renumérotation persistée
 - Suppression d'une prise : réservée à celui qui l'a uploadée et aux admins du groupe.
   Le bouton n'apparaît pas aux autres membres, et l'API répond `403`
@@ -205,6 +238,7 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
 - Les prises affichent leur libellé de qualité libre, le nom du fichier déposé et leur note
 - Le compteur de commentaires déplie la liste des commentaires de la prise, sans ouvrir le
   lecteur — mêmes 5 derniers qu'en vue session, avec le renvoi vers le lecteur au-delà
+- Même menu ⋮ qu'en vue session — voir « Menu d'une prise » plus haut
 
 ## Lecteur audio (`/recording/[id]`)
 
@@ -343,13 +377,15 @@ distincte des commentaires, qui sont datés et signés.
 - Sous l'en-tête de `/recording/[id]` : cliquer la note l'ouvre en saisie, Ctrl/⌘+Entrée
   enregistre, Échap annule. Sans note, un « + 📝 Ajouter une note » discret la propose
 - `#notes` ouvre directement la saisie, focus dans la zone de texte — comme `#commenter`.
-  C'est la cible des liens « Modifier dans le lecteur → » et « + 📝 » des listes
+  C'est la cible du bouton « 📝 Modifier dans le lecteur » sous la note dépliée, du
+  « + 📝 » des listes et de l'entrée « Ajouter une note » de leur menu ⋮
 - `PATCH /api/recordings/[id]` avec `{ notes }` ; une note vide vaut `NULL`
 - Modifiable par tout membre du groupe : c'est une annotation de travail sur la prise,
   pas une parole attribuée à quelqu'un
 - Dans les listes, la note tient sur une ligne tronquée sous la prise et se déplie au clic
   (pastille 📝 ou la note elle-même). Trois mots de contexte ne valent pas un clic ; une
-  note longue, elle, ne doit pas déformer la ligne
+  note longue, elle, ne doit pas déformer la ligne. Sans note, « + 📝 » prend sa place, et
+  sous 640 px c'est l'entrée du menu ⋮ qui la propose
 - Pas de notification : une note n'annonce pas de nouveau contenu au groupe
 
 ## Édition des commentaires
