@@ -27,6 +27,7 @@
 					},
 					{ label: 'commentaires', value: `${data.deletionImpact.comments}` },
 					{ label: 'playlists', value: `${data.deletionImpact.playlists}` },
+					{ label: 'setlists', value: `${data.deletionImpact.setlists}` },
 					{ label: "événements d'agenda", value: `${data.deletionImpact.calendar_events}` }
 				]
 			: []
@@ -223,7 +224,7 @@
 					<strong>Sauvegarder</strong>
 					<p class="step-note">
 						L'archive du groupe contient ses morceaux, sessions, prises, commentaires,
-						playlists et agenda, plus le manifeste des fichiers audio (nom, taille, SHA-256).
+						playlists, setlists et agenda, plus le manifeste des fichiers audio (nom, taille, SHA-256).
 						<strong>Elle ne contient pas les mp3 eux-mêmes</strong> — copiez-les depuis
 						<code>AUDIO_DIR</code> en vous servant du manifeste si vous voulez pouvoir les rejouer.
 					</p>

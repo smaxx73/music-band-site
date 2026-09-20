@@ -124,15 +124,43 @@ CREATE TABLE recordings (
 -- Calcul du take à l'upload (dans une transaction) :
 -- SELECT COALESCE(MAX(take), 0) + 1 FROM recordings WHERE session_id = $1 AND song_id = $2;
 
+-- Une setlist est un programme : l'ordre dans lequel le groupe jouera ses morceaux.
+-- Elle vise le référentiel (`songs`), là où une playlist vise des prises précises.
+-- Le temps total ne se stocke pas : il se somme depuis songs.reference_duration_s.
+CREATE TABLE setlists (
+    id          SERIAL PRIMARY KEY,
+    group_id    INTEGER NOT NULL REFERENCES groups(id),
+    name        TEXT NOT NULL,
+    description TEXT,
+    created_by  TEXT NOT NULL,
+    created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ
+);
+
+CREATE TABLE setlist_items (
+    id          SERIAL PRIMARY KEY,
+    setlist_id  INTEGER NOT NULL REFERENCES setlists(id) ON DELETE CASCADE,
+    song_id     INTEGER NOT NULL REFERENCES songs(id)    ON DELETE CASCADE,
+    position    INTEGER NOT NULL,            -- ordre dans le programme
+    UNIQUE (setlist_id, position),
+    UNIQUE (setlist_id, song_id)             -- un morceau ne se programme qu'une fois
+);
+
+-- Un commentaire se rattache à UNE cible : une prise, ou une setlist (contrainte
+-- comments_target). Même table pour les deux : mêmes réactions, mêmes mentions,
+-- même édition — voir migration 029.
 CREATE TABLE comments (
     id           SERIAL PRIMARY KEY,
     recording_id INTEGER REFERENCES recordings(id) ON DELETE CASCADE,
+    setlist_id   INTEGER REFERENCES setlists(id)   ON DELETE CASCADE,
     author       TEXT NOT NULL,
     author_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     content      TEXT NOT NULL,
-    timestamp_s  FLOAT,                      -- null = commentaire global
+    timestamp_s  FLOAT,                      -- null = commentaire global ; toujours NULL sur une setlist
     created_at   TIMESTAMPTZ DEFAULT now(),
-    edited_at    TIMESTAMPTZ                 -- NULL = jamais modifié ; seul l'auteur modifie
+    edited_at    TIMESTAMPTZ,                -- NULL = jamais modifié ; seul l'auteur modifie
+    CONSTRAINT comments_target CHECK (num_nonnulls(recording_id, setlist_id) = 1)
 );
 
 CREATE TABLE comment_reactions (
@@ -191,7 +219,7 @@ CREATE TABLE notifications (
     id            SERIAL PRIMARY KEY,
     user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,   -- destinataire
     group_id      INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-    type          TEXT NOT NULL CHECK (type IN ('recording', 'comment', 'mention', 'session', 'playlist', 'agenda')),
+    type          TEXT NOT NULL CHECK (type IN ('recording', 'comment', 'mention', 'session', 'playlist', 'agenda', 'setlist')),
                                                  -- 'mention' : membre cité (@pseudo) dans un commentaire
     actor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                                                  -- auteur de l'action ; jamais destinataire de la sienne
@@ -203,6 +231,7 @@ CREATE TABLE notifications (
     session_id    INTEGER REFERENCES sessions(id)   ON DELETE CASCADE,
     recording_id  INTEGER REFERENCES recordings(id) ON DELETE CASCADE,
     playlist_id   INTEGER REFERENCES playlists(id)  ON DELETE CASCADE,
+    setlist_id    INTEGER REFERENCES setlists(id)   ON DELETE CASCADE,
     read_at       TIMESTAMPTZ,                   -- NULL = non lue
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -230,6 +259,9 @@ CREATE TABLE audio_imports (
 CREATE INDEX idx_songs_group_id     ON songs(group_id);
 CREATE INDEX idx_sessions_group_id  ON sessions(group_id);
 CREATE INDEX idx_playlists_group_id ON playlists(group_id);
+CREATE INDEX idx_setlists_group_id  ON setlists(group_id);
+CREATE INDEX idx_setlist_items_setlist ON setlist_items(setlist_id, position);
+CREATE INDEX idx_comments_setlist   ON comments(setlist_id) WHERE setlist_id IS NOT NULL;
 CREATE INDEX idx_user_groups_user   ON user_groups(user_id);
 CREATE INDEX idx_user_groups_group  ON user_groups(group_id);
 CREATE INDEX idx_recordings_file_hash ON recordings(file_hash);

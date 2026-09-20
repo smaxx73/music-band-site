@@ -39,7 +39,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 	}
 
 	const [comments, peaksData, siblings, groupMembers] = await Promise.all([
-		commentsWithReactions(id, locals.user.id),
+		commentsWithReactions({ kind: 'recording', id }, locals.user.id),
 		// Une prise vidéo seule n'a pas de fichier, donc pas de forme d'onde.
 		recording.file_path
 			? loadPeaks(id, recording.file_path as string)

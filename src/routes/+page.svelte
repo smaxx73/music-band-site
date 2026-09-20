@@ -15,14 +15,18 @@
 	type PlaylistRow = { id: number; name: string; item_count: number; updated_at: string }
 	type Stats = { session_count: number; recording_count: number; playlist_count: number }
 	type NextEvent = { id: number; date: string; type: string; title: string | null; notes: string | null }
+	type SetlistRow = { id: number; name: string; created_at: string; created_by: string }
+	// Un commentaire porte sur une prise OU sur une setlist : l'une des deux paires est nulle.
 	type RecentComment = {
-		id: number; author: string; content: string
-		created_at: string; recording_id: number; song_title: string
+		id: number; author: string; content: string; created_at: string
+		recording_id: number | null; song_title: string | null
+		setlist_id: number | null; setlist_name: string | null
 	}
 
 	const upcomingItems = $derived(data.upcomingItems as unknown as UpcomingItem[])
 	const sessions = $derived(data.sessions as unknown as SessionRow[])
 	const playlists = $derived(data.playlists as unknown as PlaylistRow[])
+	const setlists = $derived((data.setlists ?? []) as unknown as SetlistRow[])
 	const stats = $derived(data.stats as Stats | null)
 	const nextEvent = $derived(data.nextEvent as NextEvent | null)
 	const recentComments = $derived((data.recentComments ?? []) as unknown as RecentComment[])
@@ -86,8 +90,8 @@
 		return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean
 	}
 
-	// Activity timeline derived from sessions + playlists + comments
-	type ActivityKind = 'session' | 'playlist' | 'comment'
+	// Activity timeline derived from sessions + playlists + setlists + comments
+	type ActivityKind = 'session' | 'playlist' | 'setlist' | 'comment'
 	type ActivityItem = {
 		kind: ActivityKind; ts: number; date: string; label: string; detail: string
 		color: string; href?: string
@@ -121,15 +125,31 @@
 			}
 		}
 
+		// Une setlist créée annonce ce que le groupe prépare : elle a sa place ici, au
+		// même titre qu'une session. Sa modification, elle, ne dit rien de plus.
+		for (const sl of setlists) {
+			items.push({
+				kind: 'setlist',
+				ts: new Date(sl.created_at).getTime(),
+				date: formatShortDate(sl.created_at),
+				label: `▤ Setlist créée — ${sl.created_by}`,
+				detail: sl.name,
+				color: 'var(--color-mid)',
+				href: `/setlists/${sl.id}`,
+			})
+		}
+
 		for (const c of recentComments) {
+			// Le commentaire mène là où il a été écrit : la prise, ou la setlist.
+			const onSetlist = c.setlist_id !== null
 			items.push({
 				kind: 'comment',
 				ts: new Date(c.created_at).getTime(),
 				date: formatShortDate(c.created_at),
-				label: `💬 ${c.author} — ${c.song_title}`,
+				label: `💬 ${c.author} — ${onSetlist ? c.setlist_name : c.song_title}`,
 				detail: truncate(c.content),
 				color: 'var(--color-green)',
-				href: `/recording/${c.recording_id}`,
+				href: onSetlist ? `/setlists/${c.setlist_id}` : `/recording/${c.recording_id}`,
 			})
 		}
 
@@ -144,6 +164,7 @@
 		{ value: 'all', label: 'Toutes' },
 		{ value: 'session', label: 'Sessions' },
 		{ value: 'playlist', label: 'Playlists' },
+		{ value: 'setlist', label: 'Setlists' },
 		{ value: 'comment', label: 'Commentaires' },
 	]
 

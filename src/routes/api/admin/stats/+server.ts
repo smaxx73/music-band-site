@@ -24,9 +24,12 @@ export const GET: RequestHandler = async ({ locals }) => {
 				(SELECT COUNT(*)::int FROM sessions  WHERE group_id = ${groupId}) AS sessions,
 				(SELECT COUNT(*)::int FROM recordings r
 				 JOIN sessions s ON s.id = r.session_id WHERE s.group_id = ${groupId}) AS recordings,
+				-- Les commentaires du groupe : ceux de ses prises comme ceux de ses setlists.
 				(SELECT COUNT(*)::int FROM comments c
-				 JOIN recordings r ON r.id = c.recording_id
-				 JOIN sessions s   ON s.id = r.session_id WHERE s.group_id = ${groupId}) AS comments,
+				 LEFT JOIN recordings r ON r.id = c.recording_id
+				 LEFT JOIN sessions s   ON s.id = r.session_id
+				 LEFT JOIN setlists sl  ON sl.id = c.setlist_id
+				 WHERE s.group_id = ${groupId} OR sl.group_id = ${groupId}) AS comments,
 				(SELECT COUNT(*)::int FROM playlists  WHERE group_id = ${groupId}) AS playlists
 		`
 		: await sql`

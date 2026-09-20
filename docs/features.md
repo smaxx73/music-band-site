@@ -272,7 +272,7 @@ note, 💬 s'il y a des commentaires — plus l'écoute, et un menu ⋮ recueill
 ## Partager un lien vers du contenu
 
 Toutes les pages de contenu sont des permaliens (`/recording/12`, `/sessions/4`, `/songs/7`,
-`/playlists/3`). Trois choses les rendaient inutilisables dès qu'on les envoyait à quelqu'un.
+`/playlists/3`, `/setlists/5`). Trois choses les rendaient inutilisables dès qu'on les envoyait à quelqu'un.
 
 - **La destination survit à la connexion.** Un lien reçu s'ouvre presque toujours sur une
   session expirée : la page visée est mise de côté dans `?redirectTo=` avant la redirection
@@ -459,6 +459,63 @@ distincte des commentaires, qui sont datés et signés.
   quitter le contexte, et empêche les doublons ; une nouvelle playlist et sa première prise sont
   créées dans la même transaction
 
+## Setlists (`/setlists`, `/setlists/[id]`)
+
+Le programme d'un concert ou d'une répétition : des **morceaux** du référentiel dans
+l'ordre où on les jouera. C'est ce qui la sépare d'une playlist — celle-ci vise des
+**prises** précises, pour réécouter ce qui a été enregistré. On ne programme pas la
+prise du 12 mars, on programme « Sunny », et le jour venu on la jouera.
+
+- Une setlist porte un **nom**, une **description**, sa **date de création** et son auteur,
+  une **liste de morceaux ordonnée**, un **temps total**, et son propre espace de commentaires
+- Créée par tout membre du groupe actif depuis `/setlists` ; nom, description et programme
+  se modifient ensuite par tout membre, comme le reste du contenu du groupe
+- **Suppression** réservée à son auteur et aux admins du groupe (`canDeleteGroupContent`) :
+  le bouton n'apparaît pas aux autres et l'API répond `403`. Elle emporte le programme et
+  les commentaires de la setlist, jamais les morceaux du référentiel
+- Un **morceau ne figure qu'une fois** par setlist (`UNIQUE (setlist_id, song_id)`) : le
+  sélecteur d'ajout marque ceux déjà programmés, et l'API répond `409`. Les morceaux
+  `abandonne` ne sont pas proposés — comme au dépôt d'une prise
+
+### Ordre et temps total
+
+- L'ordre se change **au glisser-déposer** et **aux flèches ↑ / ↓**. Les flèches ne
+  doublent pas le glisser : elles le remplacent au doigt, le drag HTML5 n'existant pas sur
+  écran tactile — et une setlist se réordonne surtout depuis un téléphone, en répétition.
+  Sous 640 px, la poignée disparaît plutôt que de promettre ce qu'elle ne fait pas
+- Chaque changement d'ordre est persisté par `PATCH /api/setlists/[id]/items`, qui réécrit
+  tout le programme dans une transaction. Les positions passent d'abord en négatif : sans
+  cela, `UNIQUE (setlist_id, position)` refuserait les états intermédiaires. Même règle
+  au retrait d'un morceau, qui réindexe 1, 2, 3… sans trou
+- Le **temps total** ne se stocke pas : il se somme à la lecture depuis
+  `songs.reference_duration_s`. Le stocker obligerait à le recalculer à chaque durée de
+  référence modifiée dans `/songs`, et il serait faux entre-temps
+- Les morceaux sans durée de référence sont **comptés à part**, pas pour zéro : le total
+  s'affiche alors précédé de « ≈ », et un renvoi vers `/songs` dit où renseigner ce qui
+  manque. Un total muet sur ce qu'il ignore se lirait comme un total exact
+
+### Commentaires d'une setlist
+
+- Même espace de commentaires que celui d'une prise, même composant (`CommentsPanel`) :
+  réactions 👍/👎, mentions `@pseudo`, édition par l'auteur, liens et vidéos YouTube
+- Une seule table : `comments` porte soit `recording_id`, soit `setlist_id`, jamais les
+  deux (contrainte `comments_target`, migration 029). Une seconde table aurait dupliqué
+  les réactions, les mentions et l'édition pour n'en tirer aucune différence de fond
+- **Pas de repère** : une setlist ne se lit pas, il n'y a pas de position où ancrer un
+  commentaire. `timestamp_s` y reste `NULL`, l'édition ne propose pas d'ancrage, et l'API
+  refuse un `timestamp_s` sur une setlist
+- Les commentaires disparaissent avec la setlist qu'ils discutent (`ON DELETE CASCADE`)
+
+### Partage et notifications
+
+- `/setlists/[id]` est un permalien comme les autres : la destination survit à la connexion,
+  et un lien reçu visant un autre de ses groupes bascule le groupe actif — voir
+  « Partager un lien vers du contenu »
+- Une notification `setlist` à la création, une notification `comment` (ou `mention`) par
+  commentaire, pour tous les membres sauf l'auteur
+- Le tableau de bord reprend les setlists créées et leurs commentaires dans son flux
+  d'actualité — voir « Tableau de bord »
+
 ## Référentiel de morceaux (`/songs`)
 
 - Géré par tout membre du groupe actif (pas réservé aux admins) — scope toujours par `current_group_id`
@@ -566,10 +623,10 @@ distincte des commentaires, qui sont datés et signés.
 - Cloche dans la barre du haut, avec pastille du nombre de non lues du **groupe actif**
 - Une notification est créée pour **chaque membre du groupe sauf l'auteur de l'action**, au
   moment de l'action (`src/lib/server/notifications.ts` → `notifyGroup`)
-- Cinq déclencheurs, un par création : prise uploadée (`recording`), commentaire (`comment`),
-  session (`session`), playlist (`playlist`), événement d'agenda (`agenda`, indisponibilité
-  comprise). Une session crée déjà sa notification : l'événement d'agenda qu'elle génère
-  n'en crée pas une seconde
+- Six déclencheurs, un par création : prise uploadée (`recording`), commentaire (`comment`),
+  session (`session`), playlist (`playlist`), setlist (`setlist`), événement d'agenda
+  (`agenda`, indisponibilité comprise). Une session crée déjà sa notification : l'événement
+  d'agenda qu'elle génère n'en crée pas une seconde
 - **Mentions** (`mention`) : un membre cité par `@pseudo` dans un commentaire reçoit « t'a
   mentionné » **à la place** du « a commenté » générique, pas en plus (`notifyMentions`).
   Pseudo comparé sans casse, ponctuation finale ignorée (« @marc, »), membres actifs du
@@ -583,7 +640,7 @@ distincte des commentaires, qui sont datés et signés.
 - Le nom de l'auteur est relu depuis `users` (`actor_name` n'est qu'un repli) : un changement
   de nom affiché se répercute sur l'historique, comme pour les commentaires
 - Une notification disparaît avec le contenu qu'elle annonce (`session_id`, `recording_id`,
-  `playlist_id` en `ON DELETE CASCADE`) plutôt que de pointer vers une page supprimée
+  `playlist_id`, `setlist_id` en `ON DELETE CASCADE`) plutôt que de pointer vers une page supprimée
 - La pastille est comptée côté serveur dans `+layout.server.ts` — juste dès le premier rendu —
   puis rafraîchie par le menu toutes les 60 s tant qu'il reste fermé
 - Le menu est lié au groupe pour lequel il a été rendu : recréé à chaque bascule, et si un
@@ -593,7 +650,12 @@ distincte des commentaires, qui sont datés et signés.
 ## Tableau de bord (`/`)
 
 - Colonne gauche : 5 dernières sessions (date, morceaux travaillés en résumé)
-- Colonne droite : flux d'actualité (sessions, playlists modifiées et **derniers commentaires**,
-  triés par horodatage décroissant, chaque entrée renvoyant vers la page concernée),
-  puis playlists triées par date de modification
+- Colonne droite : flux d'actualité (sessions, playlists modifiées, **setlists créées** et
+  **derniers commentaires**, triés par horodatage décroissant, chaque entrée renvoyant vers la
+  page concernée), puis playlists triées par date de modification
+- Un commentaire y mène là où il a été écrit : la prise, ou la setlist. La requête part de
+  `comments` et rejoint les deux cibles — c'est la cible qui dit à quel groupe il appartient
+- Une setlist y figure à sa **création** : elle annonce ce que le groupe prépare. Sa
+  modification, elle, n'apprend rien de plus au reste du groupe
+- Le filtre du flux propose « Toutes / Sessions / Playlists / Setlists / Commentaires »
 - Bouton [+ Uploader] toujours visible en haut

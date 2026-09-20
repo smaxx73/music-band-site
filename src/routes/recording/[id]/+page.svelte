@@ -381,7 +381,7 @@
 	</div>
 
 	<CommentsPanel
-		recordingId={recording.id}
+		thread={{ kind: 'recording', id: recording.id }}
 		comments={comments}
 		members={groupMembers}
 		currentTime={playerState.currentTime}

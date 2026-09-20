@@ -1,17 +1,19 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import sql from '$lib/server/db'
-import { reactionSummary } from '$lib/server/comments'
+import { commentThread, findCommentThread, reactionSummary } from '$lib/server/comments'
 
-/** Vérifie que le commentaire existe et appartient bien au groupe actif. */
+/**
+ * Vérifie que le commentaire existe et que sa cible — prise ou setlist —
+ * appartient bien au groupe actif.
+ */
 async function findComment(commentId: number, groupId: number) {
-	const [row] = await sql<{ id: number }[]>`
-		SELECT c.id FROM comments c
-		JOIN recordings r ON r.id = c.recording_id
-		JOIN sessions ses ON ses.id = r.session_id
-		WHERE c.id = ${commentId} AND ses.group_id = ${groupId}
+	const [row] = await sql<{ id: number; recording_id: number | null; setlist_id: number | null }[]>`
+		SELECT id, recording_id, setlist_id FROM comments WHERE id = ${commentId}
 	`
-	return row ?? null
+	if (!row) return null
+	const target = await findCommentThread(commentThread(row), groupId)
+	return target ? row : null
 }
 
 export const POST: RequestHandler = async ({ locals, params, request }) => {

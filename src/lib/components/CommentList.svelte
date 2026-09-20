@@ -3,10 +3,10 @@
 	import { page } from '$app/state'
 	import { formatTimecode, parseTimecode } from '$lib/youtube'
 	import { formatDateTime, formatDateTimeFull } from '$lib/date'
-	import { canEditComment } from '$lib/types'
+	import { canEditComment, threadHref } from '$lib/types'
 	import { commentParts, commentVideos } from '$lib/comment-content'
 	import YouTubeEmbed from '$lib/components/YouTubeEmbed.svelte'
-	import type { CommentWithReactions, ReactionValue } from '$lib/types'
+	import type { CommentThread, CommentWithReactions, ReactionValue } from '$lib/types'
 
 	type ReactionState = {
 		up_count: number
@@ -18,7 +18,7 @@
 
 	let {
 		comments,
-		recordingId = null,
+		thread = null,
 		onSeek = null,
 		compact = false,
 		currentTime = null,
@@ -30,8 +30,11 @@
 		onCommentsChange = () => {}
 	}: {
 		comments: CommentWithReactions[]
-		/** Prise à laquelle ces commentaires appartiennent : donne son lien à chacun. */
-		recordingId?: number | null
+		/**
+		 * Discussion à laquelle ces commentaires appartiennent — prise ou setlist :
+		 * donne son lien à chacun, et dit si un repère de lecture a un sens ici.
+		 */
+		thread?: CommentThread | null
 		/** Fourni uniquement quand un lecteur est monté : rend les timestamps cliquables. */
 		onSeek?: ((seconds: number) => void) | null
 		compact?: boolean
@@ -167,8 +170,8 @@
 	let copiedCommentId = $state<number | null>(null)
 
 	async function copyCommentLink(comment: CommentWithReactions) {
-		if (recordingId === null) return
-		const target = new URL(`/recording/${recordingId}`, location.origin)
+		if (thread === null) return
+		const target = new URL(threadHref(thread), location.origin)
 		if (comment.timestamp_s !== null && comment.timestamp_s !== undefined) {
 			target.searchParams.set('t', String(Math.floor(comment.timestamp_s)))
 		}
@@ -335,6 +338,7 @@
 						disabled={saving}
 							onkeydown={(e) => onEditKeydown(e, comment)}
 						></textarea>
+					{#if thread?.kind !== 'setlist'}
 					<div class="timestamp-editor">
 						<label for="comment-timestamp-{comment.id}">Repère dans la prise</label>
 						<input
@@ -357,6 +361,7 @@
 							>Supprimer le timestamp</button>
 						{/if}
 					</div>
+					{/if}
 					<div class="edit-actions">
 						<button class="btn btn-primary btn-sm" disabled={saving} onclick={() => saveEdit(comment)}>
 							{saving ? 'Enregistrement…' : 'Enregistrer'}
@@ -428,7 +433,7 @@
 				{#if reactionError[comment.id]}
 					<span class="reaction-error">{reactionError[comment.id]}</span>
 				{/if}
-				{#if recordingId !== null}
+				{#if thread !== null}
 					<button
 						class="link-copy"
 						title="Copier le lien vers ce commentaire"

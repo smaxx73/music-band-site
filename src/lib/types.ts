@@ -216,9 +216,28 @@ export type RecordingListItem = Pick<
 	comment_count: number
 }
 
+/**
+ * Ce à quoi une discussion se rattache. Une prise — le cas d'origine, avec ses repères
+ * de lecture — ou une setlist, qui se discute sans qu'il y ait rien à écouter.
+ * Les deux vivent dans la même table : mêmes réactions, mêmes mentions, même édition.
+ */
+export type CommentThread = { kind: 'recording' | 'setlist'; id: number }
+
+/** Page qui porte la discussion : c'est le lien d'un commentaire qu'on partage. */
+export function threadHref(thread: CommentThread): string {
+	return thread.kind === 'recording' ? `/recording/${thread.id}` : `/setlists/${thread.id}`
+}
+
+/** Colonne — et donc champ d'API — qui nomme la cible dans `/api/comments`. */
+export function threadParam(thread: CommentThread): 'recording_id' | 'setlist_id' {
+	return thread.kind === 'recording' ? 'recording_id' : 'setlist_id'
+}
+
 export type Comment = {
 	id: number
-	recording_id: number
+	/** Exactement l'un des deux est renseigné (contrainte `comments_target`). */
+	recording_id: number | null
+	setlist_id: number | null
 	author: string
 	author_user_id: number | null
 	content: string
@@ -265,6 +284,74 @@ export type PlaylistItem = {
 	note: string | null
 }
 
+/**
+ * Programme d'un concert ou d'une répétition : des morceaux du référentiel dans un
+ * ordre voulu. Une playlist vise des prises à réécouter, une setlist des morceaux à jouer.
+ */
+export type Setlist = {
+	id: number
+	group_id: number
+	name: string
+	description: string | null
+	created_by: string
+	created_by_user_id: number | null
+	created_at: Date
+	updated_at: Date | null
+}
+
+export type SetlistItem = {
+	id: number
+	setlist_id: number
+	song_id: number
+	position: number
+}
+
+/** Une ligne de setlist telle qu'elle s'affiche : l'item, plus son morceau. */
+export type SetlistItemView = SetlistItem & {
+	song_title: string
+	song_composer: string | null
+	song_key: string | null
+	song_status: SongStatus
+	/** Durée de référence du morceau — `null` tant que personne ne l'a renseignée. */
+	reference_duration_s: number | null
+}
+
+/**
+ * Temps total d'une setlist : la somme des durées de référence connues. Les morceaux
+ * qui n'en ont pas sont comptés à part plutôt que pour zéro — un total muet sur ce
+ * qu'il ignore se lirait comme un total exact.
+ */
+export function setlistDuration(items: Pick<SetlistItemView, 'reference_duration_s'>[]): {
+	total_s: number
+	missing: number
+} {
+	let total_s = 0
+	let missing = 0
+	for (const item of items) {
+		if (item.reference_duration_s == null) missing += 1
+		else total_s += item.reference_duration_s
+	}
+	return { total_s, missing }
+}
+
+/** « 1 h 12 » / « 42 min » : une durée de programme se lit en minutes, pas en mm:ss. */
+export function formatDurationLong(seconds: number): string {
+	const total = Math.max(0, Math.round(seconds))
+	const hours = Math.floor(total / 3600)
+	const minutes = Math.round((total % 3600) / 60)
+	if (hours === 0) return `${minutes} min`
+	return minutes === 0 ? `${hours} h` : `${hours} h ${String(minutes).padStart(2, '0')}`
+}
+
+/**
+ * « 42 min », précédé de « ≈ » dès qu'une durée manque : le total est alors un
+ * plancher, et le signe le dit sans avoir à détailler ce qui manque.
+ */
+export function formatSetlistDuration(total: { total_s: number; missing: number }): string {
+	if (total.total_s === 0) return total.missing > 0 ? 'durée inconnue' : '—'
+	return `${total.missing > 0 ? '≈ ' : ''}${formatDurationLong(total.total_s)}`
+}
+
 export type CalendarEventType = 'indisponibilite' | 'repetition' | 'concert'
 
 export type CalendarEvent = {
@@ -282,7 +369,8 @@ export type CalendarEvent = {
 
 // ─── Notifications d'activité ─────────────────────────────────────────────
 
-export type NotificationType = 'recording' | 'comment' | 'mention' | 'session' | 'playlist' | 'agenda'
+export type NotificationType =
+	| 'recording' | 'comment' | 'mention' | 'session' | 'playlist' | 'agenda' | 'setlist'
 
 // Une notification appartient à un destinataire précis : il n'y a pas de droit à
 // vérifier au-delà de `user_id`, mais l'affichage reste filtré par groupe actif.
@@ -312,6 +400,7 @@ export function notificationLabel(type: NotificationType): string {
 		case 'session': return 'a créé une session'
 		case 'playlist': return 'a créé la playlist'
 		case 'agenda': return 'a ajouté un événement'
+		case 'setlist': return 'a créé la setlist'
 	}
 }
 
@@ -323,6 +412,7 @@ export function notificationIcon(type: NotificationType): string {
 		case 'session': return '◎'
 		case 'playlist': return '≡'
 		case 'agenda': return '◻'
+		case 'setlist': return '▤'
 	}
 }
 

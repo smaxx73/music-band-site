@@ -9,10 +9,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const groupId = locals.user.current_group_id
 
 	if (!groupId) {
-		return { upcomingItems: [], sessions: [], playlists: [], stats: null, nextEvent: null, recentComments: [] }
+		return {
+			upcomingItems: [], sessions: [], playlists: [], setlists: [],
+			stats: null, nextEvent: null, recentComments: []
+		}
 	}
 
-	const [upcomingSessions, upcomingGroupEvents, sessions, playlists, statsRows, nextEventRows, recentComments] = await Promise.all([
+	const [
+		upcomingSessions, upcomingGroupEvents, sessions, playlists, setlists,
+		statsRows, nextEventRows, recentComments
+	] = await Promise.all([
 		sql`
 			SELECT
 				s.id, s.date, s.location, s.members,
@@ -62,6 +68,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 			GROUP BY p.id
 			ORDER BY p.updated_at DESC NULLS LAST, p.created_at DESC
 		`,
+		// Les dernières setlists créées, pour l'actualité : une setlist annonce ce que le
+		// groupe prépare, au même titre qu'une session ou une playlist.
+		sql`
+			SELECT
+				sl.id, sl.name, sl.created_at,
+				COALESCE(u.display_name, sl.created_by) AS created_by
+			FROM setlists sl
+			LEFT JOIN users u ON u.id = sl.created_by_user_id
+			WHERE sl.group_id = ${groupId}
+			ORDER BY sl.created_at DESC
+			LIMIT 3
+		`,
 		sql`
 			SELECT
 				(SELECT COUNT(*)::int FROM sessions    WHERE group_id = ${groupId})                                                    AS session_count,
@@ -80,17 +98,22 @@ export const load: PageServerLoad = async ({ locals }) => {
 			ORDER BY date ASC
 			LIMIT 1
 		`,
+		// Les derniers commentaires du groupe, sur une prise comme sur une setlist :
+		// c'est la cible qui dit à quel groupe le commentaire appartient.
 		sql`
 			SELECT
 				c.id, COALESCE(u.display_name, c.author) AS author, c.content, c.created_at,
 				r.id     AS recording_id,
-				so.title AS song_title
+				so.title AS song_title,
+				sl.id    AS setlist_id,
+				sl.name  AS setlist_name
 			FROM comments c
-			JOIN recordings r ON r.id = c.recording_id
-			JOIN sessions ses ON ses.id = r.session_id
-			JOIN songs so     ON so.id = r.song_id
-			LEFT JOIN users u ON u.id = c.author_user_id
-			WHERE ses.group_id = ${groupId}
+			LEFT JOIN recordings r ON r.id = c.recording_id
+			LEFT JOIN sessions ses ON ses.id = r.session_id
+			LEFT JOIN songs so     ON so.id = r.song_id
+			LEFT JOIN setlists sl  ON sl.id = c.setlist_id
+			LEFT JOIN users u      ON u.id = c.author_user_id
+			WHERE ses.group_id = ${groupId} OR sl.group_id = ${groupId}
 			ORDER BY c.created_at DESC
 			LIMIT 5
 		`,
@@ -122,6 +145,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		upcomingItems,
 		sessions,
 		playlists,
+		setlists,
 		stats: statsRows[0] ?? null,
 		nextEvent: nextEventRows[0] ?? null,
 		recentComments,

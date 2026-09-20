@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import sql from '$lib/server/db'
-import { reactionSummary } from '$lib/server/comments'
+import { commentThread, findCommentThread, reactionSummary } from '$lib/server/comments'
 import { canEditComment } from '$lib/types'
 import { notifyMentions } from '$lib/server/notifications'
 
@@ -35,19 +35,30 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		return json({ error: 'Aucune modification à enregistrer.' }, { status: 400 })
 	}
 
+	// La cible est relue d'abord, puis vérifiée dans le groupe actif : c'est elle qui
+	// dit à quel groupe le commentaire appartient, prise ou setlist.
 	const [existing] = await sql<{
-		id: number; author_user_id: number | null; recording_id: number; content: string; song_title: string
+		id: number
+		author_user_id: number | null
+		recording_id: number | null
+		setlist_id: number | null
+		content: string
 	}[]>`
-		SELECT c.id, c.author_user_id, c.recording_id, c.content, so.title AS song_title
-		FROM comments c
-		JOIN recordings r ON r.id = c.recording_id
-		JOIN sessions ses ON ses.id = r.session_id
-		JOIN songs so     ON so.id = r.song_id
-		WHERE c.id = ${commentId} AND ses.group_id = ${locals.user.current_group_id}
+		SELECT id, author_user_id, recording_id, setlist_id, content
+		FROM comments WHERE id = ${commentId}
 	`
 	if (!existing) return json({ error: 'Commentaire introuvable.' }, { status: 404 })
+
+	const thread = commentThread(existing)
+	const target = await findCommentThread(thread, locals.user.current_group_id)
+	if (!target) return json({ error: 'Commentaire introuvable.' }, { status: 404 })
+
 	if (!canEditComment(locals.user, existing.author_user_id)) {
 		return json({ error: "Seul l'auteur peut modifier ce commentaire." }, { status: 403 })
+	}
+	// Une setlist n'a pas de lecture : son commentaire ne s'ancre nulle part.
+	if (thread.kind === 'setlist' && typeof timestampS === 'number') {
+		return json({ error: "Un commentaire de setlist n'a pas de repère." }, { status: 400 })
 	}
 
 	const nextContent = hasContent ? (content as string).trim() : existing.content
@@ -57,13 +68,13 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			UPDATE comments
 			SET content = ${nextContent}, timestamp_s = ${nextTimestamp}, edited_at = now()
 			WHERE id = ${commentId}
-			RETURNING id, recording_id, author_user_id, content, timestamp_s, created_at, edited_at
+			RETURNING id, recording_id, setlist_id, author_user_id, content, timestamp_s, created_at, edited_at
 		`
 		: await sql`
 			UPDATE comments
 			SET content = ${nextContent}, edited_at = now()
 			WHERE id = ${commentId}
-			RETURNING id, recording_id, author_user_id, content, timestamp_s, created_at, edited_at
+			RETURNING id, recording_id, setlist_id, author_user_id, content, timestamp_s, created_at, edited_at
 		`
 
 	// La modification n'annonce pas un nouveau contenu au groupe. Seule exception : un
@@ -73,10 +84,11 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			{
 				groupId: locals.user.current_group_id,
 				actor: locals.user,
-				subject: existing.song_title,
+				subject: target.subject,
 				excerpt: nextContent,
-				link: `/recording/${existing.recording_id}`,
-				recordingId: existing.recording_id
+				link: target.link,
+				recordingId: existing.recording_id,
+				setlistId: existing.setlist_id
 			},
 			nextContent,
 			existing.content

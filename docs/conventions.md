@@ -12,6 +12,8 @@ src/
 │   │   ├── upload-stream.ts # réception multipart d'un fichier audio (prise ou import)
 │   │   ├── imports.ts     # zone de transit des outils audio d'après upload
 │   │   ├── youtube.ts     # vidéo YouTube d'une prise : lien, oEmbed, doublon
+│   │   ├── setlists.ts    # lecture des setlists et de leur programme (durée sommée)
+│   │   ├── comments.ts    # commentaires d'une cible (prise ou setlist) + réactions
 │   │   └── notifications.ts # écriture (fan-out) et lecture des notifications
 │   └── components/
 │       ├── AudioPlayer.svelte     # lecteur WaveSurfer.js
@@ -27,6 +29,7 @@ src/
 │       ├── RecordingComments.svelte # commentaires d'une prise chargés à la demande (hors lecteur)
 │       ├── NotificationsMenu.svelte # cloche + menu des notifications (barre du haut)
 │       ├── PlaylistQueue.svelte   # file de lecture playlist
+│       ├── SetlistSongs.svelte    # programme d'une setlist : ordre (glisser + ↑↓), retrait
 │       ├── SessionEditor.svelte   # édition des métadonnées de session
 │       └── SongDetails.svelte     # paroles et notes musicales
 ├── routes/
@@ -37,6 +40,8 @@ src/
 │   ├── songs/[id]/+page.svelte
 │   ├── recording/[id]/+page.svelte
 │   ├── playlists/[id]/+page.svelte
+│   ├── setlists/+page.svelte
+│   ├── setlists/[id]/+page.svelte
 │   ├── upload/+page.svelte
 │   ├── upload/decoupe/[id]/+page.svelte  # découpe d'un import sur les blancs
 │   └── api/               # voir src/routes/api/CLAUDE.md
@@ -124,5 +129,10 @@ de fenêtre.
 - Vue session = requête sur `recordings` groupée par `song_id`
 - Vue morceau = requête sur `recordings` filtrée par `song_id`, toutes sessions
 - Une playlist pointe vers des `recordings` spécifiques (pas des morceaux)
+- Une setlist, elle, pointe vers des `songs` : c'est un programme à jouer, pas des prises
+  à réécouter. Son temps total n'est pas stocké, il se somme depuis
+  `songs.reference_duration_s` — voir « Setlists » dans docs/features.md
+- Un commentaire porte sur une prise **ou** sur une setlist (contrainte `comments_target`) :
+  c'est sa cible qui dit à quel groupe il appartient, et donc qui a le droit de le lire
 - Le `take` est toujours calculé automatiquement — jamais saisi manuellement
 - Les entités métier visibles sont filtrées par `current_group_id`, sauf les indisponibilités personnelles qui sont filtrées par appartenance utilisateur au groupe actif

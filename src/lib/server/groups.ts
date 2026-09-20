@@ -343,6 +343,7 @@ export type GroupDeletionImpact = {
 	recordings: number
 	comments: number
 	playlists: number
+	setlists: number
 	calendar_events: number
 	audio_bytes: number
 }
@@ -358,6 +359,7 @@ export async function groupDeletionImpact(groupId: number): Promise<GroupDeletio
 			recordings: number
 			comments: number
 			playlists: number
+			setlists: number
 			calendar_events: number
 		}[]
 	>`
@@ -367,15 +369,17 @@ export async function groupDeletionImpact(groupId: number): Promise<GroupDeletio
 			(SELECT COUNT(*)::int FROM sessions        WHERE group_id = ${groupId}) AS sessions,
 			(SELECT COUNT(*)::int FROM calendar_events WHERE group_id = ${groupId}) AS calendar_events,
 			(SELECT COUNT(*)::int FROM playlists       WHERE group_id = ${groupId}) AS playlists,
+			(SELECT COUNT(*)::int FROM setlists        WHERE group_id = ${groupId}) AS setlists,
 			(SELECT COUNT(*)::int
 			   FROM recordings r
 			   JOIN sessions s ON s.id = r.session_id
 			  WHERE s.group_id = ${groupId}) AS recordings,
 			(SELECT COUNT(*)::int
 			   FROM comments c
-			   JOIN recordings r ON r.id = c.recording_id
-			   JOIN sessions s   ON s.id = r.session_id
-			  WHERE s.group_id = ${groupId}) AS comments
+			   LEFT JOIN recordings r ON r.id = c.recording_id
+			   LEFT JOIN sessions s   ON s.id = r.session_id
+			   LEFT JOIN setlists sl  ON sl.id = c.setlist_id
+			  WHERE s.group_id = ${groupId} OR sl.group_id = ${groupId}) AS comments
 	`
 
 	const recordingIds = await groupAudioRecordingIds(groupId)
@@ -427,11 +431,13 @@ export async function deleteGroup(
 	const impact = await groupDeletionImpact(groupId)
 	const recordingIds = await groupAudioRecordingIds(groupId)
 
-	// songs, sessions et playlists référencent groups sans ON DELETE : l'ordre est
+	// songs, sessions, playlists et setlists référencent groups sans ON DELETE : l'ordre est
 	// explicite plutôt que délégué à des cascades, pour que rien ne parte par accident
 	// depuis un autre chemin de suppression.
 	await sql.begin(async (tx) => {
 		await tx`DELETE FROM playlists WHERE group_id = ${groupId}`
+		// Les morceaux programmés et les commentaires de setlist tombent avec elles.
+		await tx`DELETE FROM setlists WHERE group_id = ${groupId}`
 		await tx`DELETE FROM calendar_events WHERE group_id = ${groupId}`
 		// Les prises tombent en cascade avec leurs sessions, entraînant commentaires,
 		// réactions et entrées de playlist. Les morceaux ne partent qu'ensuite,
@@ -471,6 +477,8 @@ export type GroupArchive = {
 	comments: Record<string, unknown>[]
 	playlists: Record<string, unknown>[]
 	playlist_items: Record<string, unknown>[]
+	setlists: Record<string, unknown>[]
+	setlist_items: Record<string, unknown>[]
 	calendar_events: Record<string, unknown>[]
 	// Contrairement aux mp3, le logo est assez petit (2 Mo max) pour voyager dans l'archive.
 	logo: { mime_type: string; updated_at: Date; base64: string } | null
@@ -492,7 +500,10 @@ export async function exportGroup(
 	`
 	if (!group) return fail(404, 'Groupe introuvable.')
 
-	const [members, songs, sessions, recordings, comments, playlists, playlistItems, calendarEvents, logos] =
+	const [
+		members, songs, sessions, recordings, comments,
+		playlists, playlistItems, setlists, setlistItems, calendarEvents, logos
+	] =
 		await Promise.all([
 			// Jamais password_hash : l'archive peut circuler hors de l'application.
 			sql`
@@ -508,17 +519,26 @@ export async function exportGroup(
 				JOIN sessions s ON s.id = r.session_id
 				WHERE s.group_id = ${groupId} ORDER BY r.id
 			`,
+			// Les commentaires du groupe : ceux de ses prises comme ceux de ses setlists.
 			sql`
 				SELECT c.* FROM comments c
-				JOIN recordings r ON r.id = c.recording_id
-				JOIN sessions s   ON s.id = r.session_id
-				WHERE s.group_id = ${groupId} ORDER BY c.id
+				LEFT JOIN recordings r ON r.id = c.recording_id
+				LEFT JOIN sessions s   ON s.id = r.session_id
+				LEFT JOIN setlists sl  ON sl.id = c.setlist_id
+				WHERE s.group_id = ${groupId} OR sl.group_id = ${groupId}
+				ORDER BY c.id
 			`,
 			sql`SELECT * FROM playlists WHERE group_id = ${groupId} ORDER BY id`,
 			sql`
 				SELECT pi.* FROM playlist_items pi
 				JOIN playlists p ON p.id = pi.playlist_id
 				WHERE p.group_id = ${groupId} ORDER BY pi.playlist_id, pi.position
+			`,
+			sql`SELECT * FROM setlists WHERE group_id = ${groupId} ORDER BY id`,
+			sql`
+				SELECT si.* FROM setlist_items si
+				JOIN setlists sl ON sl.id = si.setlist_id
+				WHERE sl.group_id = ${groupId} ORDER BY si.setlist_id, si.position
 			`,
 			sql`SELECT * FROM calendar_events WHERE group_id = ${groupId} ORDER BY id`,
 			sql<{ mime_type: string; updated_at: Date; data: Buffer }[]>`
@@ -555,6 +575,8 @@ export async function exportGroup(
 				comments: comments as unknown as Record<string, unknown>[],
 				playlists: playlists as unknown as Record<string, unknown>[],
 				playlist_items: playlistItems as unknown as Record<string, unknown>[],
+				setlists: setlists as unknown as Record<string, unknown>[],
+				setlist_items: setlistItems as unknown as Record<string, unknown>[],
 				calendar_events: calendarEvents as unknown as Record<string, unknown>[],
 				logo: logo
 					? { mime_type: logo.mime_type, updated_at: logo.updated_at, base64: logo.data.toString('base64') }

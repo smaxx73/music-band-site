@@ -2,7 +2,8 @@
 	import { onMount, tick } from 'svelte'
 	import CommentList from '$lib/components/CommentList.svelte'
 	import MentionTextarea, { type MentionMember } from '$lib/components/MentionTextarea.svelte'
-	import type { CommentWithReactions } from '$lib/types'
+	import { threadParam } from '$lib/types'
+	import type { CommentThread, CommentWithReactions } from '$lib/types'
 
 	type HighlightRequest = {
 		id: number
@@ -10,7 +11,7 @@
 	}
 
 	let {
-		recordingId,
+		thread,
 		comments,
 		members,
 		currentTime = 0,
@@ -20,7 +21,8 @@
 		onSeek = () => {},
 		onCommentsChange = () => {}
 	}: {
-		recordingId: number
+		/** Prise ou setlist : ce dont on discute ici. */
+		thread: CommentThread
 		comments: CommentWithReactions[]
 		members: MentionMember[]
 		currentTime?: number
@@ -113,7 +115,7 @@
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					recording_id: recordingId,
+					[threadParam(thread)]: thread.id,
 					content: content.trim(),
 					timestamp_s: ts
 				})
@@ -210,7 +212,7 @@
 			<CommentList
 				bind:this={list}
 				comments={orderedComments}
-				{recordingId}
+				{thread}
 				{onSeek}
 				{maxVisible}
 				{separatorBeforeId}

@@ -54,6 +54,7 @@
 		{ href: '/sessions', label: 'Sessions', icon: '◎' },
 		{ href: '/songs', label: 'Morceaux', icon: '♪' },
 		{ href: '/playlists', label: 'Playlists', icon: '≡' },
+		{ href: '/setlists', label: 'Setlists', icon: '▤' },
 		{ href: '/agenda', label: 'Agenda', icon: '◻' },
 		{ href: '/group', label: 'Mon groupe', icon: '◈' },
 	]

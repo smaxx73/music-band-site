@@ -39,6 +39,10 @@ api/notifications/[id]/+server.ts
 api/playlists/+server.ts
 api/playlists/[id]/+server.ts
 api/playlists/[id]/items/+server.ts
+api/setlists/+server.ts
+api/setlists/[id]/+server.ts
+api/setlists/[id]/items/+server.ts
+api/setlists/[id]/items/[itemId]/+server.ts
 api/agenda/+server.ts
 api/agenda/[id]/+server.ts
 api/groups/+server.ts
@@ -93,6 +97,26 @@ rattacher la vidéo à la piste audio envoyée. Les deux passent par `resolveYou
 (`src/lib/server/youtube.ts`) : lien reconnu, vidéo lisible, `409` si déjà dans le groupe. Toute
 route qui touche à `AUDIO_DIR` (peaks, suppression, volume, manifeste) filtre sur
 `file_path IS NOT NULL` ; une prise sans piste audio ne va jamais dans une playlist (`400`).
+
+Une **setlist** (`api/setlists/`) est un programme : des `songs` du groupe actif dans un
+ordre. `POST /api/setlists` (`{ name, description? }`) la crée et notifie le groupe ;
+`PATCH /api/setlists/[id]` accepte `name` et/ou `description` (tout membre) ;
+`DELETE /api/setlists/[id]` est réservé à son auteur et aux admins du groupe
+(`canDeleteGroupContent`, `403` sinon) et emporte programme et commentaires en cascade.
+`POST /api/setlists/[id]/items` (`{ song_id }`) programme un morceau en fin de liste —
+`409` s'il y est déjà, `400` s'il est `abandonne` ; `PATCH` du même chemin réécrit tout
+l'ordre (`[{ id, position }]`) dans une transaction ; `DELETE .../items/[itemId]` retire un
+morceau et réindexe. Les positions passent par le négatif avant d'être réécrites :
+`UNIQUE (setlist_id, position)` refuserait les états intermédiaires. Passer par
+`src/lib/server/setlists.ts` pour la lecture.
+
+Un **commentaire** porte sur une prise **ou** sur une setlist, jamais les deux (contrainte
+`comments_target`). `GET /api/comments` prend `?recording_id=` ou `?setlist_id=`, `POST`
+le champ correspondant ; un `timestamp_s` sur une setlist répond `400` — il n'y a rien à y
+ancrer. La vérification de droit est la **cible** : c'est elle qui appartient au groupe
+actif, via `findCommentThread` (`src/lib/server/comments.ts`). Ne jamais rejoindre
+`recordings` à la main pour retrouver le groupe d'un commentaire : un commentaire de
+setlist n'a pas de prise.
 
 Les notifications font exception au scope habituel : elles appartiennent à un destinataire.
 Le filtre `user_id = locals.user.id` **est** la vérification de droit — personne, admin compris,
