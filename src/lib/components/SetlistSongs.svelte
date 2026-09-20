@@ -4,12 +4,15 @@
 
 	let {
 		items,
+		editable = false,
 		error = null,
 		busy = false,
 		onReorder = () => {},
 		onRemove = () => {}
 	}: {
 		items: SetlistItemView[]
+		/** Les actions sur le programme ne sont disponibles qu'en mode édition. */
+		editable?: boolean
 		error?: string | null
 		busy?: boolean
 		onReorder?: (fromIndex: number, toIndex: number) => void
@@ -20,11 +23,13 @@
 	let dropTargetIdx = $state<number | null>(null)
 
 	function onDragStart(event: DragEvent, idx: number) {
+		if (!editable) return
 		draggedIdx = idx
 		event.dataTransfer?.setData('text/plain', String(idx))
 	}
 
 	function onDragOver(event: DragEvent, idx: number) {
+		if (!editable) return
 		event.preventDefault()
 		dropTargetIdx = idx
 	}
@@ -35,6 +40,7 @@
 	}
 
 	function onDrop(event: DragEvent, toIdx: number) {
+		if (!editable) return
 		event.preventDefault()
 		if (draggedIdx === null || draggedIdx === toIdx) {
 			onDragEnd()
@@ -54,14 +60,16 @@
 		<li
 			class="item"
 			class:drag-over={dropTargetIdx === i && draggedIdx !== i}
-			draggable={true}
+			draggable={editable && !busy}
 			ondragstart={(event) => onDragStart(event, i)}
 			ondragover={(event) => onDragOver(event, i)}
 			ondragleave={() => (dropTargetIdx = null)}
 			ondragend={onDragEnd}
 			ondrop={(event) => onDrop(event, i)}
 		>
-			<span class="drag-handle" aria-hidden="true">⠿</span>
+			{#if editable}
+				<span class="drag-handle" aria-hidden="true">⠿</span>
+			{/if}
 			<span class="pos">{i + 1}</span>
 			<span class="info">
 				<a class="title" href="/songs/{item.song_id}">{item.song_title}</a>
@@ -76,32 +84,34 @@
 			<span class="duration" class:unknown={item.reference_duration_s === null}>
 				{item.reference_duration_s === null ? '—:—' : formatTimecode(item.reference_duration_s)}
 			</span>
-			<!-- Les flèches ne doublent pas le glisser-déposer, elles le remplacent au doigt :
-			     le drag HTML5 ne fonctionne pas sur écran tactile, et une setlist se réordonne
-			     surtout depuis un téléphone, en répétition. -->
-			<span class="move">
+			{#if editable}
+				<!-- Les flèches ne doublent pas le glisser-déposer, elles le remplacent au doigt :
+				     le drag HTML5 ne fonctionne pas sur écran tactile, et une setlist se réordonne
+				     surtout depuis un téléphone, en répétition. -->
+				<span class="move">
+					<button
+						class="move-btn"
+						disabled={busy || i === 0}
+						title="Monter"
+						aria-label="Monter {item.song_title}"
+						onclick={() => onReorder(i, i - 1)}
+					>↑</button>
+					<button
+						class="move-btn"
+						disabled={busy || i === items.length - 1}
+						title="Descendre"
+						aria-label="Descendre {item.song_title}"
+						onclick={() => onReorder(i, i + 1)}
+					>↓</button>
+				</span>
 				<button
-					class="move-btn"
-					disabled={busy || i === 0}
-					title="Monter"
-					aria-label="Monter {item.song_title}"
-					onclick={() => onReorder(i, i - 1)}
-				>↑</button>
-				<button
-					class="move-btn"
-					disabled={busy || i === items.length - 1}
-					title="Descendre"
-					aria-label="Descendre {item.song_title}"
-					onclick={() => onReorder(i, i + 1)}
-				>↓</button>
-			</span>
-			<button
-				class="remove-btn"
-				disabled={busy}
-				title="Retirer de la setlist"
-				aria-label="Retirer {item.song_title} de la setlist"
-				onclick={() => onRemove(item.id, i)}
-			>✕</button>
+					class="remove-btn"
+					disabled={busy}
+					title="Retirer de la setlist"
+					aria-label="Retirer {item.song_title} de la setlist"
+					onclick={() => onRemove(item.id, i)}
+				>✕</button>
+			{/if}
 		</li>
 	{/each}
 </ol>

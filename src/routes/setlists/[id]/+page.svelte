@@ -13,6 +13,7 @@
 	import SetlistSongs from '$lib/components/SetlistSongs.svelte'
 	import CommentsPanel from '$lib/components/CommentsPanel.svelte'
 	import Modal from '$lib/components/Modal.svelte'
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
 	import type { MentionMember } from '$lib/components/MentionTextarea.svelte'
 	import type { CommentWithReactions } from '$lib/types'
 
@@ -63,12 +64,40 @@
 	let descDraft = $state('')
 	let savingInfo = $state(false)
 	let infoError = $state<string | null>(null)
+	// Le programme est un brouillon pendant l'édition : retirer ou déplacer un morceau ne
+	// touche la base qu'au clic sur « Enregistrer ».
+	let itemsBeforeEdit = $state<SetlistItemView[]>([])
+	let songsBeforeEdit = $state<AvailableSong[]>([])
+	let removedItemIds = $state<number[]>([])
+	let pendingSongIds = $state<number[]>([])
+	let confirmCancelOpen = $state(false)
+	let confirmDeleteOpen = $state(false)
 
 	function startEdit() {
 		nameDraft = setlist.name
 		descDraft = setlist.description ?? ''
 		infoError = null
+		saveError = null
+		itemsBeforeEdit = [...items]
+		songsBeforeEdit = [...availableSongs]
+		removedItemIds = []
+		pendingSongIds = []
 		editing = true
+	}
+
+	function cancelEdit() {
+		confirmCancelOpen = true
+	}
+
+	function discardEdit() {
+		items = itemsBeforeEdit
+		availableSongs = songsBeforeEdit
+		removedItemIds = []
+		pendingSongIds = []
+		infoError = null
+		saveError = null
+		editing = false
+		confirmCancelOpen = false
 	}
 
 	async function saveInfo(event: SubmitEvent) {
@@ -84,17 +113,21 @@
 			})
 			const json = await res.json().catch(() => ({}))
 			if (!res.ok) { infoError = json.error ?? 'Erreur.'; return }
+			busy = true
+			if (!await saveProgram()) return
 			editing = false
 			await invalidateAll()
 		} catch {
 			infoError = 'Erreur réseau.'
 		} finally {
+			busy = false
 			savingInfo = false
 		}
 	}
 
 	// ─── Programme ─────────────────────────────────────────────────────────
-	async function savePositions() {
+	async function savePositions(): Promise<boolean> {
+		if (!editing) return false
 		saveError = null
 		const payload = items.map((item, i) => ({ id: item.id, position: i + 1 }))
 		const res = await fetch(`/api/setlists/${setlist.id}/items`, {
@@ -105,47 +138,80 @@
 		if (!res.ok) {
 			const body = await res.json().catch(() => ({}))
 			saveError = (body as { error?: string }).error ?? `Erreur ${res.status}`
+			return false
 		}
+		return true
 	}
 
-	async function reorder(fromIdx: number, toIdx: number) {
+	async function saveProgram(): Promise<boolean> {
+		for (const itemId of removedItemIds) {
+			const res = await fetch(`/api/setlists/${setlist.id}/items/${itemId}`, { method: 'DELETE' })
+			if (!res.ok) {
+				const body = await res.json().catch(() => ({}))
+				saveError = (body as { error?: string }).error ?? `Erreur ${res.status}`
+				return false
+			}
+			// En cas d'échec plus loin, une nouvelle tentative ne doit pas supprimer à
+			// nouveau cet item déjà confirmé. Le brouillon annulable suit donc aussi cet état.
+			const removed = itemsBeforeEdit.find((item) => item.id === itemId)
+			removedItemIds = removedItemIds.filter((id) => id !== itemId)
+			itemsBeforeEdit = itemsBeforeEdit.filter((item) => item.id !== itemId)
+			if (removed) {
+				songsBeforeEdit = songsBeforeEdit.map((song) =>
+					song.id === removed.song_id ? { ...song, in_setlist: false } : song
+				)
+			}
+		}
+		for (const songId of pendingSongIds) {
+			const res = await fetch(`/api/setlists/${setlist.id}/items`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ song_id: songId })
+			})
+			const body = await res.json().catch(() => ({})) as { id?: number; position?: number; error?: string }
+			if (!res.ok || body.id === undefined || body.position === undefined) {
+				saveError = body.error ?? "Impossible d'ajouter le morceau."
+				return false
+			}
+			const itemId = body.id
+			const position = body.position
+			items = items.map((item) => item.id === -songId
+				? { ...item, id: itemId, position }
+				: item)
+		}
+		// Une setlist vide n'a aucune position à réécrire. Envoyer [] négativerait toutes
+		// les positions restantes côté API, ce qui n'est pas un état valide à conserver.
+		if (items.length > 0 && !await savePositions()) return false
+		removedItemIds = []
+		pendingSongIds = []
+		return true
+	}
+
+	function reorder(fromIdx: number, toIdx: number) {
+		if (!editing) return
 		if (toIdx < 0 || toIdx >= items.length || fromIdx === toIdx) return
 		const next = [...items]
 		const [moved] = next.splice(fromIdx, 1)
 		next.splice(toIdx, 0, moved)
 		items = next.map((item, i) => ({ ...item, position: i + 1 }))
-		busy = true
-		try {
-			await savePositions()
-		} finally {
-			busy = false
-		}
 	}
 
-	async function removeItem(itemId: number, idx: number) {
-		busy = true
+	function removeItem(itemId: number, idx: number) {
+		if (!editing) return
 		saveError = null
-		try {
-			const res = await fetch(`/api/setlists/${setlist.id}/items/${itemId}`, { method: 'DELETE' })
-			if (!res.ok) {
-				const body = await res.json().catch(() => ({}))
-				saveError = (body as { error?: string }).error ?? `Erreur ${res.status}`
-				return
-			}
-			const removed = items[idx]
-			items = items.filter((_, i) => i !== idx).map((item, i) => ({ ...item, position: i + 1 }))
-			availableSongs = availableSongs.map((song) =>
-				song.id === removed.song_id ? { ...song, in_setlist: false } : song
-			)
-		} finally {
-			busy = false
-		}
+		const removed = items[idx]
+		if (!removed || removed.id !== itemId) return
+		if (itemId > 0) removedItemIds = [...removedItemIds, itemId]
+		else pendingSongIds = pendingSongIds.filter((songId) => songId !== removed.song_id)
+		items = items.filter((_, i) => i !== idx).map((item, i) => ({ ...item, position: i + 1 }))
+		availableSongs = availableSongs.map((song) =>
+			song.id === removed.song_id ? { ...song, in_setlist: false } : song
+		)
 	}
 
 	// ─── Ajout de morceaux ─────────────────────────────────────────────────
 	let showAddModal = $state(false)
 	let addQuery = $state('')
-	let addingSongId = $state<number | null>(null)
 	let addError = $state<string | null>(null)
 
 	const selectableSongs = $derived(availableSongs.filter((song) => {
@@ -155,52 +221,31 @@
 	}))
 
 	function openAddModal() {
+		if (!editing) return
 		showAddModal = true
 		addQuery = ''
 		addError = null
 	}
 
-	async function addSong(song: AvailableSong) {
-		addingSongId = song.id
+	function addSong(song: AvailableSong) {
+		if (!editing) return
 		addError = null
-		try {
-			const res = await fetch(`/api/setlists/${setlist.id}/items`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ song_id: song.id })
-			})
-			const body = await res.json().catch(() => ({})) as {
-				id?: number; position?: number; code?: string; error?: string
-			}
-			if (body.code === 'already_added') {
-				availableSongs = availableSongs.map((candidate) =>
-					candidate.id === song.id ? { ...candidate, in_setlist: true } : candidate
-				)
-				return
-			}
-			if (!res.ok || body.id === undefined || body.position === undefined) {
-				addError = body.error ?? "Impossible d'ajouter le morceau."
-				return
-			}
-			items = [...items, {
-				id: body.id,
-				setlist_id: setlist.id,
-				song_id: song.id,
-				position: body.position,
-				song_title: song.title,
-				song_composer: song.composer,
-				song_key: song.key,
-				song_status: song.status,
-				reference_duration_s: song.reference_duration_s
-			} as SetlistItemView]
-			availableSongs = availableSongs.map((candidate) =>
-				candidate.id === song.id ? { ...candidate, in_setlist: true } : candidate
-			)
-		} catch {
-			addError = 'Erreur réseau.'
-		} finally {
-			addingSongId = null
-		}
+		const newItem = {
+			id: -song.id,
+			setlist_id: setlist.id,
+			song_id: song.id,
+			position: items.length + 1,
+			song_title: song.title,
+			song_composer: song.composer,
+			song_key: song.key,
+			song_status: song.status,
+			reference_duration_s: song.reference_duration_s
+		} as SetlistItemView
+		items = [...items, newItem]
+		pendingSongIds = [...pendingSongIds, song.id]
+		availableSongs = availableSongs.map((candidate) =>
+			candidate.id === song.id ? { ...candidate, in_setlist: true } : candidate
+		)
 	}
 
 	// Le « 🔗 » d'un commentaire produit `/setlists/3#comment-12` : la cible peut être
@@ -218,7 +263,6 @@
 	let deleting = $state(false)
 
 	async function deleteSetlist() {
-		if (!confirm(`Supprimer la setlist « ${setlist.name} » ? Ses commentaires partent avec elle.`)) return
 		deleting = true
 		try {
 			const res = await fetch(`/api/setlists/${setlist.id}`, { method: 'DELETE' })
@@ -230,6 +274,7 @@
 			await goto('/setlists')
 		} finally {
 			deleting = false
+			confirmDeleteOpen = false
 		}
 	}
 </script>
@@ -255,10 +300,13 @@
 				<input class="form-input" type="text" bind:value={descDraft} disabled={savingInfo} />
 			</label>
 			<div class="edit-actions">
+				<button type="button" class="btn btn-secondary btn-sm" onclick={openAddModal}>
+					+ Ajouter des morceaux
+				</button>
 				<button type="submit" class="btn btn-primary btn-sm" disabled={savingInfo}>
 					{savingInfo ? 'Enregistrement…' : 'Enregistrer'}
 				</button>
-				<button type="button" class="btn btn-ghost btn-sm" disabled={savingInfo} onclick={() => (editing = false)}>
+				<button type="button" class="btn btn-ghost btn-sm" disabled={savingInfo} onclick={cancelEdit}>
 					Annuler
 				</button>
 			</div>
@@ -280,25 +328,29 @@
 					</p>
 				{/if}
 			</div>
-			<div class="header-actions">
-				<button class="btn btn-primary btn-sm" onclick={openAddModal}>+ Ajouter des morceaux</button>
-				<button class="btn btn-ghost btn-sm" onclick={startEdit}>Modifier</button>
-				{#if canDelete}
-					<button class="btn btn-ghost btn-sm danger" disabled={deleting} onclick={deleteSetlist}>
-						{deleting ? 'Suppression…' : 'Supprimer'}
-					</button>
-				{/if}
-			</div>
 		</div>
 	{/if}
 
 	{#if items.length === 0}
 		<div class="empty-state">
 			<p class="empty">Cette setlist est vide.</p>
-			<button class="btn btn-primary" onclick={openAddModal}>+ Ajouter des morceaux</button>
+			{#if editing}
+				<button class="btn btn-primary" onclick={openAddModal}>+ Ajouter des morceaux</button>
+			{/if}
 		</div>
 	{:else}
-		<SetlistSongs {items} error={saveError} {busy} onReorder={reorder} onRemove={removeItem} />
+		<SetlistSongs {items} editable={editing} error={saveError} {busy} onReorder={reorder} onRemove={removeItem} />
+	{/if}
+
+	{#if !editing}
+		<div class="setlist-actions">
+			<button class="btn btn-ghost btn-sm" onclick={startEdit}>Modifier</button>
+			{#if canDelete}
+				<button class="btn btn-ghost btn-sm danger" disabled={deleting} onclick={() => (confirmDeleteOpen = true)}>
+					{deleting ? 'Suppression…' : 'Supprimer'}
+				</button>
+			{/if}
+		</div>
 	{/if}
 
 	<CommentsPanel
@@ -307,6 +359,26 @@
 		members={groupMembers}
 		{highlightRequest}
 		onCommentsChange={(updated) => { comments = updated }}
+	/>
+
+	<ConfirmDialog
+		open={confirmCancelOpen}
+		level="warning"
+		title="Annuler les modifications ?"
+		message="Les changements apportés au programme et aux informations de la setlist seront perdus."
+		confirmLabel="Abandonner les modifications"
+		onConfirm={discardEdit}
+		onCancel={() => (confirmCancelOpen = false)}
+	/>
+	<ConfirmDialog
+		open={confirmDeleteOpen}
+		level="danger"
+		title="Supprimer cette setlist ?"
+		message={`La setlist « ${setlist.name} » et tous ses commentaires seront définitivement supprimés.`}
+		confirmLabel="Supprimer la setlist"
+		busy={deleting}
+		onConfirm={deleteSetlist}
+		onCancel={() => (confirmDeleteOpen = false)}
 	/>
 
 	{#if showAddModal}
@@ -325,10 +397,10 @@
 					<ul class="song-options">
 						{#each selectableSongs as song (song.id)}
 							<li>
-								<button onclick={() => addSong(song)} disabled={addingSongId !== null}>
+								<button onclick={() => addSong(song)}>
 									<span><strong>{song.title}</strong>{#if song.composer} · {song.composer}{/if}</span>
 									<span class="song-option-meta">
-										{#if song.key}{song.key}{/if}{#if addingSongId === song.id} · Ajout…{/if}
+										{#if song.key}{song.key}{/if}
 									</span>
 								</button>
 							</li>
@@ -349,7 +421,7 @@
 	.meta { font-size: var(--text-xs); color: var(--color-text-muted); margin: 0; }
 	.hint { font-size: var(--text-xs); color: var(--color-text-muted); margin: 0.35rem 0 0; }
 
-	.header-actions { display: flex; align-items: center; gap: 0.4rem; flex-shrink: 0; flex-wrap: wrap; }
+	.setlist-actions { display: flex; justify-content: flex-end; gap: 0.4rem; margin: 1rem 0; flex-wrap: wrap; }
 	.danger { color: var(--color-error); }
 
 	.edit-actions { display: flex; gap: 0.5rem; }

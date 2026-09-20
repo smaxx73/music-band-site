@@ -15,7 +15,8 @@ src/
 │   │   ├── setlists.ts    # lecture des setlists et de leur programme (durée sommée)
 │   │   ├── comments.ts    # commentaires d'une cible (prise ou setlist) + réactions
 │   │   └── notifications.ts # écriture (fan-out) et lecture des notifications
-│   └── components/
+	│   └── components/
+	│       ├── ConfirmDialog.svelte   # confirmation réutilisable, selon le niveau de risque
 │       ├── AudioPlayer.svelte     # lecteur WaveSurfer.js
 │       ├── YouTubePlayer.svelte   # lecteur de la vidéo YouTube d'une prise (API IFrame, chargée à la demande)
 │       ├── YouTubeEmbed.svelte    # vidéo YouTube citée dans un commentaire (vignette, iframe au clic)
@@ -69,6 +70,22 @@ type Recording = {
   created_at: Date
 }
 ```
+
+## Confirmations d'action
+
+Les confirmations client utilisent `ConfirmDialog.svelte`, jamais `window.confirm()` dans une
+nouvelle vue. Le composant affiche une modale cohérente et associe explicitement le traitement
+visuel à l'impact de l'action.
+
+| Niveau | Cas d'emploi | Bouton de validation |
+|---|---|---|
+| `info` | action sans perte, mais qui mérite une seconde intention | secondaire |
+| `warning` | abandon d'un brouillon ou conséquence réversible | principal |
+| `danger` | suppression ou perte définitive de contenu | danger, libellé explicite |
+
+Une action `danger` doit nommer ce qui sera perdu et ses conséquences (par exemple les
+commentaires supprimés en cascade). Elle conserve en plus les contrôles d'autorisation côté API :
+la confirmation est une protection d'interface, jamais une règle de sécurité.
 
 ## Base de données
 - SQL brut via `postgres.js` — pas de Prisma, pas de Drizzle
