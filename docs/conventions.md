@@ -31,6 +31,8 @@ src/
 │       ├── NotificationsMenu.svelte # cloche + menu des notifications (barre du haut)
 │       ├── PlaylistQueue.svelte   # file de lecture playlist
 │       ├── SetlistSongs.svelte    # programme d'une setlist : ordre (glisser + ↑↓), retrait
+│       ├── AddToPlaylistButton.svelte # ajout d'une prise à une playlist (sélecteur + création)
+│       ├── AddToSetlistButton.svelte  # ajout d'un morceau à une setlist (listes et vue morceau)
 │       ├── SessionEditor.svelte   # édition des métadonnées de session
 │       └── SongDetails.svelte     # paroles et notes musicales
 ├── routes/

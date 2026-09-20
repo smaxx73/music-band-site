@@ -12,6 +12,8 @@ export type SetlistRow = Setlist & {
 	song_count: number
 	total_duration_s: number
 	missing_duration_count: number
+	/** Vrai si le morceau passé à `listSetlists` y est déjà programmé ; `false` sinon. */
+	contains_song: boolean
 }
 
 /** Le nom de l'auteur est relu depuis `users` ; `created_by` n'est qu'un repli. */
@@ -21,9 +23,19 @@ const DURATION_COLUMNS = sql`
 	COUNT(si.id) FILTER (WHERE so.reference_duration_s IS NULL)::int AS missing_duration_count
 `
 
-export function listSetlists(groupId: number) {
+/**
+ * `songId` sert au sélecteur « ajouter à une setlist » d'une vue morceau : chaque
+ * setlist dit si elle programme déjà ce morceau, plutôt que de laisser l'utilisateur
+ * découvrir le doublon au clic.
+ */
+export function listSetlists(groupId: number, songId: number | null = null) {
 	return sql<SetlistRow[]>`
-		SELECT s.*, COALESCE(MAX(u.display_name), s.created_by) AS created_by, ${DURATION_COLUMNS}
+		SELECT
+			s.*, COALESCE(MAX(u.display_name), s.created_by) AS created_by, ${DURATION_COLUMNS},
+			${songId === null ? false : sql`EXISTS (
+				SELECT 1 FROM setlist_items membership
+				WHERE membership.setlist_id = s.id AND membership.song_id = ${songId}
+			)`} AS contains_song
 		FROM setlists s
 		LEFT JOIN users u ON u.id = s.created_by_user_id
 		LEFT JOIN setlist_items si ON si.setlist_id = s.id
@@ -37,7 +49,7 @@ export function listSetlists(groupId: number) {
 /** Une setlist du groupe actif, ou `null` — le 404 appartient à l'appelant. */
 export async function getSetlist(id: number, groupId: number): Promise<SetlistRow | null> {
 	const [setlist] = await sql<SetlistRow[]>`
-		SELECT s.*, COALESCE(MAX(u.display_name), s.created_by) AS created_by, ${DURATION_COLUMNS}
+		SELECT s.*, COALESCE(MAX(u.display_name), s.created_by) AS created_by, ${DURATION_COLUMNS}, false AS contains_song
 		FROM setlists s
 		LEFT JOIN users u ON u.id = s.created_by_user_id
 		LEFT JOIN setlist_items si ON si.setlist_id = s.id

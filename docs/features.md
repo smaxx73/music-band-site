@@ -247,6 +247,12 @@ note, 💬 s'il y a des commentaires — plus l'écoute, et un menu ⋮ recueill
 - Le compteur de commentaires déplie la liste des commentaires de la prise, sans ouvrir le
   lecteur — mêmes 5 derniers qu'en vue session, avec le renvoi vers le lecteur au-delà
 - Même menu ⋮ qu'en vue session — voir « Menu d'une prise » plus haut
+- **« Ajouter à une setlist »** en bas de page, à côté de « + Ajouter une prise ». Une setlist
+  programme des **morceaux**, pas des prises : l'action appartient donc à la page du morceau,
+  là où les lignes de prises portent celle des playlists. Même sélecteur que pour une playlist
+  (`AddToSetlistButton.svelte`) : les setlists qui programment déjà le morceau sont marquées,
+  et on peut en créer une sans quitter la page. Un morceau `abandonne` n'affiche pas le bouton,
+  comme il ne se propose pas au dépôt d'une prise
 
 ## Lecteur audio (`/recording/[id]`)
 
@@ -476,6 +482,10 @@ prise du 12 mars, on programme « Sunny », et le jour venu on la jouera.
 - Un **morceau ne figure qu'une fois** par setlist (`UNIQUE (setlist_id, song_id)`) : le
   sélecteur d'ajout marque ceux déjà programmés, et l'API répond `409`. Les morceaux
   `abandonne` ne sont pas proposés — comme au dépôt d'une prise
+- Un morceau se programme depuis la setlist (sélecteur de `/setlists/[id]`) **ou** depuis le
+  référentiel — la liste `/songs` comme la page d'un morceau `/songs/[id]` —, qui liste les
+  setlists du groupe en signalant celles où il figure déjà. Une setlist et son premier morceau
+  se créent dans la même transaction, comme pour une playlist
 
 ### Ordre et temps total
 
@@ -525,6 +535,10 @@ prise du 12 mars, on programme « Sunny », et le jour venu on la jouera.
 - Statut `abandonne` → masqué dans le sélecteur d'upload, prises existantes conservées ; reste visible et modifiable dans `/songs`. Les propositions de travail restent disponibles.
 - Suppression bloquée si des prises existent pour ce morceau
 - Liste affiche tous les statuts du groupe actif, avec nombre de prises (`take_count`)
+- Chaque ligne porte **« Setlist »**, avant « Modifier » et « Supprimer » : on parcourt le
+  référentiel pour bâtir un programme bien plus souvent que pour corriger une fiche, et la
+  destruction reste en dernier. Même sélecteur qu'en vue morceau
+  (`AddToSetlistButton.svelte`), et rien ne s'affiche sur un morceau `abandonne`
 
 ## Agenda partagé (`/agenda`)
 

@@ -3,6 +3,7 @@
 	import { formatDateOnly } from '$lib/date'
 	import SongDetails from '$lib/components/SongDetails.svelte'
 	import RecordingRow from '$lib/components/RecordingRow.svelte'
+	import AddToSetlistButton from '$lib/components/AddToSetlistButton.svelte'
 	import type { RecordingListItem } from '$lib/types'
 
 	let { data }: { data: PageData } = $props()
@@ -130,6 +131,14 @@
 
 	<div class="footer-actions">
 		<a href="/upload?song_id={song.id}" class="btn upload-action">+ Ajouter une prise</a>
+		<!-- Une setlist programme des morceaux, pas des prises : l'action appartient donc à
+		     la page du morceau, pas aux lignes de prises qui portent celle des playlists. -->
+		<AddToSetlistButton
+			songId={song.id}
+			songStatus={song.status}
+			label="Ajouter à une setlist"
+			buttonClass="btn btn-secondary"
+		/>
 	</div>
 </main>
 
@@ -171,7 +180,7 @@
 
 	.summary { font-size: var(--text-sm); color: var(--color-text-muted); margin: 0 0 1.5rem; }
 
-	.footer-actions { margin-top: 2rem; display: flex; }
+	.footer-actions { margin-top: 2rem; display: flex; flex-wrap: wrap; gap: 0.6rem; }
 
 	/* Même signal visuel que l'action « Uploader » de la navigation. */
 	.upload-action {
@@ -198,6 +207,8 @@
 
 		.song-header { gap: 0.5rem; }
 		h1 { font-size: 1.25rem; flex-wrap: wrap; }
-		.footer-actions .upload-action { width: 100%; justify-content: center; }
+		/* La modale du sélecteur est en `position: fixed` : elle reste hors de ce flux. */
+		.footer-actions { flex-direction: column; align-items: stretch; }
+		.footer-actions .upload-action { justify-content: center; }
 	}
 </style>

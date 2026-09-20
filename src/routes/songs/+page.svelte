@@ -4,6 +4,7 @@
 	import { enhance } from '$app/forms'
 	import Modal from '$lib/components/Modal.svelte'
 	import Icon from '$lib/components/Icon.svelte'
+	import AddToSetlistButton from '$lib/components/AddToSetlistButton.svelte'
 	import type { IconName } from '$lib/icons'
 
 	let { data, form }: { data: PageData; form: ActionData } = $props()
@@ -354,6 +355,15 @@
 									</td>
 									<td class="center" data-label="Prises">{song.take_count}</td>
 									<td class="actions-cell">
+										<!-- Programmer avant d'entretenir : on parcourt le référentiel pour
+										     bâtir une setlist bien plus souvent que pour corriger une fiche.
+										     Le bouton s'efface de lui-même sur un morceau abandonné. -->
+										<AddToSetlistButton
+											songId={song.id}
+											songStatus={song.status}
+											label="Setlist"
+											buttonClass="btn btn-sm"
+										/>
 										<button class="btn btn-sm" onclick={() => startEditing(song.id)}> Modifier </button>
 
 										{#if song.take_count === 0}
@@ -686,6 +696,9 @@
 		.actions-cell { margin-top: 0.35rem; }
 		.actions-cell > * { flex: 1; }
 		.actions-cell .btn { width: 100%; }
+		/* Le bouton de setlist vient d'un composant : le scope du parent ne l'atteint
+		   qu'en le nommant, sinon il resterait seul à sa largeur naturelle. */
+		.actions-cell :global(.setlist-add-button) { flex: 1; width: 100%; }
 
 		.editing-row td { padding: 0.75rem; }
 		.inline-actions .btn { flex: 1; }

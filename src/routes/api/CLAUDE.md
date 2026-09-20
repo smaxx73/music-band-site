@@ -99,7 +99,11 @@ route qui touche à `AUDIO_DIR` (peaks, suppression, volume, manifeste) filtre s
 `file_path IS NOT NULL` ; une prise sans piste audio ne va jamais dans une playlist (`400`).
 
 Une **setlist** (`api/setlists/`) est un programme : des `songs` du groupe actif dans un
-ordre. `POST /api/setlists` (`{ name, description? }`) la crée et notifie le groupe ;
+ordre. `GET /api/setlists` accepte `?song_id=` : chaque setlist porte alors `contains_song`,
+pour que le sélecteur d'une vue morceau marque celles où le morceau est déjà programmé.
+`POST /api/setlists` (`{ name, description?, song_id? }`) la crée et notifie le groupe ; avec
+`song_id`, la setlist et son premier morceau naissent dans la **même transaction** — une erreur
+ne laisse pas derrière elle une setlist vide que personne n'a demandée ;
 `PATCH /api/setlists/[id]` accepte `name` et/ou `description` (tout membre) ;
 `DELETE /api/setlists/[id]` est réservé à son auteur et aux admins du groupe
 (`canDeleteGroupContent`, `403` sinon) et emporte programme et commentaires en cascade.
