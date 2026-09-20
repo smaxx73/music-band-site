@@ -522,7 +522,7 @@ prise du 12 mars, on programme « Sunny », et le jour venu on la jouera.
 - Ajout : titre (unique dans le groupe), compositeur, tonalité, statut, et en complément
   optionnel : artiste/groupe original (si reprise), année de sortie, durée de référence
 - Modification possible après coup
-- Statut `abandonne` → masqué dans le sélecteur d'upload, prises existantes conservées ; reste visible et modifiable dans `/songs`
+- Statut `abandonne` → masqué dans le sélecteur d'upload, prises existantes conservées ; reste visible et modifiable dans `/songs`. Les propositions de travail restent disponibles.
 - Suppression bloquée si des prises existent pour ce morceau
 - Liste affiche tous les statuts du groupe actif, avec nombre de prises (`take_count`)
 

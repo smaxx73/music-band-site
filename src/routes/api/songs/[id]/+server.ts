@@ -31,7 +31,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
 	const body = await request.json()
 
-	const validStatuses = ['en_apprentissage', 'au_repertoire', 'abandonne']
+	const validStatuses = ['en_apprentissage', 'proposition_de_travail', 'au_repertoire', 'abandonne']
 	if (body.status !== undefined && !validStatuses.includes(body.status)) {
 		return json({ error: 'Statut invalide.' }, { status: 400 })
 	}

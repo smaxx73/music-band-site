@@ -6,7 +6,7 @@ CREATE TABLE songs (
     composer    TEXT,
     key         TEXT,                        -- ex: "Dm", "Bb"
     status      TEXT DEFAULT 'en_apprentissage',
-                                             -- en_apprentissage | au_repertoire | abandonne
+                                             -- en_apprentissage | proposition_de_travail | au_repertoire | abandonne
     created_at  TIMESTAMPTZ DEFAULT now()
 );
 

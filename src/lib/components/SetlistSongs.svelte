@@ -84,8 +84,10 @@
 				<span class="meta">
 					{#if item.song_composer}{item.song_composer}{/if}
 					{#if item.song_key}{item.song_composer ? ' · ' : ''}{item.song_key}{/if}
-					{#if item.song_status === 'en_apprentissage'}
-						<span class="badge">en apprentissage</span>
+					{#if item.song_status === 'en_apprentissage' || item.song_status === 'proposition_de_travail'}
+						<span class="badge" class:work-proposal={item.song_status === 'proposition_de_travail'}>
+							{item.song_status === 'proposition_de_travail' ? 'proposition de travail' : 'en apprentissage'}
+						</span>
 					{/if}
 				</span>
 			</span>
@@ -175,6 +177,12 @@
 		border-radius: var(--radius-sm);
 		padding: 0 0.3rem;
 		margin-left: 0.3rem;
+	}
+
+	.badge.work-proposal {
+		background: var(--color-purple-light);
+		border-color: var(--color-purple-light);
+		color: var(--color-purple);
 	}
 
 	.duration { font-size: var(--text-xs); color: var(--color-text-secondary); flex-shrink: 0; }

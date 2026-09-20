@@ -10,6 +10,8 @@
   --color-green-light:  #D8EFE0;
   --color-blue:         #4A7DB5;
   --color-blue-light:   #D5E6F5;
+  --color-purple:       #7C3AED;
+  --color-purple-light: #EDE9FE;
   --color-red:          #C05050;
   --color-red-light:    #F5DADA;
 
@@ -185,6 +187,11 @@ body {
 .badge-en_apprentissage {
   background: var(--color-accent-light);
   color: var(--color-learning-text);
+}
+
+.badge-proposition_de_travail {
+  background: var(--color-purple-light);
+  color: var(--color-purple);
 }
 
 .badge-au_repertoire {

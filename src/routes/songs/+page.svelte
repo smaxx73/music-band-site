@@ -33,6 +33,7 @@
 
 	const STATUS_LABELS: Record<string, string> = {
 		en_apprentissage: 'En apprentissage',
+		proposition_de_travail: 'Proposition de travail',
 		au_repertoire: 'Au répertoire',
 		abandonne: 'Abandonné'
 	}

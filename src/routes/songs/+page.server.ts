@@ -22,7 +22,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	return { songs }
 }
 
-const VALID_STATUSES = ['en_apprentissage', 'au_repertoire', 'abandonne']
+const VALID_STATUSES = ['en_apprentissage', 'proposition_de_travail', 'au_repertoire', 'abandonne']
 
 const INVALID = Symbol('invalid')
 

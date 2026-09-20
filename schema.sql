@@ -77,7 +77,7 @@ CREATE TABLE songs (
     lyrics      TEXT,
     music_notes TEXT,                        -- accords, structure, tempo, remarques musicales
     status      TEXT DEFAULT 'en_apprentissage',
-                                             -- en_apprentissage | au_repertoire | abandonne
+                                             -- en_apprentissage | proposition_de_travail | au_repertoire | abandonne
     created_at  TIMESTAMPTZ DEFAULT now(),
     UNIQUE (group_id, title)
 );

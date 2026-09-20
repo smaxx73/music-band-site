@@ -43,7 +43,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		return json({ error: 'Le titre est obligatoire.' }, { status: 400 })
 	}
 
-	const validStatuses = ['en_apprentissage', 'au_repertoire', 'abandonne']
+	const validStatuses = ['en_apprentissage', 'proposition_de_travail', 'au_repertoire', 'abandonne']
 	if (status !== undefined && !validStatuses.includes(status as string)) {
 		return json({ error: 'Statut invalide.' }, { status: 400 })
 	}

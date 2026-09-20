@@ -145,7 +145,11 @@ export type UserGroup = {
 	joined_at: Date
 }
 
-export type SongStatus = 'en_apprentissage' | 'au_repertoire' | 'abandonne'
+export type SongStatus =
+	| 'en_apprentissage'
+	| 'proposition_de_travail'
+	| 'au_repertoire'
+	| 'abandonne'
 
 export type Song = {
 	id: number
