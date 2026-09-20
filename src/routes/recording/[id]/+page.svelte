@@ -7,7 +7,7 @@
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte'
 	import CommentsPanel from '$lib/components/CommentsPanel.svelte'
 	import SongDetails from '$lib/components/SongDetails.svelte'
-	import Modal from '$lib/components/Modal.svelte'
+	import AddToPlaylistButton from '$lib/components/AddToPlaylistButton.svelte'
 	import YouTubePlayer from '$lib/components/YouTubePlayer.svelte'
 	import { youtubeWatchUrl, formatTimecode, parseTimecode } from '$lib/youtube'
 	import type { CommentWithReactions } from '$lib/types'
@@ -72,50 +72,6 @@
 	function seekTo(seconds: number) {
 		seekToken += 1
 		seekRequest = { seconds, token: seekToken }
-	}
-
-	// --- Modale "Ajouter à une playlist" ---
-	type PlaylistRow = { id: number; name: string; item_count: number }
-
-	let showPlaylistModal = $state(false)
-	let modalPlaylists = $state<PlaylistRow[]>([])
-	let modalLoading = $state(false)
-	let modalError = $state<string | null>(null)
-	let addedToId = $state<number | null>(null)
-
-	async function openPlaylistModal() {
-		showPlaylistModal = true
-		modalError = null
-		addedToId = null
-		modalLoading = true
-		try {
-			const res = await fetch('/api/playlists')
-			modalPlaylists = await res.json()
-		} catch {
-			modalError = 'Impossible de charger les playlists.'
-		} finally {
-			modalLoading = false
-		}
-	}
-
-	async function addToPlaylist(playlistId: number) {
-		modalError = null
-		addedToId = playlistId
-		try {
-			const res = await fetch(`/api/playlists/${playlistId}/items`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ recording_id: recording.id })
-			})
-			if (!res.ok) {
-				const data = await res.json()
-				modalError = data.error ?? 'Erreur.'
-				addedToId = null
-			}
-		} catch {
-			modalError = 'Erreur réseau.'
-			addedToId = null
-		}
 	}
 
 	type SiblingRecording = { id: number; take: number } | null
@@ -374,42 +330,12 @@
 				{/if}
 			</button>
 			{#if hasAudio}
-				<button class="btn btn-secondary" onclick={openPlaylistModal}>+ Playlist</button>
+				<AddToPlaylistButton recordingId={recording.id} {hasAudio} buttonClass="btn btn-secondary" />
 			{/if}
 		</div>
 	</div>
 
 	<SongDetails lyrics={recording.song_lyrics} musicNotes={recording.song_music_notes} compact />
-
-	<!-- Modale playlist -->
-	{#if showPlaylistModal}
-		<Modal title="Ajouter à une playlist" size="sm" onClose={() => (showPlaylistModal = false)}>
-			{#if modalLoading}
-				<p class="modal-hint">Chargement…</p>
-			{:else if modalError}
-				<p class="modal-error">{modalError}</p>
-			{:else if modalPlaylists.length === 0}
-				<p class="modal-hint">Aucune playlist. <a href="/playlists">En créer une →</a></p>
-			{:else}
-				<ul class="modal-list">
-					{#each modalPlaylists as p}
-						<li>
-							<button
-								class="modal-item"
-								class:added={addedToId === p.id}
-								onclick={() => addToPlaylist(p.id)}
-								disabled={addedToId !== null}
-							>
-								<span class="modal-name">{p.name}</span>
-								<span class="modal-count">{p.item_count} prise{p.item_count > 1 ? 's' : ''}</span>
-								{#if addedToId === p.id}<span class="modal-check">✓ Ajouté</span>{/if}
-							</button>
-						</li>
-					{/each}
-				</ul>
-			{/if}
-		</Modal>
-	{/if}
 
 	<!-- Lecteur -->
 	<div class="player-card" class:sticky={stickyPlayer} bind:clientHeight={playerHeight}>
@@ -473,23 +399,6 @@
 
 	.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
 	.header-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
-
-	/* Contenu de la modale playlist (structure commune dans app.css) */
-	.modal-list { list-style: none; padding: 0.5rem 0; margin: 0; max-height: 320px; overflow-y: auto; }
-	.modal-item {
-		width: 100%; background: none; border: none; padding: 0.7rem 1.25rem;
-		display: flex; align-items: center; gap: 0.75rem; cursor: pointer; text-align: left;
-		transition: background 0.1s;
-	}
-	.modal-item:hover:not(:disabled) { background: var(--color-bg-subtle); }
-	.modal-item:disabled { cursor: default; }
-	.modal-item.added { background: #f0fdf4; }
-	.modal-name { flex: 1; font-size: var(--text-sm); font-weight: 600; }
-	.modal-count { font-size: var(--text-xs); color: #aaa; }
-	.modal-check { font-size: var(--text-xs); color: var(--color-repertoire-text); font-weight: 700; }
-
-	.modal-hint { padding: 1rem 1.25rem; font-size: var(--text-sm); color: var(--color-text-muted); margin: 0; }
-	.modal-error { padding: 0.75rem 1.25rem; font-size: var(--text-sm); color: var(--color-error); margin: 0; }
 
 	h1 {
 		font-size: 1.4rem;

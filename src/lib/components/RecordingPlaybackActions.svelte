@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { player } from '$lib/player.svelte'
+	import AddToPlaylistButton from '$lib/components/AddToPlaylistButton.svelte'
 
 	let {
 		recordingId,
@@ -45,6 +46,7 @@
 		<a href="/recording/{recordingId}" class="btn btn-secondary btn-sm" title="Ouvrir le lecteur complet">
 			Lecteur complet
 		</a>
+		<AddToPlaylistButton {recordingId} {hasAudio} label="+ Playlist" />
 	</div>
 {:else}
 	<!-- Une vidéo sans piste audio se regarde uniquement sur sa page dédiée. -->

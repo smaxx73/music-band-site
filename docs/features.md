@@ -409,7 +409,11 @@ distincte des commentaires, qui sont datés et signés.
 - Lecture en continu : enchaînement automatique dans l'ordre `position`
 - Chaque item affiche : titre du morceau, date session, numéro de prise, note
 - Ordre modifiable par drag & drop → PATCH `position`
-- Depuis `/recording/[id]` : bouton "Ajouter à une playlist"
+- Ajout d'une prise depuis trois contextes : sa page `/recording/[id]`, chaque ligne de prise
+  des vues Session et Morceau, ou directement depuis la playlist (recherche par morceau/date)
+- Le sélecteur indique les playlists qui contiennent déjà la prise, permet d'en créer une sans
+  quitter le contexte, et empêche les doublons ; une nouvelle playlist et sa première prise sont
+  créées dans la même transaction
 
 ## Référentiel de morceaux (`/songs`)
 

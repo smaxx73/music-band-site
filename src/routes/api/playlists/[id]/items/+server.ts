@@ -22,6 +22,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		const [playlist] = await tx`
 			SELECT id FROM playlists
 			WHERE id = ${playlistId} AND group_id = ${locals.user!.current_group_id}
+			FOR UPDATE
 		`
 		if (!playlist) throw Object.assign(new Error(), { code: 'playlist_not_found' })
 
@@ -33,6 +34,12 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		if (!rec) throw Object.assign(new Error(), { code: 'recording_not_found' })
 		// La lecture en continu repose sur le lecteur audio partagé, que YouTube ne peut pas alimenter.
 		if (!rec.file_path) throw Object.assign(new Error(), { code: 'not_audio' })
+
+		const [existingItem] = await tx`
+			SELECT * FROM playlist_items
+			WHERE playlist_id = ${playlistId} AND recording_id = ${recordingId}
+		`
+		if (existingItem) throw Object.assign(new Error(), { code: 'already_added', item: existingItem })
 
 		const [{ next_pos }] = await tx`
 			SELECT COALESCE(MAX(position), 0) + 1 AS next_pos
@@ -52,12 +59,16 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		const code = (err as { code?: string }).code
 		if (code === 'playlist_not_found' || code === 'recording_not_found') return null
 		if (code === 'not_audio') return 'not_audio' as const
+		if (code === 'already_added') return { alreadyAdded: true, item: (err as { item: unknown }).item }
 		throw err
 	})
 
 	if (!item) return json({ error: 'Playlist ou prise introuvable.' }, { status: 404 })
 	if (item === 'not_audio') {
 		return json({ error: "Cette prise n'a pas de piste audio : elle ne peut pas entrer dans une playlist." }, { status: 400 })
+	}
+	if ('alreadyAdded' in item) {
+		return json({ error: 'Cette prise est déjà dans cette playlist.', code: 'already_added', item: item.item }, { status: 409 })
 	}
 
 	return json(item, { status: 201 })

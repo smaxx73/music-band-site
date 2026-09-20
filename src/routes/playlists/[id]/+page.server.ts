@@ -25,7 +25,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 		error(404, 'Playlist introuvable')
 	}
 
-	const items = await sql`
+	const [items, availableRecordings] = await Promise.all([sql`
 		SELECT
 			pi.id, pi.position, pi.note,
 			r.id         AS recording_id,
@@ -47,7 +47,22 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 		JOIN sessions ses   ON ses.id = r.session_id
 		WHERE pi.playlist_id = ${id}
 		ORDER BY pi.position ASC
-	`
+	`, sql`
+		SELECT
+			r.id AS recording_id, r.take, r.duration_s, r.status AS recording_status, r.file_path,
+			s.id AS song_id, s.title AS song_title, s.composer AS song_composer,
+			s.lyrics AS song_lyrics, s.music_notes AS song_music_notes,
+			ses.id AS session_id, ses.date AS session_date, ses.location AS session_location,
+			EXISTS (
+				SELECT 1 FROM playlist_items pi
+				WHERE pi.playlist_id = ${id} AND pi.recording_id = r.id
+			) AS in_playlist
+		FROM recordings r
+		JOIN songs s ON s.id = r.song_id
+		JOIN sessions ses ON ses.id = r.session_id
+		WHERE ses.group_id = ${locals.user.current_group_id} AND r.file_path IS NOT NULL
+		ORDER BY ses.date DESC, s.title ASC, r.take ASC
+	`])
 
 	const peaksArr = await Promise.all(
 		(items as unknown as { recording_id: number; file_path: string }[]).map(
@@ -61,5 +76,5 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 		durations[item.recording_id] = peaksArr[i].duration
 	})
 
-	return { playlist, items, peaks, durations }
+	return { playlist, items, availableRecordings, peaks, durations }
 }
