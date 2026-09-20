@@ -682,10 +682,22 @@
 
 	.row-note.open .note-text { white-space: pre-wrap; overflow: visible; }
 
+	/* Les commentaires d'une prise ne sont pas d'autres prises. Empilés sous la ligne
+	   avec le même cadre, le même rayon et le même fond, ils s'en réclamaient pourtant.
+	   Le tiroir devient donc un fond creusé, rejoignant les bords de la carte par des
+	   marges négatives qui reprennent son retrait : les commentaires s'y posent en
+	   clair, et la hiérarchie se lit sans avoir à compter les bordures.
+
+	   `--color-bg-subtle` est le fond de surface de la charte, celui de `.form-section`
+	   et des panneaux de l'agenda. Surtout pas `--color-bg-muted`, qui est le jeton
+	   d'interaction (`.btn-secondary:hover`) : le bouton posé dans ce tiroir en est un,
+	   et son survol s'y serait confondu avec le fond. */
 	.row-drawer {
-		margin-top: 0.4rem;
-		padding-top: 0.4rem;
+		margin: 0.5rem -0.7rem -0.55rem;
+		padding: 0.55rem 0.7rem 0.7rem;
+		background: var(--color-bg-subtle);
 		border-top: 1px solid var(--color-border-light);
+		border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 	}
 
 	/* Ce qui clôt un tiroir est une action, pas une note de bas de page : sous une liste

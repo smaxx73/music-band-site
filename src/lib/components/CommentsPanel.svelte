@@ -335,7 +335,18 @@
 		cursor: pointer;
 	}
 
-	.list-wrapper { margin-bottom: 1.5rem; }
+	/* Même plateau creusé que le tiroir d'une prise (`row-drawer`) : les commentaires
+	   se lisent au même endroit visuel des deux côtés. Posés à plat sur la page, dont
+	   ils portaient déjà le fond, seul leur filet les en séparait — et rien ne disait
+	   où finissait la liste et où commençait la saisie. Le fond de surface de la
+	   charte, celui de `.form-section`. */
+	.list-wrapper {
+		margin-bottom: 1.5rem;
+		padding: var(--space-3);
+		background: var(--color-bg-subtle);
+		border: 1px solid var(--color-border-light);
+		border-radius: var(--radius-xl);
+	}
 
 	.comment-form {
 		display: flex;

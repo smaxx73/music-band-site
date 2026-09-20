@@ -75,8 +75,9 @@
 </div>
 
 <style>
+	/* Le retrait est celui du tiroir qui nous accueille (`row-drawer`) : on ne le double pas. */
 	.inline-comments {
-		padding: 0.6rem 0.2rem 0.8rem;
+		padding: 0.1rem 0 0.35rem;
 	}
 
 	.inline-msg {

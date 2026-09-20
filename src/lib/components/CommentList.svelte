@@ -468,6 +468,7 @@
 	}
 
 	.comment {
+		background: var(--color-bg);
 		border: 1px solid var(--color-border-light);
 		border-radius: var(--radius-lg);
 		padding: 0.75rem 1rem;
@@ -508,6 +509,9 @@
 
 	.older-link:hover { color: var(--color-accent); text-decoration: underline; }
 
+	/* `compact` ne change que la densité. Un commentaire se dessine pareil partout :
+	   ce qui distingue le tiroir d'une prise, c'est le plateau creusé qui l'accueille
+	   (`row-drawer`), pas une seconde façon de dessiner la même carte. */
 	.compact .comment {
 		padding: 0.5rem 0.7rem;
 	}

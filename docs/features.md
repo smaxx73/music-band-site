@@ -184,6 +184,14 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
 - Cette liste dépliée s'arrête aux **5 derniers** commentaires, avec « Voir les N précédents
   dans le lecteur → » : une ligne dépliée ne doit pas pousser les prises suivantes hors de
   l'écran, et une vraie discussion se lit là où on peut la réécouter
+- Le tiroir déplié est un **fond creusé** (`--color-bg-subtle`) qui rejoint les bords de la
+  carte. Empilés sous la ligne sur le même fond que la prise, les commentaires se donnaient
+  l'air d'autres prises : ce qui les en distingue est le plateau qui les accueille, jamais
+  une seconde façon de dessiner la carte
+- **Une liste de commentaires se lit pareil partout** : plateau `--color-bg-subtle`, cartes
+  en `--color-bg` bordées de `--color-border-light`. Vrai du tiroir d'une prise comme du
+  lecteur (`.list-wrapper` de `CommentsPanel`), où le plateau sépare en plus la liste de la
+  zone de saisie qui la suit. Seule la densité change (`compact`, dans le tiroir)
 - Commenter une prise mène au lecteur (`/recording/[id]#commenter`) : « + 💬 » à la place du
   compteur quand la prise n'a aucun commentaire — entrée du menu ⋮ sous 640 px —, et bouton
   « 💬 Commenter dans le lecteur » en bas de la liste dépliée sinon. Ce qui clôt un tiroir
