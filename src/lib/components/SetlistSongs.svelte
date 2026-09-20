@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { formatTimecode } from '$lib/youtube'
 	import type { SetlistItemView } from '$lib/types'
+	import Icon from '$lib/components/Icon.svelte'
 
 	let {
 		items,
@@ -102,14 +103,14 @@
 						title="Monter"
 						aria-label="Monter {item.song_title}"
 						onclick={() => onReorder(i, i - 1)}
-					>↑</button>
+					><Icon name="arrow-up" size="0.85rem" /></button>
 					<button
 						class="move-btn"
 						disabled={busy || i === items.length - 1}
 						title="Descendre"
 						aria-label="Descendre {item.song_title}"
 						onclick={() => onReorder(i, i + 1)}
-					>↓</button>
+					><Icon name="arrow-down" size="0.85rem" /></button>
 				</span>
 				<button
 					class="remove-btn"
@@ -117,7 +118,7 @@
 					title="Retirer de la setlist"
 					aria-label="Retirer {item.song_title} de la setlist"
 					onclick={() => onRemove(item.id, i)}
-				>✕</button>
+				><Icon name="close" size="0.85rem" /></button>
 			{/if}
 		</li>
 	{/each}

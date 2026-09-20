@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Modal from '$lib/components/Modal.svelte'
+	import Icon from '$lib/components/Icon.svelte'
 
 	let {
 		recordingId,
@@ -122,10 +123,7 @@
 		title="Ajouter à une playlist"
 		aria-label={label ? undefined : 'Ajouter à une playlist'}
 	>
-		<!-- Icône standard « playlist avec ajout » : les trois pistes et le signe +. -->
-		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-			<path d="M3 6h11M3 12h11M3 18h7M18 14v6M15 17h6" />
-		</svg>
+		<Icon name="playlist-add" />
 		{#if label}<span>{label}</span>{/if}
 	</button>
 
@@ -147,7 +145,7 @@
 										<a class="modal-item already-added" href="/playlists/{playlist.id}">
 											<span class="modal-name">{playlist.name}</span>
 											<span class="modal-count">{playlist.item_count} prise{playlist.item_count > 1 ? 's' : ''}</span>
-											<span class="modal-check">✓ Déjà ajoutée</span>
+											<span class="modal-check"><Icon name="check" size="0.85rem" /> Déjà ajoutée</span>
 										</a>
 									{:else}
 										<button class="modal-item" onclick={() => add(playlist.id)} disabled={addingId !== null}>

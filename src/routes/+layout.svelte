@@ -6,6 +6,8 @@
 	import { groupLogoUrl, isAdmin } from '$lib/types'
 	import MiniPlayer from '$lib/components/MiniPlayer.svelte'
 	import NotificationsMenu from '$lib/components/NotificationsMenu.svelte'
+	import Icon from '$lib/components/Icon.svelte'
+	import type { IconName } from '$lib/icons'
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props()
 
@@ -49,14 +51,14 @@
 			.toUpperCase() ?? ''
 	)
 
-	const navItems = [
-		{ href: '/', label: 'Tableau de bord', icon: '⊞' },
-		{ href: '/sessions', label: 'Sessions', icon: '◎' },
-		{ href: '/songs', label: 'Morceaux', icon: '♪' },
-		{ href: '/playlists', label: 'Playlists', icon: '≡' },
-		{ href: '/setlists', label: 'Setlists', icon: '▤' },
-		{ href: '/agenda', label: 'Agenda', icon: '◻' },
-		{ href: '/group', label: 'Mon groupe', icon: '◈' },
+	const navItems: { href: string; label: string; icon: IconName }[] = [
+		{ href: '/', label: 'Tableau de bord', icon: 'home' },
+		{ href: '/sessions', label: 'Sessions', icon: 'calendar' },
+		{ href: '/songs', label: 'Morceaux', icon: 'music' },
+		{ href: '/playlists', label: 'Playlists', icon: 'playlist' },
+		{ href: '/setlists', label: 'Setlists', icon: 'list' },
+		{ href: '/agenda', label: 'Agenda', icon: 'agenda' },
+		{ href: '/group', label: 'Mon groupe', icon: 'users' },
 	]
 </script>
 
@@ -79,7 +81,9 @@
 				onclick={() => (menuOpen = !menuOpen)}
 				aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
 				aria-expanded={menuOpen}
-			>{menuOpen ? '✕' : '☰'}</button>
+			>
+				<Icon name={menuOpen ? 'close' : 'menu'} size="1.15rem" />
+			</button>
 			<a href="/accueil" class="brand" aria-label="BandStash — accueil">
 				<img src="/brand/bandstash-mark-simple.svg" alt="" class="brand-mark" />
 				<span>BandStash</span>
@@ -143,7 +147,7 @@
 					{#each navItems as item}
 						<li>
 							<a href={item.href} class="sidebar-link" class:active={isActive(item.href)}>
-								<span class="nav-icon">{item.icon}</span>
+								<Icon name={item.icon} class="nav-icon" size="0.95rem" />
 								{item.label}
 							</a>
 						</li>
@@ -152,7 +156,7 @@
 						<li class="sidebar-sep"></li>
 						<li>
 							<a href="/admin" class="sidebar-link sidebar-link--admin" class:active={isActive('/admin')}>
-								<span class="nav-icon">⚙</span>
+								<Icon name="settings" class="nav-icon" size="0.95rem" />
 								Admin
 							</a>
 						</li>
@@ -162,7 +166,8 @@
 				<div class="sidebar-spacer"></div>
 
 				<a href="/upload" class="sidebar-upload" class:active={isActive('/upload')}>
-					+ Uploader
+					<Icon name="plus" size="0.95rem" />
+					Uploader
 				</a>
 
 				<div class="sidebar-account">
@@ -171,7 +176,9 @@
 						<span class="sidebar-username">{data.user.display_name}</span>
 					</a>
 					<form method="POST" action="/logout">
-						<button type="submit" class="sidebar-logout" title="Se déconnecter">⏻</button>
+						<button type="submit" class="sidebar-logout" title="Se déconnecter">
+							<Icon name="power" size="0.95rem" label="Se déconnecter" />
+						</button>
 					</form>
 				</div>
 			</nav>
@@ -375,10 +382,10 @@
 		font-size: 0.76rem;
 	}
 
-	.nav-icon {
-		font-size: 0.85rem;
-		opacity: 0.8;
-		flex-shrink: 0;
+	/* L'icône est rendue par Icon.svelte : le style scopé ne l'atteint qu'en passant
+	   par `:global`, gardé sous `.sidebar-link` pour ne pas devenir une règle globale. */
+	.sidebar-link :global(.nav-icon) {
+		opacity: 0.85;
 	}
 
 	.sidebar-sep {
@@ -390,7 +397,10 @@
 	.sidebar-spacer { flex: 1; }
 
 	.sidebar-upload {
-		display: block;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 6px;
 		margin: 0 0 10px;
 		padding: 7px 10px;
 		background: var(--color-accent);

@@ -6,6 +6,7 @@
 	import { canEditComment, threadHref } from '$lib/types'
 	import { commentParts, commentVideos } from '$lib/comment-content'
 	import YouTubeEmbed from '$lib/components/YouTubeEmbed.svelte'
+	import Icon from '$lib/components/Icon.svelte'
 	import type { CommentThread, CommentWithReactions, ReactionValue } from '$lib/types'
 
 	type ReactionState = {
@@ -289,7 +290,8 @@
 			</a>
 		{:else}
 			<button type="button" class="older-link" onclick={() => (expanded = true)}>
-				↑ Afficher les {hiddenCount} commentaire{hiddenCount > 1 ? 's' : ''} précédent{hiddenCount > 1 ? 's' : ''}
+				<Icon name="arrow-up" size="0.85rem" />
+				Afficher les {hiddenCount} commentaire{hiddenCount > 1 ? 's' : ''} précédent{hiddenCount > 1 ? 's' : ''}
 			</button>
 		{/if}
 	</div>
@@ -314,10 +316,10 @@
 				{#if comment.timestamp_s !== null && comment.timestamp_s !== undefined}
 					{#if onSeek}
 						<button class="timestamp-link" onclick={() => onSeek?.(comment.timestamp_s as number)}>
-							⏱ {formatTime(comment.timestamp_s)}
+							<Icon name="clock" size="0.8rem" /> {formatTime(comment.timestamp_s)}
 						</button>
 					{:else}
-						<span class="timestamp-badge">⏱ {formatTime(comment.timestamp_s)}</span>
+						<span class="timestamp-badge"><Icon name="clock" size="0.8rem" /> {formatTime(comment.timestamp_s)}</span>
 					{/if}
 				{/if}
 				<span class="comment-date">
@@ -386,7 +388,7 @@
 						title={reactions.my_reaction === 1 ? 'Retirer mon pouce' : "J'aime"}
 						onclick={() => react(comment, 1)}
 					>
-						👍
+						<Icon name="thumb-up" size="0.9rem" label="J'aime" />
 					</button>
 					{#if upReactors.length > 0}
 						<button
@@ -400,7 +402,7 @@
 							{upReactors.length}
 						</button>
 						<span class="reactor-tooltip" id="reactors-{comment.id}-up" role="tooltip">
-							👍 {upReactors.join(', ')}
+							<Icon name="thumb-up" size="0.8rem" /> {upReactors.join(', ')}
 						</span>
 					{/if}
 				</div>
@@ -412,7 +414,7 @@
 						title={reactions.my_reaction === -1 ? 'Retirer mon pouce' : "Je n'aime pas"}
 						onclick={() => react(comment, -1)}
 					>
-						👎
+						<Icon name="thumb-down" size="0.9rem" label="Je n'aime pas" />
 					</button>
 					{#if downReactors.length > 0}
 						<button
@@ -426,7 +428,7 @@
 							{downReactors.length}
 						</button>
 						<span class="reactor-tooltip" id="reactors-{comment.id}-down" role="tooltip">
-							👎 {downReactors.join(', ')}
+							<Icon name="thumb-down" size="0.8rem" /> {downReactors.join(', ')}
 						</span>
 					{/if}
 				</div>
@@ -440,7 +442,11 @@
 						aria-label="Copier le lien vers ce commentaire"
 						onclick={() => copyCommentLink(comment)}
 					>
-						{copiedCommentId === comment.id ? '✓ Copié' : '🔗'}
+						{#if copiedCommentId === comment.id}
+							<Icon name="check" size="0.85rem" /> Copié
+						{:else}
+							<Icon name="link" size="0.85rem" />
+						{/if}
 					</button>
 				{/if}
 				{#if editingId !== comment.id && canEditComment(page.data.user, comment.author_user_id)}
@@ -450,7 +456,8 @@
 			{#if visibleReactors?.commentId === comment.id}
 				{@const visibleNames = namesFor(reactions, visibleReactors.value)}
 				<div class="reaction-members-panel">
-					{visibleReactors.value === 1 ? '👍' : '👎'} {visibleNames.join(', ')}
+					<Icon name={visibleReactors.value === 1 ? 'thumb-up' : 'thumb-down'} size="0.8rem" />
+					{visibleNames.join(', ')}
 				</div>
 			{/if}
 		</li>

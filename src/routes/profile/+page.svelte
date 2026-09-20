@@ -2,6 +2,7 @@
 	import type { PageData, ActionData } from './$types'
 	import { enhance } from '$app/forms'
 	import { formatDateOnly } from '$lib/date'
+	import Icon from '$lib/components/Icon.svelte'
 
 	let { data, form }: { data: PageData; form: ActionData } = $props()
 
@@ -58,7 +59,7 @@
 					aria-label="Modifier les informations"
 					title="Modifier les informations"
 				>
-					✏️
+					<Icon name="pencil" />
 				</button>
 			{/if}
 		</div>

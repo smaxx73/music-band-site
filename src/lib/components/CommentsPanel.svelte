@@ -2,6 +2,7 @@
 	import { onMount, tick } from 'svelte'
 	import CommentList from '$lib/components/CommentList.svelte'
 	import MentionTextarea, { type MentionMember } from '$lib/components/MentionTextarea.svelte'
+	import Icon from '$lib/components/Icon.svelte'
 	import { threadParam } from '$lib/types'
 	import type { CommentThread, CommentWithReactions } from '$lib/types'
 
@@ -263,7 +264,7 @@
 						disabled={submitting}
 						onclick={() => (anchorTimestamp = !anchorTimestamp)}
 					>
-						⏱ {formatTime(currentTime)}
+						<Icon name="clock" size="0.85rem" /> {formatTime(currentTime)}
 					</button>
 				{/if}
 
@@ -274,7 +275,7 @@
 					aria-label="Envoyer le commentaire"
 					title="Envoyer (Ctrl/⌘+Entrée)"
 				>
-					{submitting ? '…' : '➤'}
+					{#if submitting}…{:else}<Icon name="send" size="0.95rem" />{/if}
 				</button>
 			</div>
 		</div>

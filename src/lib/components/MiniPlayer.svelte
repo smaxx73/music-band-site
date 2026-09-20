@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { player } from '$lib/player.svelte'
+	import Icon from '$lib/components/Icon.svelte'
 
 	let el = $state<HTMLAudioElement | null>(null)
 
@@ -72,7 +73,7 @@
 			class="mini-btn mini-play"
 			onclick={() => player.toggle()}
 			title={player.isPlaying ? 'Pause' : 'Lecture'}
-		>{player.isPlaying ? '⏸' : '▶'}</button>
+		><Icon name={player.isPlaying ? 'pause' : 'play'} size="1rem" /></button>
 
 		<div class="mini-body">
 			<div class="mini-title">
@@ -96,7 +97,9 @@
 			</div>
 		</div>
 
-		<button class="mini-btn mini-close" onclick={() => player.close()} title="Fermer le lecteur">✕</button>
+		<button class="mini-btn mini-close" onclick={() => player.close()} title="Fermer le lecteur">
+			<Icon name="close" size="0.9rem" />
+		</button>
 	</div>
 {/if}
 

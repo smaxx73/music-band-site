@@ -11,6 +11,7 @@
 	import YouTubePlayer from '$lib/components/YouTubePlayer.svelte'
 	import { youtubeWatchUrl, formatTimecode, parseTimecode } from '$lib/youtube'
 	import type { CommentWithReactions } from '$lib/types'
+	import Icon from '$lib/components/Icon.svelte'
 
 	let { data }: { data: PageData } = $props()
 
@@ -262,12 +263,12 @@
 				<!-- `file_path` ("{id}.mp3") ne sert de repli que pour les prises d'avant la
 				     migration 023, déposées quand le nom d'origine n'était pas conservé. -->
 				<div class="meta file-meta" class:fallback={!recording.source_file_name}>
-					🎵 {recording.source_file_name ?? recording.file_path}
+					<Icon name="waveform" size="0.85rem" /> {recording.source_file_name ?? recording.file_path}
 				</div>
 			{/if}
 			{#if recording.youtube_video_id}
 				<div class="meta file-meta">
-					🎬 <a href={youtubeWatchUrl(recording.youtube_video_id)} target="_blank" rel="noopener noreferrer">
+					<Icon name="video" size="0.85rem" /> <a href={youtubeWatchUrl(recording.youtube_video_id)} target="_blank" rel="noopener noreferrer">
 						{recording.youtube_title ?? 'Vidéo YouTube'}
 					</a>
 				</div>
@@ -297,10 +298,12 @@
 					</div>
 				{:else if recording.notes}
 					<button class="notes-display" onclick={startEditNotes} title="Cliquer pour modifier">
-						📝 {recording.notes}
+						<Icon name="pencil" size="0.85rem" /> {recording.notes}
 					</button>
 				{:else}
-					<button class="notes-add" onclick={startEditNotes}>+ 📝 Ajouter une note</button>
+					<button class="notes-add" onclick={startEditNotes}>
+						<Icon name="plus" size="0.75rem" /><Icon name="pencil" size="0.85rem" /> Ajouter une note
+					</button>
 				{/if}
 				{#if notesError}<p class="notes-error">{notesError}</p>{/if}
 			</div>
@@ -324,9 +327,9 @@
 					? `Copier le lien vers cette prise à ${formatTimecode(shareTime)}`
 					: 'Copier le lien vers cette prise'}
 			>
-				{#if linkCopied}✓ Lien copié
+				{#if linkCopied}<Icon name="check" /> Lien copié
 				{:else if linkCopyFailed}Copie impossible
-				{:else}🔗 Copier le lien{#if shareTime !== null}&nbsp;({formatTimecode(shareTime)}){/if}
+				{:else}<Icon name="link" /> Copier le lien{#if shareTime !== null}&nbsp;({formatTimecode(shareTime)}){/if}
 				{/if}
 			</button>
 			{#if hasAudio}
@@ -346,8 +349,8 @@
 	<div class="player-card" class:sticky={stickyPlayer} bind:clientHeight={playerHeight}>
 		{#if hasAudio && recording.youtube_video_id}
 			<div class="view-tabs" role="tablist" aria-label="Lecteur">
-				<button role="tab" class="view-tab" class:active={view === 'audio'} aria-selected={view === 'audio'} onclick={() => selectView('audio')}>🎵 Audio</button>
-				<button role="tab" class="view-tab" class:active={view === 'video'} aria-selected={view === 'video'} onclick={() => selectView('video')}>🎬 Vidéo</button>
+				<button role="tab" class="view-tab" class:active={view === 'audio'} aria-selected={view === 'audio'} onclick={() => selectView('audio')}><Icon name="waveform" size="0.9rem" /> Audio</button>
+				<button role="tab" class="view-tab" class:active={view === 'video'} aria-selected={view === 'video'} onclick={() => selectView('video')}><Icon name="video" size="0.9rem" /> Vidéo</button>
 			</div>
 		{/if}
 		{#if showVideo && recording.youtube_video_id}

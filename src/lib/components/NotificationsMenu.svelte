@@ -6,6 +6,7 @@
 		type ActivityNotification,
 		type NotificationFeed
 	} from '$lib/types'
+	import Icon from '$lib/components/Icon.svelte'
 
 	let { groupId, initialUnread = 0 }: { groupId: number; initialUnread?: number } = $props()
 
@@ -171,7 +172,7 @@
 		title={unread > 0 ? `${unread} notification${unread > 1 ? 's' : ''} non lue${unread > 1 ? 's' : ''}` : 'Notifications'}
 		aria-label="Notifications"
 	>
-		<span aria-hidden="true">🔔</span>
+		<Icon name="bell" size="1.05rem" />
 		{#if unread > 0}
 			<span class="notif-badge">{unread > 9 ? '9+' : unread}</span>
 		{/if}
@@ -212,7 +213,7 @@
 								href={item.link}
 								onclick={(e) => openNotification(e, item)}
 							>
-								<span class="notif-icon" aria-hidden="true">{notificationIcon(item.type)}</span>
+								<Icon name={notificationIcon(item.type)} class="notif-icon" size="1rem" />
 								<span class="notif-text">
 									<span class="notif-action">
 										{item.actor_name} {notificationLabel(item.type)}
@@ -387,12 +388,10 @@
 
 	.notif-link:hover { background: rgba(0, 0, 0, 0.03); }
 
-	.notif-icon {
-		flex-shrink: 0;
-		width: 1.1rem;
-		text-align: center;
-		font-size: 0.8rem;
-		line-height: 1.5;
+	/* Rendue par Icon.svelte : le style scopé ne l'atteint qu'avec `:global`, tenu
+	   sous `.notif-link` pour ne pas devenir une règle globale. */
+	.notif-link :global(.notif-icon) {
+		margin-top: 0.15rem;
 		opacity: 0.7;
 	}
 

@@ -9,6 +9,7 @@
 		type AudioSegment,
 		type SplitParams
 	} from '$lib/types'
+	import Icon from '$lib/components/Icon.svelte'
 
 	let { data }: { data: PageData } = $props()
 
@@ -464,7 +465,7 @@
 							onclick={() => toggleSegment(i)}
 							aria-label="Écouter le segment {i + 1}"
 						>
-							{isPlaying({ kind: 'segment', index: i }) ? '❙❙' : '▶'}
+							<Icon name={isPlaying({ kind: 'segment', index: i }) ? 'pause' : 'play'} size="0.9rem" />
 						</button>
 
 						<span class="times">

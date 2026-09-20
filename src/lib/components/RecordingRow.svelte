@@ -2,6 +2,7 @@
 	import AddToPlaylistButton from '$lib/components/AddToPlaylistButton.svelte'
 	import RecordingComments from '$lib/components/RecordingComments.svelte'
 	import RecordingPlaybackActions from '$lib/components/RecordingPlaybackActions.svelte'
+	import Icon from '$lib/components/Icon.svelte'
 	import { tick } from 'svelte'
 	import type { RecordingListItem } from '$lib/types'
 
@@ -33,12 +34,13 @@
 
 	// `file_path` ("{id}.mp3") ne sert de nom affiché que pour les prises d'avant la
 	// migration 023, déposées quand le nom d'origine n'était pas encore conservé.
-	// 🎬 signale une vidéo : seule (son titre), ou accompagnée de sa piste audio (le fichier).
 	const sourceName = $derived(
 		recording.file_path
-			? `${recording.youtube_video_id ? '🎬 ' : ''}${recording.source_file_name ?? recording.file_path}`
-			: `🎬 ${recording.youtube_title ?? 'Vidéo YouTube'}`
+			? (recording.source_file_name ?? recording.file_path)
+			: (recording.youtube_title ?? 'Vidéo YouTube')
 	)
+	// L'icône vidéo signale une prise filmée : vidéo seule, ou accompagnée de sa piste audio.
+	const hasVideo = $derived(!!recording.youtube_video_id)
 	const sourceTitle = $derived(
 		[
 			recording.file_path &&
@@ -218,7 +220,9 @@
 						/>
 						<button class="btn-mini" disabled={saving} onclick={() => saveQuality(customDraft ?? '')}>OK</button>
 					{/if}
-					<button class="btn-mini btn-mini-ghost" disabled={saving} onclick={closeQuality} title="Annuler">✕</button>
+					<button class="btn-mini btn-mini-ghost" disabled={saving} onclick={closeQuality} title="Annuler">
+						<Icon name="close" size="0.8rem" label="Annuler" />
+					</button>
 				</span>
 			{:else if editableQuality}
 				<button
@@ -244,13 +248,13 @@
 					aria-expanded={noteOpen}
 					onclick={() => (noteOpen = !noteOpen)}
 					title={noteOpen ? 'Masquer la note' : 'Lire la note'}
-				>📝</button>
+				><Icon name="pencil" size="0.85rem" /></button>
 			{:else}
 				<a
 					href="/recording/{recording.id}#notes"
 					class="chip chip-add row-wide-only"
 					title="Ajouter une note dans le lecteur complet"
-				>+ 📝</a>
+				><Icon name="plus" size="0.7rem" /><Icon name="pencil" size="0.85rem" /></a>
 			{/if}
 
 			{#if recording.comment_count > 0}
@@ -260,13 +264,13 @@
 					aria-expanded={commentsOpen}
 					onclick={() => (commentsOpen = !commentsOpen)}
 					title={commentsOpen ? 'Masquer les commentaires' : 'Lire les commentaires'}
-				>💬 {recording.comment_count}</button>
+				><Icon name="comment" size="0.85rem" /> {recording.comment_count}</button>
 			{:else}
 				<a
 					href="/recording/{recording.id}#commenter"
 					class="chip chip-add row-wide-only"
 					title="Ajouter un commentaire dans le lecteur complet"
-				>+ 💬</a>
+				><Icon name="plus" size="0.7rem" /><Icon name="comment" size="0.85rem" /></a>
 			{/if}
 
 			<RecordingPlaybackActions
@@ -286,11 +290,7 @@
 					title="Ouvrir le lecteur complet"
 					aria-label="Ouvrir le lecteur complet"
 				>
-					<!-- Quatre coins qui s'écartent : l'agrandissement, pas un glyphe
-					     typographique dont le rendu change d'une plateforme à l'autre. -->
-					<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-						<path d="M15 3h6v6M21 3l-7 7M9 21H3v-6M3 21l7-7" />
-					</svg>
+					<Icon name="external" />
 				</a>
 			{/if}
 
@@ -313,17 +313,13 @@
 					title="Autres actions"
 					aria-label="Autres actions sur la prise {recording.take}"
 				>
-					<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-						<circle cx="12" cy="5" r="1.7" />
-						<circle cx="12" cy="12" r="1.7" />
-						<circle cx="12" cy="19" r="1.7" />
-					</svg>
+					<Icon name="more" />
 				</button>
 
 				{#if menuOpen}
 					<div class="row-menu-panel" role="menu" bind:this={menuPanel}>
 						{#if recording.file_path}
-							<!-- Sans piste audio, « 🎬 Voir » mène déjà à la page de la prise. -->
+							<!-- Sans piste audio, « Voir » mène déjà à la page de la prise. -->
 							<a href="/recording/{recording.id}" class="btn btn-ghost row-menu-item" role="menuitem">
 								Ouvrir le lecteur complet
 							</a>
@@ -348,7 +344,7 @@
 			class="file-name"
 			class:fallback={!!recording.file_path && !recording.source_file_name}
 			title={sourceTitle}
-		>{sourceName}</span>
+		>{#if hasVideo}<Icon name="video" size="0.8rem" label="Prise vidéo" /> {/if}{sourceName}</span>
 		<span class="sep">·</span>
 		<span class="uploader">{recording.uploaded_by}</span>
 
@@ -369,12 +365,12 @@
 		     commentaire. -->
 		<div class="row-note" class:open={noteOpen}>
 			<button class="note-toggle" aria-expanded={noteOpen} onclick={() => (noteOpen = !noteOpen)}>
-				<span class="note-icon">📝</span>
+				<Icon name="pencil" class="note-icon" size="0.85rem" />
 				<span class="note-text">{recording.notes}</span>
 			</button>
 			{#if noteOpen}
 				<a href="/recording/{recording.id}#notes" class="btn btn-secondary btn-sm drawer-action">
-					📝 Modifier dans le lecteur
+					<Icon name="pencil" size="0.85rem" /> Modifier dans le lecteur
 				</a>
 			{/if}
 		</div>
@@ -384,7 +380,7 @@
 		<div class="row-drawer">
 			<RecordingComments recordingId={recording.id} onSeek={null} />
 			<a href="/recording/{recording.id}#commenter" class="btn btn-secondary btn-sm drawer-action">
-				💬 Commenter dans le lecteur
+				<Icon name="comment" size="0.85rem" /> Commenter dans le lecteur
 			</a>
 		</div>
 	{/if}
@@ -503,6 +499,7 @@
 		cursor: pointer;
 		text-decoration: none;
 		white-space: nowrap;
+		gap: 0.25rem;
 	}
 
 	.chip:hover { border-color: var(--color-accent); }
@@ -545,10 +542,6 @@
 		background: var(--color-bg-muted);
 		color: var(--color-text);
 	}
-
-	/* Trois points pleins : la règle partagée `.btn svg` dessine au trait, ce qui
-	   donnerait ici des anneaux. */
-	.row-menu-button svg { fill: currentColor; stroke: none; }
 
 	.row-menu-panel {
 		position: absolute;
@@ -648,7 +641,7 @@
 
 	.note-toggle:hover { border-color: var(--color-border-light); background: var(--color-bg-subtle); }
 
-	.note-icon { flex-shrink: 0; font-size: var(--text-xs); }
+	.note-toggle :global(.note-icon) { color: var(--color-text-muted); }
 
 	.note-text {
 		min-width: 0;

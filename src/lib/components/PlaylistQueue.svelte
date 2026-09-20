@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { formatDateOnly } from '$lib/date'
+	import Icon from '$lib/components/Icon.svelte'
 
 	type PlaylistItem = {
 		id: number
@@ -116,7 +117,7 @@
 				class="remove-btn"
 				onclick={() => onRemove(item.id, i)}
 				title="Retirer de la playlist"
-			>✕</button>
+			><Icon name="close" size="0.85rem" /></button>
 		</li>
 	{/each}
 </ul>

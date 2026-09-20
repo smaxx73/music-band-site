@@ -2,6 +2,8 @@
 	import type { PageData } from './$types'
 	import { formatDateOnly, toDateOnly } from '$lib/date'
 	import PublicLanding from '$lib/components/PublicLanding.svelte'
+	import Icon from '$lib/components/Icon.svelte'
+	import type { IconName } from '$lib/icons'
 
 	let { data }: { data: PageData } = $props()
 
@@ -96,6 +98,13 @@
 		kind: ActivityKind; ts: number; date: string; label: string; detail: string
 		color: string; href?: string
 	}
+	const ACTIVITY_ICON: Record<ActivityKind, IconName> = {
+		session: 'calendar',
+		playlist: 'playlist',
+		setlist: 'list',
+		comment: 'comment'
+	}
+
 	const allActivity = $derived((): ActivityItem[] => {
 		const items: ActivityItem[] = []
 
@@ -132,7 +141,7 @@
 				kind: 'setlist',
 				ts: new Date(sl.created_at).getTime(),
 				date: formatShortDate(sl.created_at),
-				label: `▤ Setlist créée — ${sl.created_by}`,
+				label: `Setlist créée — ${sl.created_by}`,
 				detail: sl.name,
 				color: 'var(--color-mid)',
 				href: `/setlists/${sl.id}`,
@@ -146,7 +155,7 @@
 				kind: 'comment',
 				ts: new Date(c.created_at).getTime(),
 				date: formatShortDate(c.created_at),
-				label: `💬 ${c.author} — ${onSetlist ? c.setlist_name : c.song_title}`,
+				label: `${c.author} — ${onSetlist ? c.setlist_name : c.song_title}`,
 				detail: truncate(c.content),
 				color: 'var(--color-green)',
 				href: onSetlist ? `/setlists/${c.setlist_id}` : `/recording/${c.recording_id}`,
@@ -320,7 +329,9 @@
 							<div class="timeline-dot" style="background: {item.color}"></div>
 							{#if item.href}
 								<a class="timeline-body" href={item.href}>
-									<div class="timeline-label">{item.label}</div>
+									<div class="timeline-label">
+										<Icon name={ACTIVITY_ICON[item.kind]} size="0.8rem" /> {item.label}
+									</div>
 									{#if item.detail}
 										<div class="timeline-detail">{item.detail}</div>
 									{/if}
@@ -328,7 +339,9 @@
 								</a>
 							{:else}
 								<div class="timeline-body">
-									<div class="timeline-label">{item.label}</div>
+									<div class="timeline-label">
+										<Icon name={ACTIVITY_ICON[item.kind]} size="0.8rem" /> {item.label}
+									</div>
 									{#if item.detail}
 										<div class="timeline-detail">{item.detail}</div>
 									{/if}

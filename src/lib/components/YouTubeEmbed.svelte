@@ -9,6 +9,7 @@
 	 */
 	import { player as sharedPlayer } from '$lib/player.svelte'
 	import { formatTimecode, youtubeEmbedUrl, youtubeThumbnailUrl, youtubeWatchUrl } from '$lib/youtube'
+	import Icon from '$lib/components/Icon.svelte'
 
 	let {
 		videoId,
@@ -50,7 +51,7 @@
 				loading="lazy"
 				referrerpolicy="no-referrer"
 			/>
-			<span class="play" aria-hidden="true">▶</span>
+			<span class="play" aria-hidden="true"><Icon name="play" size="1.1rem" /></span>
 			{#if startSeconds > 0}
 				<span class="start" aria-hidden="true">à partir de {formatTimecode(startSeconds)}</span>
 			{/if}

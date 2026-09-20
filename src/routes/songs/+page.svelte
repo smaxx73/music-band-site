@@ -3,6 +3,8 @@
 	import type { Song } from '$lib/types'
 	import { enhance } from '$app/forms'
 	import Modal from '$lib/components/Modal.svelte'
+	import Icon from '$lib/components/Icon.svelte'
+	import type { IconName } from '$lib/icons'
 
 	let { data, form }: { data: PageData; form: ActionData } = $props()
 
@@ -69,9 +71,11 @@
 		}
 	}
 
-	function sortIndicator(key: SortKey) {
-		if (sortKey !== key) return ''
-		return sortAsc ? ' ↑' : ' ↓'
+	// La colonne triée porte une flèche du jeu d'icônes : les flèches typographiques
+	// n'ont ni la même graisse ni la même hauteur d'une plateforme à l'autre.
+	function sortIcon(key: SortKey): IconName | null {
+		if (sortKey !== key) return null
+		return sortAsc ? 'arrow-up' : 'arrow-down'
 	}
 
 	const visibleSongs = $derived.by(() => {
@@ -267,15 +271,24 @@
 					<thead>
 						<tr>
 							<th>
-								<button class="th-sort" onclick={() => toggleSort('title')}>Titre{sortIndicator('title')}</button>
+								<button class="th-sort" onclick={() => toggleSort('title')}>
+									Titre
+									{#if sortIcon('title')}<Icon name={sortIcon('title')!} size="0.75rem" />{/if}
+								</button>
 							</th>
 							<th>Compositeur</th>
 							<th>Tonalité</th>
 							<th>
-								<button class="th-sort" onclick={() => toggleSort('status')}>Statut{sortIndicator('status')}</button>
+								<button class="th-sort" onclick={() => toggleSort('status')}>
+									Statut
+									{#if sortIcon('status')}<Icon name={sortIcon('status')!} size="0.75rem" />{/if}
+								</button>
 							</th>
 							<th>
-								<button class="th-sort" onclick={() => toggleSort('take_count')}>Prises{sortIndicator('take_count')}</button>
+								<button class="th-sort" onclick={() => toggleSort('take_count')}>
+									Prises
+									{#if sortIcon('take_count')}<Icon name={sortIcon('take_count')!} size="0.75rem" />{/if}
+								</button>
 							</th>
 							<th>Actions</th>
 						</tr>

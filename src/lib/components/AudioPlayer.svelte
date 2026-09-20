@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte'
+	import Icon from '$lib/components/Icon.svelte'
 
 	type AudioTrack = {
 		id: number | string
@@ -306,11 +307,15 @@
 
 	<div class="controls">
 		<div class="controls-left">
-			<button class="ctrl-btn" onclick={seekStart} title="Retour au début">⏮</button>
-			<button class="ctrl-btn play-btn" onclick={togglePlay} disabled={!ready}>
-				{isPlaying ? '⏸' : '▶'}
+			<button class="ctrl-btn" onclick={seekStart} title="Retour au début">
+				<Icon name="skip-back" label="Retour au début" />
 			</button>
-			<button class="ctrl-btn" onclick={skipForward} title="+10s" disabled={!ready}>⏭</button>
+			<button class="ctrl-btn play-btn" onclick={togglePlay} disabled={!ready}>
+				<Icon name={isPlaying ? 'pause' : 'play'} size="1.2rem" label={isPlaying ? 'Pause' : 'Lecture'} />
+			</button>
+			<button class="ctrl-btn" onclick={skipForward} title="+10s" disabled={!ready}>
+				<Icon name="skip-forward" label="Avancer de 10 secondes" />
+			</button>
 		</div>
 
 		<div class="time">
@@ -327,7 +332,7 @@
 				aria-label="Régler le volume"
 				aria-expanded={volumeExpanded}
 			>
-				{volume === 0 ? '🔇' : '🔊'}
+				<Icon name={volume === 0 ? 'volume-off' : 'volume'} />
 			</button>
 			<div class="volume-popover">
 				<input

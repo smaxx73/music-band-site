@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte'
+	import Icon from '$lib/components/Icon.svelte'
 
 	let {
 		title,
@@ -26,7 +27,7 @@
 	<div class="modal" class:modal-sm={size === 'sm'} role="dialog" aria-modal="true" aria-label={title}>
 		<div class="modal-header">
 			<h2>{title}</h2>
-			<button class="modal-close" aria-label="Fermer" onclick={onClose}>✕</button>
+			<button class="modal-close" aria-label="Fermer" onclick={onClose}><Icon name="close" size="0.95rem" /></button>
 		</div>
 		{@render children()}
 	</div>

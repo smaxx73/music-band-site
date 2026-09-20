@@ -2,6 +2,7 @@
 	import { onDestroy, onMount, untrack } from 'svelte'
 	import { player as sharedPlayer } from '$lib/player.svelte'
 	import { formatTimecode } from '$lib/youtube'
+	import Icon from '$lib/components/Icon.svelte'
 	import { loadYouTubeApi, youtubeErrorMessage, YT_STATE, type YTPlayer } from '$lib/youtube-player'
 
 	type Marker = { id: number | string; time: number; label?: string }
@@ -166,10 +167,12 @@
 
 	<div class="controls">
 		<div class="controls-left">
-			<button class="ctrl-btn" onclick={() => seek(0)} title="Retour au début" disabled={!ready}>⏮</button>
+			<button class="ctrl-btn" onclick={() => seek(0)} title="Retour au début" disabled={!ready}>
+				<Icon name="skip-back" label="Retour au début" />
+			</button>
 			<button class="ctrl-btn" onclick={() => seek(currentTime - 10)} title="−10 s" disabled={!ready}>−10</button>
 			<button class="ctrl-btn play-btn" onclick={togglePlay} disabled={!ready}>
-				{isPlaying ? '⏸' : '▶'}
+				<Icon name={isPlaying ? 'pause' : 'play'} size="1.2rem" label={isPlaying ? 'Pause' : 'Lecture'} />
 			</button>
 			<button class="ctrl-btn" onclick={() => seek(currentTime + 10)} title="+10 s" disabled={!ready}>+10</button>
 		</div>
@@ -180,7 +183,9 @@
 			<span>{formatTimecode(duration)}</span>
 		</div>
 
-		<button class="ctrl-btn" onclick={fullscreen} title="Plein écran" disabled={!ready}>⛶</button>
+		<button class="ctrl-btn" onclick={fullscreen} title="Plein écran" disabled={!ready}>
+			<Icon name="fullscreen" label="Plein écran" />
+		</button>
 	</div>
 </div>
 

@@ -1,3 +1,4 @@
+import type { IconName } from '$lib/icons'
 export type UserRole = 'user' | 'admin' | 'superadmin'
 
 export type User = {
@@ -404,15 +405,15 @@ export function notificationLabel(type: NotificationType): string {
 	}
 }
 
-export function notificationIcon(type: NotificationType): string {
+export function notificationIcon(type: NotificationType): IconName {
 	switch (type) {
-		case 'recording': return '♪'
-		case 'comment': return '💬'
-		case 'mention': return '@'
-		case 'session': return '◎'
-		case 'playlist': return '≡'
-		case 'agenda': return '◻'
-		case 'setlist': return '▤'
+		case 'recording': return 'music'
+		case 'comment': return 'comment'
+		case 'mention': return 'at'
+		case 'session': return 'calendar'
+		case 'playlist': return 'playlist'
+		case 'agenda': return 'agenda'
+		case 'setlist': return 'list'
 	}
 }
 

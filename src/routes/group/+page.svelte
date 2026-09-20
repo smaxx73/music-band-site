@@ -8,6 +8,7 @@
 		isAdmin,
 		type GroupLinkField
 	} from '$lib/types'
+	import Icon from '$lib/components/Icon.svelte'
 
 	let { data, form }: { data: PageData; form: ActionData } = $props()
 
@@ -120,7 +121,7 @@
 						class="btn-edit"
 						title="Renommer le groupe"
 						onclick={() => { newName = data.group.name as string; editingName = true }}
-					>✏</button>
+					><Icon name="pencil" size="0.85rem" label="Renommer le groupe" /></button>
 				{/if}
 			</h1>
 		{/if}

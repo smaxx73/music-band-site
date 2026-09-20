@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { player } from '$lib/player.svelte'
+	import Icon from '$lib/components/Icon.svelte'
 
 	let {
 		recordingId,
@@ -44,11 +45,11 @@
 		title="Écouter dans le mini-lecteur persistant"
 		aria-label="Écouter dans le mini-lecteur persistant"
 	>
-		<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
-			<path d="M6 4l14 8-14 8z" />
-		</svg>
+		<Icon name="play" />
 	</button>
 {:else}
 	<!-- Une vidéo sans piste audio se regarde uniquement sur sa page dédiée. -->
-	<a href="/recording/{recordingId}" class="btn btn-secondary btn-sm" title="Regarder la vidéo">🎬 Voir</a>
+	<a href="/recording/{recordingId}" class="btn btn-secondary btn-sm" title="Regarder la vidéo">
+		<Icon name="video" /> Voir
+	</a>
 {/if}

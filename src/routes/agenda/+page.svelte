@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types'
 	import { goto, invalidateAll } from '$app/navigation'
+	import Icon from '$lib/components/Icon.svelte'
 
 	let { data }: { data: PageData } = $props()
 
@@ -275,7 +276,7 @@
 						{/each}
 						{#each unavailsForDay(day) as event}
 							<div class="event-badge event-indisponibilite">
-								<span class="unavail-cross">✕</span>{event.author}
+								<Icon name="close" class="unavail-cross" size="0.7rem" />{event.author}
 							</div>
 						{/each}
 					</div>
@@ -291,7 +292,9 @@
 		<div class="day-panel">
 			<div class="panel-header">
 				<h2 class="panel-title">{selectedDayLabel}</h2>
-				<button class="btn btn-ghost btn-sm" onclick={() => (selectedDay = null)}>✕</button>
+				<button class="btn btn-ghost btn-sm" onclick={() => (selectedDay = null)} aria-label="Fermer le panneau">
+					<Icon name="close" size="0.9rem" />
+				</button>
 			</div>
 
 			<div class="panel-events">
@@ -316,7 +319,7 @@
 										</a>
 									{/if}
 									{#if event.location}
-										<span class="panel-event-location">📍 {event.location}</span>
+										<span class="panel-event-location"><Icon name="pin" size="0.8rem" /> {event.location}</span>
 									{/if}
 									{#if event.notes}
 										<span class="panel-event-notes">{event.notes}</span>
@@ -329,9 +332,7 @@
 									title="Supprimer"
 									aria-label="Supprimer l’événement"
 								>
-									<svg viewBox="0 0 24 24" aria-hidden="true">
-										<path d="M3 6h18M9 6V4h6v2m-8 0 1 14h8l1-14M10 10v6m4-6v6" />
-									</svg>
+									<Icon name="trash" />
 								</button>
 							</div>
 						{/each}
@@ -348,7 +349,7 @@
 								<div class="panel-event-body">
 									<span class="panel-event-name">{event.author}</span>
 									{#if event.location}
-										<span class="panel-event-location">📍 {event.location}</span>
+										<span class="panel-event-location"><Icon name="pin" size="0.8rem" /> {event.location}</span>
 									{/if}
 									{#if event.notes}
 										<span class="panel-event-notes">{event.notes}</span>
@@ -361,9 +362,7 @@
 										title="Supprimer"
 										aria-label="Supprimer l’événement"
 									>
-										<svg viewBox="0 0 24 24" aria-hidden="true">
-											<path d="M3 6h18M9 6V4h6v2m-8 0 1 14h8l1-14M10 10v6m4-6v6" />
-										</svg>
+										<Icon name="trash" />
 									</button>
 								{/if}
 							</div>
@@ -589,9 +588,9 @@
 		color: #be123c;
 	}
 
-	.unavail-cross {
+	/* Rendue par Icon.svelte : le style scopé ne l'atteint qu'avec `:global`. */
+	:global(.unavail-cross) {
 		margin-right: 2px;
-		font-weight: 700;
 		opacity: 0.8;
 	}
 
@@ -723,15 +722,10 @@
 		color: var(--color-text-muted);
 	}
 
-	.delete-btn svg {
+	.delete-btn :global(.icon) {
 		width: 1rem;
 		height: 1rem;
 		display: block;
-		fill: none;
-		stroke: currentColor;
-		stroke-width: 2;
-		stroke-linecap: round;
-		stroke-linejoin: round;
 	}
 
 	/* Add form */

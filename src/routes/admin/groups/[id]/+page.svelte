@@ -2,6 +2,7 @@
 	import type { PageData, ActionData } from './$types'
 	import { enhance } from '$app/forms'
 	import { formatBytes } from '$lib/types'
+	import Icon from '$lib/components/Icon.svelte'
 
 	let { data, form }: { data: PageData; form: ActionData } = $props()
 
@@ -97,7 +98,7 @@
 					class="btn-edit"
 					onclick={() => { newName = data.group.name as string; editingName = true }}
 					title="Renommer"
-				>✏</button>
+				><Icon name="pencil" size="0.85rem" label="Renommer le groupe" /></button>
 			</h1>
 		{/if}
 	</div>
