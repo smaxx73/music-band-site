@@ -29,6 +29,7 @@
 					{ label: 'commentaires', value: `${data.deletionImpact.comments}` },
 					{ label: 'playlists', value: `${data.deletionImpact.playlists}` },
 					{ label: 'setlists', value: `${data.deletionImpact.setlists}` },
+					{ label: 'publications (les enregistrements perso restent à leurs auteurs)', value: `${data.deletionImpact.posts}` },
 					{ label: "événements d'agenda", value: `${data.deletionImpact.calendar_events}` }
 				]
 			: []

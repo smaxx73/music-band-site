@@ -43,6 +43,12 @@ api/setlists/+server.ts
 api/setlists/[id]/+server.ts
 api/setlists/[id]/items/+server.ts
 api/setlists/[id]/items/[itemId]/+server.ts
+api/personal/+server.ts
+api/personal/youtube/+server.ts
+api/personal/[id]/+server.ts
+api/posts/+server.ts
+api/posts/[id]/+server.ts
+api/posts/[id]/song/+server.ts
 api/agenda/+server.ts
 api/agenda/[id]/+server.ts
 api/groups/+server.ts
@@ -114,10 +120,11 @@ morceau et réindexe. Les positions passent par le négatif avant d'être rééc
 `UNIQUE (setlist_id, position)` refuserait les états intermédiaires. Passer par
 `src/lib/server/setlists.ts` pour la lecture.
 
-Un **commentaire** porte sur une prise **ou** sur une setlist, jamais les deux (contrainte
-`comments_target`). `GET /api/comments` prend `?recording_id=` ou `?setlist_id=`, `POST`
-le champ correspondant ; un `timestamp_s` sur une setlist répond `400` — il n'y a rien à y
-ancrer. La vérification de droit est la **cible** : c'est elle qui appartient au groupe
+Un **commentaire** porte sur une prise, une setlist **ou** une publication — une seule
+(contrainte `comments_target`). `GET /api/comments` prend `?recording_id=`, `?setlist_id=` ou
+`?post_id=`, `POST` le champ correspondant ; un `timestamp_s` sur une cible qui ne se lit pas
+(setlist, suggestion de morceau) répond `400` — il n'y a rien à y ancrer.
+C'est `findCommentThread` qui le dit (`anchorable`). La vérification de droit est la **cible** : c'est elle qui appartient au groupe
 actif, via `findCommentThread` (`src/lib/server/comments.ts`). Ne jamais rejoindre
 `recordings` à la main pour retrouver le groupe d'un commentaire : un commentaire de
 setlist n'a pas de prise.
@@ -134,3 +141,24 @@ recharge ses données au lieu d'afficher les notifications d'un autre groupe.
 Ne jamais réécrire ces règles à la main : utiliser les helpers de `src/lib/types.ts`, et pour
 les membres d'un groupe passer par `src/lib/server/groups.ts`, qui renvoie un
 `GroupOpResult` (`{ ok: false, status, error }`) à rendre tel quel.
+
+L'**espace perso** (`api/personal/`) fait exception au scope de groupe : il appartient à son
+propriétaire, et le filtre `user_id = locals.user.id` **est** la vérification de droit —
+admins compris. Un enregistrement d'autrui répond `404`. Il ne demande pas de groupe actif.
+`GET /api/personal` liste ; `POST /api/personal` (multipart : `audio`, `title`, `notes?`,
+`youtube_url?`) suit le chemin d'un upload — conversion, durée, doublon par hash **dans
+l'espace de l'utilisateur** (`409`) ; `POST /api/personal/youtube`
+(`{ title?, notes?, video_url, duration_s? }`) crée une entrée vidéo seule ;
+`PATCH /api/personal/[id]` accepte `title` et/ou `notes` ; `DELETE` emporte fichier,
+publications et leurs commentaires. Passer par `src/lib/server/personal.ts`.
+
+Une **publication** (`api/posts/`) est groupe-scopée comme le reste. `POST /api/posts` crée
+dans le groupe actif : `{ type: 'recording', personal_recording_id, message? }` (l'enregistrement
+doit appartenir à l'auteur — `404` sinon —, `409` s'il est déjà publié dans ce groupe),
+`{ type: 'youtube', video_url, message? }` ou
+`{ type: 'song_suggestion', song_title, song_artist?, video_url?, message? }`. Elle notifie
+le groupe (`post`). `PATCH /api/posts/[id]` porte `{ message }`, auteur seul (`canEditPost`,
+`403`) ; `DELETE` suit `canDeleteGroupContent` et ne touche jamais l'enregistrement perso.
+`POST /api/posts/[id]/song` fait entrer une suggestion au référentiel (statut
+`proposition_de_travail`), tout membre : `409` si le titre existe déjà (avec `song_id`), ou si
+la suggestion est déjà reliée à un morceau. Passer par `src/lib/server/posts.ts`.

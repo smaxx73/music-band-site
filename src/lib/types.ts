@@ -114,6 +114,14 @@ export function canEditComment(
 	return !!user && authorUserId != null && authorUserId === user.id
 }
 
+// Message d'une publication : même règle qu'un commentaire, c'est une parole signée.
+export function canEditPost(
+	user: RoleBearer | null | undefined,
+	authorUserId: number | null | undefined
+): boolean {
+	return canEditComment(user, authorUserId)
+}
+
 export type Group = {
 	id: number
 	name: string
@@ -223,26 +231,47 @@ export type RecordingListItem = Pick<
 
 /**
  * Ce à quoi une discussion se rattache. Une prise — le cas d'origine, avec ses repères
- * de lecture — ou une setlist, qui se discute sans qu'il y ait rien à écouter.
- * Les deux vivent dans la même table : mêmes réactions, mêmes mentions, même édition.
+ * de lecture —, une setlist, qui se discute sans qu'il y ait rien à écouter, ou une
+ * publication. Toutes vivent dans la même table : mêmes réactions, mentions, édition.
+ *
+ * `anchorable` ne sert qu'aux publications : une suggestion de morceau sans vidéo n'a
+ * rien à lire, donc rien où ancrer un commentaire. Une prise l'est toujours, une setlist
+ * jamais.
  */
-export type CommentThread = { kind: 'recording' | 'setlist'; id: number }
+export type CommentThread =
+	| { kind: 'recording' | 'setlist'; id: number }
+	| { kind: 'post'; id: number; anchorable: boolean }
 
 /** Page qui porte la discussion : c'est le lien d'un commentaire qu'on partage. */
 export function threadHref(thread: CommentThread): string {
-	return thread.kind === 'recording' ? `/recording/${thread.id}` : `/setlists/${thread.id}`
+	switch (thread.kind) {
+		case 'recording': return `/recording/${thread.id}`
+		case 'setlist': return `/setlists/${thread.id}`
+		case 'post': return `/posts/${thread.id}`
+	}
 }
 
 /** Colonne — et donc champ d'API — qui nomme la cible dans `/api/comments`. */
-export function threadParam(thread: CommentThread): 'recording_id' | 'setlist_id' {
-	return thread.kind === 'recording' ? 'recording_id' : 'setlist_id'
+export function threadParam(thread: CommentThread): 'recording_id' | 'setlist_id' | 'post_id' {
+	switch (thread.kind) {
+		case 'recording': return 'recording_id'
+		case 'setlist': return 'setlist_id'
+		case 'post': return 'post_id'
+	}
+}
+
+/** Un commentaire peut-il porter un repère de lecture sur cette cible ? */
+export function threadAnchorable(thread: CommentThread): boolean {
+	if (thread.kind === 'post') return thread.anchorable
+	return thread.kind === 'recording'
 }
 
 export type Comment = {
 	id: number
-	/** Exactement l'un des deux est renseigné (contrainte `comments_target`). */
+	/** Exactement l'un des trois est renseigné (contrainte `comments_target`). */
 	recording_id: number | null
 	setlist_id: number | null
+	post_id: number | null
 	author: string
 	author_user_id: number | null
 	content: string
@@ -375,7 +404,7 @@ export type CalendarEvent = {
 // ─── Notifications d'activité ─────────────────────────────────────────────
 
 export type NotificationType =
-	| 'recording' | 'comment' | 'mention' | 'session' | 'playlist' | 'agenda' | 'setlist'
+	| 'recording' | 'comment' | 'mention' | 'session' | 'playlist' | 'agenda' | 'setlist' | 'post'
 
 // Une notification appartient à un destinataire précis : il n'y a pas de droit à
 // vérifier au-delà de `user_id`, mais l'affichage reste filtré par groupe actif.
@@ -406,6 +435,7 @@ export function notificationLabel(type: NotificationType): string {
 		case 'playlist': return 'a créé la playlist'
 		case 'agenda': return 'a ajouté un événement'
 		case 'setlist': return 'a créé la setlist'
+		case 'post': return 'a publié'
 	}
 }
 
@@ -418,6 +448,7 @@ export function notificationIcon(type: NotificationType): IconName {
 		case 'playlist': return 'playlist'
 		case 'agenda': return 'agenda'
 		case 'setlist': return 'list'
+		case 'post': return 'send'
 	}
 }
 
@@ -431,6 +462,97 @@ export function sessionTypeLabel(type: string): string {
 		indisponibilite: 'Indisponibilité'
 	}
 	return labels[type] ?? type
+}
+
+// ─── Espace perso et publications ─────────────────────────────────────────
+
+/**
+ * Enregistrement de l'espace perso : à un utilisateur, jamais à un groupe. Même forme
+ * qu'une prise — piste audio, vidéo YouTube, ou les deux — sans session ni morceau.
+ */
+export type PersonalRecording = {
+	id: number
+	user_id: number
+	title: string
+	notes: string | null
+	/** "perso/{id}.mp3", relatif à AUDIO_DIR. NULL = vidéo seule. */
+	file_path: string | null
+	youtube_video_id: string | null
+	youtube_title: string | null
+	source_file_name: string | null
+	duration_s: number | null
+	created_at: Date
+	updated_at: Date | null
+}
+
+/** URL d'écoute d'un enregistrement perso — servie par Node, jamais par Caddy. */
+export function personalAudioUrl(id: number): string {
+	return `/audio/perso/${id}.mp3`
+}
+
+export type PostType = 'recording' | 'youtube' | 'song_suggestion'
+
+export const POST_TYPE_LABELS: Record<PostType, string> = {
+	recording: 'Enregistrement',
+	youtube: 'Vidéo',
+	song_suggestion: 'Suggestion de morceau'
+}
+
+/** Publication telle qu'elle s'affiche : la ligne, plus ce qu'elle montre. */
+export type PostView = {
+	id: number
+	group_id: number
+	type: PostType
+	message: string | null
+	author: string
+	author_user_id: number | null
+	personal_recording_id: number | null
+	youtube_video_id: string | null
+	youtube_title: string | null
+	song_title: string | null
+	song_artist: string | null
+	song_id: number | null
+	created_at: string
+	edited_at: string | null
+	/**
+	 * Enregistrement perso montré (type `recording`). Sa note n'en fait pas partie : elle
+	 * reste à son auteur, c'est le message de la publication qui s'adresse au groupe.
+	 */
+	recording_title: string | null
+	recording_has_audio: boolean
+	recording_duration_s: number | null
+}
+
+/**
+ * La publication a-t-elle un lecteur ? C'est aussi ce qui permet d'y ancrer un
+ * commentaire. La vidéo d'une suggestion n'en est pas un : c'est une citation, montrée
+ * en vignette comme un lien dans un commentaire, sans position à suivre.
+ */
+export function postPlayable(
+	post: Pick<PostView, 'type' | 'youtube_video_id' | 'recording_has_audio'>
+): boolean {
+	if (post.type === 'song_suggestion') return false
+	return post.recording_has_audio || post.youtube_video_id !== null
+}
+
+/**
+ * Ce que le groupe voit : une vidéo de l'espace perso, sans piste audio, se publie
+ * « depuis l'espace » mais reste une vidéo pour qui la reçoit.
+ */
+export function postKindLabel(post: Pick<PostView, 'type' | 'recording_has_audio' | 'youtube_video_id'>): string {
+	if (post.type === 'recording' && !post.recording_has_audio && post.youtube_video_id) {
+		return POST_TYPE_LABELS.youtube
+	}
+	return POST_TYPE_LABELS[post.type]
+}
+
+/** Titre d'une publication, pour une notification, un fil d'actualité ou un onglet. */
+export function postTitle(post: Pick<PostView, 'type' | 'recording_title' | 'youtube_title' | 'song_title'>): string {
+	switch (post.type) {
+		case 'recording': return post.recording_title ?? 'Enregistrement'
+		case 'youtube': return post.youtube_title ?? 'Vidéo YouTube'
+		case 'song_suggestion': return post.song_title ?? 'Suggestion de morceau'
+	}
 }
 
 // ─── Outils audio : découpe d'un import sur les silences ──────────────────

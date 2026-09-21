@@ -1,5 +1,6 @@
 import type { PageServerLoad } from './$types'
 import sql from '$lib/server/db'
+import { listRecentPosts } from '$lib/server/posts'
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// Hors connexion, "/" sert de page d'accueil publique (voir +page.svelte) :
@@ -10,13 +11,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	if (!groupId) {
 		return {
-			upcomingItems: [], sessions: [], playlists: [], setlists: [],
+			upcomingItems: [], sessions: [], playlists: [], setlists: [], posts: [],
 			stats: null, nextEvent: null, recentComments: []
 		}
 	}
 
 	const [
-		upcomingSessions, upcomingGroupEvents, sessions, playlists, setlists,
+		upcomingSessions, upcomingGroupEvents, sessions, playlists, setlists, posts,
 		statsRows, nextEventRows, recentComments
 	] = await Promise.all([
 		sql`
@@ -80,6 +81,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			ORDER BY sl.created_at DESC
 			LIMIT 3
 		`,
+		// Ce que les membres apportent depuis leur espace : enregistrements, vidéos, idées.
+		listRecentPosts(groupId, 5),
 		sql`
 			SELECT
 				(SELECT COUNT(*)::int FROM sessions    WHERE group_id = ${groupId})                                                    AS session_count,
@@ -98,22 +101,26 @@ export const load: PageServerLoad = async ({ locals }) => {
 			ORDER BY date ASC
 			LIMIT 1
 		`,
-		// Les derniers commentaires du groupe, sur une prise comme sur une setlist :
-		// c'est la cible qui dit à quel groupe le commentaire appartient.
+		// Les derniers commentaires du groupe, sur une prise, une setlist ou une
+		// publication : c'est la cible qui dit à quel groupe le commentaire appartient.
 		sql`
 			SELECT
 				c.id, COALESCE(u.display_name, c.author) AS author, c.content, c.created_at,
 				r.id     AS recording_id,
 				so.title AS song_title,
 				sl.id    AS setlist_id,
-				sl.name  AS setlist_name
+				sl.name  AS setlist_name,
+				p.id     AS post_id,
+				COALESCE(pr.title, p.youtube_title, p.song_title, 'Publication') AS post_title
 			FROM comments c
 			LEFT JOIN recordings r ON r.id = c.recording_id
 			LEFT JOIN sessions ses ON ses.id = r.session_id
 			LEFT JOIN songs so     ON so.id = r.song_id
 			LEFT JOIN setlists sl  ON sl.id = c.setlist_id
+			LEFT JOIN posts p      ON p.id = c.post_id
+			LEFT JOIN personal_recordings pr ON pr.id = p.personal_recording_id
 			LEFT JOIN users u      ON u.id = c.author_user_id
-			WHERE ses.group_id = ${groupId} OR sl.group_id = ${groupId}
+			WHERE ses.group_id = ${groupId} OR sl.group_id = ${groupId} OR p.group_id = ${groupId}
 			ORDER BY c.created_at DESC
 			LIMIT 5
 		`,
@@ -146,6 +153,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		sessions,
 		playlists,
 		setlists,
+		posts,
 		stats: statsRows[0] ?? null,
 		nextEvent: nextEventRows[0] ?? null,
 		recentComments,

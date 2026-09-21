@@ -4,6 +4,7 @@
 	import PublicLanding from '$lib/components/PublicLanding.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import type { IconName } from '$lib/icons'
+	import { postKindLabel, postTitle, type PostView } from '$lib/types'
 
 	let { data }: { data: PageData } = $props()
 
@@ -18,17 +19,19 @@
 	type Stats = { session_count: number; recording_count: number; playlist_count: number }
 	type NextEvent = { id: number; date: string; type: string; title: string | null; notes: string | null }
 	type SetlistRow = { id: number; name: string; created_at: string; created_by: string }
-	// Un commentaire porte sur une prise OU sur une setlist : l'une des deux paires est nulle.
+	// Un commentaire porte sur une prise, une setlist OU une publication : une seule paire est remplie.
 	type RecentComment = {
 		id: number; author: string; content: string; created_at: string
 		recording_id: number | null; song_title: string | null
 		setlist_id: number | null; setlist_name: string | null
+		post_id: number | null; post_title: string | null
 	}
 
 	const upcomingItems = $derived(data.upcomingItems as unknown as UpcomingItem[])
 	const sessions = $derived(data.sessions as unknown as SessionRow[])
 	const playlists = $derived(data.playlists as unknown as PlaylistRow[])
 	const setlists = $derived((data.setlists ?? []) as unknown as SetlistRow[])
+	const posts = $derived((data.posts ?? []) as unknown as PostView[])
 	const stats = $derived(data.stats as Stats | null)
 	const nextEvent = $derived(data.nextEvent as NextEvent | null)
 	const recentComments = $derived((data.recentComments ?? []) as unknown as RecentComment[])
@@ -92,8 +95,8 @@
 		return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean
 	}
 
-	// Activity timeline derived from sessions + playlists + setlists + comments
-	type ActivityKind = 'session' | 'playlist' | 'setlist' | 'comment'
+	// Activity timeline derived from sessions + playlists + setlists + posts + comments
+	type ActivityKind = 'session' | 'playlist' | 'setlist' | 'post' | 'comment'
 	type ActivityItem = {
 		kind: ActivityKind; ts: number; date: string; label: string; detail: string
 		color: string; href?: string
@@ -102,6 +105,7 @@
 		session: 'calendar',
 		playlist: 'playlist',
 		setlist: 'list',
+		post: 'send',
 		comment: 'comment'
 	}
 
@@ -148,17 +152,34 @@
 			})
 		}
 
+		// Ce qu'un membre apporte depuis son espace : un enregistrement, une vidéo, une idée.
+		for (const p of posts) {
+			items.push({
+				kind: 'post',
+				ts: new Date(p.created_at).getTime(),
+				date: formatShortDate(p.created_at),
+				label: `${postKindLabel(p)} — ${p.author}`,
+				detail: p.message ? `${postTitle(p)} · ${truncate(p.message, 50)}` : postTitle(p),
+				color: 'var(--color-purple)',
+				href: `/posts/${p.id}`,
+			})
+		}
+
 		for (const c of recentComments) {
-			// Le commentaire mène là où il a été écrit : la prise, ou la setlist.
-			const onSetlist = c.setlist_id !== null
+			// Le commentaire mène là où il a été écrit : la prise, la setlist ou la publication.
+			const target = c.setlist_id !== null
+				? { name: c.setlist_name, href: `/setlists/${c.setlist_id}` }
+				: c.post_id !== null
+					? { name: c.post_title, href: `/posts/${c.post_id}` }
+					: { name: c.song_title, href: `/recording/${c.recording_id}` }
 			items.push({
 				kind: 'comment',
 				ts: new Date(c.created_at).getTime(),
 				date: formatShortDate(c.created_at),
-				label: `${c.author} — ${onSetlist ? c.setlist_name : c.song_title}`,
+				label: `${c.author} — ${target.name}`,
 				detail: truncate(c.content),
 				color: 'var(--color-green)',
-				href: onSetlist ? `/setlists/${c.setlist_id}` : `/recording/${c.recording_id}`,
+				href: target.href,
 			})
 		}
 
@@ -174,6 +195,7 @@
 		{ value: 'session', label: 'Sessions' },
 		{ value: 'playlist', label: 'Playlists' },
 		{ value: 'setlist', label: 'Setlists' },
+		{ value: 'post', label: 'Publications' },
 		{ value: 'comment', label: 'Commentaires' },
 	]
 
@@ -197,7 +219,10 @@
 		<div class="dash-left">
 			<div class="dash-header">
 				<h1>Bonjour {firstName} 👋</h1>
-				<a href="/sessions" class="btn btn-primary btn-sm">+ Session</a>
+				<div class="dash-actions">
+					<a href="/perso?publier" class="btn btn-secondary btn-sm">+ Publier</a>
+					<a href="/sessions" class="btn btn-primary btn-sm">+ Session</a>
+				</div>
 			</div>
 
 			<!-- Stats -->
@@ -397,6 +422,8 @@
 		justify-content: space-between;
 		margin-bottom: 1rem;
 	}
+
+	.dash-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
 
 	h1 {
 		font-size: 1.2rem;

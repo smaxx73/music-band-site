@@ -31,6 +31,7 @@ export type NotifyInput = {
 	recordingId?: number | null
 	playlistId?: number | null
 	setlistId?: number | null
+	postId?: number | null
 }
 
 function truncate(value: string | null | undefined): string | null {
@@ -49,7 +50,7 @@ export async function notifyGroup(input: NotifyInput, excludeUserIds: number[] =
 		await sql`
 			INSERT INTO notifications (
 				user_id, group_id, type, actor_user_id, actor_name,
-				subject, excerpt, link, session_id, recording_id, playlist_id, setlist_id
+				subject, excerpt, link, session_id, recording_id, playlist_id, setlist_id, post_id
 			)
 			SELECT
 				ug.user_id,
@@ -63,7 +64,8 @@ export async function notifyGroup(input: NotifyInput, excludeUserIds: number[] =
 				${input.sessionId ?? null},
 				${input.recordingId ?? null},
 				${input.playlistId ?? null},
-				${input.setlistId ?? null}
+				${input.setlistId ?? null},
+				${input.postId ?? null}
 			FROM user_groups ug
 			WHERE ug.group_id = ${input.groupId} AND ug.user_id <> ${input.actor.id}
 			  AND NOT (ug.user_id = ANY(${sql.array(excludeUserIds, INT4_OID)}))
@@ -95,7 +97,7 @@ export async function notifyMentions(
 		const rows = await sql<{ user_id: number }[]>`
 			INSERT INTO notifications (
 				user_id, group_id, type, actor_user_id, actor_name,
-				subject, excerpt, link, session_id, recording_id, playlist_id, setlist_id
+				subject, excerpt, link, session_id, recording_id, playlist_id, setlist_id, post_id
 			)
 			SELECT
 				ug.user_id,
@@ -109,7 +111,8 @@ export async function notifyMentions(
 				${input.sessionId ?? null},
 				${input.recordingId ?? null},
 				${input.playlistId ?? null},
-				${input.setlistId ?? null}
+				${input.setlistId ?? null},
+				${input.postId ?? null}
 			FROM user_groups ug
 			JOIN users u ON u.id = ug.user_id
 			WHERE ug.group_id = ${input.groupId}

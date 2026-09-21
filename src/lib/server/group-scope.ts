@@ -20,7 +20,7 @@ export function setActiveGroupCookie(cookies: Cookies, groupId: number): void {
 }
 
 /** Contenu groupe-scopé adressable par une URL partageable. */
-export type ScopedResource = 'recording' | 'session' | 'song' | 'playlist' | 'setlist'
+export type ScopedResource = 'recording' | 'session' | 'song' | 'playlist' | 'setlist' | 'post'
 
 type LinkUser = {
 	current_group_id: number | null
@@ -60,7 +60,9 @@ async function ownerGroupId(resource: ScopedResource, id: number): Promise<numbe
 				? sql<{ group_id: number }[]>`SELECT group_id FROM songs     WHERE id = ${id}`
 				: resource === 'setlist'
 					? sql<{ group_id: number }[]>`SELECT group_id FROM setlists  WHERE id = ${id}`
-					: sql<{ group_id: number }[]>`SELECT group_id FROM playlists WHERE id = ${id}`)
+					: resource === 'post'
+						? sql<{ group_id: number }[]>`SELECT group_id FROM posts     WHERE id = ${id}`
+						: sql<{ group_id: number }[]>`SELECT group_id FROM playlists WHERE id = ${id}`)
 
 	return rows[0] ? Number(rows[0].group_id) : null
 }

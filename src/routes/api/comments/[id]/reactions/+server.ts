@@ -4,12 +4,12 @@ import sql from '$lib/server/db'
 import { commentThread, findCommentThread, reactionSummary } from '$lib/server/comments'
 
 /**
- * Vérifie que le commentaire existe et que sa cible — prise ou setlist —
+ * Vérifie que le commentaire existe et que sa cible — prise, setlist ou publication —
  * appartient bien au groupe actif.
  */
 async function findComment(commentId: number, groupId: number) {
-	const [row] = await sql<{ id: number; recording_id: number | null; setlist_id: number | null }[]>`
-		SELECT id, recording_id, setlist_id FROM comments WHERE id = ${commentId}
+	const [row] = await sql<{ id: number; recording_id: number | null; setlist_id: number | null; post_id: number | null }[]>`
+		SELECT id, recording_id, setlist_id, post_id FROM comments WHERE id = ${commentId}
 	`
 	if (!row) return null
 	const target = await findCommentThread(commentThread(row), groupId)

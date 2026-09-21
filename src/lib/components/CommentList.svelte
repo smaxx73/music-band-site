@@ -3,7 +3,7 @@
 	import { page } from '$app/state'
 	import { formatTimecode, parseTimecode } from '$lib/youtube'
 	import { formatDateTime, formatDateTimeFull } from '$lib/date'
-	import { canEditComment, threadHref } from '$lib/types'
+	import { canEditComment, threadAnchorable, threadHref } from '$lib/types'
 	import { commentParts, commentVideos } from '$lib/comment-content'
 	import YouTubeEmbed from '$lib/components/YouTubeEmbed.svelte'
 	import Icon from '$lib/components/Icon.svelte'
@@ -340,7 +340,7 @@
 						disabled={saving}
 							onkeydown={(e) => onEditKeydown(e, comment)}
 						></textarea>
-					{#if thread?.kind !== 'setlist'}
+					{#if thread === null || threadAnchorable(thread)}
 					<div class="timestamp-editor">
 						<label for="comment-timestamp-{comment.id}">Repère dans la prise</label>
 						<input

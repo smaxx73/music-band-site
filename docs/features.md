@@ -322,7 +322,7 @@ note, 💬 s'il y a des commentaires — plus l'écoute, et un menu ⋮ recueill
 ## Partager un lien vers du contenu
 
 Toutes les pages de contenu sont des permaliens (`/recording/12`, `/sessions/4`, `/songs/7`,
-`/playlists/3`, `/setlists/5`). Trois choses les rendaient inutilisables dès qu'on les envoyait à quelqu'un.
+`/playlists/3`, `/setlists/5`, `/posts/8`). Trois choses les rendaient inutilisables dès qu'on les envoyait à quelqu'un.
 
 - **La destination survit à la connexion.** Un lien reçu s'ouvre presque toujours sur une
   session expirée : la page visée est mise de côté dans `?redirectTo=` avant la redirection
@@ -570,6 +570,86 @@ prise du 12 mars, on programme « Sunny », et le jour venu on la jouera.
 - Le tableau de bord reprend les setlists créées et leurs commentaires dans son flux
   d'actualité — voir « Tableau de bord »
 
+## Espace personnel (`/perso`)
+
+Un carnet à soi, hors de tout groupe : les idées enregistrées au salon, une partie
+travaillée seul, une vidéo repérée. Rien n'y est partagé tant qu'on ne le publie pas.
+
+- **Personnel, pas groupe-scopé** : `/perso` montre les enregistrements de l'utilisateur
+  connecté, quel que soit le groupe actif, et à lui seul. Aucun admin — global compris —
+  ne voit l'espace d'un autre. Un enregistrement d'autrui répond `404`
+- Un enregistrement perso (`personal_recordings`) a un **titre**, une **note** libre, une
+  piste audio, une vidéo YouTube, ou les deux — comme une prise, contrainte
+  `personal_recordings_source`. Il n'a **ni session, ni morceau, ni numéro de prise** :
+  ce n'est pas une prise du groupe, et il ne se numérote avec rien
+- Trois façons d'en ajouter : déposer un fichier, **enregistrer en direct** (le même
+  `AudioRecorder` que `/record`, même copie de secours), coller un lien YouTube. Même
+  chemin que l'upload d'une prise : réception en flux, conversion mp3 128 kbps, durée
+  ffprobe, doublon par hash — ici **dans son propre espace** (`409`)
+- Les fichiers vivent dans `AUDIO_DIR/perso/{id}.mp3` et sont servis par
+  `/audio/perso/{id}.mp3`, **toujours par Node**. La route laisse passer le propriétaire,
+  et un membre du **groupe actif** si l'enregistrement y est publié — rien d'autre. Le
+  lecteur perso a son propre `<audio>` : un enregistrement perso n'entre ni dans la barre
+  du bas ni dans une playlist
+- Titre et note se modifient depuis `/perso/[id]`, par le propriétaire seul
+- **Supprimer** un enregistrement perso emporte son fichier, ses publications, leurs
+  commentaires et leurs notifications : la confirmation (`danger`) dit combien. C'est le
+  sens du choix « renvoi plutôt que copie » : l'auteur garde la main sur ce qu'il a publié
+- La suppression d'un compte emporte son espace, fichiers compris
+
+## Publications (`/posts/[id]`)
+
+Ce qu'un membre apporte au groupe depuis l'extérieur des répétitions. Trois types :
+
+| Type | Contenu |
+|---|---|
+| `recording` | un enregistrement de son espace perso, par **renvoi** (pas de copie du fichier) |
+| `youtube` | une vidéo YouTube, sans passer par l'espace perso |
+| `song_suggestion` | un morceau à proposer : titre, artiste d'origine, lien YouTube pour l'écouter |
+
+Chacune porte un **message** facultatif (« écoutez le pont, j'ai changé les accords »).
+
+- Publiée dans le **groupe actif**, depuis `/perso` (« Publier dans … ») ou depuis la page
+  d'un enregistrement perso. Un même enregistrement se publie dans **plusieurs groupes** —
+  une publication par groupe, chacune avec sa discussion — mais une seule fois par groupe
+  (`UNIQUE (group_id, personal_recording_id)`, `409`)
+- Publier **depuis un enregistrement précis** (bouton de sa ligne ou de sa page) ne
+  redemande ni le type ni l'enregistrement : il ne reste que le message. Depuis le bouton
+  général, les choix sont « Depuis mon espace » — une vidéo déjà rangée s'y trouve, avec la
+  mention « (vidéo) » —, « Nouveau lien YouTube » et « Suggestion de morceau ». Une vidéo de
+  l'espace publiée porte le badge « Vidéo » côté groupe
+- `/posts/[id]` est un permalien comme les autres : destination conservée à la connexion,
+  bascule de groupe actif sur un lien visant un autre de ses groupes
+- Lecteur sur la page : waveform pour un enregistrement audio, lecteur YouTube pour une
+  vidéo (onglets si l'enregistrement a les deux), rien pour une suggestion sans lien
+- **Commentaires** : même espace que ceux d'une prise ou d'une setlist (`CommentsPanel`,
+  réactions, mentions, édition). La table `comments` gagne une troisième cible, `post_id`
+  (`comments_target` : exactement une des trois). Un commentaire s'**ancre** sur une
+  publication qui a un lecteur (audio ou vidéo) ; une suggestion le refuse (`400`) — son
+  lien d'écoute est une citation en vignette, comme dans un commentaire, sans position à suivre
+- **Droits** : le message se modifie par l'auteur seul (`canEditPost`). La suppression
+  revient à l'auteur et aux admins du groupe (`canDeleteGroupContent`). Retirer une
+  publication ne touche jamais l'enregistrement perso qu'elle montre
+- Un membre qui quitte le groupe laisse ses publications, comme ses prises
+
+### Suggestion de morceau
+
+- Une suggestion **n'entre pas** d'elle-même dans le référentiel : lancer une idée ne doit
+  pas remplir `/songs` de titres que personne n'a retenus
+- « Ajouter au référentiel » — tout membre — crée le morceau au statut
+  `proposition_de_travail`, avec titre et artiste d'origine, et le relie à la
+  publication (`posts.song_id`). Le bouton devient alors « Voir le morceau »
+- Un morceau du même titre existe déjà dans le groupe : `409`, avec le lien vers lui
+- Supprimer le morceau du référentiel délie la suggestion (`ON DELETE SET NULL`), qui
+  redevient ajoutable
+
+### Actualité et notifications
+
+- Une notification `post` pour tous les membres sauf l'auteur, à la publication ; les
+  commentaires d'une publication notifient `comment` / `mention` comme ailleurs
+- Le fil du tableau de bord reprend les publications (filtre « Publications ») et les
+  commentaires qu'elles reçoivent
+
 ## Référentiel de morceaux (`/songs`)
 
 - Géré par tout membre du groupe actif (pas réservé aux admins) — scope toujours par `current_group_id`
@@ -667,12 +747,14 @@ prise du 12 mars, on programme « Sunny », et le jour venu on la jouera.
 - Confirmation par saisie du nom exact du groupe. Vérifiée **côté serveur** dans
   `deleteGroup()`, pas seulement par l'écran ; l'API exige le même nom en `?confirm=`
 - Suppression en cascade dans une transaction, dans cet ordre imposé par les FK :
-  `playlists` → `calendar_events` → `sessions` (les prises, commentaires, réactions et
+  `playlists` → `setlists` → `posts` → `calendar_events` → `sessions` (les prises, commentaires, réactions et
   entrées de playlist tombent en cascade) → `songs` → `notifications` → `group_logos`
   → `user_groups` → `groups`
 - Les fichiers `.mp3` sont supprimés **après** le commit : un fichier orphelin se rattrape,
   une ligne pointant vers un fichier disparu non
 - Les **comptes utilisateurs sont conservés** — seule l'appartenance au groupe disparaît.
+  Les **espaces perso** aussi : les publications partent, les enregistrements qu'elles
+  montraient restent chez leurs auteurs.
   Les indisponibilités personnelles (`group_id IS NULL`) ne sont pas touchées
 - Opération irréversible : aucune sauvegarde n'est prise automatiquement
 
@@ -681,9 +763,9 @@ prise du 12 mars, on programme « Sunny », et le jour venu on la jouera.
 - Cloche dans la barre du haut, avec pastille du nombre de non lues du **groupe actif**
 - Une notification est créée pour **chaque membre du groupe sauf l'auteur de l'action**, au
   moment de l'action (`src/lib/server/notifications.ts` → `notifyGroup`)
-- Six déclencheurs, un par création : prise uploadée (`recording`), commentaire (`comment`),
-  session (`session`), playlist (`playlist`), setlist (`setlist`), événement d'agenda
-  (`agenda`, indisponibilité comprise). Une session crée déjà sa notification : l'événement
+- Sept déclencheurs, un par création : prise uploadée (`recording`), commentaire (`comment`),
+  session (`session`), playlist (`playlist`), setlist (`setlist`), publication (`post`),
+  événement d'agenda (`agenda`, indisponibilité comprise). Une session crée déjà sa notification : l'événement
   d'agenda qu'elle génère n'en crée pas une seconde
 - **Mentions** (`mention`) : un membre cité par `@pseudo` dans un commentaire reçoit « t'a
   mentionné » **à la place** du « a commenté » générique, pas en plus (`notifyMentions`).
@@ -698,7 +780,7 @@ prise du 12 mars, on programme « Sunny », et le jour venu on la jouera.
 - Le nom de l'auteur est relu depuis `users` (`actor_name` n'est qu'un repli) : un changement
   de nom affiché se répercute sur l'historique, comme pour les commentaires
 - Une notification disparaît avec le contenu qu'elle annonce (`session_id`, `recording_id`,
-  `playlist_id`, `setlist_id` en `ON DELETE CASCADE`) plutôt que de pointer vers une page supprimée
+  `playlist_id`, `setlist_id`, `post_id` en `ON DELETE CASCADE`) plutôt que de pointer vers une page supprimée
 - La pastille est comptée côté serveur dans `+layout.server.ts` — juste dès le premier rendu —
   puis rafraîchie par le menu toutes les 60 s tant qu'il reste fermé
 - Le menu est lié au groupe pour lequel il a été rendu : recréé à chaque bascule, et si un
@@ -708,12 +790,17 @@ prise du 12 mars, on programme « Sunny », et le jour venu on la jouera.
 ## Tableau de bord (`/`)
 
 - Colonne gauche : 5 dernières sessions (date, morceaux travaillés en résumé)
-- Colonne droite : flux d'actualité (sessions, playlists modifiées, **setlists créées** et
-  **derniers commentaires**, triés par horodatage décroissant, chaque entrée renvoyant vers la
+- Colonne droite : flux d'actualité (sessions, playlists modifiées, **setlists créées**,
+  **publications** et **derniers commentaires**, triés par horodatage décroissant, chaque entrée renvoyant vers la
   page concernée), puis playlists triées par date de modification
-- Un commentaire y mène là où il a été écrit : la prise, ou la setlist. La requête part de
-  `comments` et rejoint les deux cibles — c'est la cible qui dit à quel groupe il appartient
+- Un commentaire y mène là où il a été écrit : la prise, la setlist ou la publication. La
+  requête part de `comments` et rejoint les trois cibles — c'est la cible qui dit à quel groupe il appartient
 - Une setlist y figure à sa **création** : elle annonce ce que le groupe prépare. Sa
   modification, elle, n'apprend rien de plus au reste du groupe
-- Le filtre du flux propose « Toutes / Sessions / Playlists / Setlists / Commentaires »
-- Bouton [+ Uploader] toujours visible en haut
+- Le filtre du flux propose « Toutes / Sessions / Playlists / Setlists / Publications /
+  Commentaires »
+- Une **publication** y figure à sa création, et ses commentaires y mènent à `/posts/[id]` —
+  voir « Publications »
+- Bouton [+ Uploader] toujours visible en haut. « + Publier » (vers `/perso`) se tient dans
+  l'en-tête, à côté de « + Session » : la colonne du flux, étroite, n'a pas la place d'une
+  troisième commande à côté de son titre et de son filtre

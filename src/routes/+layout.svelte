@@ -59,6 +59,8 @@
 		{ href: '/setlists', label: 'Setlists', icon: 'list' },
 		{ href: '/agenda', label: 'Agenda', icon: 'agenda' },
 		{ href: '/group', label: 'Mon groupe', icon: 'users' },
+		// Hors groupe : l'espace perso suit l'utilisateur quel que soit le groupe actif.
+		{ href: '/perso', label: 'Mon espace', icon: 'user' },
 	]
 </script>
 

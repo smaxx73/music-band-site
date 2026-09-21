@@ -147,20 +147,68 @@ CREATE TABLE setlist_items (
     UNIQUE (setlist_id, song_id)             -- un morceau ne se programme qu'une fois
 );
 
--- Un commentaire se rattache à UNE cible : une prise, ou une setlist (contrainte
--- comments_target). Même table pour les deux : mêmes réactions, mêmes mentions,
--- même édition — voir migration 029.
+-- Espace perso : à un utilisateur, jamais à un groupe (migration 031).
+CREATE TABLE personal_recordings (
+    id          SERIAL PRIMARY KEY,
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    title       TEXT NOT NULL,
+    notes       TEXT,
+    -- Même forme qu'une prise : une piste audio, une vidéo YouTube, ou les deux.
+    file_path   TEXT,                        -- "perso/{id}.mp3", relatif à AUDIO_DIR
+    youtube_video_id TEXT CHECK (youtube_video_id ~ '^[A-Za-z0-9_-]{11}$'),
+    youtube_title TEXT,
+    source_file_name TEXT,
+    duration_s  INTEGER,
+    file_hash   TEXT,                        -- doublon cherché dans l'espace du seul propriétaire
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ,
+    CONSTRAINT personal_recordings_source CHECK (file_path IS NOT NULL OR youtube_video_id IS NOT NULL)
+);
+
+-- Ce qu'un membre apporte au groupe depuis l'extérieur des répétitions.
+CREATE TABLE posts (
+    id          SERIAL PRIMARY KEY,
+    group_id    INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    type        TEXT NOT NULL CHECK (type IN ('recording', 'youtube', 'song_suggestion')),
+    message     TEXT,
+    author      TEXT NOT NULL,
+    author_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    -- Renvoi, pas copie : la publication tombe avec l'enregistrement qu'elle montre.
+    personal_recording_id INTEGER REFERENCES personal_recordings(id) ON DELETE CASCADE,
+    youtube_video_id TEXT CHECK (youtube_video_id ~ '^[A-Za-z0-9_-]{11}$'),
+    youtube_title TEXT,
+    song_title  TEXT,                        -- suggestion : le morceau proposé
+    song_artist TEXT,
+    -- Morceau créé depuis la suggestion ; supprimé du référentiel, la suggestion
+    -- redevient ajoutable.
+    song_id     INTEGER REFERENCES songs(id) ON DELETE SET NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    edited_at   TIMESTAMPTZ,
+    CONSTRAINT posts_shape CHECK (
+        (type = 'recording'       AND personal_recording_id IS NOT NULL)
+     OR (type = 'youtube'         AND personal_recording_id IS NULL AND youtube_video_id IS NOT NULL)
+     OR (type = 'song_suggestion' AND personal_recording_id IS NULL AND song_title IS NOT NULL)
+    ),
+    -- Publié dans plusieurs groupes, oui ; deux fois dans le même, non.
+    UNIQUE (group_id, personal_recording_id)
+);
+
+-- Un commentaire se rattache à UNE cible : une prise, une setlist ou une publication
+-- (contrainte comments_target). Même table pour les trois : mêmes réactions, mêmes
+-- mentions, même édition — voir migrations 029 et 031.
 CREATE TABLE comments (
     id           SERIAL PRIMARY KEY,
     recording_id INTEGER REFERENCES recordings(id) ON DELETE CASCADE,
     setlist_id   INTEGER REFERENCES setlists(id)   ON DELETE CASCADE,
+    post_id      INTEGER REFERENCES posts(id)      ON DELETE CASCADE,
     author       TEXT NOT NULL,
     author_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     content      TEXT NOT NULL,
     timestamp_s  FLOAT,                      -- null = commentaire global ; toujours NULL sur une setlist
+                                             -- et sur une publication sans rien à lire
     created_at   TIMESTAMPTZ DEFAULT now(),
     edited_at    TIMESTAMPTZ,                -- NULL = jamais modifié ; seul l'auteur modifie
-    CONSTRAINT comments_target CHECK (num_nonnulls(recording_id, setlist_id) = 1)
+    CONSTRAINT comments_target CHECK (num_nonnulls(recording_id, setlist_id, post_id) = 1)
 );
 
 CREATE TABLE comment_reactions (
@@ -219,7 +267,7 @@ CREATE TABLE notifications (
     id            SERIAL PRIMARY KEY,
     user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,   -- destinataire
     group_id      INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-    type          TEXT NOT NULL CHECK (type IN ('recording', 'comment', 'mention', 'session', 'playlist', 'agenda', 'setlist')),
+    type          TEXT NOT NULL CHECK (type IN ('recording', 'comment', 'mention', 'session', 'playlist', 'agenda', 'setlist', 'post')),
                                                  -- 'mention' : membre cité (@pseudo) dans un commentaire
     actor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                                                  -- auteur de l'action ; jamais destinataire de la sienne
@@ -232,6 +280,7 @@ CREATE TABLE notifications (
     recording_id  INTEGER REFERENCES recordings(id) ON DELETE CASCADE,
     playlist_id   INTEGER REFERENCES playlists(id)  ON DELETE CASCADE,
     setlist_id    INTEGER REFERENCES setlists(id)   ON DELETE CASCADE,
+    post_id       INTEGER REFERENCES posts(id)      ON DELETE CASCADE,
     read_at       TIMESTAMPTZ,                   -- NULL = non lue
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -276,3 +325,8 @@ CREATE INDEX idx_playlists_created_by_user ON playlists(created_by_user_id) WHER
 CREATE INDEX idx_notifications_recipient ON notifications(user_id, group_id, created_at DESC);
 CREATE INDEX idx_notifications_unread    ON notifications(user_id, group_id) WHERE read_at IS NULL;
 CREATE INDEX idx_audio_imports_owner  ON audio_imports(user_id, created_at DESC);
+CREATE INDEX idx_personal_recordings_user ON personal_recordings(user_id, created_at DESC);
+CREATE INDEX idx_personal_recordings_hash ON personal_recordings(user_id, file_hash);
+CREATE INDEX idx_posts_group            ON posts(group_id, created_at DESC);
+CREATE INDEX idx_posts_personal         ON posts(personal_recording_id) WHERE personal_recording_id IS NOT NULL;
+CREATE INDEX idx_comments_post          ON comments(post_id) WHERE post_id IS NOT NULL;

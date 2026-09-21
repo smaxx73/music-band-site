@@ -2,6 +2,7 @@ import type { PageServerLoad, Actions } from './$types'
 import { error, fail } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 import { hashPassword } from '$lib/server/auth'
+import { personalFileIds, removePersonalFiles } from '$lib/server/personal'
 import { isAdmin, isSuperadmin, type UserRole } from '$lib/types'
 
 export const load: PageServerLoad = async () => {
@@ -126,8 +127,12 @@ export const actions: Actions = {
 		if (!canAssignRole(locals.user.role, target.role))
 			return fail(403, { action: 'delete', id, error: 'Seul un super-admin peut gérer les comptes administrateur.' })
 
+		// L'espace perso part avec le compte (cascade) : ses fichiers sont effacés après
+		// le commit, un fichier orphelin se rattrapant mieux qu'une ligne sans fichier.
+		const personalIds = await personalFileIds(id)
 		const [deleted] = await sql`DELETE FROM users WHERE id = ${id} RETURNING id`
 		if (!deleted) return fail(404, { action: 'delete', id, error: 'Utilisateur introuvable.' })
+		for (const recordingId of personalIds) await removePersonalFiles(recordingId)
 	}
 }
 

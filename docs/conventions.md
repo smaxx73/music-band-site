@@ -13,7 +13,9 @@ src/
 │   │   ├── imports.ts     # zone de transit des outils audio d'après upload
 │   │   ├── youtube.ts     # vidéo YouTube d'une prise : lien, oEmbed, doublon
 │   │   ├── setlists.ts    # lecture des setlists et de leur programme (durée sommée)
-│   │   ├── comments.ts    # commentaires d'une cible (prise ou setlist) + réactions
+│   │   ├── comments.ts    # commentaires d'une cible (prise, setlist ou publication) + réactions
+│   │   ├── personal.ts    # espace perso : enregistrements d'un utilisateur, fichiers, droit d'écoute
+│   │   ├── posts.ts       # publications dans le groupe (enregistrement perso, vidéo, suggestion)
 │   │   └── notifications.ts # écriture (fan-out) et lecture des notifications
 	│   └── components/
 	│       ├── ConfirmDialog.svelte   # confirmation réutilisable, selon le niveau de risque
@@ -34,6 +36,8 @@ src/
 │       ├── SetlistSongs.svelte    # programme d'une setlist : ordre (glisser + ↑↓), retrait
 │       ├── AddToPlaylistButton.svelte # ajout d'une prise à une playlist (sélecteur + création)
 │       ├── AddToSetlistButton.svelte  # ajout d'un morceau à une setlist (listes et vue morceau)
+│       ├── MediaPlayer.svelte     # lecteur d'un enregistrement perso (audio et/ou vidéo, hors barre du bas)
+│       ├── PublishDialog.svelte   # publier dans le groupe actif : enregistrement perso, vidéo, suggestion
 │       ├── SessionEditor.svelte   # édition des métadonnées de session
 │       └── SongDetails.svelte     # paroles et notes musicales
 ├── routes/
@@ -49,6 +53,9 @@ src/
 │   ├── upload/+page.svelte
 │   ├── upload/decoupe/[id]/+page.svelte  # découpe d'un import sur les blancs
 │   ├── record/+page.svelte        # enregistrement en direct, classé après coup
+│   ├── perso/+page.svelte         # espace personnel (hors groupe)
+│   ├── perso/[id]/+page.svelte    # un enregistrement perso
+│   ├── posts/[id]/+page.svelte    # une publication + ses commentaires
 │   └── api/               # voir src/routes/api/CLAUDE.md
 data/audio/                # fichiers mp3 (volume Docker)
 schema.sql                 # schéma SQL — source de vérité
@@ -107,6 +114,7 @@ la confirmation est une protection d'interface, jamais une règle de sécurité.
 
 ## Fichiers audio
 - Stockés dans `/data/audio/{recording_id}.mp3`
+- Enregistrements perso dans `/data/audio/perso/{id}.mp3`, servis par `/audio/perso/`
 - Convertis en mp3 128kbps à l'upload via ffmpeg
 - Servis par Node (`src/routes/audio/[id]/+server.ts`), en développement comme en production :
   la route vérifie la session et l'appartenance de la prise au groupe actif avant d'ouvrir le
@@ -153,7 +161,9 @@ de fenêtre.
 - Une setlist, elle, pointe vers des `songs` : c'est un programme à jouer, pas des prises
   à réécouter. Son temps total n'est pas stocké, il se somme depuis
   `songs.reference_duration_s` — voir « Setlists » dans docs/features.md
-- Un commentaire porte sur une prise **ou** sur une setlist (contrainte `comments_target`) :
+- Un commentaire porte sur une prise, une setlist **ou** une publication (contrainte `comments_target`) :
   c'est sa cible qui dit à quel groupe il appartient, et donc qui a le droit de le lire
 - Le `take` est toujours calculé automatiquement — jamais saisi manuellement
 - Les entités métier visibles sont filtrées par `current_group_id`, sauf les indisponibilités personnelles qui sont filtrées par appartenance utilisateur au groupe actif
+- L'espace perso (`personal_recordings`) est filtré par propriétaire, jamais par groupe. Il
+  n'entre dans un groupe que par une publication (`posts`), qui le **désigne** sans le copier

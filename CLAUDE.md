@@ -91,6 +91,13 @@ NODE_ENV=production
   code qui lit ou écrit un commentaire passe par `src/lib/server/comments.ts`
   (`commentsWithReactions`, `findCommentThread`, `commentThread`) : c'est la cible qui dit
   à quel groupe le commentaire appartient. Voir « Setlists » dans docs/features.md
+- IMPORTANT : l'espace perso (`personal_recordings`) n'est PAS groupe-scopé : il appartient
+  à son propriétaire, filtré par `user_id = locals.user.id` — admins compris, personne d'autre
+  ne le lit. Ses fichiers sont dans `AUDIO_DIR/perso/`, servis par `/audio/perso/` (Node),
+  qui n'ouvre qu'au propriétaire ou à un membre du groupe actif où l'enregistrement est
+  publié. Passer par `src/lib/server/personal.ts`. Voir « Espace personnel » dans docs/features.md
+- Un commentaire peut aussi viser une publication (`post_id`) : c'est la troisième cible de
+  `comments_target`
 - Une prise peut n'avoir qu'une vidéo YouTube, sans fichier : tout code qui touche à `AUDIO_DIR`,
   au lecteur audio partagé ou aux playlists vérifie `file_path IS NOT NULL`. Voir « Prises vidéo
   YouTube » dans docs/features.md
@@ -105,11 +112,11 @@ Deux axes indépendants, à ne pas confondre :
 | `user_groups.role` | `member` / `admin` | un groupe donné |
 
 - **member** — tout le contenu de son groupe actif : sessions, prises, morceaux, playlists,
-  setlists, commentaires, agenda. Ne supprime que les sessions, les prises et les setlists
-  dont il est l'auteur.
+  setlists, publications, commentaires, agenda. Ne supprime que les sessions, les prises,
+  les setlists et les publications dont il est l'auteur. Seul à voir son espace perso.
 - **admin de groupe** — en plus, sur SON groupe : ajouter/retirer des membres, renommer le
-  groupe, changer son logo et ses liens réseaux, supprimer les sessions, prises et setlists
-  créées par d'autres.
+  groupe, changer son logo et ses liens réseaux, supprimer les sessions, prises, setlists
+  et publications créées par d'autres.
 - **admin global** — tout ce qui précède sur tous les groupes, plus la création de groupes
   et la gestion des comptes `user`.
 - **superadmin** — en plus, seul à pouvoir gérer les comptes `admin`/`superadmin`, à attribuer
@@ -143,6 +150,9 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
 /admin/users        gestion des comptes
 /admin/groups       gestion des groupes et membres
 /agenda             agenda partagé du groupe (indisponibilités + toutes les sessions)
+/perso              espace personnel : enregistrements à soi, non partagés + publication
+/perso/[id]         un enregistrement perso : lecteur, titre, note, publications
+/posts/[id]         une publication dans le groupe : lecteur ou suggestion + commentaires
 ```
 
 Les pages de contenu sont des permaliens destinés à être partagés entre membres : la
