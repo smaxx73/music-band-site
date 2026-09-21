@@ -113,6 +113,14 @@
 			     boutons sans déborder. -->
 			<div class="top-actions">
 				<a href="/upload" class="top-upload" title="Uploader une prise" aria-label="Uploader une prise">+</a>
+				<!-- Raccourci mobile : c'est au téléphone qu'on lance un enregistrement en répétition. -->
+				<a
+					href="/record"
+					class="top-record"
+					class:active={isActive('/record')}
+					title="Enregistrer maintenant"
+					aria-label="Enregistrer maintenant"
+				><Icon name="mic" size="1rem" /></a>
 				{#if data.user.current_group_id}
 					<!-- Recréé à chaque bascule de groupe : liste, pastille locale et requêtes en
 					     vol appartiennent au groupe précédent et ne doivent pas lui survivre. -->
@@ -216,6 +224,7 @@
 	/* Bouton menu et raccourci upload : mobile uniquement */
 	.menu-toggle,
 	.top-upload,
+	.top-record,
 	.nav-backdrop { display: none; }
 
 	.menu-toggle {
@@ -250,6 +259,21 @@
 		text-decoration: none;
 		flex-shrink: 0;
 	}
+
+	/* Contour seul : l'upload reste l'action principale de la barre. */
+	.top-record {
+		width: 30px;
+		height: 30px;
+		align-items: center;
+		justify-content: center;
+		border-radius: 50%;
+		border: 1.5px solid var(--color-accent);
+		color: var(--color-accent);
+		text-decoration: none;
+		flex-shrink: 0;
+	}
+
+	.top-record.active { background: rgba(224, 123, 58, 0.18); }
 
 	.brand {
 		display: inline-flex;
@@ -524,7 +548,8 @@
 	/* ─── Mobile : la sidebar devient un tiroir latéral ─ */
 	@media (max-width: 640px) {
 		.menu-toggle,
-		.top-upload { display: flex; }
+		.top-upload,
+		.top-record { display: flex; }
 
 		.app-shell {
 			height: auto;
@@ -544,8 +569,8 @@
 
 		/* Upload, notifications et profil quittent le header pour une barre d'actions
 		   fixée en bas — le header ne garde que le menu, le logo et le groupe actif.
-		   Réordonné visuellement : profil à gauche, upload au centre, notifications
-		   à droite (l'ordre du DOM, lui, reste celui du header desktop). */
+		   Réordonné visuellement : profil à gauche, puis enregistrement et upload,
+		   notifications à droite (l'ordre du DOM, lui, reste celui du header desktop). */
 		.top-actions {
 			position: fixed;
 			left: 0;
@@ -561,8 +586,9 @@
 		}
 
 		.top-actions .user-avatar { order: 1; }
-		.top-actions .top-upload { order: 2; }
-		.top-actions :global(.notif) { order: 3; }
+		.top-actions .top-record { order: 2; }
+		.top-actions .top-upload { order: 3; }
+		.top-actions :global(.notif) { order: 4; }
 
 		.app-body {
 			flex-direction: column;

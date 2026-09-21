@@ -18,6 +18,7 @@ src/
 	│   └── components/
 	│       ├── ConfirmDialog.svelte   # confirmation réutilisable, selon le niveau de risque
 │       ├── AudioPlayer.svelte     # lecteur WaveSurfer.js
+│       ├── AudioRecorder.svelte   # enregistrement en direct depuis le navigateur (micro, interface)
 │       ├── YouTubePlayer.svelte   # lecteur de la vidéo YouTube d'une prise (API IFrame, chargée à la demande)
 │       ├── YouTubeEmbed.svelte    # vidéo YouTube citée dans un commentaire (vignette, iframe au clic)
 │       ├── CommentsPanel.svelte   # commentaires d'une prise + formulaire d'ajout (page lecteur)
@@ -47,6 +48,7 @@ src/
 │   ├── setlists/[id]/+page.svelte
 │   ├── upload/+page.svelte
 │   ├── upload/decoupe/[id]/+page.svelte  # découpe d'un import sur les blancs
+│   ├── record/+page.svelte        # enregistrement en direct, classé après coup
 │   └── api/               # voir src/routes/api/CLAUDE.md
 data/audio/                # fichiers mp3 (volume Docker)
 schema.sql                 # schéma SQL — source de vérité

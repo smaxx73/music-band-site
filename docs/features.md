@@ -21,6 +21,50 @@
     que de rester sur le formulaire : c'est juste après l'ajout qu'on commente la prise.
     Idem pour une prise vidéo YouTube. Une découpe, elle, mène à `/upload/decoupe/[id]`
 
+## Enregistrement en direct (`/record`)
+
+Pour capter une répétition sans passer par un enregistreur à part : le téléphone posé
+au milieu de la salle, ou l'interface audio branchée au PC.
+
+- **Enregistrer d'abord, classer ensuite.** En répétition, on lance le micro sans remplir
+  de formulaire : `/record` ne montre que l'enregistreur. Session et morceau ne se
+  demandent qu'une fois l'enregistrement terminé, préremplis au plus probable :
+  - la **session du jour** si elle existe (date de l'appareil), sinon une nouvelle session
+    datée d'aujourd'hui, créée à l'envoi
+  - **« Plusieurs morceaux »** (découpe) dès 10 min d'enregistrement, « Un seul morceau »
+    en deçà, avec le choix du morceau
+- Tout se passe dans le navigateur (`getUserMedia` + `MediaRecorder`, sans dépendance) :
+  `src/lib/components/AudioRecorder.svelte`. Le résultat est un `File` ordinaire, envoyé
+  exactement comme un fichier choisi (`src/lib/upload-client.ts`, partagé avec `/upload`) —
+  `POST /api/upload` pour une prise, `POST /api/imports` pour découper une répétition
+  entière. **Rien de neuf côté serveur**
+- `/upload` renvoie vers `/record` (« Pas encore de fichier ? Enregistrer maintenant ») ;
+  il ne porte pas l'enregistreur lui-même, qui imposerait de remplir le formulaire d'abord
+- Toute entrée que le système expose : micro intégré, casque, interface USB. Le sélecteur
+  d'entrée n'apparaît qu'une fois l'accès accordé — le navigateur ne nomme pas les entrées
+  avant. Stéréo au mieux : pas de multipiste
+- **Annulation d'écho, réduction de bruit et gain automatique sont coupés** : pensés pour
+  la visio, ils écrasent la dynamique et mangent les notes tenues
+- Format : WebM/Opus (Chrome, Firefox, Android) ou MP4/AAC (Safari, iOS), à 128 kbit/s.
+  Le type est envoyé **sans** ses paramètres (`audio/webm`, pas `audio/webm;codecs=opus`) :
+  le serveur le compare tel quel à `audio_formats`
+- Un WebM de `MediaRecorder` n'annonce pas sa durée : celle d'un import se lit donc sur le
+  proxy, qui partage l'échelle de temps de l'original
+- Vumètre de crête (−60 à 0 dBFS) dès l'ouverture du micro, avant même d'enregistrer, pour
+  placer le téléphone ; « Saturation » s'affiche 1,5 s après chaque crête écrêtée
+- Pause / reprise ; arrêt automatique avant 200 Mo (≈ 2 h à 128 kbit/s), prévenu à 170 Mo
+- **Écran gardé allumé** (Wake Lock) pendant l'enregistrement, repris au retour sur
+  l'onglet : un téléphone qui se verrouille coupe le micro. L'écran dit quand le navigateur
+  ne le permet pas
+- **Copie de secours** dans IndexedDB, un bloc toutes les 5 s (`src/lib/recording-store.ts`) :
+  un onglet qui plante ou un envoi qui échoue ne perd pas l'heure enregistrée. `/upload`
+  propose alors de récupérer l'enregistrement non envoyé. La copie n'est effacée qu'une fois
+  le fichier accepté par le serveur. Indisponible en navigation privée, et l'écran le dit
+- Quitter la page pendant l'enregistrement demande confirmation ; le formulaire de
+  classement n'apparaît qu'une fois l'enregistrement terminé
+- Sous 640 px, la barre d'actions du bas porte un raccourci 🎙 vers `/record`, entre le
+  profil et l'upload : c'est au téléphone, en répétition, qu'on lance un enregistrement
+
 ## Découpe automatique d'un enregistrement (`/upload/decoupe/[id]`)
 
 Premier des outils d'amélioration audio branchés à la suite de l'upload.

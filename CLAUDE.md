@@ -135,6 +135,7 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
 /setlists           liste des setlists + création
 /setlists/[id]      programme d'une setlist : morceaux ordonnés, durée totale, commentaires
 /upload             formulaire d'upload (fichier audio ou vidéo YouTube)
+/record             enregistrement en direct (micro, interface audio), classé après coup
 /upload/decoupe/[id] découpe automatique d'un enregistrement long sur les blancs
 /profile            infos du compte connecté + changement de mot de passe
 /group              infos + membres du groupe actif (consultation pour tout membre,

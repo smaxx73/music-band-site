@@ -4,7 +4,9 @@
 	import { formatDateOnly } from '$lib/date'
 	import SongDetails from '$lib/components/SongDetails.svelte'
 	import YouTubePlayer from '$lib/components/YouTubePlayer.svelte'
+	import Icon from '$lib/components/Icon.svelte'
 	import { parseYouTubeVideoId } from '$lib/youtube'
+	import { createSession, DuplicateError, sendAudioFile, type DuplicateInfo } from '$lib/upload-client'
 
 	let { data }: { data: PageData } = $props()
 
@@ -83,7 +85,7 @@
 	let resuming = $state<string | null>(null)
 	let progress = $state(0)
 	let error = $state<string | null>(null)
-	let duplicate = $state<{ id: number; take: number; session_date: string; song_title: string } | null>(null)
+	let duplicate = $state<DuplicateInfo | null>(null)
 
 	function formatDate(d: string | Date) {
 		return formatDateOnly(d, {
@@ -181,20 +183,17 @@
 
 		if (!newDate) { error = 'Saisis la date de la session.'; return null }
 
-		const res = await fetch('/api/sessions', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify({
+		try {
+			return await createSession({
 				date: newDate,
 				type: newType,
 				title: newTitle.trim() || undefined,
-				location: newLocation.trim() || undefined,
-				members: []
+				location: newLocation.trim() || undefined
 			})
-		})
-		const json = await res.json()
-		if (!res.ok) { error = json.error ?? 'Erreur création session.'; return null }
-		return json.id
+		} catch (err) {
+			error = err instanceof Error ? err.message : 'Erreur création session.'
+			return null
+		}
 	}
 
 	async function addYouTubeVideo(sessionId: number): Promise<{ id: number }> {
@@ -214,62 +213,15 @@
 		return json
 	}
 
-	class DuplicateError extends Error {
-		duplicate: { id: number; take: number; session_date: string; song_title: string }
-		constructor(d: DuplicateError['duplicate']) {
-			super('doublon')
-			this.duplicate = d
-		}
-	}
-
-	/**
-	 * XMLHttpRequest plutôt que fetch : c'est le seul moyen de suivre la progression
-	 * de l'envoi, qui dure sur un fichier de plusieurs dizaines de Mo.
-	 */
 	function sendFile<T>(
 		url: string,
 		sessionId: number,
 		songId?: string,
 		extraFields: Record<string, string> = {}
 	): Promise<T> {
-		return new Promise((resolve, reject) => {
-			const formData = new FormData()
-			formData.append('session_id', String(sessionId))
-			if (songId) formData.append('song_id', songId)
-			for (const [name, value] of Object.entries(extraFields)) formData.append(name, value)
-			// Le fichier en dernier : les champs sont ainsi lus avant que le flux audio n'arrive.
-			formData.append('audio', file as File)
-
-			const xhr = new XMLHttpRequest()
-
-			xhr.upload.onprogress = (e) => {
-				if (e.lengthComputable) progress = Math.round((e.loaded / e.total) * 100)
-			}
-
-			xhr.onload = () => {
-				try {
-					const data = JSON.parse(xhr.responseText)
-					if (xhr.status === 409 && data.duplicate) {
-						reject(new DuplicateError(data.duplicate))
-					} else if (xhr.status >= 200 && xhr.status < 300) {
-						resolve(data)
-					} else {
-						reject(new Error(data.error ?? `Erreur ${xhr.status}`))
-					}
-				} catch {
-					if (xhr.status === 413) {
-						reject(new Error('Fichier trop volumineux (maximum 200 Mo).'))
-					} else {
-						reject(new Error(`Réponse invalide du serveur (HTTP ${xhr.status}).`))
-					}
-				}
-			}
-
-			xhr.onerror = () => reject(new Error('Erreur réseau.'))
-
-			xhr.open('POST', url)
-			xhr.send(formData)
-		})
+		const fields: Record<string, string> = { session_id: String(sessionId), ...extraFields }
+		if (songId) fields.song_id = songId
+		return sendAudioFile<T>(url, file as File, fields, (p) => (progress = p))
 	}
 </script>
 
@@ -282,6 +234,10 @@
 		<h1>Uploader une prise</h1>
 		<a href="/sessions" class="btn btn-ghost btn-sm back-link" onclick={(e) => { if (history.length > 1) { e.preventDefault(); history.back() } }}>← Retour</a>
 	</div>
+
+	<a href="/record" class="record-link">
+		<Icon name="mic" /> Pas encore de fichier ? <strong>Enregistrer maintenant</strong>
+	</a>
 
 	{#if duplicate}
 		<div class="message-error" style="margin-bottom: 0.75rem;">
@@ -562,6 +518,19 @@
 	}
 
 	.back-link { color: var(--color-text-muted); }
+
+	.record-link {
+		display: flex;
+		align-items: center;
+		gap: 0.45rem;
+		margin: -0.75rem 0 1.25rem;
+		font-size: var(--text-sm);
+		color: var(--color-text-secondary);
+		text-decoration: none;
+	}
+
+	.record-link strong { color: var(--color-accent); }
+	.record-link:hover strong { text-decoration: underline; }
 
 	form {
 		display: flex;

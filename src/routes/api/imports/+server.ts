@@ -87,7 +87,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			fileName: cleanSourceFileName(fileName) ?? 'enregistrement',
 			sourceMime: mimeType || null,
 			fileHash: hash,
-			durationS: await getDuration(sourcePath(id))
+			// Sur le proxy, pas l'original : un enregistrement fait dans le navigateur
+			// (WebM de MediaRecorder) ne porte pas sa durée, le mp3 du proxy si.
+			durationS: await getDuration(proxyPath(id))
 		})
 
 		// Ménage des imports abandonnés : personne n'attend son résultat.
