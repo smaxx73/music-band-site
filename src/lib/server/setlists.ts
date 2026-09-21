@@ -46,6 +46,23 @@ export function listSetlists(groupId: number, songId: number | null = null) {
 	`
 }
 
+/** Plusieurs setlists d'un coup, pour le fil, avec les titres du programme dans l'ordre. */
+export function listSetlistsByIds(ids: number[], groupId: number) {
+	if (ids.length === 0) return Promise.resolve([])
+	return sql<(SetlistRow & { song_titles: string[] })[]>`
+		SELECT
+			s.*, COALESCE(MAX(u.display_name), s.created_by) AS created_by, ${DURATION_COLUMNS},
+			false AS contains_song,
+			COALESCE(ARRAY_AGG(so.title ORDER BY si.position) FILTER (WHERE so.id IS NOT NULL), ARRAY[]::TEXT[]) AS song_titles
+		FROM setlists s
+		LEFT JOIN users u ON u.id = s.created_by_user_id
+		LEFT JOIN setlist_items si ON si.setlist_id = s.id
+		LEFT JOIN songs so ON so.id = si.song_id
+		WHERE s.id = ANY(${ids}) AND s.group_id = ${groupId}
+		GROUP BY s.id
+	`
+}
+
 /** Une setlist du groupe actif, ou `null` — le 404 appartient à l'appelant. */
 export async function getSetlist(id: number, groupId: number): Promise<SetlistRow | null> {
 	const [setlist] = await sql<SetlistRow[]>`

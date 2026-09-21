@@ -53,6 +53,7 @@
 
 	const navItems: { href: string; label: string; icon: IconName }[] = [
 		{ href: '/', label: 'Tableau de bord', icon: 'home' },
+		{ href: '/fil', label: "Fil d'actualité", icon: 'feed' },
 		{ href: '/sessions', label: 'Sessions', icon: 'calendar' },
 		{ href: '/songs', label: 'Morceaux', icon: 'music' },
 		{ href: '/playlists', label: 'Playlists', icon: 'playlist' },

@@ -1,15 +1,9 @@
 import sql from '$lib/server/db'
 import { getPost } from '$lib/server/posts'
 import { postPlayable, postTitle } from '$lib/types'
-import type { CommentThread, CommentWithReactions, ReactionValue } from '$lib/types'
+import type { CommentThread, CommentWithReactions, ReactionSummary } from '$lib/types'
 
-export type ReactionSummary = {
-	up_count: number
-	down_count: number
-	up_reactors: string[]
-	down_reactors: string[]
-	my_reaction: ReactionValue | null
-}
+export type { ReactionSummary }
 
 /**
  * Commentaires d'une discussion — celle d'une prise, d'une setlist ou d'une publication —,

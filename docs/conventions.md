@@ -15,7 +15,8 @@ src/
 │   │   ├── setlists.ts    # lecture des setlists et de leur programme (durée sommée)
 │   │   ├── comments.ts    # commentaires d'une cible (prise, setlist ou publication) + réactions
 │   │   ├── personal.ts    # espace perso : enregistrements d'un utilisateur, fichiers, droit d'écoute
-│   │   ├── posts.ts       # publications dans le groupe (enregistrement perso, vidéo, suggestion)
+│   │   ├── posts.ts       # publications dans le groupe (enregistrement perso, vidéo, suggestion) + pouces
+│   │   ├── feed.ts        # fil d'actualité : toutes les sources ordonnées, paginé par curseur
 │   │   └── notifications.ts # écriture (fan-out) et lecture des notifications
 	│   └── components/
 	│       ├── ConfirmDialog.svelte   # confirmation réutilisable, selon le niveau de risque
@@ -38,6 +39,8 @@ src/
 │       ├── AddToSetlistButton.svelte  # ajout d'un morceau à une setlist (listes et vue morceau)
 │       ├── MediaPlayer.svelte     # lecteur d'un enregistrement perso (audio et/ou vidéo, hors barre du bas)
 │       ├── PublishDialog.svelte   # publier dans le groupe actif : enregistrement perso, vidéo, suggestion
+│       ├── PostReactions.svelte   # pouces 👍/👎 d'une publication (fil et page de la publication)
+│       ├── FeedItem.svelte        # une carte du fil d'actualité, selon le type d'élément
 │       ├── SessionEditor.svelte   # édition des métadonnées de session
 │       └── SongDetails.svelte     # paroles et notes musicales
 ├── routes/
@@ -56,6 +59,7 @@ src/
 │   ├── perso/+page.svelte         # espace personnel (hors groupe)
 │   ├── perso/[id]/+page.svelte    # un enregistrement perso
 │   ├── posts/[id]/+page.svelte    # une publication + ses commentaires
+│   ├── fil/+page.svelte           # fil d'actualité du groupe actif
 │   └── api/               # voir src/routes/api/CLAUDE.md
 data/audio/                # fichiers mp3 (volume Docker)
 schema.sql                 # schéma SQL — source de vérité

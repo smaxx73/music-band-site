@@ -131,7 +131,8 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
 
 ## Navigation
 ```
-/                   tableau de bord (5 dernières sessions + playlists)
+/                   tableau de bord (3 dernières sessions + playlists)
+/fil                fil d'actualité complet du groupe actif, par pages
 /sessions           liste des sessions + création
 /sessions/[id]      détail session → morceaux groupés → prises
 /songs              liste + gestion du référentiel de morceaux (tout membre du groupe actif)
@@ -167,7 +168,8 @@ dans docs/features.md.
 ## Non implémenté — ne pas inventer
 - Notifications email (les notifications d'activité, elles, existent — voir docs/features.md)
 - Purge / archivage des notifications
-- Pagination (à faire quand > 50 éléments)
+- Pagination (à faire quand > 50 éléments) — seul le fil d'actualité (`/fil`) est paginé,
+  par curseur : voir « Fil d'actualité » dans docs/features.md
 - Suppression de commentaires (l'édition, elle, existe — voir docs/features.md)
 - Tests automatisés
 - Autres outils d'amélioration audio (normalisation, fondus, réduction de bruit) : seule

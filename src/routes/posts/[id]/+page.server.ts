@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types'
 import { error, redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
-import { getPost } from '$lib/server/posts'
+import { getPost, postReactionSummary } from '$lib/server/posts'
 import { loadPersonalPeaks } from '$lib/server/personal'
 import { commentsWithReactions } from '$lib/server/comments'
 import { retargetActiveGroup } from '$lib/server/group-scope'
@@ -23,8 +23,9 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 		error(404, 'Publication introuvable')
 	}
 
-	const [comments, peaks, groupMembers, songInReferential] = await Promise.all([
+	const [comments, reactions, peaks, groupMembers, songInReferential] = await Promise.all([
 		commentsWithReactions({ kind: 'post', id, anchorable: postPlayable(post) }, locals.user.id),
+		postReactionSummary(id, locals.user.id),
 		post.personal_recording_id !== null && post.recording_has_audio
 			? loadPersonalPeaks(post.personal_recording_id)
 			: Promise.resolve({ peaks: [] as number[], duration: null }),
@@ -50,6 +51,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 	return {
 		post,
 		comments,
+		reactions,
 		peaks: peaks.peaks,
 		peaksDuration: peaks.duration,
 		groupMembers,

@@ -29,6 +29,8 @@
 
 	const upcomingItems = $derived(data.upcomingItems as unknown as UpcomingItem[])
 	const sessions = $derived(data.sessions as unknown as SessionRow[])
+	// Le serveur en charge davantage : le fil d'activité s'en sert aussi
+	const RECENT_SESSIONS_SHOWN = 3
 	const playlists = $derived(data.playlists as unknown as PlaylistRow[])
 	const setlists = $derived((data.setlists ?? []) as unknown as SetlistRow[])
 	const posts = $derived((data.posts ?? []) as unknown as PostView[])
@@ -220,7 +222,7 @@
 			<div class="dash-header">
 				<h1>Bonjour {firstName} 👋</h1>
 				<div class="dash-actions">
-					<a href="/perso?publier" class="btn btn-secondary btn-sm">+ Publier</a>
+					<a href="/fil?publier" class="btn btn-secondary btn-sm">+ Publier</a>
 					<a href="/sessions" class="btn btn-primary btn-sm">+ Session</a>
 				</div>
 			</div>
@@ -314,8 +316,10 @@
 			{#if sessions.length === 0}
 				<p class="empty">Aucune session passée pour l'instant.</p>
 			{:else}
-				<ul class="session-list">
-					{#each sessions as s}
+				<!-- 3 cartes seulement : la dernière s'estompe quand il en reste d'autres,
+				     pour signaler que la suite est derrière « Toutes → » -->
+				<ul class="session-list" class:session-list-more={sessions.length > RECENT_SESSIONS_SHOWN}>
+					{#each sessions.slice(0, RECENT_SESSIONS_SHOWN) as s}
 						{@render sessionCard(s)}
 					{/each}
 				</ul>
@@ -377,6 +381,9 @@
 					{/each}
 				</div>
 			{/if}
+			<!-- Sous la liste plutôt qu'à côté du titre : l'en-tête de cette colonne étroite
+			     porte déjà le filtre -->
+			<a href="/fil" class="link-more feed-link">Tout le fil d'actualité →</a>
 
 			<!-- Playlists -->
 			{#if playlists.length > 0}
@@ -501,6 +508,8 @@
 
 	.link-more:hover { color: var(--color-accent); }
 
+	.feed-link { display: inline-block; margin-top: 0.5rem; }
+
 	.activity-filter {
 		font-size: 0.75rem;
 		color: var(--color-text-muted);
@@ -541,6 +550,12 @@
 	.session-card:hover {
 		border-color: var(--color-accent);
 		background: var(--color-paper);
+	}
+
+	/* Masque plutôt qu'un dégradé de couleur : il estompe la carte quel que soit le fond */
+	.session-list-more > li:last-child {
+		-webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 95%);
+		mask-image: linear-gradient(to bottom, #000 0%, transparent 95%);
 	}
 
 	.session-list-upcoming {

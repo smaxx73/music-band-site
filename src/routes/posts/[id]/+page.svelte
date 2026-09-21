@@ -8,6 +8,7 @@
 	import CommentsPanel from '$lib/components/CommentsPanel.svelte'
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
 	import YouTubeEmbed from '$lib/components/YouTubeEmbed.svelte'
+	import PostReactions from '$lib/components/PostReactions.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import type { MentionMember } from '$lib/components/MentionTextarea.svelte'
 	import { parseTimecode } from '$lib/youtube'
@@ -19,7 +20,8 @@
 		postKindLabel,
 		postTitle,
 		type CommentWithReactions,
-		type PostView
+		type PostView,
+		type ReactionSummary
 	} from '$lib/types'
 
 	let { data }: { data: PageData } = $props()
@@ -246,6 +248,10 @@
 		</div>
 	{/if}
 
+	<div class="reactions">
+		<PostReactions postId={post.id} reactions={data.reactions as unknown as ReactionSummary} />
+	</div>
+
 	<div class="comments">
 		<CommentsPanel
 			thread={{ kind: 'post', id: post.id, anchorable: playable }}
@@ -300,7 +306,9 @@
 	.suggestion-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.75rem; }
 	.hint { font-size: var(--text-xs); color: var(--color-text-muted); }
 
-	.comments { margin-top: var(--space-8); padding-top: var(--space-5); border-top: 1px solid var(--color-border-light); }
+	.reactions { margin-top: var(--space-4); }
+
+	.comments { margin-top: var(--space-5); padding-top: var(--space-5); border-top: 1px solid var(--color-border-light); }
 
 	@media (max-width: 640px) {
 		main { margin: 1rem auto; padding: 0 0.75rem; }

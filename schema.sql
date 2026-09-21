@@ -219,6 +219,15 @@ CREATE TABLE comment_reactions (
     PRIMARY KEY (comment_id, user_id)
 );
 
+-- Pouce sur une publication, comme sur un commentaire (migration 032).
+CREATE TABLE post_reactions (
+    post_id     INTEGER REFERENCES posts(id) ON DELETE CASCADE,
+    user_id     INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    value       SMALLINT NOT NULL CHECK (value IN (-1, 1)),  -- 1 = pouce haut, -1 = pouce bas
+    created_at  TIMESTAMPTZ DEFAULT now(),
+    PRIMARY KEY (post_id, user_id)
+);
+
 CREATE TABLE playlists (
     id          SERIAL PRIMARY KEY,
     group_id    INTEGER NOT NULL REFERENCES groups(id),

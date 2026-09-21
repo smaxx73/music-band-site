@@ -290,14 +290,17 @@ export type CommentReaction = {
 	created_at: Date
 }
 
-// Commentaire enrichi des compteurs, des identités des votants et de la réaction courante.
-export type CommentWithReactions = Comment & {
+/** Pouces d'un commentaire ou d'une publication, vus par l'utilisateur courant. */
+export type ReactionSummary = {
 	up_count: number
 	down_count: number
 	up_reactors: string[]
 	down_reactors: string[]
 	my_reaction: ReactionValue | null
 }
+
+// Commentaire enrichi des compteurs, des identités des votants et de la réaction courante.
+export type CommentWithReactions = Comment & ReactionSummary
 
 export type Playlist = {
 	id: number
@@ -615,4 +618,74 @@ export type AudioImport = {
 	/** Non nul = la découpe a été validée. L'original reste repris pendant la rétention. */
 	consumed_at: Date | null
 	created_at: Date
+}
+
+// ─── Fil d'actualité (/fil) ───────────────────────────────────────────────
+
+/** Une prise dans une carte « prises ajoutées » du fil. */
+export type FeedRecording = {
+	id: number
+	song_id: number
+	song_title: string
+	take: number
+	duration_s: number | null
+	has_audio: boolean
+	has_video: boolean
+	comment_count: number
+}
+
+type FeedBase = {
+	/** Clé stable de l'élément, et départage du curseur à horodatage égal. */
+	key: string
+	/** Horodatage ISO, pour l'affichage — le curseur, lui, garde la précision de Postgres. */
+	at: string
+	author: string
+}
+
+export type FeedItem =
+	| (FeedBase & {
+			kind: 'post'
+			post: PostView
+			reactions: ReactionSummary
+			comments: CommentWithReactions[]
+	  })
+	| (FeedBase & {
+			kind: 'session'
+			session: {
+				id: number
+				date: string
+				type: string
+				title: string | null
+				location: string | null
+				song_titles: string[]
+				recording_count: number
+			}
+	  })
+	| (FeedBase & {
+			kind: 'recordings'
+			session: { id: number; date: string; type: string; title: string | null }
+			recordings: FeedRecording[]
+	  })
+	| (FeedBase & {
+			kind: 'setlist'
+			setlist: {
+				id: number
+				name: string
+				description: string | null
+				song_count: number
+				total_duration_s: number
+				missing_duration_count: number
+				song_titles: string[]
+			}
+			comments: CommentWithReactions[]
+	  })
+	| (FeedBase & {
+			kind: 'playlist'
+			playlist: { id: number; name: string; description: string | null; item_count: number }
+	  })
+
+export type FeedPage = {
+	items: FeedItem[]
+	/** Curseur de la page suivante, `null` en fin de fil. */
+	next: string | null
 }

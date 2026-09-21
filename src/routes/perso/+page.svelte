@@ -104,7 +104,7 @@
 		publishOpen = true
 	}
 
-	// `/perso?publier` : le « + Publier » du tableau de bord arrive ici pour publier.
+	// `/perso?publier` ouvre le formulaire d'emblée (le tableau de bord, lui, mène à `/fil?publier`).
 	onMount(() => {
 		if (page.url.searchParams.has('publier') && currentGroup) openPublish()
 	})

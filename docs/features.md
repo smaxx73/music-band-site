@@ -609,15 +609,26 @@ Ce qu'un membre apporte au groupe depuis l'extérieur des répétitions. Trois t
 
 Chacune porte un **message** facultatif (« écoutez le pont, j'ai changé les accords »).
 
-- Publiée dans le **groupe actif**, depuis `/perso` (« Publier dans … ») ou depuis la page
-  d'un enregistrement perso. Un même enregistrement se publie dans **plusieurs groupes** —
+- Publiée dans le **groupe actif**, depuis le fil (`/fil`, « + Publier »), depuis `/perso`
+  (« Publier dans … ») ou depuis la page d'un enregistrement perso. Un même enregistrement se publie dans **plusieurs groupes** —
   une publication par groupe, chacune avec sa discussion — mais une seule fois par groupe
   (`UNIQUE (group_id, personal_recording_id)`, `409`)
 - Publier **depuis un enregistrement précis** (bouton de sa ligne ou de sa page) ne
   redemande ni le type ni l'enregistrement : il ne reste que le message. Depuis le bouton
-  général, les choix sont « Depuis mon espace » — une vidéo déjà rangée s'y trouve, avec la
-  mention « (vidéo) » —, « Nouveau lien YouTube » et « Suggestion de morceau ». Une vidéo de
-  l'espace publiée porte le badge « Vidéo » côté groupe
+  général, les choix sont « Enregistrement », « Nouveau lien YouTube » et « Suggestion de
+  morceau ». Une vidéo de l'espace publiée porte le badge « Vidéo » côté groupe
+- Un **enregistrement** vient de trois sources : « Déjà dans mon espace » — une vidéo déjà
+  rangée s'y trouve, avec la mention « (vidéo) » —, « Fichier » ou « Enregistrer » (le même
+  `AudioRecorder`, même copie de secours). Un fichier déposé ou enregistré là est **rangé
+  dans l'espace perso puis publié** : pour dire « je viens d'enregistrer une idée, écoutez »,
+  on n'a plus à passer par `/perso`. L'espace reste l'endroit où il vit — la publication
+  le désigne sans le copier, et le supprimer de l'espace retire la publication
+- Ces deux étapes passent par les routes existantes (`POST /api/personal` puis
+  `POST /api/posts`), **rien de neuf côté serveur**. Si la publication échoue après l'envoi,
+  rien n'est perdu ni à moitié fait : l'enregistrement est entier dans l'espace, l'écran le
+  dit, et « Publier » ne refait que la publication, sans renvoyer le fichier
+- Le formulaire ne se ferme ni à Échap ni au clic à côté pendant un enregistrement ou un
+  envoi : ce qu'on vient de capter ne doit pas tenir à une touche
 - `/posts/[id]` est un permalien comme les autres : destination conservée à la connexion,
   bascule de groupe actif sur un lien visant un autre de ses groupes
 - Lecteur sur la page : waveform pour un enregistrement audio, lecteur YouTube pour une
@@ -627,6 +638,12 @@ Chacune porte un **message** facultatif (« écoutez le pont, j'ai changé les a
   (`comments_target` : exactement une des trois). Un commentaire s'**ancre** sur une
   publication qui a un lecteur (audio ou vidéo) ; une suggestion le refuse (`400`) — son
   lien d'écoute est une citation en vignette, comme dans un commentaire, sans position à suivre
+- **Pouces** 👍/👎 sur la publication elle-même, pas seulement sur ses commentaires
+  (`post_reactions`, migration 032) : réagir sans avoir à écrire. Mêmes règles qu'un
+  commentaire — un pouce par membre, re-cliquer le retire, l'autre le remplace. Les noms
+  s'écrivent sous les boutons (« Marc, Julie et 3 autres »), lisibles au doigt comme à la
+  souris. Pas de notification : un pouce n'annonce pas de contenu. Seules les publications
+  en portent — sur une session ou une prise, le signal n'aurait pas de sens
 - **Droits** : le message se modifie par l'auteur seul (`canEditPost`). La suppression
   revient à l'auteur et aux admins du groupe (`canDeleteGroupContent`). Retirer une
   publication ne touche jamais l'enregistrement perso qu'elle montre
@@ -649,6 +666,48 @@ Chacune porte un **message** facultatif (« écoutez le pont, j'ai changé les a
   commentaires d'une publication notifient `comment` / `mention` comme ailleurs
 - Le fil du tableau de bord reprend les publications (filtre « Publications ») et les
   commentaires qu'elles reçoivent
+
+## Fil d'actualité (`/fil`)
+
+Tout ce qui se passe dans le groupe, du plus récent au plus ancien, en cartes qui se
+lisent et se discutent sur place — là où « Activité récente » du tableau de bord ne fait
+que signaler, en lignes qui mènent ailleurs. Les deux coexistent : le tableau de bord
+reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
+
+- Entrée dans la barre latérale, juste sous le tableau de bord
+- **« + Publier » ouvre le formulaire sur place** — voir « Publications ». La nouvelle
+  publication arrive en tête du fil, sans changer de page. `/fil?publier` l'ouvre d'emblée
+  (c'est la cible du « + Publier » du tableau de bord)
+- **Ce qui y figure**, à sa création : publications, sessions, prises, setlists,
+  playlists. Pas les commentaires : ils se lisent **sous** ce qu'ils discutent
+- **Strictement chronologique.** Un commentaire ne fait pas remonter sa cible : le flux
+  « Activité récente » du tableau de bord signale déjà les nouveaux commentaires, et un
+  fil qui se réordonne se relit mal dans un petit groupe
+- **Les prises sont regroupées** : celles qu'un même membre dépose le même jour dans une
+  même session forment une seule carte (« Marc a ajouté 6 prises »). Une répétition
+  découpée en douze prises est une nouvelle, pas douze. La carte en montre 5 et renvoie
+  à la session pour la suite ; chaque prise s'écoute dans la barre du bas
+- **Une publication** se montre en entier : message, lecteur, vignette YouTube (iframe au
+  clic seulement), suggestion avec « Ajouter au référentiel », pouces, commentaires
+- **Lecteur natif** (`<audio preload="none">`) pour un enregistrement perso publié, pas de
+  waveform : un fil peut en porter dix, et rien n'est téléchargé avant qu'on lance la
+  lecture. La page de la publication garde la waveform et l'ancrage des commentaires
+- **Un seul lecteur à la fois** : lancer un enregistrement du fil coupe les autres et la
+  barre du bas ; lancer une prise dans la barre du bas coupe le fil
+- **Commentaires sur place** sous les publications et les setlists : les 2 derniers, les
+  précédents se déplient sur la carte, et la zone de saisie suit (`CommentsPanel` en mode
+  `inline` : ni titre ni tri, pas d'ancrage — il n'y a pas de lecteur à suivre). Tout est
+  chargé avec la page : une discussion est bornée par la taille du groupe
+- **« Charger plus »**, par pages de 20. Pagination **par curseur** (horodatage + clé de
+  l'élément), pas par `offset` : le fil bouge pendant qu'on le lit, et un décalage ferait
+  sauter ou doubler des cartes. Une seule requête (`UNION ALL`, `src/lib/server/feed.ts`)
+  ordonne toutes les sources, pour qu'un type très actif ne cache jamais les autres
+- Le curseur garde la précision de Postgres (microsecondes), repassé en texte : un `Date`
+  JavaScript la perdrait et le curseur ne retrouverait plus sa ligne
+- Une carte qui a changé de page entre deux chargements (prise ajoutée à une série du
+  jour) n'est pas affichée deux fois
+- Lié au groupe pour lequel il a été rendu : si un autre onglet a changé de groupe,
+  « Charger plus » reçoit `409` et la page se recharge sur le nouveau groupe
 
 ## Référentiel de morceaux (`/songs`)
 
@@ -789,7 +848,8 @@ Chacune porte un **message** facultatif (« écoutez le pont, j'ai changé les a
 
 ## Tableau de bord (`/`)
 
-- Colonne gauche : 5 dernières sessions (date, morceaux travaillés en résumé)
+- Colonne gauche : 3 dernières sessions (date, morceaux travaillés en résumé) ; s'il en existe
+  d'autres, la 3ᵉ s'estompe en fondu vers le bas pour signaler la suite derrière « Toutes → »
 - Colonne droite : flux d'actualité (sessions, playlists modifiées, **setlists créées**,
   **publications** et **derniers commentaires**, triés par horodatage décroissant, chaque entrée renvoyant vers la
   page concernée), puis playlists triées par date de modification
@@ -801,6 +861,9 @@ Chacune porte un **message** facultatif (« écoutez le pont, j'ai changé les a
   Commentaires »
 - Une **publication** y figure à sa création, et ses commentaires y mènent à `/posts/[id]` —
   voir « Publications »
-- Bouton [+ Uploader] toujours visible en haut. « + Publier » (vers `/perso`) se tient dans
+- « Tout le fil d'actualité → » sous le flux mène à `/fil`, qui montre tout, en entier —
+  voir « Fil d'actualité »
+- Bouton [+ Uploader] toujours visible en haut. « + Publier » (vers `/fil`, formulaire
+  ouvert) se tient dans
   l'en-tête, à côté de « + Session » : la colonne du flux, étroite, n'a pas la place d'une
   troisième commande à côté de son titre et de son filtre

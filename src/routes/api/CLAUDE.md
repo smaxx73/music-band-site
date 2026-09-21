@@ -49,6 +49,8 @@ api/personal/[id]/+server.ts
 api/posts/+server.ts
 api/posts/[id]/+server.ts
 api/posts/[id]/song/+server.ts
+api/posts/[id]/reactions/+server.ts
+api/feed/+server.ts
 api/agenda/+server.ts
 api/agenda/[id]/+server.ts
 api/groups/+server.ts
@@ -161,4 +163,13 @@ le groupe (`post`). `PATCH /api/posts/[id]` porte `{ message }`, auteur seul (`c
 `403`) ; `DELETE` suit `canDeleteGroupContent` et ne touche jamais l'enregistrement perso.
 `POST /api/posts/[id]/song` fait entrer une suggestion au référentiel (statut
 `proposition_de_travail`), tout membre : `409` si le titre existe déjà (avec `song_id`), ou si
-la suggestion est déjà reliée à un morceau. Passer par `src/lib/server/posts.ts`.
+la suggestion est déjà reliée à un morceau. `POST /api/posts/[id]/reactions` (`{ value: 1 | -1 }`)
+pose ou remplace le pouce de l'utilisateur, `DELETE` le retire ; tout membre, les deux retournent
+les compteurs, les votants et `my_reaction`. Passer par `src/lib/server/posts.ts`.
+
+Le **fil d'actualité** (`GET /api/feed?before=<curseur>&group_id=`) rend la page suivante du fil
+du groupe actif : `{ items, next }`, `next` valant `null` en fin de fil. Le curseur est celui que
+la page précédente a rendu, et rien d'autre (`400` sinon) ; `group_id` suit la règle des
+notifications (`409` si le groupe actif a changé). Passer par `src/lib/server/feed.ts`.
+C'est la seule liste paginée de l'application — par curseur, pas par `offset` : le fil bouge
+pendant qu'on le lit.

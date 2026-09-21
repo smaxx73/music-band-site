@@ -20,7 +20,8 @@
 		isPlaying = false,
 		highlightRequest = null,
 		onSeek = () => {},
-		onCommentsChange = () => {}
+		onCommentsChange = () => {},
+		inline = false
 	}: {
 		/** Prise ou setlist : ce dont on discute ici. */
 		thread: CommentThread
@@ -32,6 +33,11 @@
 		highlightRequest?: HighlightRequest | null
 		onSeek?: (seconds: number) => void
 		onCommentsChange?: (comments: CommentWithReactions[]) => void
+		/**
+		 * Sous une carte du fil : ni titre ni outils de tri, et seuls les derniers
+		 * commentaires sont montrés — les précédents se déplient sur place.
+		 */
+		inline?: boolean
 	} = $props()
 
 	// $derived inscriptible : ajout optimiste local, resynchronisé dès que le parent change
@@ -39,6 +45,8 @@
 
 	/** Au-delà, les plus anciens se replient : la fin de la discussion reste à l'écran. */
 	const FOLD_THRESHOLD = 20
+	/** Sous une carte du fil, la fin de la discussion suffit à donner envie de la lire. */
+	const INLINE_FOLD_THRESHOLD = 2
 
 	// L'ordre d'écriture raconte la discussion ; l'ordre du morceau raconte la prise.
 	// Sur une prise longuement commentée, c'est le second qu'on suit en réécoutant.
@@ -71,7 +79,7 @@
 
 	// Replier n'a de sens que sur une liste chronologique : ailleurs, « les plus
 	// anciens » ne sont pas ceux du haut.
-	const maxVisible = $derived(sort === 'chrono' ? FOLD_THRESHOLD : null)
+	const maxVisible = $derived(inline ? INLINE_FOLD_THRESHOLD : sort === 'chrono' ? FOLD_THRESHOLD : null)
 
 	let content = $state('')
 	let anchorTimestamp = $state(false)
@@ -85,7 +93,7 @@
 	// Les vues session et morceau renvoient ici via `#commenter` : on arrive pour écrire,
 	// le curseur doit déjà être dans la zone de texte.
 	onMount(() => {
-		if (location.hash !== '#commenter') return
+		if (inline || location.hash !== '#commenter') return
 		form?.scrollIntoView({ block: 'center' })
 		input?.focus()
 	})
@@ -178,7 +186,8 @@
 	})
 </script>
 
-<section class="comments-section">
+<section class="comments-section" class:inline>
+	{#if !inline}
 	<div class="panel-head">
 		<h2>Commentaires ({displayComments.length})</h2>
 
@@ -205,9 +214,10 @@
 			</div>
 		{/if}
 	</div>
+	{/if}
 
 	{#if displayComments.length === 0}
-		<p class="empty">Pas encore de commentaire.</p>
+		{#if !inline}<p class="empty">Pas encore de commentaire.</p>{/if}
 	{:else}
 		<div class="list-wrapper">
 			<CommentList
@@ -216,6 +226,7 @@
 				{thread}
 				{onSeek}
 				{maxVisible}
+				compact={inline}
 				{separatorBeforeId}
 				separatorLabel="Commentaires généraux"
 				currentTime={playerReady ? currentTime : null}
@@ -228,7 +239,7 @@
 	<!-- Une zone de saisie de discussion, pas un panneau de formulaire : le cadre EST le
 	     champ, et les actions tiennent sur sa droite. Le titre « Commentaires (n) » annonce
 	     déjà la section, le placeholder porte l'intitulé comme la règle du @. -->
-	<form id="commenter" class="comment-form" onsubmit={submitComment} bind:this={form}>
+	<form id={inline ? undefined : 'commenter'} class="comment-form" onsubmit={submitComment} bind:this={form}>
 		{#if formError}
 			<p class="message-error">{formError}</p>
 		{/if}
@@ -349,6 +360,12 @@
 		background: var(--color-bg-subtle);
 		border: 1px solid var(--color-border-light);
 		border-radius: var(--radius-xl);
+	}
+
+	/* Sous une carte du fil, la discussion est une suite de la carte, pas une section */
+	.inline .list-wrapper {
+		margin-bottom: var(--space-3);
+		padding: var(--space-2);
 	}
 
 	.comment-form {

@@ -2,7 +2,10 @@ import sql from './db'
 import { notifyGroup } from './notifications'
 import { fetchYouTubeVideoInfo } from './youtube'
 import { parseYouTubeVideoId } from '$lib/youtube'
-import { canDeleteGroupContent, canEditPost, postTitle, type PostType, type PostView, type RoleBearer } from '$lib/types'
+import {
+	canDeleteGroupContent, canEditPost, postTitle,
+	type PostType, type PostView, type ReactionSummary, type ReactionValue, type RoleBearer
+} from '$lib/types'
 
 // Une publication est groupe-scopée comme le reste du contenu : elle se lit, se
 // commente et se supprime depuis le groupe où elle a été faite. Ce qu'elle montre
@@ -52,6 +55,68 @@ export async function listRecentPosts(groupId: number, limit = 5): Promise<PostV
 		ORDER BY p.created_at DESC, p.id DESC
 		LIMIT ${limit}
 	`) as unknown as PostView[]
+}
+
+/** Plusieurs publications d'un coup, pour le fil : l'ordre est celui du fil, pas d'ici. */
+export async function listPostsByIds(ids: number[], groupId: number): Promise<PostView[]> {
+	if (ids.length === 0) return []
+	return (await sql<PostView[]>`
+		SELECT ${VIEW_COLUMNS}
+		FROM posts p
+		LEFT JOIN personal_recordings pr ON pr.id = p.personal_recording_id
+		LEFT JOIN users u ON u.id = p.author_user_id
+		WHERE p.id = ANY(${ids}) AND p.group_id = ${groupId}
+	`) as unknown as PostView[]
+}
+
+const NO_REACTION: ReactionSummary = { up_count: 0, down_count: 0, up_reactors: [], down_reactors: [], my_reaction: null }
+
+/** Pouces de plusieurs publications, vus par `userId`. Une publication sans pouce n'a pas de ligne. */
+export async function postReactions(ids: number[], userId: number): Promise<Map<number, ReactionSummary>> {
+	if (ids.length === 0) return new Map()
+	const rows = await sql<(ReactionSummary & { post_id: number })[]>`
+		SELECT
+			pr.post_id,
+			COUNT(*) FILTER (WHERE pr.value = 1)::int  AS up_count,
+			COUNT(*) FILTER (WHERE pr.value = -1)::int AS down_count,
+			COALESCE(ARRAY_AGG(u.display_name ORDER BY u.display_name) FILTER (WHERE pr.value = 1),  ARRAY[]::TEXT[]) AS up_reactors,
+			COALESCE(ARRAY_AGG(u.display_name ORDER BY u.display_name) FILTER (WHERE pr.value = -1), ARRAY[]::TEXT[]) AS down_reactors,
+			MAX(pr.value) FILTER (WHERE pr.user_id = ${userId})::int AS my_reaction
+		FROM post_reactions pr
+		JOIN users u ON u.id = pr.user_id
+		WHERE pr.post_id = ANY(${ids})
+		GROUP BY pr.post_id
+	`
+	return new Map(rows.map(({ post_id, ...summary }) => [post_id, summary]))
+}
+
+export async function postReactionSummary(id: number, userId: number): Promise<ReactionSummary> {
+	return (await postReactions([id], userId)).get(id) ?? NO_REACTION
+}
+
+/**
+ * Pose (`value`) ou retire (`null`) le pouce de l'utilisateur. Tout membre du groupe le
+ * peut : la publication doit seulement appartenir au groupe actif.
+ */
+export async function reactToPost(
+	userId: number,
+	id: number,
+	groupId: number,
+	value: ReactionValue | null
+): Promise<PostOpResult<ReactionSummary>> {
+	const [post] = await sql`SELECT id FROM posts WHERE id = ${id} AND group_id = ${groupId}`
+	if (!post) return fail(404, 'Publication introuvable.')
+
+	if (value === null) {
+		await sql`DELETE FROM post_reactions WHERE post_id = ${id} AND user_id = ${userId}`
+	} else {
+		await sql`
+			INSERT INTO post_reactions (post_id, user_id, value)
+			VALUES (${id}, ${userId}, ${value})
+			ON CONFLICT (post_id, user_id) DO UPDATE SET value = EXCLUDED.value
+		`
+	}
+	return { ok: true, value: await postReactionSummary(id, userId) }
 }
 
 function cleanText(raw: unknown, max: number): string | null {
