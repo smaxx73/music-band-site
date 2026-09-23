@@ -93,6 +93,11 @@ au milieu de la salle, ou l'interface audio branchée au PC.
 - Vumètre de crête (−60 à 0 dBFS) dès l'ouverture du micro, avant même d'enregistrer, pour
   placer le téléphone ; « Saturation » s'affiche 1,5 s après chaque crête écrêtée
 - Pause / reprise ; arrêt automatique avant 200 Mo (≈ 2 h à 128 kbit/s), prévenu à 170 Mo
+- **Annuler** pendant l'enregistrement ou en pause : ce qui est capté est jeté, la copie de
+  secours effacée, et le micro reste ouvert pour repartir — annuler n'est pas quitter
+  l'écran. Au-delà de 5 s, une confirmation `warning` nomme la durée perdue ;
+  l'enregistrement continue pendant la question, pour que « non » ne coûte rien. Même
+  confirmation sur « Recommencer », qui jette un enregistrement déjà terminé
 - **Écran gardé allumé** (Wake Lock) pendant l'enregistrement, repris au retour sur
   l'onglet : un téléphone qui se verrouille coupe le micro. L'écran dit quand le navigateur
   ne le permet pas
@@ -633,6 +638,27 @@ travaillée seul, une vidéo repérée. Rien n'y est partagé tant qu'on ne le p
   lecteur perso a son propre `<audio>` : un enregistrement perso n'entre ni dans la barre
   du bas ni dans une playlist
 - Titre et note se modifient depuis `/perso/[id]`, par le propriétaire seul
+
+#### Classer un enregistrement perso dans une session
+
+Le carnet sert aussi à capter ce qu'on n'a pas eu le temps de ranger : la session qu'on a
+oublié de créer avant de jouer, l'idée venue seule. Elle se range après coup.
+
+- **« Classer dans une session »** depuis la page de l'enregistrement, depuis sa ligne dans
+  `/perso`, et d'emblée après un enregistrement fait sur place (`/perso/[id]?classer`,
+  comme `?publier`). La modale demande la session — existante ou créée à la volée — et le
+  morceau, avec la création de morceau sur place (voir « Morceau absent du référentiel »)
+- L'enregistrement **déménage** : le fichier passe de `AUDIO_DIR/perso/` à `AUDIO_DIR`, la
+  prise le remplace, la ligne perso disparaît. Un seul exemplaire du son, une seule place
+- Ses **publications partent avec lui**, et leurs commentaires : la modale les nomme avant
+  de valider. La prise, elle, se commente dans le groupe
+- Une prise n'a pas de titre — elle s'appelle « morceau, prise n ». Le titre et la note de
+  l'enregistrement finissent donc dans la **note de la prise**, plutôt que d'être perdus
+- Le même son déjà déposé comme prise du groupe (`file_hash`) répond `409`, comme à l'upload
+- Le fichier est copié **dans la transaction**, avant le point de non-retour : un échec
+  laisse l'enregistrement perso entier, et la copie inachevée est effacée. Les octets
+  d'origine ne partent qu'une fois la prise acquise
+- Une notification `recording` au groupe, comme pour un upload
 - **Supprimer** un enregistrement perso emporte son fichier, ses publications, leurs
   commentaires et leurs notifications : la confirmation (`danger`) dit combien. C'est le
   sens du choix « renvoi plutôt que copie » : l'auteur garde la main sur ce qu'il a publié

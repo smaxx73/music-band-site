@@ -1,9 +1,10 @@
-import { mkdir, unlink } from 'fs/promises'
+import { copyFile, mkdir, unlink } from 'fs/promises'
 import { join } from 'path'
 import sql from './db'
 import { audioDir } from './config'
+import { audioPath, ensureAudioDir } from './storage'
 import { loadPeaksAt, type PeaksCache } from './peaks'
-import type { PersonalRecording } from '$lib/types'
+import type { PersonalRecording, Recording } from '$lib/types'
 
 // L'espace perso appartient à un utilisateur, pas à un groupe. Toutes les requêtes de
 // ce module filtrent donc sur `user_id` : c'est la vérification de droit, admins
@@ -50,7 +51,7 @@ export type PersonalRecordingView = PersonalRecording & {
 
 const VIEW_COLUMNS = sql`
 	pr.id, pr.user_id, pr.title, pr.notes, pr.file_path, pr.youtube_video_id, pr.youtube_title,
-	pr.source_file_name, pr.duration_s, pr.created_at, pr.updated_at,
+	pr.source_file_name, pr.duration_s, pr.file_hash, pr.created_at, pr.updated_at,
 	COALESCE(
 		(
 			SELECT json_agg(json_build_object('post_id', p.id, 'group_id', g.id, 'group_name', g.name) ORDER BY g.name)
@@ -163,4 +164,117 @@ export function normalizeNotes(raw: unknown): string | null {
 	if (typeof raw !== 'string') return null
 	const value = raw.trim()
 	return value ? value.slice(0, PERSONAL_NOTES_MAX) : null
+}
+
+/**
+ * Fait d'un enregistrement perso une prise du groupe : le carnet sert justement à capter
+ * ce qu'on n'a pas eu le temps de classer — la session oubliée, l'idée venue seule. Le son
+ * ne se copie pas, il **déménage** : le fichier passe dans `AUDIO_DIR`, la ligne perso
+ * disparaît, et avec elle ses publications (l'appelant l'annonce avant de valider).
+ */
+export type ClassifyResult =
+	| { ok: true; recording: Recording; song_title: string }
+	| { ok: false; status: number; error: string; duplicate?: unknown }
+
+export async function classifyPersonalRecording(opts: {
+	id: number
+	userId: number
+	groupId: number
+	sessionId: number
+	songId: number
+	author: string
+}): Promise<ClassifyResult> {
+	const { id, userId, groupId, sessionId, songId, author } = opts
+
+	const source = await getPersonalRecording(id, userId)
+	if (!source) return { ok: false, status: 404, error: 'Enregistrement introuvable.' }
+
+	// Le même son déjà déposé comme prise du groupe : le dire plutôt que de le doubler,
+	// comme à l'upload.
+	if (source.file_hash) {
+		const [duplicate] = await sql`
+			SELECT r.id, r.take, ses.date AS session_date, s.title AS song_title
+			FROM recordings r
+			JOIN sessions ses ON ses.id = r.session_id
+			JOIN songs s ON s.id = r.song_id
+			WHERE r.file_hash = ${source.file_hash} AND ses.group_id = ${groupId}
+		`
+		if (duplicate) return { ok: false, status: 409, error: 'doublon', duplicate }
+	}
+
+	// Le fichier est copié dans la transaction, avant le point de non-retour : un échec
+	// laisse l'enregistrement perso entier, et la copie inachevée est effacée.
+	// Une prise n'a pas de titre — elle s'appelle « morceau, prise n ». Celui de
+	// l'enregistrement perso finit donc dans la note, plutôt que d'être perdu.
+	const takeNotes = [source.title, source.notes].filter(Boolean).join(' — ') || null
+
+	let copied: string | null = null
+	try {
+		const outcome: ClassifyResult = await sql.begin(async (tx) => {
+			const [song] = await tx<{ id: number; title: string; status: string }[]>`
+				SELECT id, title, status FROM songs
+				WHERE id = ${songId} AND group_id = ${groupId}
+				FOR UPDATE
+			`
+			if (!song) return { ok: false as const, status: 404, error: 'Morceau introuvable.' }
+			if (song.status === 'abandonne') {
+				return { ok: false as const, status: 400, error: 'Ce morceau est abandonné.' }
+			}
+
+			const [session] = await tx`
+				SELECT id FROM sessions WHERE id = ${sessionId} AND group_id = ${groupId}
+			`
+			if (!session) return { ok: false as const, status: 404, error: 'Session introuvable.' }
+
+			const [{ take }] = await tx<{ take: number }[]>`
+				SELECT COALESCE(MAX(take), 0) + 1 AS take FROM recordings WHERE song_id = ${songId}
+			`
+
+			const [created] = await tx<Recording[]>`
+				INSERT INTO recordings (
+					session_id, song_id, take, file_path, source_file_name, duration_s,
+					uploaded_by, uploaded_by_user_id, file_hash, youtube_video_id, youtube_title, notes
+				)
+				VALUES (
+					${sessionId}, ${songId}, ${take},
+					${source.file_path ? 'pending' : null},
+					${source.source_file_name}, ${source.duration_s},
+					${author}, ${userId}, ${source.file_hash},
+					${source.youtube_video_id}, ${source.youtube_title},
+					${takeNotes}
+				)
+				RETURNING *
+			`
+
+			let filePath: string | null = null
+			if (source.file_path) {
+				await ensureAudioDir()
+				copied = audioPath(created.id)
+				await copyFile(personalAudioPath(id), copied)
+				filePath = `${created.id}.mp3`
+				await tx`UPDATE recordings SET file_path = ${filePath} WHERE id = ${created.id}`
+			}
+
+			// Ses publications et leurs commentaires tombent en cascade : l'enregistrement
+			// a changé de place, il n'est plus là pour les porter.
+			await tx`DELETE FROM personal_recordings WHERE id = ${id} AND user_id = ${userId}`
+
+			return {
+				ok: true as const,
+				recording: { ...created, file_path: filePath },
+				song_title: song.title
+			}
+		})
+
+		if (!outcome.ok && copied) {
+			await unlink(copied).catch(() => {})
+			return outcome
+		}
+		// Les octets d'origine ne partent qu'une fois la prise acquise.
+		if (outcome.ok && source.file_path) await removePersonalFiles(id)
+		return outcome
+	} catch (err) {
+		if (copied) await unlink(copied).catch(() => {})
+		throw err
+	}
 }

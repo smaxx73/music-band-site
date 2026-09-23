@@ -152,6 +152,7 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
 /admin/groups       gestion des groupes et membres
 /agenda             agenda partagé du groupe (indisponibilités + toutes les sessions)
 /perso              espace personnel : enregistrements à soi, non partagés + publication
+                    (un enregistrement s'y classe après coup en prise d'une session)
 /perso/[id]         un enregistrement perso : lecteur, titre, note, publications
 /posts/[id]         une publication dans le groupe : lecteur ou suggestion + commentaires
 ```
@@ -179,6 +180,13 @@ dans docs/features.md.
 - Waveform zoomable avec marqueurs déplaçables : la retouche des bornes se fait au clavier
   et au bouton (±0,5 s / ±5 s, couper, fusionner)
 - Recherche full-text
+- PWA : ni manifeste, ni service worker, ni installation sur l'écran d'accueil. Écarté
+  volontairement — le gain se limite à une icône et à la barre d'adresse en moins, et rien
+  là-dedans ne rend l'enregistrement plus fiable
+- Contrôles de l'enregistrement sur l'écran verrouillé d'un téléphone : impossible depuis
+  une page web. La Media Session API ne s'attache qu'à une lecture audible, et sur iOS le
+  verrouillage suspend la page, donc l'enregistrement s'arrête. C'est le Wake Lock qui
+  répond au besoin — voir « Enregistrement en direct » dans docs/features.md
 - Partage hors du groupe : aucun lien public ni lien à jeton. Tout lien exige un compte et
   l'appartenance au groupe du contenu — voir « Partager un lien vers du contenu » dans
   docs/features.md

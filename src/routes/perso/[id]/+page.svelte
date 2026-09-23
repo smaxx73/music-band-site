@@ -2,9 +2,11 @@
 	import type { PageData } from './$types'
 	import { tick } from 'svelte'
 	import { goto, invalidateAll } from '$app/navigation'
+	import { page } from '$app/state'
 	import { formatDateTimeFull } from '$lib/date'
 	import MediaPlayer from '$lib/components/MediaPlayer.svelte'
 	import PublishDialog from '$lib/components/PublishDialog.svelte'
+	import ClassifyDialog from '$lib/components/ClassifyDialog.svelte'
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import { youtubeWatchUrl } from '$lib/youtube'
@@ -72,6 +74,8 @@
 
 	// ─── Suppression ───────────────────────────────────────────────────────
 	let confirmDeleteOpen = $state(false)
+	// `?classer` ouvre la question d'emblée : c'est la suite d'un enregistrement fait sur place.
+	let classifyOpen = $state(page.url.searchParams.has('classer'))
 	let deleting = $state(false)
 	let deleteError = $state<string | null>(null)
 
@@ -150,6 +154,12 @@
 				{#if recording.notes}<p class="notes"><Icon name="pencil" size="0.85rem" /> {recording.notes}</p>{/if}
 			</div>
 			<div class="header-actions">
+				{#if currentGroup}
+					<!-- Enregistré avant d'avoir une session où le ranger : c'est ici qu'il la rejoint. -->
+					<button class="btn btn-secondary btn-sm" onclick={() => (classifyOpen = true)}>
+						Classer dans une session
+					</button>
+				{/if}
 				<button class="btn btn-secondary btn-sm" onclick={startEdit}>Modifier</button>
 				<button class="btn btn-danger btn-sm" disabled={deleting} onclick={() => (confirmDeleteOpen = true)}>Supprimer</button>
 			</div>
@@ -188,6 +198,15 @@
 			<p class="hint">Le groupe écoute ce fichier depuis ton espace : le supprimer retire aussi ces publications.</p>
 		{/if}
 	</section>
+
+	{#if classifyOpen && currentGroup}
+		<ClassifyDialog
+			{recording}
+			groupName={currentGroup.name}
+			onclose={() => (classifyOpen = false)}
+			onclassified={(recordingId) => goto(`/recording/${recordingId}`)}
+		/>
+	{/if}
 
 	{#if publishOpen && currentGroup}
 		<PublishDialog

@@ -14,7 +14,8 @@ src/
 │   │   ├── youtube.ts     # vidéo YouTube d'une prise : lien, oEmbed, doublon
 │   │   ├── setlists.ts    # lecture des setlists et de leur programme (durée sommée)
 │   │   ├── comments.ts    # commentaires d'une cible (prise, setlist ou publication) + réactions
-│   │   ├── personal.ts    # espace perso : enregistrements d'un utilisateur, fichiers, droit d'écoute
+│   │   ├── personal.ts    # espace perso : enregistrements d'un utilisateur, fichiers, droit d'écoute,
+│   │   │                  #   classement d'un enregistrement en prise d'une session
 │   │   ├── posts.ts       # publications dans le groupe (enregistrement perso, vidéo, suggestion) + pouces
 │   │   ├── feed.ts        # fil d'actualité : toutes les sources ordonnées, paginé par curseur
 │   │   └── notifications.ts # écriture (fan-out) et lecture des notifications
@@ -39,6 +40,7 @@ src/
 │       ├── AddToSetlistButton.svelte  # ajout d'un morceau à une setlist (listes et vue morceau)
 │       ├── MediaPlayer.svelte     # lecteur d'un enregistrement perso (audio et/ou vidéo, hors barre du bas)
 │       ├── PublishDialog.svelte   # publier dans le groupe actif : enregistrement perso, vidéo, suggestion
+│       ├── ClassifyDialog.svelte  # classer un enregistrement perso en prise (session + morceau)
 │       ├── PostReactions.svelte   # pouces 👍/👎 d'une publication (fil et page de la publication)
 │       ├── FeedItem.svelte        # une carte du fil d'actualité, selon le type d'élément
 │       ├── SongSelect.svelte      # sélecteur de morceau + création sur place (« À nommer — … »)

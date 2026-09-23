@@ -484,6 +484,7 @@ export type PersonalRecording = {
 	youtube_title: string | null
 	source_file_name: string | null
 	duration_s: number | null
+	file_hash: string | null
 	created_at: Date
 	updated_at: Date | null
 }

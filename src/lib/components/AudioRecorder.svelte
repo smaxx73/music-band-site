@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte'
 	import Icon from './Icon.svelte'
+	import ConfirmDialog from './ConfirmDialog.svelte'
 	import {
 		appendChunk,
 		assembleTake,
@@ -35,6 +36,8 @@
 	const TIMESLICE_MS = 5000
 	// 128 kbit/s : le débit de stockage de l'application, et ~2 h sous la limite d'envoi.
 	const BITRATE = 128_000
+	// En deçà, il n'y a rien à perdre : annuler ne demande pas confirmation.
+	const CONFIRM_CANCEL_ABOVE_S = 5
 
 	type Phase = 'idle' | 'arming' | 'armed' | 'recording' | 'paused' | 'done'
 	let phase = $state<Phase>('idle')
@@ -69,6 +72,13 @@
 	let timerId: ReturnType<typeof setInterval> | null = null
 	let clipUntil = 0
 	let wakeLock: WakeLockSentinel | null = null
+	// Vrai entre la demande d'annulation et l'arrêt effectif du `MediaRecorder` : les
+	// derniers blocs arrivent après `stop()` et n'ont plus à être gardés nulle part.
+	let cancelling = false
+
+	// Ce que la confirmation en cours abandonnerait : l'enregistrement qui tourne, ou
+	// celui qui vient de se terminer.
+	let confirming = $state<'recording' | 'result' | null>(null)
 
 	const supported =
 		typeof navigator !== 'undefined' &&
@@ -261,7 +271,7 @@
 	}
 
 	function onChunk(data: Blob) {
-		if (!data.size || !take) return
+		if (cancelling || !data.size || !take) return
 		chunks.push(data)
 		sizeBytes += data.size
 		take = { ...take, sizeBytes, durationS: Math.round(currentElapsed()) }
@@ -299,11 +309,52 @@
 		recorder.stop()
 	}
 
+	/**
+	 * Annuler, c'est jeter ce qui a été capté et rendre le micro prêt à repartir — pas
+	 * quitter l'écran. Ce qu'on vient d'enregistrer ne doit pas tenir à un clic de
+	 * travers : au-delà de quelques secondes, la confirmation le nomme.
+	 */
+	function requestCancel(what: 'recording' | 'result') {
+		if (elapsedS >= CONFIRM_CANCEL_ABOVE_S) confirming = what
+		else if (what === 'recording') cancelRecording()
+		else restart()
+	}
+
+	function cancelRecording() {
+		confirming = null
+		if (!recorder || recorder.state === 'inactive') {
+			discardRecording()
+			return
+		}
+		// Le dernier `dataavailable` arrive avant `onRecorderStop`, qui fera le ménage.
+		cancelling = true
+		recorder.stop()
+	}
+
+	/** Remet l'enregistreur au point de départ, micro ouvert s'il l'est resté. */
+	function discardRecording() {
+		cancelling = false
+		chunks = []
+		take = null
+		seq = 0
+		elapsedBeforeSegment = 0
+		elapsedS = 0
+		sizeBytes = 0
+		warning = null
+		phase = stream ? 'armed' : 'idle'
+		clearTakes().catch(() => {})
+		onchange(null, 0)
+	}
+
 	function onRecorderStop() {
 		stopTimer()
 		releaseWakeLock()
 		window.removeEventListener('beforeunload', onBeforeUnload)
 		document.removeEventListener('visibilitychange', onVisibility)
+		if (cancelling) {
+			discardRecording()
+			return
+		}
 		elapsedS = elapsedBeforeSegment
 		if (!take || chunks.length === 0) {
 			phase = stream ? 'armed' : 'idle'
@@ -352,6 +403,7 @@
 	}
 
 	async function restart() {
+		confirming = null
 		discardResult()
 		await clearTakes().catch(() => {})
 		await arm()
@@ -492,7 +544,7 @@
 				{#if previewUrl}
 					<audio controls src={previewUrl} preload="metadata"></audio>
 				{/if}
-				<button type="button" class="btn btn-ghost btn-sm" onclick={restart} {disabled}>
+				<button type="button" class="btn btn-ghost btn-sm" onclick={() => requestCancel('result')} {disabled}>
 					Recommencer
 				</button>
 			</div>
@@ -551,6 +603,10 @@
 						<button type="button" class="btn btn-primary" onclick={stop} {disabled}>
 							<Icon name="stop" /> Terminer
 						</button>
+						<!-- Jeter ce qui est capté sans quitter l'écran : le micro reste ouvert. -->
+						<button type="button" class="btn btn-ghost cancel-btn" onclick={() => requestCancel('recording')} {disabled}>
+							Annuler
+						</button>
 					{/if}
 				</div>
 			</div>
@@ -573,6 +629,20 @@
 		{/if}
 	{/if}
 </div>
+
+<!-- L'enregistrement continue pendant la question : répondre « non » ne doit rien coûter. -->
+<ConfirmDialog
+	open={confirming !== null}
+	level="warning"
+	title={confirming === 'result' ? 'Recommencer ?' : "Annuler l'enregistrement ?"}
+	message={confirming === 'result'
+		? `L'enregistrement de ${formatElapsed(elapsedS)} sera perdu, et le micro rouvert pour un nouveau.`
+		: `Les ${formatElapsed(elapsedS)} enregistrées seront perdues. Le micro reste ouvert pour recommencer.`}
+	confirmLabel={confirming === 'result' ? 'Recommencer' : "Annuler l'enregistrement"}
+	cancelLabel={confirming === 'result' ? 'Garder' : "Continuer l'enregistrement"}
+	onConfirm={() => (confirming === 'result' ? restart() : cancelRecording())}
+	onCancel={() => (confirming = null)}
+/>
 
 <style>
 	.recorder {
@@ -663,6 +733,10 @@
 
 	.buttons { display: flex; gap: 0.5rem; margin-left: auto; }
 	.buttons .btn { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 40px; }
+
+	/* Annuler n'est pas au même rang que Pause et Terminer : on l'atteint sans le heurter. */
+	.cancel-btn { color: var(--color-text-muted); }
+	.cancel-btn:hover:not(:disabled) { color: var(--color-error); }
 
 	.rec-dot {
 		width: 0.7em;

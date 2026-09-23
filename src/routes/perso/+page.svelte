@@ -6,6 +6,7 @@
 	import { formatDateOnly } from '$lib/date'
 	import AudioRecorder from '$lib/components/AudioRecorder.svelte'
 	import PublishDialog from '$lib/components/PublishDialog.svelte'
+	import ClassifyDialog from '$lib/components/ClassifyDialog.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import { clearTakes } from '$lib/recording-store'
 	import { sendAudioFile } from '$lib/upload-client'
@@ -23,6 +24,7 @@
 		duration_s: number | null
 		created_at: string
 		publications: Publication[]
+		comment_count: number
 	}
 
 	const recordings = $derived(data.recordings as unknown as Row[])
@@ -85,13 +87,18 @@
 			)
 			// Le serveur a le fichier : la copie de secours de l'enregistreur n'a plus lieu d'être.
 			if (source === 'record') await clearTakes().catch(() => {})
-			await goto(`/perso/${created.id}`)
+			// Ce qu'on vient d'enregistrer est presque toujours à classer : `?classer`
+			// ouvre la question tout de suite, sans l'imposer.
+			await goto(source === 'record' && currentGroup ? `/perso/${created.id}?classer` : `/perso/${created.id}`)
 		} catch (err) {
 			addError = err instanceof Error ? err.message : 'Erreur inattendue.'
 		} finally {
 			sending = false
 		}
 	}
+
+	// ─── Classement dans une session ───────────────────────────────────────
+	let classifying = $state<Row | null>(null)
 
 	// ─── Publication ───────────────────────────────────────────────────────
 	let publishOpen = $state(false)
@@ -223,14 +230,29 @@
 								</div>
 							{/if}
 						</div>
-						{#if currentGroup && !publishedHere}
-							<button class="btn btn-secondary btn-sm" onclick={() => openPublish('recording', r.id)}>Publier</button>
+						{#if currentGroup}
+							<div class="card-actions">
+								{#if !publishedHere}
+									<button class="btn btn-secondary btn-sm" onclick={() => openPublish('recording', r.id)}>Publier</button>
+								{/if}
+								<!-- Classer sans ouvrir chaque page : une série d'idées se range d'affilée. -->
+								<button class="btn btn-ghost btn-sm" onclick={() => (classifying = r)}>Classer</button>
+							</div>
 						{/if}
 					</li>
 				{/each}
 			</ul>
 		{/if}
 	</section>
+
+	{#if classifying && currentGroup}
+		<ClassifyDialog
+			recording={classifying}
+			groupName={currentGroup.name}
+			onclose={() => (classifying = null)}
+			onclassified={(recordingId) => goto(`/recording/${recordingId}`)}
+		/>
+	{/if}
 
 	{#if publishOpen && currentGroup}
 		<PublishDialog
@@ -275,6 +297,8 @@
 	.card-title:hover { color: var(--color-accent); }
 	.card-meta { font-size: var(--text-xs); color: var(--color-text-muted); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 	.pubs { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+	.card-actions { display: flex; gap: 0.35rem; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+
 	.pub-chip {
 		display: inline-flex; align-items: center; gap: 0.25rem; font-size: var(--text-xs);
 		padding: 0.1rem 0.5rem; border-radius: 999px; background: var(--color-green-light);

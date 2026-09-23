@@ -159,7 +159,12 @@ admins compris. Un enregistrement d'autrui répond `404`. Il ne demande pas de g
 l'espace de l'utilisateur** (`409`) ; `POST /api/personal/youtube`
 (`{ title?, notes?, video_url, duration_s? }`) crée une entrée vidéo seule ;
 `PATCH /api/personal/[id]` accepte `title` et/ou `notes` ; `DELETE` emporte fichier,
-publications et leurs commentaires. Passer par `src/lib/server/personal.ts`.
+publications et leurs commentaires. `POST /api/personal/[id]/take`
+(`{ session_id, song_id }`) fait de l'enregistrement une **prise** de la session visée dans
+le groupe actif : le fichier déménage vers `AUDIO_DIR`, la ligne perso est supprimée (ses
+publications avec elle), le `take` est calculé dans la transaction et le groupe est notifié.
+`409` sur un son déjà déposé comme prise (`file_hash`). Passer par
+`src/lib/server/personal.ts`.
 
 Une **publication** (`api/posts/`) est groupe-scopée comme le reste. `POST /api/posts` crée
 dans le groupe actif : `{ type: 'recording', personal_recording_id, message? }` (l'enregistrement
