@@ -54,6 +54,13 @@
 	let multiTake = $state(false)
 	let selectedSong = $state('')
 
+	// Où va l'enregistrement. Le groupe d'abord — c'est la répétition qu'on capte le plus
+	// souvent —, mais une idée jouée seul n'a rien à y faire tant qu'on ne l'a pas décidé :
+	// l'espace perso l'accueille, et elle se classera en prise plus tard si elle le mérite.
+	let destination = $state<'group' | 'perso'>(data.currentGroup ? 'group' : 'perso')
+	let persoTitle = $state('')
+	let persoNotes = $state('')
+
 	let uploading = $state(false)
 	let progress = $state(0)
 	let error = $state<string | null>(null)
@@ -70,6 +77,9 @@
 		duplicate = null
 		if (!recorded) return
 		recordedAt = new Date(Date.now() - durationS * 1000)
+		if (!persoTitle.trim()) {
+			persoTitle = `Enregistrement du ${recordedAt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
+		}
 		const today = localToday()
 		const todaySession = sessions.find((s) => toDateOnly(s.date) === today)
 		selectedSession = todaySession ? String(todaySession.id) : 'new'
@@ -109,13 +119,30 @@
 		duplicate = null
 		progress = 0
 
-		if (!selectedSession) { error = 'Choisis une session.'; return }
-		if (!multiTake && !selectedSong) { error = 'Choisis le morceau joué.'; return }
+		if (destination === 'group') {
+			if (!selectedSession) { error = 'Choisis une session.'; return }
+			if (!multiTake && !selectedSong) { error = 'Choisis le morceau joué.'; return }
+		}
 
 		uploading = true
 		try {
-			const sessionId = await resolveSessionId()
 			const onProgress = (p: number) => (progress = p)
+
+			// Rien à classer : l'enregistrement rejoint l'espace perso comme s'il avait été
+			// déposé depuis /perso — même route, rien de neuf côté serveur.
+			if (destination === 'perso') {
+				const created = await sendAudioFile<{ id: number }>(
+					'/api/personal',
+					file,
+					{ title: persoTitle.trim(), notes: persoNotes.trim() },
+					onProgress
+				)
+				await clearTakes().catch(() => {})
+				await goto(`/perso/${created.id}`)
+				return
+			}
+
+			const sessionId = await resolveSessionId()
 
 			if (multiTake) {
 				const audioImport = await sendAudioFile<{ id: string }>(
@@ -180,6 +207,36 @@
 				<p class="message-error">{error}</p>
 			{/if}
 
+			<fieldset class="content-choice">
+				<legend class="form-label">Destination</legend>
+				<label class="check-label">
+					<input type="radio" name="destination" value="group" bind:group={destination} disabled={uploading || !data.currentGroup} />
+					<span>
+						{data.currentGroup ? `Dans « ${data.currentGroup.name} »` : 'Dans le groupe'}
+						<span class="hint block">Une prise de session, écoutable par tout le groupe.</span>
+					</span>
+				</label>
+				<label class="check-label">
+					<input type="radio" name="destination" value="perso" bind:group={destination} disabled={uploading} />
+					<span>
+						Dans mon espace perso
+						<span class="hint block">
+							Pour toi seul, sans session ni morceau à choisir. Se classe en prise plus tard.
+						</span>
+					</span>
+				</label>
+			</fieldset>
+
+			{#if destination === 'perso'}
+				<label class="form-label">
+					Titre
+					<input class="form-input" type="text" bind:value={persoTitle} maxlength="200" disabled={uploading} />
+				</label>
+				<label class="form-label">
+					Note <span class="hint">(optionnel)</span>
+					<textarea class="form-input" rows="2" bind:value={persoNotes} disabled={uploading}></textarea>
+				</label>
+			{:else}
 			<label class="form-label">
 				Session
 				<select class="form-input" bind:value={selectedSession} disabled={uploading} required>
@@ -242,6 +299,8 @@
 				/>
 			{/if}
 
+			{/if}
+
 			{#if uploading}
 				<div class="progress-bar">
 					<div class="progress-bar-fill" style="width: {progress}%"></div>
@@ -249,6 +308,8 @@
 				<p class="hint center">
 					{#if progress < 100}
 						Envoi en cours… {progress}%
+					{:else if destination === 'perso'}
+						Conversion audio en cours…
 					{:else if multiTake}
 						Préparation du fichier… (l'analyse des blancs suit)
 					{:else}
@@ -260,10 +321,13 @@
 			<button
 				type="submit"
 				class="btn btn-primary submit-btn"
-				disabled={uploading || !selectedSession || (!multiTake && !selectedSong)}
+				disabled={uploading ||
+					(destination === 'group' && (!selectedSession || (!multiTake && !selectedSong)))}
 			>
 				{#if uploading}
 					Envoi en cours…
+				{:else if destination === 'perso'}
+					Ajouter à mon espace
 				{:else if multiTake}
 					Envoyer et découper
 				{:else}

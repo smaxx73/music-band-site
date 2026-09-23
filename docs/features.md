@@ -66,13 +66,21 @@ Pour capter une répétition sans passer par un enregistreur à part : le télé
 au milieu de la salle, ou l'interface audio branchée au PC.
 
 - **Enregistrer d'abord, classer ensuite.** En répétition, on lance le micro sans remplir
-  de formulaire : `/record` ne montre que l'enregistreur. Session et morceau ne se
-  demandent qu'une fois l'enregistrement terminé, préremplis au plus probable :
+  de formulaire : `/record` ne montre que l'enregistreur. La **destination** — le groupe ou
+  l'espace perso —, la session et le morceau ne se demandent qu'une fois l'enregistrement
+  terminé, préremplis au plus probable :
   - la **session du jour** si elle existe (date de l'appareil), sinon une nouvelle session
     datée d'aujourd'hui, créée à l'envoi
   - **« Plusieurs morceaux »** (découpe) dès 10 min d'enregistrement, « Un seul morceau »
     en deçà, avec le choix du morceau — ou sa création sur place, voir « Morceau absent
     du référentiel »
+- **Destination : le groupe, ou son espace perso.** Le groupe par défaut — c'est la
+  répétition qu'on capte le plus souvent. « Dans mon espace perso » ne demande ni session ni
+  morceau, juste un titre prérempli à la date du jour : une idée jouée seule n'a pas à
+  entrer dans le groupe tant qu'on ne l'a pas décidé, et elle se classera en prise plus
+  tard (voir « Classer un enregistrement perso dans une session »). Elle passe par
+  `POST /api/personal`, comme un dépôt fait depuis `/perso` — **rien de neuf côté serveur**.
+  Sans groupe actif, l'espace perso est la seule destination proposée
 - Tout se passe dans le navigateur (`getUserMedia` + `MediaRecorder`, sans dépendance) :
   `src/lib/components/AudioRecorder.svelte`. Le résultat est un `File` ordinaire, envoyé
   exactement comme un fichier choisi (`src/lib/upload-client.ts`, partagé avec `/upload`) —

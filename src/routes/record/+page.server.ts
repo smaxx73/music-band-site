@@ -5,7 +5,9 @@ import { loginRedirect } from '$lib/redirect'
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) redirect(302, loginRedirect(url))
-	if (!locals.user.current_group_id) return { sessions: [], songs: [] }
+	// Sans groupe actif, seul l'espace perso peut recevoir l'enregistrement.
+	const currentGroup = locals.user.groups.find((g) => g.id === locals.user?.current_group_id) ?? null
+	if (!locals.user.current_group_id) return { sessions: [], songs: [], currentGroup: null }
 
 	const groupId = locals.user.current_group_id
 
@@ -24,5 +26,5 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		`
 	])
 
-	return { sessions, songs }
+	return { sessions, songs, currentGroup: currentGroup ? { id: currentGroup.id, name: currentGroup.name } : null }
 }
