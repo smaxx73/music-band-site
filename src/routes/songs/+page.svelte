@@ -6,6 +6,7 @@
 	import Icon from '$lib/components/Icon.svelte'
 	import AddToSetlistButton from '$lib/components/AddToSetlistButton.svelte'
 	import type { IconName } from '$lib/icons'
+	import { isPlaceholderSongTitle } from '$lib/songs'
 
 	let { data, form }: { data: PageData; form: ActionData } = $props()
 
@@ -53,6 +54,9 @@
 
 	let search = $state('')
 	let statusFilter = $state<string>('all')
+	// Pas un statut : les morceaux créés à la volée au classement d'une prise, sous un
+	// titre provisoire. Le filtre existe pour qu'ils ne s'accumulent pas sans qu'on le voie.
+	const PLACEHOLDER_FILTER = 'a_nommer'
 	let sortKey = $state<SortKey>('title')
 	let sortAsc = $state(true)
 
@@ -61,6 +65,7 @@
 	const statusCounts = $derived.by(() => {
 		const counts: Record<string, number> = { all: allSongs.length }
 		for (const s of allSongs) counts[s.status] = (counts[s.status] ?? 0) + 1
+		counts[PLACEHOLDER_FILTER] = allSongs.filter((s) => isPlaceholderSongTitle(s.title)).length
 		return counts
 	})
 
@@ -83,7 +88,9 @@
 	const visibleSongs = $derived.by(() => {
 		const q = search.trim().toLowerCase()
 		const rows = allSongs.filter((s) => {
-			if (statusFilter !== 'all' && s.status !== statusFilter) return false
+			if (statusFilter === PLACEHOLDER_FILTER) {
+				if (!isPlaceholderSongTitle(s.title)) return false
+			} else if (statusFilter !== 'all' && s.status !== statusFilter) return false
 			if (!q) return true
 			return (
 				s.title.toLowerCase().includes(q) ||
@@ -259,6 +266,13 @@
 							>{label} <span class="pill-count">{statusCounts[value]}</span></button>
 						{/if}
 					{/each}
+					{#if statusCounts[PLACEHOLDER_FILTER]}
+						<button
+							class="filter-pill filter-placeholder"
+							class:active={statusFilter === PLACEHOLDER_FILTER}
+							onclick={() => (statusFilter = PLACEHOLDER_FILTER)}
+						>À nommer <span class="pill-count">{statusCounts[PLACEHOLDER_FILTER]}</span></button>
+					{/if}
 				</div>
 			</div>
 
@@ -339,6 +353,9 @@
 								<tr class:abandoned={isAbandoned}>
 									<td class="title">
 										<a href="/songs/{song.id}">{song.title}</a>
+										{#if isPlaceholderSongTitle(song.title)}
+											<span class="placeholder-tag" title="Titre provisoire, donné au classement d'une prise">à nommer</span>
+										{/if}
 										{#if song.release_year}<span class="year-tag">{song.release_year}</span>{/if}
 									</td>
 									<td data-label="Compositeur">
@@ -508,6 +525,18 @@
 		font-size: 0.65rem;
 		font-weight: 700;
 		opacity: 0.65;
+	}
+
+	.filter-placeholder:not(.active) { border-style: dashed; }
+
+	.placeholder-tag {
+		margin-left: 0.35rem;
+		padding: 0.05rem 0.4rem;
+		border: 1px dashed var(--color-border);
+		border-radius: 999px;
+		font-size: var(--text-xs);
+		color: var(--color-text-muted);
+		white-space: nowrap;
 	}
 
 	.th-sort {

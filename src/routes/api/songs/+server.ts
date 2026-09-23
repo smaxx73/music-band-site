@@ -80,7 +80,16 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		return json(song, { status: 201 })
 	} catch (err) {
 		if (isUniqueViolation(err)) {
-			return json({ error: 'Ce titre existe déjà dans ce groupe.' }, { status: 409 })
+			// Le morceau existant est renvoyé : créé à la volée depuis un sélecteur, le
+			// client le sélectionne plutôt que d'opposer une erreur à qui est pressé.
+			const [existing] = await sql`
+				SELECT id, title, status FROM songs
+				WHERE group_id = ${locals.user.current_group_id} AND title = ${title.trim()}
+			`
+			return json(
+				{ error: 'Ce titre existe déjà dans ce groupe.', song: existing ?? null },
+				{ status: 409 }
+			)
 		}
 		throw err
 	}

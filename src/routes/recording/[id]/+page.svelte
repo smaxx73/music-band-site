@@ -2,6 +2,7 @@
 	import type { PageData } from './$types'
 	import { onMount, tick, untrack } from 'svelte'
 	import { page } from '$app/state'
+	import { invalidateAll } from '$app/navigation'
 	import { player } from '$lib/player.svelte'
 	import { formatDateOnly } from '$lib/date'
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte'
@@ -12,6 +13,8 @@
 	import { youtubeWatchUrl, formatTimecode, parseTimecode } from '$lib/youtube'
 	import type { CommentWithReactions } from '$lib/types'
 	import Icon from '$lib/components/Icon.svelte'
+	import SongSelect from '$lib/components/SongSelect.svelte'
+	import { isPlaceholderSongTitle, sortedWithSong } from '$lib/songs'
 
 	let { data }: { data: PageData } = $props()
 
@@ -162,6 +165,77 @@
 		}
 	}
 
+	// --- Morceau de la prise ---
+	//
+	// Classée à la hâte, une prise tombe sous un morceau « À nommer — … », ou sous le
+	// mauvais morceau. C'est ici qu'on s'en aperçoit, en l'écoutant : le corriger se
+	// fait donc ici aussi, sans détour par /songs.
+	let songs = $derived(data.songs as { id: number; title: string }[])
+	const placeholderSong = $derived(isPlaceholderSongTitle(recording.song_title))
+
+	let renameDraft = $state('')
+	let renaming = $state(false)
+	let renameError = $state<string | null>(null)
+	// Le titre saisi est déjà celui d'un autre morceau : on propose d'y rattacher la prise.
+	let renameClash = $state<{ id: number; title: string } | null>(null)
+
+	let moveOpen = $state(false)
+	let moveTarget = $state('')
+	let moving = $state(false)
+	let moveError = $state<string | null>(null)
+
+	async function renameSong(e: SubmitEvent) {
+		e.preventDefault()
+		const title = renameDraft.trim()
+		if (!title || renaming) return
+		renameError = null
+		renameClash = null
+		const clash = songs.find(
+			(s) => s.id !== recording.song_id && s.title.toLocaleLowerCase('fr') === title.toLocaleLowerCase('fr')
+		)
+		if (clash) { renameClash = clash; return }
+		renaming = true
+		try {
+			const res = await fetch(`/api/songs/${recording.song_id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ title })
+			})
+			const json = await res.json()
+			if (!res.ok) { renameError = json.error ?? 'Erreur.'; return }
+			renameDraft = ''
+			await invalidateAll()
+		} catch {
+			renameError = 'Erreur réseau.'
+		} finally {
+			renaming = false
+		}
+	}
+
+	async function moveTo(songId: string) {
+		if (!songId || moving) return
+		moving = true
+		moveError = null
+		try {
+			const res = await fetch(`/api/recordings/${recording.id}`, {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ song_id: Number(songId) })
+			})
+			const json = await res.json()
+			if (!res.ok) { moveError = json.error ?? 'Erreur.'; return }
+			moveOpen = false
+			moveTarget = ''
+			renameClash = null
+			// Numéro de prise, prises voisines, fil d'Ariane : tout dépend du morceau.
+			await invalidateAll()
+		} catch {
+			moveError = 'Erreur réseau.'
+		} finally {
+			moving = false
+		}
+	}
+
 	// --- Liens entrants et lien à partager ---
 	//
 	// Ce qu'on partage d'une prise, c'est presque toujours un passage (« écoute à 1:23 »)
@@ -271,6 +345,68 @@
 					<Icon name="video" size="0.85rem" /> <a href={youtubeWatchUrl(recording.youtube_video_id)} target="_blank" rel="noopener noreferrer">
 						{recording.youtube_title ?? 'Vidéo YouTube'}
 					</a>
+				</div>
+			{/if}
+
+			<!-- Morceau provisoire ou mal choisi : se corrige là où on écoute la prise. -->
+			{#if placeholderSong}
+				<div class="song-fix">
+					<p class="song-fix-title"><Icon name="pencil" size="0.85rem" /> Morceau à nommer</p>
+					<form class="song-fix-row" onsubmit={renameSong}>
+						<input
+							class="form-input"
+							type="text"
+							bind:value={renameDraft}
+							placeholder="Titre du morceau"
+							aria-label="Titre du morceau"
+							maxlength="200"
+							disabled={renaming}
+						/>
+						<button type="submit" class="btn btn-primary btn-sm" disabled={renaming || !renameDraft.trim()}>
+							{renaming ? 'Enregistrement…' : 'Renommer'}
+						</button>
+					</form>
+					{#if renameClash}
+						<p class="song-fix-hint">
+							« {renameClash.title} » existe déjà.
+							<button class="link-btn" onclick={() => moveTo(String(renameClash!.id))} disabled={moving}>
+								Rattacher la prise à ce morceau
+							</button>
+						</p>
+					{/if}
+					{#if renameError}<p class="notes-error">{renameError}</p>{/if}
+					{#if !moveOpen}
+						<button class="link-btn" onclick={() => (moveOpen = true)}>
+							C'est un morceau déjà au référentiel ?
+						</button>
+					{/if}
+				</div>
+			{:else if !moveOpen}
+				<button class="link-btn change-song" onclick={() => (moveOpen = true)}>Changer de morceau</button>
+			{/if}
+			{#if moveOpen}
+				<div class="song-fix">
+					<SongSelect
+						{songs}
+						bind:value={moveTarget}
+						oncreate={(song) => (songs = sortedWithSong(songs, song))}
+						label="Rattacher la prise à"
+						disabled={moving}
+					/>
+					<p class="song-fix-hint">Elle prendra le numéro de prise suivant de ce morceau.</p>
+					<div class="song-fix-row">
+						<button
+							class="btn btn-primary btn-sm"
+							onclick={() => moveTo(moveTarget)}
+							disabled={moving || !moveTarget || Number(moveTarget) === recording.song_id}
+						>
+							{moving ? 'Déplacement…' : 'Déplacer la prise'}
+						</button>
+						<button class="btn btn-ghost btn-sm" onclick={() => { moveOpen = false; moveError = null }} disabled={moving}>
+							Annuler
+						</button>
+					</div>
+					{#if moveError}<p class="notes-error">{moveError}</p>{/if}
 				</div>
 			{/if}
 
@@ -436,6 +572,47 @@
 	.file-meta { margin-top: 0.15rem; font-size: var(--text-xs); overflow-wrap: anywhere; }
 	.file-meta.fallback { color: var(--color-text-muted); font-style: italic; }
 	.file-meta a { color: inherit; }
+
+	.song-fix {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 0.4rem;
+		margin-top: 0.6rem;
+		padding: 0.6rem 0.75rem;
+		background: var(--color-bg-subtle);
+		border: 1px solid var(--color-border-light);
+		border-radius: var(--radius-md);
+	}
+
+	.song-fix :global(.song-select) { align-self: stretch; }
+
+	.song-fix-title {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		margin: 0;
+		font-size: var(--text-sm);
+		font-weight: 600;
+	}
+
+	.song-fix-row { display: flex; gap: 0.4rem; flex-wrap: wrap; align-self: stretch; }
+	.song-fix-row input { flex: 1 1 12rem; min-width: 0; }
+
+	.song-fix-hint { margin: 0; font-size: var(--text-xs); color: var(--color-text-muted); }
+
+	.link-btn {
+		background: none;
+		border: none;
+		padding: 0;
+		font: inherit;
+		font-size: var(--text-xs);
+		color: var(--color-accent);
+		cursor: pointer;
+		text-decoration: underline;
+	}
+
+	.change-song { margin-top: 0.3rem; font-size: var(--text-xs); }
 
 	/* Note de la prise : discrète tant qu'il n'y en a pas, lisible dès qu'il y en a une. */
 	.take-notes { margin-top: 0.5rem; }

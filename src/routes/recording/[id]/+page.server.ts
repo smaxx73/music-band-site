@@ -38,7 +38,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 		error(404, 'Prise introuvable')
 	}
 
-	const [comments, peaksData, siblings, groupMembers] = await Promise.all([
+	const [comments, peaksData, siblings, groupMembers, songs] = await Promise.all([
 		commentsWithReactions({ kind: 'recording', id }, locals.user.id),
 		// Une prise vidéo seule n'a pas de fichier, donc pas de forme d'onde.
 		recording.file_path
@@ -57,6 +57,12 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 			JOIN users u ON u.id = ug.user_id
 			WHERE ug.group_id = ${locals.user.current_group_id} AND u.active = true
 			ORDER BY u.display_name, u.nickname
+		`,
+		// Pour rattacher la prise à un autre morceau : ceux qu'on peut choisir à l'upload.
+		sql<{ id: number; title: string }[]>`
+			SELECT id, title FROM songs
+			WHERE group_id = ${locals.user.current_group_id} AND status != 'abandonne'
+			ORDER BY title
 		`
 	])
 
@@ -75,6 +81,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 		peaks: peaksData.peaks,
 		peaksDuration: peaksData.duration,
 		groupMembers,
+		songs: [...songs],
 		prevRecording,
 		nextRecording
 	}

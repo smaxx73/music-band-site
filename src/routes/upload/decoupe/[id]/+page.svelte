@@ -10,6 +10,8 @@
 		type SplitParams
 	} from '$lib/types'
 	import Icon from '$lib/components/Icon.svelte'
+	import SongSelect from '$lib/components/SongSelect.svelte'
+	import { createSong, placeholderSongTitle, sortedWithSong } from '$lib/songs'
 
 	let { data }: { data: PageData } = $props()
 
@@ -56,6 +58,11 @@
 	let playing = $state<Playing>(null)
 	let playhead = $state(0)
 	let stopAt = 0
+
+	// $derived inscriptible : un morceau créé depuis un segment s'offre aussitôt aux autres.
+	let songs = $derived<{ id: number; title: string }[]>([...data.songs])
+	// Les titres provisoires datent l'enregistrement déposé, pas le moment du classement.
+	const importedAt = $derived(new Date(data.audioImport.created_at))
 
 	const kept = $derived(segments.filter((s) => s.kept))
 	const unassigned = $derived(kept.filter((s) => !s.song_id).length)
@@ -245,6 +252,30 @@
 	}
 
 	// ─── Création des prises ────────────────────────────────────────────────
+
+	/**
+	 * Une répétition entière à classer quand on n'a pas le temps : chaque segment retenu
+	 * sans morceau reçoit le sien, « À nommer — … #n », à renommer depuis chaque prise.
+	 * Un morceau par segment, pas un pour tous : ce sont a priori des morceaux différents,
+	 * et regrouper à tort serait plus pénible à défaire que renommer.
+	 */
+	let naming = $state(false)
+	async function nameLater() {
+		if (naming) return
+		naming = true
+		error = null
+		try {
+			for (const segment of segments) {
+				if (!segment.kept || segment.song_id) continue
+				const result = await createSong(placeholderSongTitle(importedAt, songs.map((s) => s.title)))
+				if (!result.ok) { error = result.error; return }
+				songs = sortedWithSong(songs, result.song)
+				segment.song_id = String(result.song.id)
+			}
+		} finally {
+			naming = false
+		}
+	}
 
 	async function createTakes() {
 		if (creating) return
@@ -446,11 +477,6 @@
 				Aucun passage sonore détecté avec ces réglages. Baisse le seuil ou la durée
 				minimale d'une prise, puis relance l'analyse.
 			</p>
-		{:else if data.songs.length === 0}
-			<p class="hint">
-				Aucun morceau au référentiel du groupe.
-				<a href="/songs">Ajouter des morceaux →</a>
-			</p>
 		{:else}
 			<p class="hint">
 				Clique une borne pour écouter la jointure ({BOUNDARY_MARGIN_S} s de part et d'autre),
@@ -489,16 +515,17 @@
 							<span class="hint">{formatTime(segment.end_s - segment.start_s)}</span>
 						</span>
 
-						<select
-							class="form-input song"
-							bind:value={segment.song_id}
-							disabled={!segment.kept || creating}
-						>
-							<option value="">— Morceau —</option>
-							{#each data.songs as song}
-								<option value={String(song.id)}>{song.title}</option>
-							{/each}
-						</select>
+						<div class="song">
+							<SongSelect
+								{songs}
+								bind:value={segment.song_id}
+								oncreate={(song) => (songs = sortedWithSong(songs, song))}
+								ariaLabel="Morceau du segment {i + 1}"
+								emptyLabel="— Morceau —"
+								placeholderAt={importedAt}
+								disabled={!segment.kept || creating || naming}
+							/>
+						</div>
 
 						<button
 							type="button"
@@ -571,7 +598,7 @@
 			type="button"
 			class="btn btn-primary"
 			onclick={createTakes}
-			disabled={creating || analysing || kept.length === 0 || unassigned > 0 || !sessionId}
+			disabled={creating || naming || analysing || kept.length === 0 || unassigned > 0 || !sessionId}
 		>
 			{#if creating}
 				Découpe en cours…
@@ -582,9 +609,14 @@
 	</div>
 
 	{#if unassigned > 0}
-		<p class="hint right">
-			{unassigned} segment{unassigned > 1 ? 's' : ''} sans morceau — choisis-le ou écarte-le.
-		</p>
+		<div class="unassigned">
+			<p class="hint">
+				{unassigned} segment{unassigned > 1 ? 's' : ''} sans morceau — choisis-le ou écarte-le.
+			</p>
+			<button type="button" class="btn btn-secondary btn-sm" onclick={nameLater} disabled={naming || creating}>
+				{naming ? 'Création…' : 'Nommer plus tard'}
+			</button>
+		</div>
 	{/if}
 </main>
 
@@ -620,7 +652,6 @@
 		margin: 0;
 	}
 
-	.hint.right { text-align: right; margin: -0.75rem 0 0; }
 
 	fieldset {
 		border: 1px solid var(--color-border);
@@ -788,7 +819,8 @@
 		border-bottom-color: var(--color-accent);
 	}
 
-	.song { font-size: var(--text-sm); }
+	.song { min-width: 0; }
+	.song :global(select) { font-size: var(--text-sm); }
 
 	/* ── Retouche d'un segment ──────────────────────────────────────────── */
 
@@ -822,6 +854,17 @@
 		font-size: var(--text-sm);
 		font-variant-numeric: tabular-nums;
 	}
+
+	.unassigned {
+		display: flex;
+		align-items: center;
+		justify-content: flex-end;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-top: -0.75rem;
+	}
+
+	.unassigned .hint { margin: 0; }
 
 	.actions {
 		display: flex;

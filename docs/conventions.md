@@ -41,6 +41,7 @@ src/
 │       ├── PublishDialog.svelte   # publier dans le groupe actif : enregistrement perso, vidéo, suggestion
 │       ├── PostReactions.svelte   # pouces 👍/👎 d'une publication (fil et page de la publication)
 │       ├── FeedItem.svelte        # une carte du fil d'actualité, selon le type d'élément
+│       ├── SongSelect.svelte      # sélecteur de morceau + création sur place (« À nommer — … »)
 │       ├── SessionEditor.svelte   # édition des métadonnées de session
 │       └── SongDetails.svelte     # paroles et notes musicales
 ├── routes/

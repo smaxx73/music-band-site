@@ -5,6 +5,8 @@
 	import SongDetails from '$lib/components/SongDetails.svelte'
 	import YouTubePlayer from '$lib/components/YouTubePlayer.svelte'
 	import Icon from '$lib/components/Icon.svelte'
+	import SongSelect from '$lib/components/SongSelect.svelte'
+	import { sortedWithSong } from '$lib/songs'
 	import { parseYouTubeVideoId } from '$lib/youtube'
 	import { createSession, DuplicateError, sendAudioFile, type DuplicateInfo } from '$lib/upload-client'
 
@@ -30,7 +32,8 @@
 
 	const sessions = $derived(data.sessions as unknown as SessionRow[])
 	const imports = $derived(data.imports as unknown as ImportRow[])
-	const songs = $derived(data.songs as unknown as SongRow[])
+	// $derived inscriptible : un morceau créé depuis le sélecteur s'y ajoute sur place.
+	let songs = $derived(data.songs as unknown as SongRow[])
 	const selectedSongData = $derived(songs.find((song) => String(song.id) === selectedSong) ?? null)
 	const requestedSessionId = $derived(data.selectedSessionId)
 	const requestedSongId = $derived(data.selectedSongId)
@@ -304,21 +307,16 @@
 				<p class="hint">
 					Chaque segment détecté recevra son propre morceau à l'écran suivant.
 				</p>
-			{:else if songs.length === 0}
-				<p class="hint">
-					Aucun morceau disponible.
-					<a href="/songs">Ajouter des morceaux →</a>
-				</p>
 			{:else}
-				<label class="form-label">
-					Sélectionner un morceau
-					<select class="form-input" bind:value={selectedSong} required disabled={uploading}>
-						<option value="" disabled>— Choisir —</option>
-						{#each songs as s}
-							<option value={String(s.id)}>{s.title}</option>
-						{/each}
-					</select>
-				</label>
+				<SongSelect
+					{songs}
+					bind:value={selectedSong}
+					oncreate={(song) => (songs = sortedWithSong(songs, song))}
+					label="Sélectionner un morceau"
+					placeholderAt={file ? new Date(file.lastModified) : null}
+					required
+					disabled={uploading}
+				/>
 				{#if selectedSongData}
 					<SongDetails
 						lyrics={selectedSongData.lyrics}

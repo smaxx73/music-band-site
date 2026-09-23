@@ -3,6 +3,8 @@
 	import { goto } from '$app/navigation'
 	import { formatDateOnly, toDateOnly } from '$lib/date'
 	import AudioRecorder from '$lib/components/AudioRecorder.svelte'
+	import SongSelect from '$lib/components/SongSelect.svelte'
+	import { sortedWithSong } from '$lib/songs'
 	import { clearTakes } from '$lib/recording-store'
 	import { createSession, DuplicateError, sendAudioFile, type DuplicateInfo } from '$lib/upload-client'
 
@@ -17,7 +19,8 @@
 	type SongRow = { id: number; title: string }
 
 	const sessions = $derived(data.sessions as unknown as SessionRow[])
-	const songs = $derived(data.songs as unknown as SongRow[])
+	// $derived inscriptible : un morceau créé depuis le sélecteur s'y ajoute sur place.
+	let songs = $derived(data.songs as unknown as SongRow[])
 
 	// Au-delà, c'est une répétition captée d'un bloc plutôt qu'un morceau isolé.
 	const SPLIT_BY_DEFAULT_ABOVE_S = 10 * 60
@@ -37,6 +40,9 @@
 	}
 
 	let file = $state<File | null>(null)
+	// Date le titre provisoire d'un morceau créé à la volée : c'est l'heure de la prise
+	// qui aide à la reconnaître plus tard, pas celle du classement.
+	let recordedAt = $state<Date | null>(null)
 	let recording = $state(false)
 
 	let selectedSession = $state('')
@@ -63,6 +69,7 @@
 		error = null
 		duplicate = null
 		if (!recorded) return
+		recordedAt = new Date(Date.now() - durationS * 1000)
 		const today = localToday()
 		const todaySession = sessions.find((s) => toDateOnly(s.date) === today)
 		selectedSession = todaySession ? String(todaySession.id) : 'new'
@@ -224,19 +231,15 @@
 			</fieldset>
 
 			{#if !multiTake}
-				{#if songs.length === 0}
-					<p class="hint">Aucun morceau disponible. <a href="/songs">Ajouter des morceaux →</a></p>
-				{:else}
-					<label class="form-label">
-						Morceau
-						<select class="form-input" bind:value={selectedSong} disabled={uploading} required>
-							<option value="" disabled>— Choisir —</option>
-							{#each songs as s}
-								<option value={String(s.id)}>{s.title}</option>
-							{/each}
-						</select>
-					</label>
-				{/if}
+				<SongSelect
+					{songs}
+					bind:value={selectedSong}
+					oncreate={(song) => (songs = sortedWithSong(songs, song))}
+					label="Morceau"
+					placeholderAt={recordedAt}
+					required
+					disabled={uploading}
+				/>
 			{/if}
 
 			{#if uploading}

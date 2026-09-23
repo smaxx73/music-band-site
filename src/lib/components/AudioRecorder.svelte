@@ -472,7 +472,7 @@
 		{#if phase === 'idle' || phase === 'arming'}
 			<button
 				type="button"
-				class="btn btn-secondary"
+				class="btn btn-primary start-btn"
 				onclick={() => arm()}
 				disabled={disabled || phase === 'arming' || !!pending}
 			>
@@ -535,7 +535,7 @@
 
 				<div class="buttons">
 					{#if phase === 'armed'}
-						<button type="button" class="btn btn-primary rec-btn" onclick={start} {disabled}>
+						<button type="button" class="btn btn-primary start-btn" onclick={start} {disabled}>
 							<span class="rec-dot"></span> Enregistrer
 						</button>
 					{:else}
@@ -670,6 +670,26 @@
 		border-radius: 50%;
 		background: var(--color-error);
 		flex-shrink: 0;
+	}
+
+	/* Lancer l'enregistrement est LE geste de la page, souvent au doigt en répétition :
+	   il doit se trouver sans chercher. */
+	.btn.start-btn {
+		min-height: 48px;
+		padding: 0.6rem 1.5rem;
+		font-size: var(--text-base);
+		font-weight: 600;
+		gap: 0.5rem;
+	}
+
+	/* Point rouge sur fond primaire : un liseré blanc le détache. */
+	.start-btn .rec-dot { box-shadow: 0 0 0 2px #fff; }
+
+	@media (max-width: 640px) {
+		.recorder > .start-btn { align-self: stretch; }
+		/* Les commandes passent sous le chrono et se partagent la largeur. */
+		.buttons { flex-basis: 100%; margin-left: 0; }
+		.buttons .btn { flex: 1; justify-content: center; min-height: 48px; }
 	}
 
 	.result { display: flex; flex-direction: column; gap: 0.5rem; }

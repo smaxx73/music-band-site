@@ -21,6 +21,45 @@
     que de rester sur le formulaire : c'est juste après l'ajout qu'on commente la prise.
     Idem pour une prise vidéo YouTube. Une découpe, elle, mène à `/upload/decoupe/[id]`
 
+## Morceau absent du référentiel, et morceaux « À nommer »
+
+Ce qu'on vient d'enregistrer ne correspond pas toujours à un morceau déjà créé — une
+reprise essayée pour voir, une idée sans titre. Partir dans `/songs` au milieu d'un envoi
+fait perdre le fil, surtout au téléphone en répétition.
+
+- Tout sélecteur de morceau où l'on classe une prise (`/upload`, `/record`, chaque segment
+  de la découpe, « Changer de morceau » sur la prise) propose **« + Nouveau morceau… »**
+  (`src/lib/components/SongSelect.svelte`). Un champ titre s'ouvre sur place ; le morceau
+  est créé au statut `en_apprentissage` par `POST /api/songs` et aussitôt sélectionné.
+  Les autres champs (compositeur, tonalité, durée…) se complètent plus tard dans `/songs`
+- Le titre arrive **prérempli et sélectionné** : « À nommer — 22 sept. 14:05 ». Pressé,
+  on valide tel quel ; sinon on tape par-dessus. L'heure est celle de l'enregistrement
+  (fin de prise moins sa durée sur `/record`, date du fichier sur `/upload`, dépôt de
+  l'import en découpe) : c'est ce qui aide à le reconnaître ensuite. Suffixé « #2 »,
+  « #3 »… si le titre est pris — les titres sont uniques dans un groupe
+- Un titre **déjà au référentiel** (casse ignorée) n'est pas une erreur : le morceau
+  existant est sélectionné. S'il est `abandonne`, l'écran le dit plutôt que de le réactiver
+- Le préfixe « À nommer — » est le **seul marqueur** (`src/lib/songs.ts`) : pas de colonne
+  en base. Renommer le morceau suffit à le faire sortir de cet état
+- **Découpe** : « Nommer plus tard » donne à chaque segment retenu sans morceau le sien
+  (« #1, #2… »), pour valider une répétition entière d'un geste. Un morceau par segment,
+  pas un pour tous : regrouper à tort serait plus pénible à défaire que renommer
+
+### Corriger depuis la prise
+
+- Sur `/recording/[id]`, un morceau « À nommer » s'annonce sous l'en-tête avec un champ
+  **Renommer** (`PATCH /api/songs/[id]`). Si le titre saisi est celui d'un autre morceau,
+  l'écran propose d'y rattacher la prise plutôt que d'échouer
+- Toute prise porte **« Changer de morceau »** : même sélecteur, création comprise.
+  `PATCH /api/recordings/[id]` avec `{ song_id }`. La prise prend le numéro suivant du
+  morceau visé, calculé dans la transaction comme à l'upload ; l'ancien morceau garde un
+  trou, comme à la suppression d'une prise — on ne renumérote pas
+- Un morceau « À nommer » vidé de sa dernière prise **disparaît** avec le déplacement :
+  il n'existait que pour la porter. Pas s'il est programmé dans une setlist, ni un morceau
+  nommé — quelqu'un l'a choisi
+- `/songs` marque ces morceaux d'une étiquette « à nommer » et propose un filtre dédié,
+  pour qu'ils ne s'accumulent pas sans qu'on le voie
+
 ## Enregistrement en direct (`/record`)
 
 Pour capter une répétition sans passer par un enregistreur à part : le téléphone posé
@@ -32,7 +71,8 @@ au milieu de la salle, ou l'interface audio branchée au PC.
   - la **session du jour** si elle existe (date de l'appareil), sinon une nouvelle session
     datée d'aujourd'hui, créée à l'envoi
   - **« Plusieurs morceaux »** (découpe) dès 10 min d'enregistrement, « Un seul morceau »
-    en deçà, avec le choix du morceau
+    en deçà, avec le choix du morceau — ou sa création sur place, voir « Morceau absent
+    du référentiel »
 - Tout se passe dans le navigateur (`getUserMedia` + `MediaRecorder`, sans dépendance) :
   `src/lib/components/AudioRecorder.svelte`. Le résultat est un `File` ordinaire, envoyé
   exactement comme un fichier choisi (`src/lib/upload-client.ts`, partagé avec `/upload`) —
@@ -100,7 +140,8 @@ Premier des outils d'amélioration audio branchés à la suite de l'upload.
 - L'écran affiche la forme d'onde du fichier entier avec les segments en surimpression,
   et pré-écoute chaque segment depuis un seul élément `<audio>` (déplacement, pas découpe)
 - Chaque segment retenu reçoit **son propre morceau** ; les autres sont écartés (bavardage,
-  fausse note, bruit de salle). Un segment retenu sans morceau bloque la validation
+  fausse note, bruit de salle). Un segment retenu sans morceau bloque la validation —
+  « Nommer plus tard » les pourvoit tous d'un morceau « À nommer »
 - **Préécoute ciblée** : cliquer une borne joue 5 s avant et 5 s après, ce qui valide une
   coupure sans réécouter le morceau. Un seul élément `<audio>` sur le proxy — on s'y
   déplace, on ne demande pas d'extrait au serveur
@@ -718,6 +759,8 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 - Statut `abandonne` → masqué dans le sélecteur d'upload, prises existantes conservées ; reste visible et modifiable dans `/songs`. Les propositions de travail restent disponibles.
 - Suppression bloquée si des prises existent pour ce morceau
 - Liste affiche tous les statuts du groupe actif, avec nombre de prises (`take_count`)
+- Filtre « À nommer » et étiquette sur les morceaux créés à la volée sous un titre
+  provisoire — voir « Morceau absent du référentiel »
 - Chaque ligne porte **« Setlist »**, avant « Modifier » et « Supprimer » : on parcourt le
   référentiel pour bâtir un programme bien plus souvent que pour corriger une fiche, et la
   destruction reste en dernier. Même sélecteur qu'en vue morceau

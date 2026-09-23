@@ -106,6 +106,13 @@ rattacher la vidéo à la piste audio envoyée. Les deux passent par `resolveYou
 route qui touche à `AUDIO_DIR` (peaks, suppression, volume, manifeste) filtre sur
 `file_path IS NOT NULL` ; une prise sans piste audio ne va jamais dans une playlist (`400`).
 
+`POST /api/songs` répond `409` avec `{ error, song: { id, title, status } }` quand le titre
+existe déjà : un sélecteur qui crée un morceau à la volée choisit alors l'existant.
+`PATCH /api/recordings/[id]` accepte `{ song_id }`, **seul** (`400` avec un autre champ) :
+la prise change de morceau et prend le numéro suivant de celui-ci, dans une transaction qui
+verrouille le morceau visé (`400` s'il est `abandonne`). Un morceau « À nommer — … » vidé de
+sa dernière prise et absent de toute setlist est supprimé au passage (`removed_song_id`).
+
 Une **setlist** (`api/setlists/`) est un programme : des `songs` du groupe actif dans un
 ordre. `GET /api/setlists` accepte `?song_id=` : chaque setlist porte alors `contains_song`,
 pour que le sélecteur d'une vue morceau marque celles où le morceau est déjà programmé.
