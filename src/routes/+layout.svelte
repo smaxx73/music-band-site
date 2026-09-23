@@ -7,6 +7,7 @@
 	import MiniPlayer from '$lib/components/MiniPlayer.svelte'
 	import NotificationsMenu from '$lib/components/NotificationsMenu.svelte'
 	import Icon from '$lib/components/Icon.svelte'
+	import LegalLinks from '$lib/components/LegalLinks.svelte'
 	import type { IconName } from '$lib/icons'
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props()
@@ -191,6 +192,10 @@
 							<Icon name="power" size="0.95rem" label="Se déconnecter" />
 						</button>
 					</form>
+				</div>
+
+				<div class="sidebar-legal">
+					<LegalLinks compact />
 				</div>
 			</nav>
 
@@ -453,6 +458,11 @@
 		align-items: center;
 		gap: 4px;
 		border-top: 1px solid rgba(255,255,255,0.08);
+	}
+
+	.sidebar-legal {
+		padding: 0.25rem 12px 0.5rem;
+		color: rgba(255,255,255,0.45);
 	}
 
 	.sidebar-account form {

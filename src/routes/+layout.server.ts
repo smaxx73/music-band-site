@@ -5,7 +5,8 @@ import { loginRedirect } from '$lib/redirect'
 
 // "/" (hors connexion) et "/accueil" (toujours) servent la page d'accueil publique —
 // voir +page.server.ts et routes/accueil — elles ne redirigent jamais vers /login.
-const PUBLIC_PATHS = new Set(['/login', '/', '/accueil'])
+// Les pages légales doivent rester lisibles sans compte (LCEN art. 6 III).
+const PUBLIC_PATHS = new Set(['/login', '/', '/accueil', '/mentions-legales', '/confidentialite'])
 
 export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
 	if (!locals.user && !PUBLIC_PATHS.has(url.pathname)) {

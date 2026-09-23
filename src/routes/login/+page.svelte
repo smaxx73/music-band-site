@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { ActionData } from './$types'
+	import LegalLinks from '$lib/components/LegalLinks.svelte'
 
 	let { form }: { form: ActionData } = $props()
 </script>
@@ -29,6 +30,8 @@
 
 		<button type="submit" class="btn btn-primary">Se connecter</button>
 	</form>
+
+	<LegalLinks />
 </div>
 
 <style>

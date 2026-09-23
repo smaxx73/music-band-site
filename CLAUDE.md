@@ -155,6 +155,8 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
                     (un enregistrement s'y classe après coup en prise d'une session)
 /perso/[id]         un enregistrement perso : lecteur, titre, note, publications
 /posts/[id]         une publication dans le groupe : lecteur ou suggestion + commentaires
+/mentions-legales   mentions légales (publique)
+/confidentialite    politique de confidentialité et cookies (publique)
 ```
 
 Les pages de contenu sont des permaliens destinés à être partagés entre membres : la

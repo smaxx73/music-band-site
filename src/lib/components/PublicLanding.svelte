@@ -4,6 +4,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms'
 	import { page } from '$app/state'
+	import LegalLinks from '$lib/components/LegalLinks.svelte'
 
 	let { loggedIn = false }: { loggedIn?: boolean } = $props()
 
@@ -45,6 +46,8 @@
 			</form>
 		{/if}
 	{/if}
+
+	<LegalLinks />
 </main>
 
 <style>

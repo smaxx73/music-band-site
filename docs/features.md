@@ -947,3 +947,16 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
   ouvert) se tient dans
   l'en-tête, à côté de « + Session » : la colonne du flux, étroite, n'a pas la place d'une
   troisième commande à côté de son titre et de son filtre
+
+## Pages légales (`/mentions-legales`, `/confidentialite`)
+
+- **Publiques** (`PUBLIC_PATHS`, `src/routes/+layout.server.ts`) : la LCEN exige des mentions
+  « directement et facilement accessibles », y compris à qui n'a pas de compte
+- Liées depuis l'accueil public, `/login` et le bas de la barre latérale (`LegalLinks.svelte`)
+- Éditeur, hébergeur et contact vivent dans `src/lib/legal.ts`, seul endroit à modifier.
+  Un champ encore inconnu vaut `TO_COMPLETE` et s'affiche tel quel plutôt que d'être inventé
+- La politique de confidentialité décrit ce que fait **réellement** l'application : toute
+  nouvelle donnée collectée, tout nouveau cookie ou service tiers (comme les vidéos YouTube)
+  doit y être reporté
+- Pas de bandeau cookies : seuls des cookies strictement nécessaires sont posés
+  (`band_session`, `band_group`, `band_group_switched`)
