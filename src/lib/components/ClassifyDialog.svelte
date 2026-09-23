@@ -133,79 +133,81 @@
 </script>
 
 <Modal title="Classer dans une session" onClose={() => !saving && onclose()}>
-	<form class="classify" onsubmit={submit}>
-		<p class="lead">
-			« {recording.title} » deviendra une prise{groupName ? ` de ${groupName}` : ''} et
-			<strong>quittera ton espace perso</strong>. Son titre et sa note suivent dans la note
-			de la prise.
-		</p>
-
-		{#if publications.length > 0}
-			<p class="message-error">
-				{publications.length > 1 ? 'Ses publications' : 'Sa publication'} dans
-				{publications.map((p) => p.group_name).join(', ')}
-				{#if recording.comment_count}
-					et {recording.comment_count} commentaire{recording.comment_count > 1 ? 's' : ''}
-				{/if}
-				{publications.length > 1 || recording.comment_count ? 'seront supprimés' : 'sera supprimée'}
-				avec l'enregistrement : la prise, elle, se commente dans le groupe.
+	<form onsubmit={submit}>
+		<div class="modal-body classify">
+			<p class="lead">
+				« {recording.title} » deviendra une prise{groupName ? ` de ${groupName}` : ''} et
+				<strong>quittera ton espace perso</strong>. Son titre et sa note suivent dans la note
+				de la prise.
 			</p>
-		{/if}
 
-		{#if loading}
-			<p class="hint">Chargement des sessions et des morceaux…</p>
-		{:else if loadError}
-			<p class="message-error">{loadError}</p>
-		{:else}
-			<label class="form-label">
-				Session
-				<select class="form-input" bind:value={selectedSession} disabled={saving} required>
-					<option value="new">+ Nouvelle session</option>
-					{#each sessions as s (s.id)}
-						<option value={String(s.id)}>{sessionLabel(s)}</option>
-					{/each}
-				</select>
-			</label>
-
-			{#if selectedSession === 'new'}
-				<div class="new-session">
-					<label class="form-label">
-						Date
-						<input class="form-input" type="date" bind:value={newDate} required disabled={saving} />
-					</label>
-					<label class="form-label">
-						Type
-						<select class="form-input" bind:value={newType} disabled={saving}>
-							<option value="repetition">Répétition</option>
-							<option value="concert">Concert</option>
-							<option value="studio">Studio</option>
-							<option value="autre">Autre</option>
-						</select>
-					</label>
-					<label class="form-label wide">
-						Titre <span class="hint">(optionnel)</span>
-						<input class="form-input" type="text" bind:value={newTitle} disabled={saving} />
-					</label>
-					<label class="form-label wide">
-						Lieu <span class="hint">(optionnel)</span>
-						<input class="form-input" type="text" bind:value={newLocation} disabled={saving} />
-					</label>
-				</div>
+			{#if publications.length > 0}
+				<p class="message-error">
+					{publications.length > 1 ? 'Ses publications' : 'Sa publication'} dans
+					{publications.map((p) => p.group_name).join(', ')}
+					{#if recording.comment_count}
+						et {recording.comment_count} commentaire{recording.comment_count > 1 ? 's' : ''}
+					{/if}
+					{publications.length > 1 || recording.comment_count ? 'seront supprimés' : 'sera supprimée'}
+					avec l'enregistrement : la prise, elle, se commente dans le groupe.
+				</p>
 			{/if}
 
-			<SongSelect
-				{songs}
-				bind:value={selectedSong}
-				oncreate={(song) => (songs = sortedWithSong(songs, song))}
-				label="Morceau"
-				required
-				disabled={saving}
-			/>
-		{/if}
+			{#if loading}
+				<p class="hint">Chargement des sessions et des morceaux…</p>
+			{:else if loadError}
+				<p class="message-error">{loadError}</p>
+			{:else}
+				<label class="form-label">
+					Session
+					<select class="form-input" bind:value={selectedSession} disabled={saving} required>
+						<option value="new">+ Nouvelle session</option>
+						{#each sessions as s (s.id)}
+							<option value={String(s.id)}>{sessionLabel(s)}</option>
+						{/each}
+					</select>
+				</label>
 
-		{#if error}<p class="message-error">{error}</p>{/if}
+				{#if selectedSession === 'new'}
+					<div class="new-session">
+						<label class="form-label">
+							Date
+							<input class="form-input" type="date" bind:value={newDate} required disabled={saving} />
+						</label>
+						<label class="form-label">
+							Type
+							<select class="form-input" bind:value={newType} disabled={saving}>
+								<option value="repetition">Répétition</option>
+								<option value="concert">Concert</option>
+								<option value="studio">Studio</option>
+								<option value="autre">Autre</option>
+							</select>
+						</label>
+						<label class="form-label wide">
+							Titre <span class="hint">(optionnel)</span>
+							<input class="form-input" type="text" bind:value={newTitle} disabled={saving} />
+						</label>
+						<label class="form-label wide">
+							Lieu <span class="hint">(optionnel)</span>
+							<input class="form-input" type="text" bind:value={newLocation} disabled={saving} />
+						</label>
+					</div>
+				{/if}
 
-		<div class="actions">
+				<SongSelect
+					{songs}
+					bind:value={selectedSong}
+					oncreate={(song) => (songs = sortedWithSong(songs, song))}
+					label="Morceau"
+					required
+					disabled={saving}
+				/>
+			{/if}
+
+			{#if error}<p class="message-error">{error}</p>{/if}
+		</div>
+
+		<div class="modal-footer actions">
 			<button type="button" class="btn btn-secondary" onclick={onclose} disabled={saving}>Annuler</button>
 			<button type="submit" class="btn btn-primary" disabled={saving || loading || !!loadError || !selectedSong}>
 				{saving ? 'Classement…' : 'Classer la prise'}
@@ -231,8 +233,6 @@
 	.new-session :global(.wide) { grid-column: 1 / -1; }
 
 	.hint { font-size: var(--text-xs); color: var(--color-text-muted); font-weight: 400; }
-
-	.actions { display: flex; justify-content: flex-end; gap: 0.5rem; }
 
 	@media (max-width: 480px) {
 		.new-session { grid-template-columns: 1fr; }
