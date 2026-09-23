@@ -9,6 +9,21 @@ export function audioPath(recordingId: number): string {
 	return join(audioDir(), `${recordingId}.mp3`)
 }
 
+/**
+ * Taille cumulée de fichiers sur le disque. Un fichier manquant (déjà supprimé, jamais
+ * converti) compte pour zéro plutôt que de faire échouer l'écran qui l'affiche.
+ */
+export async function totalFileSize(paths: string[]): Promise<number> {
+	const sizes = await Promise.all(
+		paths.map((path) =>
+			stat(path)
+				.then((st) => st.size)
+				.catch(() => 0)
+		)
+	)
+	return sizes.reduce((total, size) => total + size, 0)
+}
+
 export async function ensureAudioDir(): Promise<void> {
 	await mkdir(audioDir(), { recursive: true })
 }

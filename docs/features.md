@@ -646,6 +646,8 @@ travaillée seul, une vidéo repérée. Rien n'y est partagé tant qu'on ne le p
   lecteur perso a son propre `<audio>` : un enregistrement perso n'entre ni dans la barre
   du bas ni dans une playlist
 - Titre et note se modifient depuis `/perso/[id]`, par le propriétaire seul
+- L'en-tête de la liste affiche l'**espace disque** occupé par ses pistes audio. Un
+  enregistrement publié compte chez son propriétaire, jamais dans le volume du groupe
 
 #### Classer un enregistrement perso dans une session
 
@@ -820,7 +822,8 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 
 ## Groupe actif (`/group`)
 
-- Consultation pour tout membre : informations du groupe, compteurs, logo, liens vers les
+- Consultation pour tout membre : informations du groupe, compteurs (dont le nombre exact de
+  prises, vidéos seules signalées, et l'espace disque de leurs pistes audio), logo, liens vers les
   réseaux du groupe (ouverts dans un nouvel onglet), liste des membres avec leur rôle dans le groupe
 - Le rôle **global** d'un membre (`users.role`) n'est affiché qu'aux admins globaux, et n'est
   pas sélectionné en base sinon — le masquer côté client le laisserait dans le payload

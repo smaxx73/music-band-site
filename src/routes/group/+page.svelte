@@ -3,6 +3,7 @@
 	import { enhance } from '$app/forms'
 	import { formatDateOnly } from '$lib/date'
 	import {
+		formatBytes,
 		GROUP_LINK_LABELS,
 		groupLogoUrl,
 		isAdmin,
@@ -147,6 +148,17 @@
 
 				<dt>Playlists</dt>
 				<dd>{data.group.playlist_count}</dd>
+
+				<dt>Prises</dt>
+				<dd>
+					{data.group.recording_count}
+					{#if data.group.video_only_count > 0}
+						<span class="muted">(dont {data.group.video_only_count} vidéo seule)</span>
+					{/if}
+				</dd>
+
+				<dt>Espace disque</dt>
+				<dd title="{data.audioBytes.toLocaleString('fr-FR')} octets">{formatBytes(data.audioBytes)}</dd>
 
 				{#if groupLinks.length > 0}
 					<dt>Réseaux</dt>
@@ -415,6 +427,7 @@
 	}
 
 	.info-list dd { margin: 0; }
+	.info-list .muted { color: var(--color-text-secondary); font-size: var(--text-sm); }
 
 	.group-title {
 		display: flex;

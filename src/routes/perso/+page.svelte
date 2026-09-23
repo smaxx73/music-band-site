@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation'
 	import { page } from '$app/state'
 	import { formatDateOnly } from '$lib/date'
+	import { formatBytes } from '$lib/types'
 	import AudioRecorder from '$lib/components/AudioRecorder.svelte'
 	import PublishDialog from '$lib/components/PublishDialog.svelte'
 	import ClassifyDialog from '$lib/components/ClassifyDialog.svelte'
@@ -200,7 +201,14 @@
 	</form>
 
 	<section class="list">
-		<h2>Mes enregistrements ({recordings.length})</h2>
+		<div class="list-header">
+			<h2>Mes enregistrements ({recordings.length})</h2>
+			{#if data.audioBytes > 0}
+				<span class="usage" title="{data.audioBytes.toLocaleString('fr-FR')} octets">
+					{formatBytes(data.audioBytes)} sur le disque
+				</span>
+			{/if}
+		</div>
 		{#if recordings.length === 0}
 			<p class="empty">Rien pour l'instant. Une idée, une partie travaillée seul : c'est ici qu'elle attend.</p>
 		{:else}
@@ -272,6 +280,8 @@
 	.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
 	h1 { font-size: var(--text-xl); margin: 0 0 0.2rem; }
 	.lede { margin: 0; font-size: var(--text-sm); color: var(--color-text-secondary); }
+	.list-header { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+	.usage { font-size: var(--text-sm); color: var(--color-text-secondary); }
 	h2 { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: var(--color-text-secondary); margin: 0; }
 
 	.source-tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; }

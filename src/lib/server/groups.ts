@@ -1,6 +1,6 @@
 import { stat, unlink } from 'fs/promises'
 import sql from './db'
-import { audioPath } from './storage'
+import { audioPath, totalFileSize } from './storage'
 import {
 	canAssignGroupAdmin,
 	canDeleteGroup,
@@ -386,19 +386,16 @@ export async function groupDeletionImpact(groupId: number): Promise<GroupDeletio
 			  WHERE s.group_id = ${groupId} OR sl.group_id = ${groupId} OR p.group_id = ${groupId}) AS comments
 	`
 
+	// Le volume audio est la part la plus concrète de l'impact.
+	return { ...counts, audio_bytes: await groupAudioBytes(groupId) }
+}
+
+// Place occupée sur le disque par les pistes audio des prises du groupe. Les
+// enregistrements perso publiés dans le groupe n'y comptent pas : ils restent à leur
+// propriétaire, et partent avec son espace, pas avec le groupe.
+export async function groupAudioBytes(groupId: number): Promise<number> {
 	const recordingIds = await groupAudioRecordingIds(groupId)
-
-	// Le volume audio est la part la plus concrète de l'impact. Un fichier manquant
-	// (déjà supprimé, jamais converti) compte pour zéro plutôt que de faire échouer l'écran.
-	const sizes = await Promise.all(
-		recordingIds.map((id) =>
-			stat(audioPath(id))
-				.then((st) => st.size)
-				.catch(() => 0)
-		)
-	)
-
-	return { ...counts, audio_bytes: sizes.reduce((total, size) => total + size, 0) }
+	return totalFileSize(recordingIds.map(audioPath))
 }
 
 // Prises qui ont un fichier dans AUDIO_DIR : une prise vidéo seule n'en a pas.

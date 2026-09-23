@@ -2,7 +2,7 @@ import { copyFile, mkdir, unlink } from 'fs/promises'
 import { join } from 'path'
 import sql from './db'
 import { audioDir } from './config'
-import { audioPath, ensureAudioDir } from './storage'
+import { audioPath, ensureAudioDir, totalFileSize } from './storage'
 import { loadPeaksAt, type PeaksCache } from './peaks'
 import type { PersonalRecording, Recording } from '$lib/types'
 
@@ -148,6 +148,12 @@ export async function personalFileIds(userId: number): Promise<number[]> {
 		SELECT id FROM personal_recordings WHERE user_id = ${userId} AND file_path IS NOT NULL
 	`
 	return rows.map((row) => row.id)
+}
+
+/** Place occupée sur le disque par l'espace perso d'un compte (pistes audio). */
+export async function personalAudioBytes(userId: number): Promise<number> {
+	const ids = await personalFileIds(userId)
+	return totalFileSize(ids.map(personalAudioPath))
 }
 
 /**

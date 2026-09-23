@@ -8,6 +8,7 @@ import {
 	logoRequestTooLarge,
 	removeGroupLogo,
 	removeGroupMember,
+	groupAudioBytes,
 	renameGroup,
 	setGroupLogo,
 	setGroupMemberRole,
@@ -23,7 +24,7 @@ import { loginRedirect } from '$lib/redirect'
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) redirect(302, loginRedirect(url))
 	if (!locals.user.current_group_id) {
-		return { group: null, members: [], canSeeGlobalRole: false, canManage: false, canAssignAdmin: false }
+		return { group: null, members: [], audioBytes: 0, canSeeGlobalRole: false, canManage: false, canAssignAdmin: false }
 	}
 
 	const groupId = locals.user.current_group_id
@@ -35,6 +36,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			COUNT(DISTINCT s.id)::int        AS song_count,
 			COUNT(DISTINCT ses.id)::int      AS session_count,
 			COUNT(DISTINCT p.id)::int        AS playlist_count,
+			-- Sous-requêtes plutôt que jointures : une jointure de plus sur recordings
+			-- multiplierait les lignes que les COUNT(DISTINCT) ci-dessus parcourent.
+			(SELECT COUNT(*)::int FROM recordings r JOIN sessions rs ON rs.id = r.session_id
+			  WHERE rs.group_id = g.id) AS recording_count,
+			(SELECT COUNT(*)::int FROM recordings r JOIN sessions rs ON rs.id = r.session_id
+			  WHERE rs.group_id = g.id AND r.file_path IS NULL) AS video_only_count,
 			floor(EXTRACT(EPOCH FROM gl.updated_at))::float8 AS logo_version
 		FROM groups g
 		LEFT JOIN group_logos gl  ON gl.group_id  = g.id
@@ -64,6 +71,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	return {
 		group,
 		members,
+		audioBytes: await groupAudioBytes(groupId),
 		canSeeGlobalRole,
 		canManage: canManageGroup(locals.user, groupId),
 		canAssignAdmin: canAssignGroupAdmin(locals.user)
