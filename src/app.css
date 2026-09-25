@@ -453,10 +453,27 @@ body {
 }
 
 /* ─── Fil d'Ariane ───────────────────────────────────── */
+/* Toujours sur une ligne : au téléphone, un titre de morceau long repliait le fil sur
+   deux ou trois lignes. En grille, chaque élément garde sa largeur tant qu'elle tient,
+   et la place manquante est reprise à parts égales aux plus longs : « Sessions »,
+   la date ou « Prise 3 » restent entiers, le titre du morceau finit en « … ». Les « / »
+   restent des nœuds texte, qui deviennent des éléments anonymes de la grille. */
 .breadcrumb {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, max-content);
+  justify-content: start;
+  gap: 0.35em;
+  min-width: 0;
+  white-space: nowrap;
   font-size: 0.85rem;
   color: var(--color-text-muted);
   margin-bottom: 1.25rem;
+}
+
+.breadcrumb > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .breadcrumb a {
