@@ -17,7 +17,7 @@
 		| { kind: 'event'; id: number; date: string; location: string | null; title: string | null; eventType: string }
 	type PlaylistRow = { id: number; name: string; item_count: number; updated_at: string }
 	type Stats = { session_count: number; recording_count: number; playlist_count: number }
-	type NextEvent = { id: number; date: string; type: string; title: string | null; notes: string | null }
+	type Unavailability = { id: number; date: string; author: string }
 	type SetlistRow = { id: number; name: string; created_at: string; created_by: string }
 	// Un commentaire porte sur une prise, une setlist OU une publication : une seule paire est remplie.
 	type RecentComment = {
@@ -35,7 +35,7 @@
 	const setlists = $derived((data.setlists ?? []) as unknown as SetlistRow[])
 	const posts = $derived((data.posts ?? []) as unknown as PostView[])
 	const stats = $derived(data.stats as Stats | null)
-	const nextEvent = $derived(data.nextEvent as NextEvent | null)
+	const unavailabilities = $derived((data.unavailabilities ?? []) as unknown as Unavailability[])
 	const recentComments = $derived((data.recentComments ?? []) as unknown as RecentComment[])
 
 	const firstName = $derived((data as any).user?.display_name?.split(' ')[0] ?? 'vous')
@@ -56,17 +56,6 @@
 		indisponibilite: 'Indisponibilité',
 	}
 
-	const eventTypeColor: Record<string, string> = {
-		repetition: 'var(--color-accent)',
-		concert: 'var(--color-green)',
-		indisponibilite: 'var(--color-red)',
-	}
-	const eventTypeColorLight: Record<string, string> = {
-		repetition: 'var(--color-accent-light)',
-		concert: 'var(--color-green-light)',
-		indisponibilite: 'var(--color-red-light)',
-	}
-
 	// Mêmes couleurs que les badges de type sur /agenda, pour reconnaître le type d'un coup d'œil.
 	const eventBadgeBg: Record<string, string> = {
 		repetition: 'var(--color-learning-bg)',
@@ -79,6 +68,11 @@
 		concert: 'var(--color-repertoire-text)',
 		studio: '#7c3aed',
 		autre: 'var(--color-text-secondary)',
+	}
+
+	// Ouvre l'agenda sur le jour de l'événement, panneau du jour déplié.
+	function agendaDayUrl(d: string | Date) {
+		return `/agenda?date=${toDateOnly(d)}`
 	}
 
 	function sessionCreateUrl(item: Extract<UpcomingItem, { kind: 'event' }>) {
@@ -222,6 +216,7 @@
 			<div class="dash-header">
 				<h1>Bonjour {firstName} 👋</h1>
 				<div class="dash-actions">
+					<a href="/agenda" class="btn btn-secondary btn-sm"><Icon name="agenda" size="0.85rem" /> Agenda</a>
 					<a href="/fil?publier" class="btn btn-secondary btn-sm">+ Publier</a>
 					<a href="/sessions" class="btn btn-primary btn-sm">+ Session</a>
 				</div>
@@ -271,41 +266,56 @@
 				</li>
 			{/snippet}
 
-			<!-- Upcoming sessions & session-type agenda events -->
-			{#if upcomingItems.length > 0}
-				<div class="section-header">
-					<h2>Événements à venir</h2>
-					<a href="/agenda" class="link-more">Agenda →</a>
-				</div>
-				<ul class="session-list session-list-upcoming">
-					{#each upcomingItems as item}
-						{#if item.kind === 'session'}
-							{@render sessionCard(item, true)}
-						{:else}
-							<li>
-								<div
-									class="session-card session-card-event"
-									style="--badge-bg: {eventBadgeBg[item.eventType] ?? 'var(--color-bg-subtle)'}; --badge-text: {eventBadgeText[item.eventType] ?? 'var(--color-text-secondary)'}"
-								>
-									<a href="/agenda" class="event-info-link">
-										<div class="session-card-top">
-											<span class="session-date">{formatDate(item.date)}</span>
-											<span class="item-badge item-badge-event">{eventTypeLabel[item.eventType] ?? item.eventType}</span>
-											{#if item.location}
-												<span class="session-loc">{item.location}</span>
-											{/if}
-										</div>
-										<div class="session-count">
-											{item.title ? `${item.title} — ` : ''}prévu à l'agenda, pas encore de session
-										</div>
-									</a>
-									<a href={sessionCreateUrl(item)} class="event-create-btn">Créer la session →</a>
-								</div>
-							</li>
-						{/if}
-					{/each}
-				</ul>
-			{/if}
+			<!-- Upcoming sessions & session-type agenda events. Toujours affichée, même vide :
+			     c'est l'entrée vers l'agenda, et « rien de prévu » est aussi une information. -->
+			<div class="section-header">
+				<h2>À venir</h2>
+				<a href="/agenda" class="link-more">Agenda →</a>
+			</div>
+			<div class="upcoming-block">
+				{#if upcomingItems.length === 0}
+					<p class="empty">
+						Rien de prévu. <a href="/agenda">Ajouter une date à l'agenda →</a>
+					</p>
+				{:else}
+					<ul class="session-list session-list-upcoming">
+						{#each upcomingItems as item}
+							{#if item.kind === 'session'}
+								{@render sessionCard(item, true)}
+							{:else}
+								<li>
+									<div
+										class="session-card session-card-event"
+										style="--badge-bg: {eventBadgeBg[item.eventType] ?? 'var(--color-bg-subtle)'}; --badge-text: {eventBadgeText[item.eventType] ?? 'var(--color-text-secondary)'}"
+									>
+										<a href={agendaDayUrl(item.date)} class="event-info-link">
+											<div class="session-card-top">
+												<span class="session-date">{formatDate(item.date)}</span>
+												<span class="item-badge item-badge-event">{eventTypeLabel[item.eventType] ?? item.eventType}</span>
+												{#if item.location}
+													<span class="session-loc">{item.location}</span>
+												{/if}
+											</div>
+											<div class="session-count">
+												{item.title ? `${item.title} — ` : ''}prévu à l'agenda, pas encore de session
+											</div>
+										</a>
+										<a href={sessionCreateUrl(item)} class="event-create-btn">Créer la session →</a>
+									</div>
+								</li>
+							{/if}
+						{/each}
+					</ul>
+				{/if}
+				{#if unavailabilities.length > 0}
+					<p class="unavail-line">
+						<span class="unavail-label">Indisponibles</span>
+						{#each unavailabilities as u, i}
+							<a href={agendaDayUrl(u.date)}>{u.author} ({formatShortDate(u.date)})</a>{i < unavailabilities.length - 1 ? ', ' : ''}
+						{/each}
+					</p>
+				{/if}
+			</div>
 
 			<!-- Recent (past) sessions -->
 			<div class="section-header">
@@ -323,17 +333,6 @@
 						{@render sessionCard(s)}
 					{/each}
 				</ul>
-			{/if}
-
-			<!-- Next event -->
-			{#if nextEvent}
-				<div class="next-event" style="--event-color: {eventTypeColor[nextEvent.type]}; --event-bg: {eventTypeColorLight[nextEvent.type]}">
-					<span class="next-event-badge">{eventTypeLabel[nextEvent.type] ?? nextEvent.type}</span>
-					<span class="next-event-date">{formatShortDate(nextEvent.date)}</span>
-					{#if nextEvent.title}
-						<span class="next-event-title">— {nextEvent.title}</span>
-					{/if}
-				</div>
 			{/if}
 		</div>
 
@@ -425,8 +424,10 @@
 	/* ─── Header ───────────────────────── */
 	.dash-header {
 		display: flex;
+		flex-wrap: wrap; /* trois boutons + le salut ne tiennent pas sur une ligne à 320 px */
 		align-items: center;
 		justify-content: space-between;
+		gap: 0.5rem;
 		margin-bottom: 1rem;
 	}
 
@@ -558,8 +559,12 @@
 		mask-image: linear-gradient(to bottom, #000 0%, transparent 95%);
 	}
 
-	.session-list-upcoming {
+	.upcoming-block {
 		margin-bottom: 1.4rem;
+	}
+
+	.upcoming-block .empty {
+		margin: 0;
 	}
 
 	.session-list-upcoming .session-card {
@@ -666,29 +671,20 @@
 	}
 
 	/* ─── Next event ───────────────────── */
-	.next-event {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		padding: 0.65rem 0.9rem;
-		border: 1px solid var(--event-color);
-		border-radius: var(--radius-lg);
-		background: var(--event-bg);
-		font-size: 0.82rem;
-		margin-top: 0.5rem;
-	}
-
-	.next-event-badge {
-		font-weight: 700;
-		color: var(--event-color);
-	}
-
-	.next-event-date {
+	.unavail-line {
+		margin: 0.5rem 0 0;
+		font-size: 0.8rem;
 		color: var(--color-text-secondary);
 	}
 
-	.next-event-title {
-		color: var(--color-text-muted);
+	.unavail-label {
+		font-weight: 700;
+		color: var(--color-red);
+		margin-right: 0.3rem;
+	}
+
+	.unavail-line a {
+		color: inherit;
 	}
 
 	/* ─── Timeline ─────────────────────── */

@@ -12,13 +12,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 	if (!groupId) {
 		return {
 			upcomingItems: [], sessions: [], playlists: [], setlists: [], posts: [],
-			stats: null, nextEvent: null, recentComments: []
+			stats: null, unavailabilities: [], recentComments: []
 		}
 	}
 
 	const [
 		upcomingSessions, upcomingGroupEvents, sessions, playlists, setlists, posts,
-		statsRows, nextEventRows, recentComments
+		statsRows, unavailabilities, recentComments
 	] = await Promise.all([
 		sql`
 			SELECT
@@ -89,17 +89,18 @@ export const load: PageServerLoad = async ({ locals }) => {
 				(SELECT COUNT(*)::int FROM recordings r JOIN sessions s ON s.id = r.session_id WHERE s.group_id = ${groupId})          AS recording_count,
 				(SELECT COUNT(*)::int FROM playlists   WHERE group_id = ${groupId})                                                   AS playlist_count
 		`,
-		// Les types repetition/concert/studio/autre sont déjà couverts par "Sessions à venir"
-		// ci-dessus (session réelle ou événement d'agenda) : ne pas les reprendre ici, sous
-		// peine d'afficher le même événement deux fois sur le tableau de bord.
+		// Indisponibilités des membres : elles n'ont pas de group_id (elles suivent la
+		// personne, pas un groupe), d'où le filtre par appartenance comme sur /agenda.
+		// Les autres types sont déjà couverts par « À venir » ci-dessus.
 		sql`
-			SELECT id, date, type, title, notes
-			FROM calendar_events
-			WHERE group_id = ${groupId}
-			  AND date >= CURRENT_DATE
-			  AND type = 'indisponibilite'
-			ORDER BY date ASC
-			LIMIT 1
+			SELECT e.id, e.date, COALESCE(u.display_name, e.author) AS author
+			FROM calendar_events e
+			LEFT JOIN users u ON u.id = e.user_id
+			WHERE e.type = 'indisponibilite'
+			  AND e.date >= CURRENT_DATE
+			  AND e.user_id IN (SELECT user_id FROM user_groups WHERE group_id = ${groupId})
+			ORDER BY e.date ASC
+			LIMIT 4
 		`,
 		// Les derniers commentaires du groupe, sur une prise, une setlist ou une
 		// publication : c'est la cible qui dit à quel groupe le commentaire appartient.
@@ -155,7 +156,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		setlists,
 		posts,
 		stats: statsRows[0] ?? null,
-		nextEvent: nextEventRows[0] ?? null,
+		unavailabilities,
 		recentComments,
 	}
 }

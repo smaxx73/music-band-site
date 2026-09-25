@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types'
+	import { tick } from 'svelte'
 	import { goto, invalidateAll } from '$app/navigation'
 	import Icon from '$lib/components/Icon.svelte'
 
@@ -130,15 +131,30 @@
 		if (selectedDay === day) {
 			selectedDay = null
 		} else {
-			selectedDay = day
-			formType = 'indisponibilite'
-			formTitle = ''
-			formNotes = ''
-			formLocation = ''
-			formSessionId = ''
-			formError = ''
+			openDayPanel(day)
 		}
 	}
+
+	function openDayPanel(day: number) {
+		selectedDay = day
+		formType = 'indisponibilite'
+		formTitle = ''
+		formNotes = ''
+		formLocation = ''
+		formSessionId = ''
+		formError = ''
+	}
+
+	// Jour demandé par l'URL (`?date=`) : panneau ouvert d'emblée, et amené à l'écran —
+	// sur téléphone, il est sous toute la grille du mois. Suivi par valeur, pour qu'un
+	// rechargement des données après un ajout ne rouvre pas un jour refermé.
+	const openDay = $derived(data.openDay)
+	let dayPanel: HTMLElement | undefined = $state()
+	$effect(() => {
+		if (!openDay) return
+		openDayPanel(openDay)
+		tick().then(() => dayPanel?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
+	})
 
 	async function addEvent() {
 		if (!selectedDay) return
@@ -289,7 +305,7 @@
 		{@const dayGroupEvents = groupEventsForDay(selectedDay)}
 		{@const dayUnavails = unavailsForDay(selectedDay)}
 
-		<div class="day-panel">
+		<div class="day-panel" bind:this={dayPanel}>
 			<div class="panel-header">
 				<h2 class="panel-title">{selectedDayLabel}</h2>
 				<button class="btn btn-ghost btn-sm" onclick={() => (selectedDay = null)} aria-label="Fermer le panneau">

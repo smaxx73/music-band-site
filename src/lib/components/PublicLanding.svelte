@@ -1,12 +1,18 @@
 <!-- Page d'accueil publique : montrée sur "/" hors connexion, et toujours sur "/accueil".
      Hors connexion, le formulaire de connexion (celui de /login, même action) ne se
-     déplie qu'après un clic sur "Se connecter" — la description reste visible avant. -->
+     déplie qu'après un clic sur "Se connecter" — la description reste visible avant.
+     Connecté, on y arrive par le logo de la barre du haut : la page propose alors
+     d'emblée le tableau de bord, plutôt que de laisser chercher la sortie dans le menu. -->
 <script lang="ts">
 	import { enhance } from '$app/forms'
 	import { page } from '$app/state'
 	import LegalLinks from '$lib/components/LegalLinks.svelte'
 
-	let { loggedIn = false }: { loggedIn?: boolean } = $props()
+	let {
+		loggedIn = false,
+		userName = null,
+		groupName = null
+	}: { loggedIn?: boolean; userName?: string | null; groupName?: string | null } = $props()
 
 	let showLogin = $state(false)
 </script>
@@ -18,7 +24,14 @@
 		suivre vos morceaux et organiser vos sessions.
 	</p>
 
-	{#if !loggedIn}
+	{#if loggedIn}
+		{#if userName}
+			<p class="landing-welcome">
+				Connecté en tant que <strong>{userName}</strong>{#if groupName}, groupe <strong>{groupName}</strong>{/if}
+			</p>
+		{/if}
+		<a href="/" class="btn btn-primary landing-cta">Aller au tableau de bord →</a>
+	{:else}
 		{#if !showLogin}
 			<button type="button" class="btn btn-primary landing-cta" onclick={() => (showLogin = true)}>
 				Se connecter
@@ -78,6 +91,10 @@
 		max-width: 32rem;
 		margin: 0;
 		color: var(--color-text-secondary);
+	}
+
+	.landing-welcome {
+		margin: 0.5rem 0 0;
 	}
 
 	.landing-cta {

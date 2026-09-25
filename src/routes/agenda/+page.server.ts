@@ -11,12 +11,17 @@ function currentMonth(): string {
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) redirect(302, loginRedirect(url))
 
-	const monthParam = url.searchParams.get('month')
+	// `?date=YYYY-MM-DD` (liens du tableau de bord) ouvre le mois de ce jour, panneau
+	// du jour déplié ; il l'emporte sur `?month=`.
+	const dateParam = url.searchParams.get('date')
+	const openDate = dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : null
+	const monthParam = openDate?.slice(0, 7) ?? url.searchParams.get('month')
 	const month = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : currentMonth()
+	const openDay = openDate ? Number(openDate.slice(8, 10)) : null
 
 	const groupId = locals.user.current_group_id
 	if (!groupId) {
-		return { events: [], sessions: [], month, userName: locals.user.display_name }
+		return { events: [], sessions: [], month, openDay, userName: locals.user.display_name }
 	}
 
 	const [y, m] = month.split('-').map(Number)
@@ -55,5 +60,5 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		`
 	])
 
-	return { events, sessions, month, userName: locals.user.display_name, userId: locals.user.id }
+	return { events, sessions, month, openDay, userName: locals.user.display_name, userId: locals.user.id }
 }

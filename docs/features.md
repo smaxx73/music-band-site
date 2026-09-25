@@ -889,6 +889,8 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 - Chaque événement peut avoir `title`, `notes` et `location`
 - Les indisponibilités affichées sont celles des utilisateurs membres du groupe actif
 - Clic sur un jour → panneau détail : liste des événements du jour + formulaire d'ajout
+- `?date=YYYY-MM-DD` ouvre le mois de ce jour avec son panneau déplié et amené à l'écran
+  (liens du tableau de bord) ; il l'emporte sur `?month=`
 - Badges colorés : rouge = indisponible, bleu = répétition, vert = concert, violet = studio, gris = autre
 - Droits : seul l'auteur peut modifier ou supprimer son indisponibilité ; les événements de groupe sont modifiables/supprimables par les membres du groupe actif
 - `author` = nom de l'utilisateur connecté
@@ -1007,6 +1009,11 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 
 ## Tableau de bord (`/`)
 
+- En-tête : « Agenda », « + Publier », « + Session »
+- Colonne gauche, section **« À venir »** : sessions et événements d'agenda des prochains
+  jours, puis les prochaines indisponibilités des membres. Toujours affichée, même vide
+  (« Rien de prévu », avec un lien pour ajouter une date) : c'est l'entrée vers l'agenda.
+  Un événement ou une indisponibilité mène à `/agenda?date=…`, panneau du jour ouvert
 - Colonne gauche : 3 dernières sessions (date, morceaux travaillés en résumé) ; s'il en existe
   d'autres, la 3ᵉ s'estompe en fondu vers le bas pour signaler la suite derrière « Toutes → »
 - Colonne droite : flux d'actualité (sessions, playlists modifiées, **setlists créées**,
