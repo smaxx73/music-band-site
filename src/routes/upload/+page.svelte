@@ -373,7 +373,7 @@
 			<label class="check-label">
 				<input type="checkbox" bind:checked={multiTake} disabled={uploading} />
 				<span>
-					Ce fichier contient plusieurs prises
+					À découper sur les blancs
 					<span class="hint block">
 						La répétition a été enregistrée d'un bloc : les blancs sont repérés
 						automatiquement et chaque passage devient une prise à part.

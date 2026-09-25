@@ -121,12 +121,12 @@
 </script>
 
 <svelte:head>
-	<title>{recording.title} — Mon espace</title>
+	<title>{recording.title} — Mon espace perso</title>
 </svelte:head>
 
 <main>
 	<nav class="breadcrumb">
-		<a href="/perso">Mon espace</a> / <span>{recording.title}</span>
+		<a href="/perso">Mon espace perso</a> / <span>{recording.title}</span>
 	</nav>
 
 	{#if editing}
@@ -141,7 +141,7 @@
 			</label>
 			{#if editError}<p class="message-error">{editError}</p>{/if}
 			<div class="form-actions">
-				<button type="submit" class="btn btn-primary" disabled={saving}>{saving ? 'Enregistrement…' : 'Enregistrer'}</button>
+				<button type="submit" class="btn btn-primary" disabled={saving}>{saving ? 'Sauvegarde…' : 'Valider'}</button>
 				<button type="button" class="btn btn-ghost" disabled={saving} onclick={() => (editing = false)}>Annuler</button>
 			</div>
 		</form>
@@ -218,7 +218,7 @@
 					<li><a href="/posts/{p.post_id}"><Icon name="send" size="0.8rem" /> {p.group_name}</a></li>
 				{/each}
 			</ul>
-			<p class="hint">Le groupe écoute ce fichier depuis ton espace : le supprimer retire aussi ces publications.</p>
+			<p class="hint">Le groupe écoute ce fichier depuis ton espace perso : le supprimer retire aussi ces publications.</p>
 		{/if}
 	</section>
 

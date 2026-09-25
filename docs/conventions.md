@@ -168,6 +168,8 @@ de fenêtre.
   défile sur lui-même au lieu d'élargir la page (mode édition des prises, fenêtre étroite)
 
 ## Données
+- Les noms de tables ne sont pas les mots de l'écran : `recordings` = les **prises**,
+  `personal_recordings` = les **enregistrements** perso — voir « Vocabulaire » dans docs/features.md
 - `recordings` est le nœud central — il appartient à une session ET à un morceau
 - Vue session = requête sur `recordings` groupée par `song_id`
 - Vue morceau = requête sur `recordings` filtrée par `song_id`, toutes sessions

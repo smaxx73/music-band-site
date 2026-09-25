@@ -199,7 +199,7 @@
 				}}
 			></textarea>
 			<div class="editor-actions">
-				<button class="btn btn-primary btn-sm" onclick={saveMessage} disabled={saving}>{saving ? 'Enregistrement…' : 'Enregistrer'}</button>
+				<button class="btn btn-primary btn-sm" onclick={saveMessage} disabled={saving}>{saving ? 'Sauvegarde…' : 'Valider'}</button>
 				<button class="btn btn-ghost btn-sm" onclick={() => (editing = false)} disabled={saving}>Annuler</button>
 			</div>
 		</div>
@@ -246,6 +246,20 @@
 				}}
 			/>
 		</div>
+		{#if post.type === 'recording'}
+			<!-- Écouté ici comme une prise, mais absent des sessions et des morceaux : sans ce
+			     rappel, on le cherche ensuite là où il n'est pas. -->
+			<p class="hint origin">
+				{#if data.user?.id === post.author_user_id && post.personal_recording_id !== null}
+					Ton enregistrement perso, pas encore une prise du groupe.
+					<a href="/perso/{post.personal_recording_id}?classer">Le classer dans une session</a>
+					— cette publication et ses commentaires partiront avec lui.
+				{:else}
+					Enregistrement perso de {post.author}, pas une prise du groupe : il n'apparaît ni
+					dans les sessions ni dans les morceaux. Seul son auteur peut le classer dans une session.
+				{/if}
+			</p>
+		{/if}
 	{/if}
 
 	<div class="reactions">
@@ -305,6 +319,8 @@
 	.suggestion { display: flex; flex-direction: column; gap: 0.75rem; }
 	.suggestion-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 0.75rem; }
 	.hint { font-size: var(--text-xs); color: var(--color-text-muted); }
+
+	.origin { margin: 0.5rem 0 0; }
 
 	.reactions { margin-top: var(--space-4); }
 

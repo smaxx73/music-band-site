@@ -39,7 +39,7 @@
 
 	const TYPES: PostType[] = ['recording', 'youtube', 'song_suggestion']
 
-	// Une vidéo déjà rangée dans l'espace se publie « déjà dans mon espace », pas en
+	// Une vidéo déjà rangée dans l'espace se publie « déjà dans mon espace perso », pas en
 	// recollant son lien : c'est pourquoi le lien YouTube se dit « nouveau ».
 	const TYPE_LABELS: Record<PostType, string> = {
 		recording: 'Enregistrement',
@@ -50,7 +50,7 @@
 	/** D'où vient l'enregistrement publié : de l'espace, ou fait à l'instant. */
 	type Source = 'existing' | 'file' | 'record'
 	const SOURCES: { value: Source; label: string; icon: 'user' | 'upload' | 'mic' }[] = [
-		{ value: 'existing', label: 'Déjà dans mon espace', icon: 'user' },
+		{ value: 'existing', label: 'Déjà dans mon espace perso', icon: 'user' },
 		{ value: 'file', label: 'Fichier', icon: 'upload' },
 		{ value: 'record', label: 'Enregistrer', icon: 'mic' }
 	]
@@ -128,7 +128,7 @@
 
 	/** Si le fichier est déjà dans l'espace, l'erreur le dit : rien n'est perdu, et « Publier » réessaie. */
 	function publishError(message: string): string {
-		return saved ? `Rangé dans ton espace, mais pas encore publié : ${message}` : message
+		return saved ? `Rangé dans ton espace perso, mais pas encore publié : ${message}` : message
 	}
 
 	async function submit(event: SubmitEvent) {
@@ -203,7 +203,7 @@
 			{/if}
 
 			{#if locked}
-				<p class="hint">Le groupe l'écoutera depuis ton espace, sans copie : le supprimer retire aussi la publication.</p>
+				<p class="hint">Le groupe l'écoutera depuis ton espace perso, sans copie : le supprimer retire aussi la publication.</p>
 			{:else if type === 'recording'}
 				<div class="source-tabs" role="tablist" aria-label="Source">
 					{#each SOURCES as option (option.value)}
@@ -239,11 +239,11 @@
 						Titre <span class="optional">{source === 'file' ? '(par défaut : le nom du fichier)' : ''}</span>
 						<input class="form-input" type="text" bind:value={newTitle} maxlength="200" disabled={submitting} />
 					</label>
-					<p class="hint">Rangé dans ton espace, et publié ici sans copie : le supprimer de ton espace retire aussi la publication.</p>
+					<p class="hint">Rangé dans ton espace perso, et publié ici sans copie : le supprimer de ton espace perso retire aussi la publication.</p>
 				{:else if publishable.length === 0}
 					<p class="hint">
 						{recordings.length === 0
-							? 'Ton espace est vide : ajoute d’abord un enregistrement.'
+							? 'Ton espace perso est vide : ajoute d’abord un enregistrement.'
 							: 'Tous tes enregistrements sont déjà publiés dans ce groupe.'}
 					</p>
 				{:else}
@@ -256,7 +256,7 @@
 							{/each}
 						</select>
 					</label>
-					<p class="hint">Le groupe l'écoutera depuis ton espace, sans copie : le supprimer retire aussi la publication.</p>
+					<p class="hint">Le groupe l'écoutera depuis ton espace perso, sans copie : le supprimer retire aussi la publication.</p>
 				{/if}
 			{:else if type === 'youtube'}
 				<label class="form-label">

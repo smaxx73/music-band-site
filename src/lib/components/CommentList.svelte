@@ -366,7 +366,7 @@
 					{/if}
 					<div class="edit-actions">
 						<button class="btn btn-primary btn-sm" disabled={saving} onclick={() => saveEdit(comment)}>
-							{saving ? 'Enregistrement…' : 'Enregistrer'}
+							{saving ? 'Sauvegarde…' : 'Valider'}
 						</button>
 						<button class="btn btn-ghost btn-sm" disabled={saving} onclick={cancelEdit}>Annuler</button>
 						{#if editError}<span class="reaction-error">{editError}</span>{/if}

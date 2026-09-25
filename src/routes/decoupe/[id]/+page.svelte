@@ -391,7 +391,7 @@
 <main>
 	<div class="page-header">
 		<h1>Découper l'enregistrement</h1>
-		<a href={backUrl} class="btn btn-ghost btn-sm back-link">{personal ? '← Mon espace' : '← Upload'}</a>
+		<a href={backUrl} class="btn btn-ghost btn-sm back-link">{personal ? '← Mon espace perso' : '← Upload'}</a>
 	</div>
 
 	<p class="source">
@@ -467,7 +467,7 @@
 				/>
 			</label>
 			<label class="form-label">
-				Prise minimum <span class="value">{params.min_segment_s} s</span>
+				{personal ? 'Passage' : 'Prise'} minimum <span class="value">{params.min_segment_s} s</span>
 				<input
 					type="range"
 					bind:value={params.min_segment_s}
@@ -503,13 +503,13 @@
 	<!-- Destination -->
 	{#if personal}
 		<fieldset>
-			<legend>Mon espace</legend>
+			<legend>Mon espace perso</legend>
 			<label class="form-label">
 				Titre commun
 				<input class="form-input" type="text" bind:value={baseTitle} maxlength="180" disabled={creating} />
 			</label>
 			<p class="hint">
-				Chaque passage retenu devient un enregistrement de ton espace, sous ce titre
+				Chaque passage retenu devient un enregistrement de ton espace perso, sous ce titre
 				numéroté — sauf si tu lui en donnes un ci-dessous.
 			</p>
 		</fieldset>
@@ -533,7 +533,7 @@
 		{#if segments.length === 0}
 			<p class="hint">
 				Aucun passage sonore détecté avec ces réglages. Baisse le seuil ou la durée
-				minimale d'une prise, puis relance l'analyse.
+				minimale {personal ? "d'un passage" : "d'une prise"}, puis relance l'analyse.
 			</p>
 		{:else}
 			<p class="hint">

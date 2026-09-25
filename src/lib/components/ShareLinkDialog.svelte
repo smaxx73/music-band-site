@@ -167,7 +167,11 @@
 		{#if loading}
 			<p class="empty">Chargement…</p>
 		{:else if links.length === 0}
-			<p class="empty">Aucun lien actif : cet enregistrement n'est pas écoutable hors du groupe.</p>
+			<p class="empty">
+				{target.kind === 'recording'
+					? "Aucun lien actif : cette prise n'est pas écoutable hors du groupe."
+					: "Aucun lien actif : cet enregistrement n'est pas écoutable sans compte."}
+			</p>
 		{:else}
 			<ul class="links">
 				{#each links as link (link.id)}

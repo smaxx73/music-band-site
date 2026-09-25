@@ -374,7 +374,7 @@
 							disabled={renaming}
 						/>
 						<button type="submit" class="btn btn-primary btn-sm" disabled={renaming || !renameDraft.trim()}>
-							{renaming ? 'Enregistrement…' : 'Renommer'}
+							{renaming ? 'Renommage…' : 'Renommer'}
 						</button>
 					</form>
 					{#if renameClash}
@@ -438,10 +438,10 @@
 					></textarea>
 					<div class="notes-actions">
 						<button class="btn btn-primary btn-sm" onclick={saveNotes} disabled={notesSaving}>
-							{notesSaving ? 'Enregistrement…' : 'Enregistrer'}
+							{notesSaving ? 'Sauvegarde…' : 'Valider'}
 						</button>
 						<button class="btn btn-ghost btn-sm" onclick={cancelEditNotes} disabled={notesSaving}>Annuler</button>
-						<span class="notes-hint">Ctrl/⌘+Entrée pour enregistrer</span>
+						<span class="notes-hint">Ctrl/⌘+Entrée pour valider</span>
 					</div>
 				{:else if recording.notes}
 					<button class="notes-display" onclick={startEditNotes} title="Cliquer pour modifier">

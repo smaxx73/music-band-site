@@ -66,7 +66,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			if (duplicate) {
 				await unlink(tmpPath).catch(() => {})
 				return json(
-					{ error: `Ce fichier est déjà dans ton espace : « ${duplicate.title} ».`, existing_id: duplicate.id },
+					{ error: `Ce fichier est déjà dans ton espace perso : « ${duplicate.title} ».`, existing_id: duplicate.id },
 					{ status: 409 }
 				)
 			}

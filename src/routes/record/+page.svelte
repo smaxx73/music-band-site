@@ -244,17 +244,17 @@
 					<label class="check-label">
 						<input type="radio" name="content" value={true} bind:group={multiTake} disabled={uploading} />
 						<span>
-							Plusieurs morceaux
+							À découper sur les blancs
 							<span class="hint block">
 								{destination === 'perso'
-									? 'Les blancs sont repérés et chaque passage devient un enregistrement de ton espace.'
+									? 'Les blancs sont repérés et chaque passage devient un enregistrement de ton espace perso.'
 									: 'Les blancs sont repérés et chaque passage devient une prise.'}
 							</span>
 						</span>
 					</label>
 					<label class="check-label">
 						<input type="radio" name="content" value={false} bind:group={multiTake} disabled={uploading} />
-						<span>Un seul morceau</span>
+						<span>D'un seul tenant</span>
 					</label>
 				</fieldset>
 			{/snippet}
@@ -352,7 +352,7 @@
 				{:else if multiTake}
 					Envoyer et découper
 				{:else if destination === 'perso'}
-					Ajouter à mon espace
+					Ajouter à mon espace perso
 				{:else}
 					Envoyer la prise
 				{/if}

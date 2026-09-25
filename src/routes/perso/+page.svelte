@@ -157,13 +157,13 @@
 </script>
 
 <svelte:head>
-	<title>Mon espace</title>
+	<title>Mon espace perso</title>
 </svelte:head>
 
 <main>
 	<div class="page-header">
 		<div>
-			<h1>Mon espace</h1>
+			<h1>Mon espace perso</h1>
 			<p class="lede">Visible par toi seul. Tu choisis ce que tu publies dans un groupe.</p>
 		</div>
 		{#if currentGroup}
@@ -212,14 +212,14 @@
 				<legend class="form-label">Contenu</legend>
 				<label class="check-label">
 					<input type="radio" name="content" value={false} bind:group={multiPart} disabled={sending} />
-					<span>Un seul morceau</span>
+					<span>D'un seul tenant</span>
 				</label>
 				<label class="check-label">
 					<input type="radio" name="content" value={true} bind:group={multiPart} disabled={sending} />
 					<span>
-						Plusieurs morceaux
+						À découper sur les blancs
 						<span class="optional block">
-							Les blancs sont repérés et chaque passage devient un enregistrement de ton espace.
+							Les blancs sont repérés et chaque passage devient un enregistrement de ton espace perso.
 						</span>
 					</span>
 				</label>
@@ -247,7 +247,7 @@
 
 		<div class="add-actions">
 			<button type="submit" class="btn btn-primary" disabled={sending || recorderBusy}>
-				{#if sending}{source === 'youtube' ? 'Ajout…' : progress < 100 ? `Envoi… ${progress} %` : splitting ? 'Préparation…' : 'Conversion…'}{:else if splitting}Envoyer et découper{:else}Ajouter à mon espace{/if}
+				{#if sending}{source === 'youtube' ? 'Ajout…' : progress < 100 ? `Envoi… ${progress} %` : splitting ? 'Préparation…' : 'Conversion…'}{:else if splitting}Envoyer et découper{:else}Ajouter à mon espace perso{/if}
 			</button>
 		</div>
 	</form>

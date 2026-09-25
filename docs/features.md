@@ -1,5 +1,33 @@
 # Comportements attendus par feature
 
+## Vocabulaire
+
+Trois objets portent du son, ou s'y rapportent, et se confondent vite. Un écran n'emploie
+un mot que dans le sens de cette table ; le code, lui, a gardé ses noms anglais, qui ne
+recoupent **pas** les mots de l'écran.
+
+| À l'écran | Ce que c'est | En base / URL |
+|---|---|---|
+| **Morceau** | l'œuvre, au référentiel du groupe ; pas un son | `songs`, `/songs/[id]` |
+| **Prise** | un son d'une session, joué sur un morceau, numéroté (« Sunny — Prise 3 ») | `recordings`, `/recording/[id]` |
+| **Enregistrement** (perso) | un son à soi, titré, sans session ni morceau | `personal_recordings`, `/perso/[id]` |
+| **Espace perso** | l'ensemble de ses enregistrements — jamais « Mon espace » seul, ni « privé » | `/perso` |
+| **Publication** | un renvoi vers un enregistrement (ou une vidéo, une suggestion) dans un groupe | `posts`, `/posts/[id]` |
+| **Segment** / **passage** | portion détectée par la découpe ; devient une prise ou un enregistrement | `audio_imports` (le fichier) |
+
+- `recordings` veut dire **prise**, jamais « enregistrement » : un `RecordingRow` est une
+  ligne de prise, un `personal_recording` un enregistrement
+- Un enregistrement **publié** reste un enregistrement, pas une prise ; **classé**, il en
+  devient une et cesse d'être un enregistrement
+- **Enregistrer** désigne la captation au micro (`/record`, onglet « Enregistrer »). Là où
+  un enregistrement ou une prise est à l'écran — page d'une prise, d'un enregistrement,
+  d'une publication, édition d'un commentaire —, sauvegarder se dit **Valider**
+  (« Sauvegarde… » pendant l'envoi), pour qu'un bouton ne se lise pas « capter »
+- Le choix de découpe se dit **« D'un seul tenant / À découper sur les blancs »**, sans
+  « morceaux » ni « prises » : vers l'espace perso, un passage ne devient ni l'un ni l'autre
+- **Reprise** désigne un morceau d'un autre artiste (`songs.original_artist`) ; une découpe
+  se **reprend**
+
 ## Upload d'une prise
 
 1. Sélection de la **session** (existante ou création à la volée) et du **morceau**
@@ -71,7 +99,7 @@ au milieu de la salle, ou l'interface audio branchée au PC.
   terminé, préremplis au plus probable :
   - la **session du jour** si elle existe (date de l'appareil), sinon une nouvelle session
     datée d'aujourd'hui, créée à l'envoi
-  - **« Plusieurs morceaux »** (découpe) dès 10 min d'enregistrement, « Un seul morceau »
+  - **« À découper sur les blancs »** dès 10 min d'enregistrement, « D'un seul tenant »
     en deçà, avec le choix du morceau — ou sa création sur place, voir « Morceau absent
     du référentiel »
 - **Destination : le groupe, ou son espace perso.** Le groupe par défaut — c'est la
@@ -80,7 +108,7 @@ au milieu de la salle, ou l'interface audio branchée au PC.
   entrer dans le groupe tant qu'on ne l'a pas décidé, et elle se classera en prise plus
   tard (voir « Classer un enregistrement perso dans une session »). Elle passe par
   `POST /api/personal`, comme un dépôt fait depuis `/perso` — **rien de neuf côté serveur**.
-  « Plusieurs morceaux » y vaut aussi : l'enregistrement part en découpe vers l'espace
+  « À découper sur les blancs » y vaut aussi : l'enregistrement part en découpe vers l'espace
   perso (voir « Découpe vers l'espace perso ») : le titre saisi devient le titre commun
   des passages, et la note, sans équivalent, disparaît du formulaire
   Sans groupe actif, l'espace perso est la seule destination proposée
@@ -125,8 +153,11 @@ au milieu de la salle, ou l'interface audio branchée au PC.
 
 Premier des outils d'amélioration audio branchés à la suite de l'upload.
 
-- Case **« Ce fichier contient plusieurs prises »** sur `/upload`. Le morceau ne se
+- Case **« À découper sur les blancs »** sur `/upload`. Le morceau ne se
   choisit alors pas dans le formulaire : il se choisit segment par segment, après analyse
+- Le même libellé partout (`/upload`, `/record`, `/perso`), qui ne parle ni de morceaux ni
+  de prises : vers l'espace perso, un passage ne devient ni l'un ni l'autre. L'écran de
+  découpe y dit « passage » là où il dit « prise » pour le groupe
 - Le fichier part en **zone de transit** (`audio_imports`) et y attend d'être découpé.
   **Rien n'entre dans `recordings`** avant validation
 - **L'original est conservé intact** : c'est dans lui que les prises seront taillées, et il
@@ -189,7 +220,7 @@ Premier des outils d'amélioration audio branchés à la suite de l'upload.
 Une séance de travail seul, plusieurs idées jouées d'affilée : le même outil, mais chaque
 passage devient un **enregistrement perso**, pas une prise.
 
-- « Plusieurs morceaux » sur `/perso` (fichier ou enregistrement) et sur `/record` quand la
+- « À découper sur les blancs » sur `/perso` (fichier ou enregistrement) et sur `/record` quand la
   destination est l'espace perso. Même seuil qu'au groupe : proposé d'office dès 10 min
   d'enregistrement en direct
 - `POST /api/imports` avec `destination=perso` : ni groupe actif, ni session. L'import a
@@ -245,7 +276,7 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
 - La vidéo est vérifiée **avant** la conversion : oEmbed répond « privée ou intégration
   désactivée » → `400` ; YouTube injoignable depuis le serveur ne bloque pas l'ajout
 - Doublon : la même vidéo déjà présente dans le groupe actif → `409`
-- La découpe (« plusieurs prises ») ne s'applique pas à une vidéo
+- La découpe (« à découper sur les blancs ») ne s'applique pas à une vidéo
 - La vidéo doit être **publique ou non répertoriée** : l'authentification de l'application ne
   la protège pas, et une vidéo privée ne s'intègre pas
 - `/recording/[id]` : avec les deux, onglets **Audio** (par défaut : c'est la piste que jouent
@@ -798,6 +829,10 @@ Chacune porte un **message** facultatif (« écoutez le pont, j'ai changé les a
   revient à l'auteur et aux admins du groupe (`canDeleteGroupContent`). Retirer une
   publication ne touche jamais l'enregistrement perso qu'elle montre
 - Un membre qui quitte le groupe laisse ses publications, comme ses prises
+- Sous le lecteur d'un enregistrement publié, une ligne rappelle que ce n'est **pas une
+  prise** : il s'écoute et se commente comme elle, mais n'apparaît ni dans les sessions ni
+  dans les morceaux, et on l'y chercherait. À son auteur, elle propose de le classer
+  (`/perso/[id]?classer`) en disant que la publication et ses commentaires partiront avec lui
 
 ### Suggestion de morceau
 
