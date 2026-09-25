@@ -88,10 +88,14 @@ Deux niveaux de droits au-delà de l'authentification :
 Les **imports** (`api/imports/`) sont la zone de transit des outils audio d'après upload :
 un fichier déposé qui n'est pas encore devenu des prises. Ils font exception au scope de
 groupe seul — un import est **personnel** : le filtre `user_id = locals.user.id` s'ajoute
-au groupe, et l'import d'un autre répond `404`. Rien n'y est publié, personne d'autre n'a
+au groupe (ou le remplace pour un import destiné à l'espace perso), et l'import d'un autre
+répond `404`. Rien n'y est publié, personne d'autre n'a
 à le voir. Passer par `src/lib/server/imports.ts`, jamais par un SQL direct.
 `POST /api/imports` (multipart, champs `audio` + `session_id`) dépose le fichier : l'original
-est conservé tel quel et un proxy léger est fabriqué pour le travail ;
+est conservé tel quel et un proxy léger est fabriqué pour le travail. Avec `destination=perso`
+(sans `session_id`, sans groupe actif requis), l'import vise l'espace perso : `group_id` NULL,
+visible de son déposant quel que soit le groupe actif, et `/split` y prend
+`{ segments: [{ start_s, end_s, title }] }` pour créer des `personal_recordings` au lieu de prises ;
 `GET /api/imports/[id]` relance la détection des blancs
 (`?threshold_db=&min_silence_s=&min_segment_s=&pad_s=`, bornés côté serveur par
 `normalizeParams`, qui retombe sur les défauts pour tout paramètre absent) ; `GET /api/imports/[id]/audio` sert le **proxy**

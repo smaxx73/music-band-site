@@ -62,6 +62,15 @@ export function sendAudioFile<T>(
 	})
 }
 
+/**
+ * Écran de découpe d'un import. `titre` porte le titre commun déjà saisi pour un import
+ * perso : sans lui, l'écran repartirait de son propre défaut et le titre tapé se perdrait.
+ */
+export function splitUrl(importId: string, title?: string): string {
+	const trimmed = title?.trim()
+	return trimmed ? `/decoupe/${importId}?titre=${encodeURIComponent(trimmed)}` : `/decoupe/${importId}`
+}
+
 export type NewSession = { date: string; type: string; title?: string; location?: string }
 
 /** Crée une session à la volée ; lève une erreur lisible en cas d'échec. */

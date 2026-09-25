@@ -661,6 +661,8 @@ export type AudioSegment = { start_s: number; end_s: number }
  */
 export type AudioImport = {
 	id: string
+	/** NULL = découpe vers l'espace perso du déposant : les passages n'y deviennent pas des prises. */
+	group_id: number | null
 	session_id: number | null
 	file_name: string
 	/** Type de l'original conservé, tel que déposé. */

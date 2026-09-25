@@ -7,26 +7,29 @@ import { loginRedirect } from '$lib/redirect'
 
 export const load: PageServerLoad = async ({ locals, params, url }) => {
 	if (!locals.user) redirect(302, loginRedirect(url))
-	if (!locals.user.current_group_id) redirect(302, '/upload')
 
-	const groupId = locals.user.current_group_id
-	const audioImport = await loadImport(locals.user.id, groupId, params.id)
+	const audioImport = await loadImport(locals.user, params.id)
 	if (!audioImport) {
 		error(404, "Cet import n'existe plus : il a déjà été découpé ou a expiré.")
 	}
 
-	const [songs, sessions] = await Promise.all([
-		sql<{ id: number; title: string }[]>`
-			SELECT id, title FROM songs
-			WHERE group_id = ${groupId} AND status != 'abandonne'
-			ORDER BY title
-		`,
-		sql<{ id: number; date: string; location: string | null }[]>`
-			SELECT id, date, location FROM sessions
-			WHERE group_id = ${groupId}
-			ORDER BY date DESC
-		`
-	])
+	// Un import destiné à l'espace perso ne demande ni session ni morceau : chaque
+	// passage y reçoit un titre.
+	const groupId = audioImport.group_id
+	const [songs, sessions] = groupId === null
+		? [[], []]
+		: await Promise.all([
+			sql<{ id: number; title: string }[]>`
+				SELECT id, title FROM songs
+				WHERE group_id = ${groupId} AND status != 'abandonne'
+				ORDER BY title
+			`,
+			sql<{ id: number; date: string; location: string | null }[]>`
+				SELECT id, date, location FROM sessions
+				WHERE group_id = ${groupId}
+				ORDER BY date DESC
+			`
+		])
 
 	// Une analyse qui échoue ne doit pas rendre la page inaccessible : l'écran
 	// affiche alors le message et propose d'abandonner l'import.

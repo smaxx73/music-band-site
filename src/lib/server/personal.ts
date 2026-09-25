@@ -172,6 +172,58 @@ export function normalizeNotes(raw: unknown): string | null {
 	return value ? value.slice(0, PERSONAL_NOTES_MAX) : null
 }
 
+/** Un passage déjà taillé dans l'original d'un import, prêt à entrer dans l'espace perso. */
+export type PersonalSlice = {
+	tmpPath: string
+	title: string
+	durationS: number | null
+	hash: string
+}
+
+/**
+ * Fait des passages d'une découpe autant d'enregistrements perso. Les lignes naissent
+ * ensemble, dans une transaction ; les fichiers sont posés ensuite, comme à l'upload.
+ * Si quoi que ce soit échoue, lignes et fichiers déjà posés repartent : rien ne reste à
+ * moitié fait, et l'appelant rouvre l'import.
+ */
+export async function createPersonalFromSlices(opts: {
+	userId: number
+	sourceFileName: string
+	slices: PersonalSlice[]
+}): Promise<number[]> {
+	const { userId, sourceFileName, slices } = opts
+	let ids: number[] = []
+	try {
+		ids = await sql.begin(async (tx) => {
+			const created: number[] = []
+			for (const slice of slices) {
+				// Tous portent le nom du fichier découpé : ils viennent réellement du même
+				// enregistrement, et c'est ce qu'on cherche à retrouver plus tard.
+				const [row] = await tx<{ id: number }[]>`
+					INSERT INTO personal_recordings (user_id, title, file_path, source_file_name, duration_s, file_hash)
+					VALUES (${userId}, ${slice.title}, ${'pending'}, ${sourceFileName}, ${slice.durationS}, ${slice.hash})
+					RETURNING id
+				`
+				created.push(row.id)
+			}
+			return created
+		})
+
+		await ensurePersonalDir()
+		for (const [index, id] of ids.entries()) {
+			await copyFile(slices[index].tmpPath, personalAudioPath(id))
+			await sql`UPDATE personal_recordings SET file_path = ${personalFilePath(id)} WHERE id = ${id}`
+		}
+		return ids
+	} catch (err) {
+		for (const id of ids) {
+			await unlink(personalAudioPath(id)).catch(() => {})
+			await sql`DELETE FROM personal_recordings WHERE id = ${id} AND user_id = ${userId}`.catch(() => {})
+		}
+		throw err
+	}
+}
+
 /**
  * Fait d'un enregistrement perso une prise du groupe : le carnet sert justement à capter
  * ce qu'on n'a pas eu le temps de classer — la session oubliée, l'idée venue seule. Le son

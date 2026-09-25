@@ -12,9 +12,8 @@ import { loadAnyImport, releaseImport, sourcePath } from '$lib/server/imports'
  */
 export const POST: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
-	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
 
-	const audioImport = await loadAnyImport(locals.user.id, locals.user.current_group_id, params.id)
+	const audioImport = await loadAnyImport(locals.user, params.id)
 	if (!audioImport) return json({ error: 'Import introuvable.' }, { status: 404 })
 
 	// La ligne peut survivre à ses octets (conteneur redémarré) : sans original, il n'y a

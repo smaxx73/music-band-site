@@ -12,9 +12,8 @@ import { streamAudioFile } from '$lib/server/storage'
  */
 export const GET: RequestHandler = async ({ locals, params, request }) => {
 	if (!locals.user) return new Response('Non autorisé', { status: 401 })
-	if (!locals.user.current_group_id) return new Response('Aucun groupe actif', { status: 403 })
 
-	const audioImport = await loadImport(locals.user.id, locals.user.current_group_id, params.id)
+	const audioImport = await loadImport(locals.user, params.id)
 	if (!audioImport) return new Response('Not found', { status: 404 })
 
 	const response = await streamAudioFile(proxyPath(audioImport.id), request)

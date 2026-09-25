@@ -18,7 +18,8 @@ import {
  * n'habitent volontairement PAS `AUDIO_DIR` : ce dossier est celui des prises validées,
  * exposé sous `/audio/`, où l'accès s'autorise par l'id de la prise. Un fichier que
  * personne n'a encore validé n'a pas cet id et n'a rien à y faire. Le répertoire temporaire
- * du conteneur convient : un import vit quelques minutes, le temps de la découpe.
+ * du conteneur convient : un import ne vit que le temps de sa rétention (`RETENTION_MS`),
+ * et une recréation du conteneur qui l'emporterait ne perd rien de validé.
  *
  * Chaque import tient en deux fichiers :
  * - **l'original**, conservé intact, dans lequel les prises seront taillées. C'est lui
@@ -30,6 +31,11 @@ import {
  *
  * Les deux partagent la même échelle de temps : une borne trouvée sur le proxy vaut
  * pour l'original (voir `createProxy`).
+ *
+ * Un import vise un groupe (les passages deviennent des prises d'une session) ou l'espace
+ * perso de son déposant (`group_id` NULL : les passages deviennent des enregistrements
+ * perso). La zone de transit et l'écran de découpe sont les mêmes ; seule la validation
+ * diffère (`api/imports/[id]/split`).
  */
 const IMPORTS_DIR = join(tmpdir(), 'band-imports')
 
@@ -155,7 +161,8 @@ function round(seconds: number): number {
 // ─── Cycle de vie ─────────────────────────────────────────────────────────
 
 export type CreateImportInput = {
-	groupId: number
+	/** NULL = découpe vers l'espace perso : les passages n'entrent dans aucun groupe. */
+	groupId: number | null
 	userId: number
 	sessionId: number | null
 	fileName: string
@@ -167,27 +174,33 @@ export type CreateImportInput = {
 	durationS: number | null
 }
 
+const IMPORT_COLUMNS = sql`id, group_id, session_id, file_name, source_mime, duration_s, consumed_at, created_at`
+
 export async function createImport(input: CreateImportInput): Promise<AudioImport> {
 	const [row] = await sql<AudioImport[]>`
 		INSERT INTO audio_imports (id, group_id, user_id, session_id, file_name, source_mime, file_hash, duration_s)
 		VALUES (${input.id}, ${input.groupId}, ${input.userId}, ${input.sessionId},
 		        ${input.fileName}, ${input.sourceMime}, ${input.fileHash}, ${input.durationS})
-		RETURNING id, session_id, file_name, source_mime, duration_s, created_at
+		RETURNING ${IMPORT_COLUMNS}
 	`
 	return row
 }
 
+/** Qui demande l'import : son déposant, avec le groupe actif que `hooks.server.ts` a validé. */
+export type ImportRequester = { id: number; current_group_id: number | null }
+
 /**
  * Charge un import en vérifiant qu'il appartient bien à celui qui le demande.
- * Un import est personnel : il n'est visible que de son déposant, dans le groupe où
- * il l'a déposé. Rien n'est encore publié, personne d'autre n'a à le voir.
+ * Un import est personnel : il n'est visible que de son déposant — et, s'il vise un
+ * groupe, seulement dans ce groupe-là. Rien n'est encore publié, personne d'autre n'a à
+ * le voir. Un import destiné à l'espace perso se voit quel que soit le groupe actif,
+ * comme l'espace lui-même.
  */
 export async function loadImport(
-	userId: number,
-	groupId: number | null,
+	requester: ImportRequester,
 	id: string
 ): Promise<AudioImport | null> {
-	const row = await loadAnyImport(userId, groupId, id)
+	const row = await loadAnyImport(requester, id)
 	// Une découpe déjà validée n'est plus un chantier ouvert : elle ne se ré-analyse et
 	// ne se redécoupe qu'après avoir été explicitement reprise (`releaseImport`).
 	return row && row.consumed_at === null ? row : null
@@ -195,32 +208,32 @@ export async function loadImport(
 
 /** Comme `loadImport`, mais voit aussi les découpes déjà validées encore en rétention. */
 export async function loadAnyImport(
-	userId: number,
-	groupId: number | null,
+	requester: ImportRequester,
 	id: string
 ): Promise<AudioImport | null> {
-	if (!groupId || !isUuid(id)) return null
+	if (!isUuid(id)) return null
 	const [row] = await sql<AudioImport[]>`
-		SELECT id, session_id, file_name, source_mime, duration_s, consumed_at, created_at
+		SELECT ${IMPORT_COLUMNS}
 		FROM audio_imports
-		WHERE id = ${id} AND user_id = ${userId} AND group_id = ${groupId}
+		WHERE id = ${id} AND user_id = ${requester.id}
+		  AND (group_id IS NULL OR group_id = ${requester.current_group_id})
 	`
 	return row ?? null
 }
 
 /**
- * Les fichiers encore repris de l'utilisateur, proposés sur `/upload`. C'est la porte
+ * Les fichiers encore repris de l'utilisateur, proposés sur `/upload` (`groupId` : ceux du
+ * groupe actif) et sur `/perso` (`null` : ceux destinés à l'espace perso). C'est la porte
  * d'entrée du rattrapage : sans elle, garder l'original une semaine ne servirait à rien.
  */
 export async function listRecentImports(
 	userId: number,
 	groupId: number | null
 ): Promise<AudioImport[]> {
-	if (!groupId) return []
 	const rows = await sql<AudioImport[]>`
-		SELECT id, session_id, file_name, source_mime, duration_s, consumed_at, created_at
+		SELECT ${IMPORT_COLUMNS}
 		FROM audio_imports
-		WHERE user_id = ${userId} AND group_id = ${groupId}
+		WHERE user_id = ${userId} AND group_id IS NOT DISTINCT FROM ${groupId}
 		ORDER BY created_at DESC
 	`
 
@@ -245,11 +258,11 @@ export function isUuid(value: string): boolean {
  * Verrou d'unicité de la découpe : la ligne est réclamée avant tout travail, pour
  * qu'un double clic ne crée pas deux séries de prises. Libéré si la découpe échoue.
  */
-export async function claimImport(userId: number, groupId: number, id: string): Promise<boolean> {
+export async function claimImport(userId: number, id: string): Promise<boolean> {
 	if (!isUuid(id)) return false
 	const [row] = await sql<{ id: string }[]>`
 		UPDATE audio_imports SET consumed_at = now()
-		WHERE id = ${id} AND user_id = ${userId} AND group_id = ${groupId} AND consumed_at IS NULL
+		WHERE id = ${id} AND user_id = ${userId} AND consumed_at IS NULL
 		RETURNING id
 	`
 	return Boolean(row)

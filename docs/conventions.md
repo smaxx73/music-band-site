@@ -43,6 +43,7 @@ src/
 │       ├── MediaPlayer.svelte     # lecteur d'un enregistrement perso (audio et/ou vidéo, hors barre du bas)
 │       ├── PublishDialog.svelte   # publier dans le groupe actif : enregistrement perso, vidéo, suggestion
 │       ├── ClassifyDialog.svelte  # classer un enregistrement perso en prise (session + morceau)
+│       ├── PendingImports.svelte  # fichiers encore en transit : reprendre ou refaire une découpe
 │       ├── ShareLinkDialog.svelte # liens d'écoute publics d'un enregistrement : créer, révoquer
 │       ├── PostReactions.svelte   # pouces 👍/👎 d'une publication (fil et page de la publication)
 │       ├── FeedItem.svelte        # une carte du fil d'actualité, selon le type d'élément
@@ -60,7 +61,7 @@ src/
 │   ├── setlists/+page.svelte
 │   ├── setlists/[id]/+page.svelte
 │   ├── upload/+page.svelte
-│   ├── upload/decoupe/[id]/+page.svelte  # découpe d'un import sur les blancs
+│   ├── decoupe/[id]/+page.svelte  # découpe d'un import sur les blancs (groupe ou espace perso)
 │   ├── record/+page.svelte        # enregistrement en direct, classé après coup
 │   ├── perso/+page.svelte         # espace personnel (hors groupe)
 │   ├── perso/[id]/+page.svelte    # un enregistrement perso

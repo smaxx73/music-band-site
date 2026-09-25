@@ -320,7 +320,10 @@ CREATE TABLE notifications (
 -- et un proxy leger qui porte l'analyse et la preecoute.
 CREATE TABLE audio_imports (
     id          UUID PRIMARY KEY,
-    group_id    INTEGER NOT NULL REFERENCES groups(id)   ON DELETE CASCADE,
+    group_id    INTEGER          REFERENCES groups(id)   ON DELETE CASCADE,
+                                                 -- NULL = decoupe vers l'espace perso
+                                                 -- (migration 035) : les passages deviennent
+                                                 -- des personal_recordings, pas des prises
     user_id     INTEGER NOT NULL REFERENCES users(id)    ON DELETE CASCADE,
     session_id  INTEGER          REFERENCES sessions(id) ON DELETE CASCADE,
                                                  -- session qui recevra les prises
@@ -329,7 +332,8 @@ CREATE TABLE audio_imports (
     file_hash   TEXT NOT NULL,                   -- SHA-256 de la source, comme recordings.file_hash
     duration_s  INTEGER,
     consumed_at TIMESTAMPTZ,                     -- verrou : une decoupe ne se valide qu'une fois
-    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT audio_imports_personal_no_session CHECK (group_id IS NOT NULL OR session_id IS NULL)
 );
 
 CREATE INDEX idx_songs_group_id     ON songs(group_id);

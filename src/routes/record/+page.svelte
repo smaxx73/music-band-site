@@ -6,7 +6,7 @@
 	import SongSelect from '$lib/components/SongSelect.svelte'
 	import { sortedWithSong } from '$lib/songs'
 	import { clearTakes } from '$lib/recording-store'
-	import { createSession, DuplicateError, sendAudioFile, type DuplicateInfo } from '$lib/upload-client'
+	import { createSession, DuplicateError, sendAudioFile, splitUrl, type DuplicateInfo } from '$lib/upload-client'
 
 	/**
 	 * Enregistrer d'abord, classer ensuite : en répétition, on lance le micro sans
@@ -129,7 +129,18 @@
 			const onProgress = (p: number) => (progress = p)
 
 			// Rien à classer : l'enregistrement rejoint l'espace perso comme s'il avait été
-			// déposé depuis /perso — même route, rien de neuf côté serveur.
+			// déposé depuis /perso — même route, et même découpe s'il contient plusieurs idées.
+			if (destination === 'perso' && multiTake) {
+				const audioImport = await sendAudioFile<{ id: string }>(
+					'/api/imports',
+					file,
+					{ destination: 'perso' },
+					onProgress
+				)
+				await clearTakes().catch(() => {})
+				await goto(splitUrl(audioImport.id, persoTitle))
+				return
+			}
 			if (destination === 'perso') {
 				const created = await sendAudioFile<{ id: number }>(
 					'/api/personal',
@@ -153,7 +164,7 @@
 				)
 				// Le serveur a le fichier : la copie de secours n'a plus lieu d'être.
 				await clearTakes().catch(() => {})
-				await goto(`/upload/decoupe/${audioImport.id}`)
+				await goto(`/decoupe/${audioImport.id}`)
 				return
 			}
 
@@ -227,15 +238,42 @@
 				</label>
 			</fieldset>
 
+			{#snippet contentChoice()}
+				<fieldset class="content-choice">
+					<legend class="form-label">Contenu</legend>
+					<label class="check-label">
+						<input type="radio" name="content" value={true} bind:group={multiTake} disabled={uploading} />
+						<span>
+							Plusieurs morceaux
+							<span class="hint block">
+								{destination === 'perso'
+									? 'Les blancs sont repérés et chaque passage devient un enregistrement de ton espace.'
+									: 'Les blancs sont repérés et chaque passage devient une prise.'}
+							</span>
+						</span>
+					</label>
+					<label class="check-label">
+						<input type="radio" name="content" value={false} bind:group={multiTake} disabled={uploading} />
+						<span>Un seul morceau</span>
+					</label>
+				</fieldset>
+			{/snippet}
+
 			{#if destination === 'perso'}
+				{@render contentChoice()}
+				<!-- Découpé, le titre devient le titre commun des passages, numéroté sur
+				     l'écran de découpe ; une note n'y a pas d'équivalent, elle se donne après. -->
 				<label class="form-label">
-					Titre
-					<input class="form-input" type="text" bind:value={persoTitle} maxlength="200" disabled={uploading} />
+					{multiTake ? 'Titre commun' : 'Titre'}
+					{#if multiTake}<span class="hint">(numéroté par passage)</span>{/if}
+					<input class="form-input" type="text" bind:value={persoTitle} maxlength={multiTake ? 180 : 200} disabled={uploading} />
 				</label>
-				<label class="form-label">
-					Note <span class="hint">(optionnel)</span>
-					<textarea class="form-input" rows="2" bind:value={persoNotes} disabled={uploading}></textarea>
-				</label>
+				{#if !multiTake}
+					<label class="form-label">
+						Note <span class="hint">(optionnel)</span>
+						<textarea class="form-input" rows="2" bind:value={persoNotes} disabled={uploading}></textarea>
+					</label>
+				{/if}
 			{:else}
 			<label class="form-label">
 				Session
@@ -272,20 +310,7 @@
 				</div>
 			{/if}
 
-			<fieldset class="content-choice">
-				<legend class="form-label">Contenu</legend>
-				<label class="check-label">
-					<input type="radio" name="content" value={true} bind:group={multiTake} disabled={uploading} />
-					<span>
-						Plusieurs morceaux
-						<span class="hint block">Les blancs sont repérés et chaque passage devient une prise.</span>
-					</span>
-				</label>
-				<label class="check-label">
-					<input type="radio" name="content" value={false} bind:group={multiTake} disabled={uploading} />
-					<span>Un seul morceau</span>
-				</label>
-			</fieldset>
+			{@render contentChoice()}
 
 			{#if !multiTake}
 				<SongSelect
@@ -308,8 +333,6 @@
 				<p class="hint center">
 					{#if progress < 100}
 						Envoi en cours… {progress}%
-					{:else if destination === 'perso'}
-						Conversion audio en cours…
 					{:else if multiTake}
 						Préparation du fichier… (l'analyse des blancs suit)
 					{:else}
@@ -326,10 +349,10 @@
 			>
 				{#if uploading}
 					Envoi en cours…
-				{:else if destination === 'perso'}
-					Ajouter à mon espace
 				{:else if multiTake}
 					Envoyer et découper
+				{:else if destination === 'perso'}
+					Ajouter à mon espace
 				{:else}
 					Envoyer la prise
 				{/if}

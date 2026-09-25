@@ -2,6 +2,7 @@
 	import type { PageData } from './$types'
 	import { untrack } from 'svelte'
 	import { goto } from '$app/navigation'
+	import { page } from '$app/state'
 	import { formatDateOnly } from '$lib/date'
 	import {
 		MIN_SEGMENT_LENGTH_S,
@@ -15,8 +16,11 @@
 
 	let { data }: { data: PageData } = $props()
 
-	/** Segment enrichi des choix de l'utilisateur : morceau visé, ou mise à l'écart. */
-	type EditableSegment = AudioSegment & { song_id: string; kept: boolean }
+	/**
+	 * Segment enrichi des choix de l'utilisateur : morceau visé (import de groupe) ou titre
+	 * (import perso), ou mise à l'écart.
+	 */
+	type EditableSegment = AudioSegment & { song_id: string; title: string; kept: boolean }
 
 	type Edge = 'start' | 'end'
 
@@ -30,6 +34,11 @@
 	const BOUNDARY_MARGIN_S = 5
 
 	const audioUrl = $derived(`/api/imports/${data.audioImport.id}/audio`)
+
+	// Destiné à l'espace perso : chaque passage devient un enregistrement titré, sans
+	// session ni morceau, et l'écran ramène à `/perso` plutôt qu'à `/upload`.
+	const personal = $derived(data.audioImport.group_id === null)
+	const backUrl = $derived(personal ? '/perso' : '/upload')
 
 	// L'analyse rendue par le serveur n'est qu'un point de départ : l'écran en prend la
 	// main aussitôt et la remplace à chaque relance. `untrack` dit que cette lecture
@@ -65,10 +74,35 @@
 	const importedAt = $derived(new Date(data.audioImport.created_at))
 
 	const kept = $derived(segments.filter((s) => s.kept))
-	const unassigned = $derived(kept.filter((s) => !s.song_id).length)
+	// Un passage perso sans titre prend le titre commun numéroté : il n'est jamais en attente.
+	const unassigned = $derived(personal ? 0 : kept.filter((s) => !s.song_id).length)
+
+	// Titre commun des passages perso : celui saisi avant l'envoi (`?titre=`), sinon un défaut.
+	// Un enregistrement fait dans le navigateur s'appelle « enregistrement-2026-09-25-14h05.webm » :
+	// on lui préfère une date lisible.
+	let baseTitle = $state(
+		untrack(
+			() =>
+				page.url.searchParams.get('titre')?.trim().slice(0, 180) ||
+				defaultBaseTitle(data.audioImport.file_name, new Date(data.audioImport.created_at))
+		)
+	)
+
+	function defaultBaseTitle(fileName: string, createdAt: Date): string {
+		if (/^enregistrement-\d{4}-/.test(fileName)) {
+			return `Enregistrement du ${createdAt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
+		}
+		return fileName.replace(/\.[a-z0-9]{2,5}$/i, '').trim() || 'Enregistrement'
+	}
+
+	/** Titre proposé à un passage : le titre commun, numéroté parmi les passages retenus. */
+	function defaultTitle(index: number): string {
+		const rank = segments.slice(0, index + 1).filter((s) => s.kept).length
+		return `${baseTitle.trim() || 'Enregistrement'} — ${rank}`
+	}
 
 	function toEditable(list: AudioSegment[]): EditableSegment[] {
-		return list.map((s) => ({ ...s, song_id: '', kept: true }))
+		return list.map((s) => ({ ...s, song_id: '', title: '', kept: true }))
 	}
 
 	function round2(seconds: number): number {
@@ -236,7 +270,7 @@
 			index,
 			1,
 			{ ...segment, end_s: at },
-			{ ...segment, start_s: at, song_id: '' }
+			{ ...segment, start_s: at, song_id: '', title: '' }
 		)
 		stopPreview()
 		editingIndex = null
@@ -286,25 +320,35 @@
 		error = null
 		stopPreview()
 
+		// Le titre par défaut dépend du rang parmi les passages retenus : il se calcule
+		// sur la liste complète, avant de filtrer.
+		const body = personal
+			? {
+				segments: segments.flatMap((s, i) =>
+					s.kept ? [{ start_s: s.start_s, end_s: s.end_s, title: s.title.trim() || defaultTitle(i) }] : []
+				)
+			}
+			: {
+				session_id: Number(sessionId),
+				segments: kept.map((s) => ({
+					start_s: s.start_s,
+					end_s: s.end_s,
+					song_id: Number(s.song_id)
+				}))
+			}
+
 		try {
 			const res = await fetch(`/api/imports/${data.audioImport.id}/split`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					session_id: Number(sessionId),
-					segments: kept.map((s) => ({
-						start_s: s.start_s,
-						end_s: s.end_s,
-						song_id: Number(s.song_id)
-					}))
-				})
+				body: JSON.stringify(body)
 			})
 			const payload = await res.json()
 			if (!res.ok) {
 				error = payload.error ?? 'Erreur lors de la découpe.'
 				return
 			}
-			await goto(`/sessions/${payload.session_id}`)
+			await goto(personal ? '/perso' : `/sessions/${payload.session_id}`)
 		} catch {
 			error = 'Erreur réseau pendant la découpe.'
 		} finally {
@@ -316,7 +360,7 @@
 		if (!confirm('Abandonner cet import ? Le fichier envoyé sera supprimé.')) return
 		stopPreview()
 		await fetch(`/api/imports/${data.audioImport.id}`, { method: 'DELETE' })
-		await goto('/upload')
+		await goto(backUrl)
 	}
 
 	// ─── Forme d'onde de survol ─────────────────────────────────────────────
@@ -347,7 +391,7 @@
 <main>
 	<div class="page-header">
 		<h1>Découper l'enregistrement</h1>
-		<a href="/upload" class="btn btn-ghost btn-sm back-link">← Upload</a>
+		<a href={backUrl} class="btn btn-ghost btn-sm back-link">{personal ? '← Mon espace' : '← Upload'}</a>
 	</div>
 
 	<p class="source">
@@ -357,8 +401,8 @@
 		</span>
 	</p>
 	<p class="hint">
-		Analyse et écoute sur une copie allégée ; les prises seront taillées dans
-		l'original ({formatSource(data.audioImport.source_mime)}).
+		Analyse et écoute sur une copie allégée ; les {personal ? 'enregistrements' : 'prises'} seront
+		taillé{personal ? 's' : 'es'} dans l'original ({formatSource(data.audioImport.source_mime)}).
 	</p>
 
 	{#if error}
@@ -457,17 +501,31 @@
 	</fieldset>
 
 	<!-- Destination -->
-	<fieldset>
-		<legend>Session</legend>
-		<label class="form-label">
-			Les prises seront ajoutées à
-			<select class="form-input" bind:value={sessionId} disabled={creating}>
-				{#each data.sessions as s}
-					<option value={String(s.id)}>{formatSession(s)}</option>
-				{/each}
-			</select>
-		</label>
-	</fieldset>
+	{#if personal}
+		<fieldset>
+			<legend>Mon espace</legend>
+			<label class="form-label">
+				Titre commun
+				<input class="form-input" type="text" bind:value={baseTitle} maxlength="180" disabled={creating} />
+			</label>
+			<p class="hint">
+				Chaque passage retenu devient un enregistrement de ton espace, sous ce titre
+				numéroté — sauf si tu lui en donnes un ci-dessous.
+			</p>
+		</fieldset>
+	{:else}
+		<fieldset>
+			<legend>Session</legend>
+			<label class="form-label">
+				Les prises seront ajoutées à
+				<select class="form-input" bind:value={sessionId} disabled={creating}>
+					{#each data.sessions as s}
+						<option value={String(s.id)}>{formatSession(s)}</option>
+					{/each}
+				</select>
+			</label>
+		</fieldset>
+	{/if}
 
 	<!-- Segments -->
 	<fieldset>
@@ -516,15 +574,27 @@
 						</span>
 
 						<div class="song">
-							<SongSelect
-								{songs}
-								bind:value={segment.song_id}
-								oncreate={(song) => (songs = sortedWithSong(songs, song))}
-								ariaLabel="Morceau du segment {i + 1}"
-								emptyLabel="— Morceau —"
-								placeholderAt={importedAt}
-								disabled={!segment.kept || creating || naming}
-							/>
+							{#if personal}
+								<input
+									class="form-input"
+									type="text"
+									bind:value={segment.title}
+									placeholder={segment.kept ? defaultTitle(i) : 'Écarté'}
+									maxlength="200"
+									aria-label="Titre du passage {i + 1}"
+									disabled={!segment.kept || creating}
+								/>
+							{:else}
+								<SongSelect
+									{songs}
+									bind:value={segment.song_id}
+									oncreate={(song) => (songs = sortedWithSong(songs, song))}
+									ariaLabel="Morceau du segment {i + 1}"
+									emptyLabel="— Morceau —"
+									placeholderAt={importedAt}
+									disabled={!segment.kept || creating || naming}
+								/>
+							{/if}
 						</div>
 
 						<button
@@ -598,10 +668,12 @@
 			type="button"
 			class="btn btn-primary"
 			onclick={createTakes}
-			disabled={creating || naming || analysing || kept.length === 0 || unassigned > 0 || !sessionId}
+			disabled={creating || naming || analysing || kept.length === 0 || unassigned > 0 || (!personal && !sessionId)}
 		>
 			{#if creating}
 				Découpe en cours…
+			{:else if personal}
+				Créer {kept.length} enregistrement{kept.length > 1 ? 's' : ''}
 			{:else}
 				Créer {kept.length} prise{kept.length > 1 ? 's' : ''}
 			{/if}

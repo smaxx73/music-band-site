@@ -19,7 +19,7 @@
    `recording` créé
 10. L'écran enchaîne directement sur `/recording/{id}` — lecteur et commentaires — plutôt
     que de rester sur le formulaire : c'est juste après l'ajout qu'on commente la prise.
-    Idem pour une prise vidéo YouTube. Une découpe, elle, mène à `/upload/decoupe/[id]`
+    Idem pour une prise vidéo YouTube. Une découpe, elle, mène à `/decoupe/[id]`
 
 ## Morceau absent du référentiel, et morceaux « À nommer »
 
@@ -80,6 +80,9 @@ au milieu de la salle, ou l'interface audio branchée au PC.
   entrer dans le groupe tant qu'on ne l'a pas décidé, et elle se classera en prise plus
   tard (voir « Classer un enregistrement perso dans une session »). Elle passe par
   `POST /api/personal`, comme un dépôt fait depuis `/perso` — **rien de neuf côté serveur**.
+  « Plusieurs morceaux » y vaut aussi : l'enregistrement part en découpe vers l'espace
+  perso (voir « Découpe vers l'espace perso ») : le titre saisi devient le titre commun
+  des passages, et la note, sans équivalent, disparaît du formulaire
   Sans groupe actif, l'espace perso est la seule destination proposée
 - Tout se passe dans le navigateur (`getUserMedia` + `MediaRecorder`, sans dépendance) :
   `src/lib/components/AudioRecorder.svelte`. Le résultat est un `File` ordinaire, envoyé
@@ -118,7 +121,7 @@ au milieu de la salle, ou l'interface audio branchée au PC.
 - Sous 640 px, la barre d'actions du bas porte un raccourci 🎙 vers `/record`, entre le
   profil et l'upload : c'est au téléphone, en répétition, qu'on lance un enregistrement
 
-## Découpe automatique d'un enregistrement (`/upload/decoupe/[id]`)
+## Découpe automatique d'un enregistrement (`/decoupe/[id]`)
 
 Premier des outils d'amélioration audio branchés à la suite de l'upload.
 
@@ -139,8 +142,9 @@ Premier des outils d'amélioration audio branchés à la suite de l'upload.
   exposé sous `/audio/`, où chaque fichier s'autorise par l'id de la prise qui le porte. Un
   fichier que personne n'a validé n'a pas cet id et n'a rien à y faire — il vit dans le
   répertoire temporaire du conteneur
-- Un import est **personnel** : seul son déposant le voit, et seulement dans le groupe où
-  il l'a déposé. Rien n'est encore publié, personne d'autre n'a à le voir
+- Un import est **personnel** : seul son déposant le voit — dans le groupe où il l'a
+  déposé, ou quel que soit le groupe actif s'il est destiné à l'espace perso (voir
+  « Découpe vers l'espace perso »). Rien n'est encore publié, personne d'autre n'a à le voir
 - Détection des blancs par `silencedetect` (`src/lib/server/ffmpeg.ts`). Le complémentaire
   des silences, ce sont les prises. Chaque segment retrouve 0,25 s de part et d'autre :
   le seuil mange sinon l'attaque d'une note et la fin d'une résonance
@@ -179,6 +183,29 @@ Premier des outils d'amélioration audio branchés à la suite de l'upload.
 - L'import est **réclamé** (`consumed_at`) avant tout travail : un double envoi ne crée pas
   deux séries de prises. Un import déjà découpé répond `409`
 - Une notification par prise créée, comme pour un upload simple
+
+### Découpe vers l'espace perso
+
+Une séance de travail seul, plusieurs idées jouées d'affilée : le même outil, mais chaque
+passage devient un **enregistrement perso**, pas une prise.
+
+- « Plusieurs morceaux » sur `/perso` (fichier ou enregistrement) et sur `/record` quand la
+  destination est l'espace perso. Même seuil qu'au groupe : proposé d'office dès 10 min
+  d'enregistrement en direct
+- `POST /api/imports` avec `destination=perso` : ni groupe actif, ni session. L'import a
+  `group_id` NULL (migration 035) ; il reste **personnel** (`user_id`) et se voit quel que
+  soit le groupe actif, comme l'espace lui-même. Doublon cherché dans l'espace du seul
+  déposant, comme à un dépôt direct
+- Même écran de découpe (`/decoupe/[id]`), mêmes réglages, même préécoute, même
+  rendu depuis l'original. Seule la destination change : un **titre commun** — celui saisi
+  avant l'envoi s'il y en a un (passé en `?titre=`), sinon la date pour un enregistrement
+  fait dans le navigateur, le nom du fichier pour un fichier déposé —, que chaque passage
+  reprend numéroté (« … — 1, — 2 ») sauf s'il reçoit le sien. Un passage n'est donc jamais
+  « sans morceau », et « Nommer plus tard » n'a pas lieu d'être
+- Les enregistrements créés portent le nom du fichier découpé, sans note ; rien n'est
+  notifié ni publié — ils attendent dans l'espace, à publier ou à classer un par un
+- `/perso` liste ses fichiers encore reprenables, avec « Reprendre » et « Refaire la
+  découpe », sous les mêmes règles de rétention
 
 ### Reprise d'une découpe
 
@@ -684,6 +711,8 @@ travaillée seul, une vidéo repérée. Rien n'y est partagé tant qu'on ne le p
   `AudioRecorder` que `/record`, même copie de secours), coller un lien YouTube. Même
   chemin que l'upload d'une prise : réception en flux, conversion mp3 128 kbps, durée
   ffprobe, doublon par hash — ici **dans son propre espace** (`409`)
+- Un fichier ou un enregistrement qui contient **plusieurs morceaux** se découpe sur les
+  blancs, chaque passage devenant un enregistrement perso — voir « Découpe vers l'espace perso »
 - Les fichiers vivent dans `AUDIO_DIR/perso/{id}.mp3` et sont servis par
   `/audio/perso/{id}.mp3`, **toujours par Node**. La route laisse passer le propriétaire,
   et un membre du **groupe actif** si l'enregistrement y est publié — rien d'autre. Le

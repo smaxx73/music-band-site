@@ -8,9 +8,10 @@
 	import AudioRecorder from '$lib/components/AudioRecorder.svelte'
 	import PublishDialog from '$lib/components/PublishDialog.svelte'
 	import ClassifyDialog from '$lib/components/ClassifyDialog.svelte'
+	import PendingImports from '$lib/components/PendingImports.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import { clearTakes } from '$lib/recording-store'
-	import { sendAudioFile } from '$lib/upload-client'
+	import { sendAudioFile, splitUrl } from '$lib/upload-client'
 	import { formatDurationLong, type PostType } from '$lib/types'
 
 	let { data }: { data: PageData } = $props()
@@ -43,20 +44,31 @@
 	let progress = $state(0)
 	let addError = $state<string | null>(null)
 
+	// Plusieurs idées jouées d'affilée : le fichier part en découpe, et chaque passage
+	// devient un enregistrement de l'espace. Titre et note se donnent alors passage par
+	// passage, sur l'écran de découpe.
+	let multiPart = $state(false)
+	// Au-delà, c'est une séance captée d'un bloc plutôt qu'une idée isolée — comme sur /record.
+	const SPLIT_BY_DEFAULT_ABOVE_S = 10 * 60
+	const splitting = $derived(source !== 'youtube' && multiPart)
+
 	function selectSource(next: Source) {
 		if (sending || recorderBusy) return
 		source = next
 		file = null
+		multiPart = false
 		addError = null
 	}
 
 	/** Un enregistrement fait sur place porte la date du jour : c'est ce qui le distingue. */
-	function onRecorded(recorded: File | null) {
+	function onRecorded(recorded: File | null, durationS: number) {
 		file = recorded
 		addError = null
-		if (recorded && !title.trim()) {
+		if (!recorded) return
+		if (!title.trim()) {
 			title = `Enregistrement du ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
 		}
+		multiPart = durationS >= SPLIT_BY_DEFAULT_ABOVE_S
 	}
 
 	async function submitAdd(event: SubmitEvent) {
@@ -80,6 +92,19 @@
 			}
 
 			if (!file) { addError = source === 'record' ? 'Enregistre d’abord quelque chose.' : 'Choisis un fichier.'; return }
+
+			if (splitting) {
+				const audioImport = await sendAudioFile<{ id: string }>(
+					'/api/imports',
+					file,
+					{ destination: 'perso' },
+					(p) => (progress = p)
+				)
+				if (source === 'record') await clearTakes().catch(() => {})
+				await goto(splitUrl(audioImport.id, title))
+				return
+			}
+
 			const created = await sendAudioFile<{ id: number }>(
 				'/api/personal',
 				file,
@@ -182,23 +207,52 @@
 			</label>
 		{/if}
 
+		{#if source !== 'youtube'}
+			<fieldset class="content-choice">
+				<legend class="form-label">Contenu</legend>
+				<label class="check-label">
+					<input type="radio" name="content" value={false} bind:group={multiPart} disabled={sending} />
+					<span>Un seul morceau</span>
+				</label>
+				<label class="check-label">
+					<input type="radio" name="content" value={true} bind:group={multiPart} disabled={sending} />
+					<span>
+						Plusieurs morceaux
+						<span class="optional block">
+							Les blancs sont repérés et chaque passage devient un enregistrement de ton espace.
+						</span>
+					</span>
+				</label>
+			</fieldset>
+		{/if}
+
+		<!-- Découpé, le titre devient le titre commun des passages, numéroté sur l'écran de
+		     découpe ; une note n'y a pas d'équivalent, elle se donne après. -->
 		<label class="form-label">
-			Titre <span class="optional">{source === 'record' ? '' : source === 'file' ? '(par défaut : le nom du fichier)' : '(par défaut : celui de la vidéo)'}</span>
-			<input class="form-input" type="text" bind:value={title} maxlength="200" disabled={sending} />
+			{splitting ? 'Titre commun' : 'Titre'}
+			<span class="optional">
+				{#if splitting}(numéroté par passage{source === 'file' ? ' ; par défaut : le nom du fichier' : ''})
+				{:else}{source === 'record' ? '' : source === 'file' ? '(par défaut : le nom du fichier)' : '(par défaut : celui de la vidéo)'}{/if}
+			</span>
+			<input class="form-input" type="text" bind:value={title} maxlength={splitting ? 180 : 200} disabled={sending} />
 		</label>
-		<label class="form-label">
-			Note <span class="optional">(pour toi seul, même une fois publié)</span>
-			<textarea class="form-input" rows="2" bind:value={notes} maxlength="2000" disabled={sending}></textarea>
-		</label>
+		{#if !splitting}
+			<label class="form-label">
+				Note <span class="optional">(pour toi seul, même une fois publié)</span>
+				<textarea class="form-input" rows="2" bind:value={notes} maxlength="2000" disabled={sending}></textarea>
+			</label>
+		{/if}
 
 		{#if addError}<p class="message-error" role="alert">{addError}</p>{/if}
 
 		<div class="add-actions">
 			<button type="submit" class="btn btn-primary" disabled={sending || recorderBusy}>
-				{#if sending}{source === 'youtube' ? 'Ajout…' : `Envoi… ${progress} %`}{:else}Ajouter à mon espace{/if}
+				{#if sending}{source === 'youtube' ? 'Ajout…' : progress < 100 ? `Envoi… ${progress} %` : splitting ? 'Préparation…' : 'Conversion…'}{:else if splitting}Envoyer et découper{:else}Ajouter à mon espace{/if}
 			</button>
 		</div>
 	</form>
+
+	<PendingImports imports={data.imports} disabled={sending} />
 
 	<section class="list">
 		<div class="list-header">
@@ -293,6 +347,12 @@
 	.source-tabs button.active { border-color: var(--color-primary); background: var(--color-bg-muted); font-weight: 600; }
 
 	.optional { font-weight: 400; color: var(--color-text-muted); }
+	.optional.block { display: block; font-size: var(--text-xs); margin-top: 0.15rem; }
+
+	.content-choice { border: 0; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+	.content-choice legend { padding: 0; margin-bottom: 0.25rem; }
+	.check-label { display: flex; align-items: flex-start; gap: 0.5rem; font-size: var(--text-sm); cursor: pointer; }
+	.check-label input { margin-top: 0.15rem; }
 	textarea { resize: vertical; }
 	.add-actions { display: flex; justify-content: flex-end; }
 
