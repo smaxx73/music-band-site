@@ -164,6 +164,26 @@ body {
   padding-inline: 0.45rem;
 }
 
+/* Bouton à icône et libellé : le libellé se lit sur grand écran, et s'efface sous 640 px
+   où l'icône seule tient la place. Le bouton garde son nom par `aria-label`, puisque
+   le libellé masqué ne compte plus pour les lecteurs d'écran. */
+.btn-collapse {
+  gap: 0.35rem;
+}
+
+@media (max-width: 640px) {
+  .btn-collapse .btn-label {
+    display: none;
+  }
+
+  /* Au doigt, une cible de 40 px : réduite à son icône, elle ne doit pas se rater. */
+  .btn-collapse {
+    min-width: 2.5rem;
+    min-height: 2.5rem;
+    padding-inline: 0.55rem;
+  }
+}
+
 .btn svg {
   width: 1.1rem;
   height: 1.1rem;

@@ -172,13 +172,15 @@
 				{/if}
 				{#if recording.file_path}
 					<button
-						class="btn btn-secondary btn-sm"
+						class="btn btn-secondary btn-sm btn-collapse"
 						class:shared={shareCount > 0}
 						onclick={() => (shareOpen = true)}
 						title="Faire écouter cet enregistrement à quelqu'un qui n'a pas de compte"
+						aria-label={shareCount > 0 ? `Écoutable en public, ${shareCount} lien${shareCount > 1 ? 's' : ''} actif${shareCount > 1 ? 's' : ''}` : 'Lien public'}
 					>
-						<Icon name="globe" size="0.85rem" />
-						{shareCount > 0 ? `Écoutable en public (${shareCount})` : 'Lien public'}
+						<Icon name="globe" />
+						<span class="btn-label">{shareCount > 0 ? 'Écoutable en public' : 'Lien public'}</span>
+						{#if shareCount > 0}<span class="share-count" aria-hidden="true">{shareCount}</span>{/if}
 					</button>
 				{/if}
 				<button class="btn btn-secondary btn-sm" onclick={startEdit}>Modifier</button>
@@ -263,12 +265,26 @@
 	main { max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
 
 	.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
-	.header-text { min-width: 0; }
+	/* Le titre garde sa largeur : ce sont les boutons qui passent à la ligne. */
+	.header-text { flex: 1 0 14rem; min-width: 0; }
 	h1 { font-size: 1.4rem; margin: 0 0 0.3rem; overflow-wrap: anywhere; }
 	.meta { display: flex; align-items: center; gap: 0.3rem; font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 0.15rem; }
 	.notes { display: flex; gap: 0.35rem; font-size: var(--text-sm); color: var(--color-text-secondary); margin: 0.5rem 0 0; white-space: pre-line; }
-	.header-actions { display: flex; gap: 0.4rem; flex-shrink: 0; flex-wrap: wrap; }
+	.header-actions { display: flex; align-items: center; gap: 0.4rem; flex: 0 1 auto; min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
 	.header-actions .shared { border-color: var(--color-accent); color: var(--color-accent); }
+	.share-count {
+		min-width: 1.1rem; padding: 0 0.3rem; border-radius: 999px;
+		background: var(--color-accent); color: #fff;
+		font-size: var(--text-xs); font-weight: 600; line-height: 1.1rem; text-align: center;
+	}
+
+	/* Colonne de contenu = fenêtre moins les 188 px de la barre latérale : sous ~860 px,
+	   les boutons passent sous le titre. */
+	@media (max-width: 860px) {
+		.header { flex-direction: column; align-items: stretch; }
+		.header-text { flex: none; }
+		.header-actions { justify-content: flex-start; }
+	}
 
 	.optional { font-weight: 400; color: var(--color-text-muted); }
 	textarea { resize: vertical; }
@@ -290,6 +306,5 @@
 
 	@media (max-width: 640px) {
 		main { margin: 1rem auto; padding: 0 0.75rem; }
-		.header { flex-direction: column; align-items: stretch; }
 	}
 </style>

@@ -334,7 +334,7 @@
 
 	<!-- En-tête -->
 	<div class="header">
-		<div>
+		<div class="header-main">
 			<h1>
 				<a href="/songs/{recording.song_id}" class="song-link">{recording.song_title}</a>
 				{#if recording.song_key}<span class="key">{recording.song_key}</span>{/if}
@@ -468,26 +468,29 @@
 				<a href="/recording/{nextRecording.id}" class="btn btn-secondary btn-sm" title="Prise suivante">Prise {nextRecording.take} →</a>
 			{/if}
 			<button
-				class="btn btn-secondary btn-sm"
+				class="btn btn-secondary btn-sm btn-collapse"
 				onclick={copyLink}
 				title={shareTime !== null
 					? `Copier le lien vers cette prise à ${formatTimecode(shareTime)}`
 					: 'Copier le lien vers cette prise'}
+				aria-label={linkCopied ? 'Lien copié' : linkCopyFailed ? 'Copie impossible' : 'Copier le lien'}
 			>
-				{#if linkCopied}<Icon name="check" /> Lien copié
-				{:else if linkCopyFailed}Copie impossible
-				{:else}<Icon name="link" /> Copier le lien{#if shareTime !== null}&nbsp;({formatTimecode(shareTime)}){/if}
+				{#if linkCopied}<Icon name="check" /><span class="btn-label">Lien copié</span>
+				{:else if linkCopyFailed}<Icon name="alert" /><span class="btn-label">Copie impossible</span>
+				{:else}<Icon name="link" /><span class="btn-label">Copier le lien{#if shareTime !== null}&nbsp;({formatTimecode(shareTime)}){/if}</span>
 				{/if}
 			</button>
 			{#if canShare}
 				<button
-					class="btn btn-secondary btn-sm"
+					class="btn btn-secondary btn-sm btn-collapse"
 					class:shared={shareCount > 0}
 					onclick={() => (shareOpen = true)}
 					title="Faire écouter cette prise à quelqu'un qui n'a pas de compte"
+					aria-label={shareCount > 0 ? `Écoutable en public, ${shareCount} lien${shareCount > 1 ? 's' : ''} actif${shareCount > 1 ? 's' : ''}` : 'Lien public'}
 				>
 					<Icon name="globe" />
-					{shareCount > 0 ? `Écoutable en public (${shareCount})` : 'Lien public'}
+					<span class="btn-label">{shareCount > 0 ? 'Écoutable en public' : 'Lien public'}</span>
+					{#if shareCount > 0}<span class="share-count" aria-hidden="true">{shareCount}</span>{/if}
 				</button>
 			{/if}
 			{#if hasAudio}
@@ -495,7 +498,7 @@
 					recordingId={recording.id}
 					{hasAudio}
 					label="Ajouter à une playlist"
-					buttonClass="btn btn-secondary btn-sm"
+					buttonClass="btn btn-secondary btn-sm btn-collapse"
 				/>
 			{/if}
 		</div>
@@ -572,8 +575,31 @@
 	}
 
 	.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
-	.header-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+	/* Le titre garde sa largeur : ce sont les boutons qui passent à la ligne, pas le nom
+	   du morceau qui se replie mot par mot. */
+	.header-main { flex: 1 0 14rem; min-width: 0; }
+	.header-actions { display: flex; align-items: center; gap: 0.5rem; flex: 0 1 auto; min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
 	.header-actions .shared { border-color: var(--color-accent); color: var(--color-accent); }
+
+	.share-count {
+		min-width: 1.1rem;
+		padding: 0 0.3rem;
+		border-radius: 999px;
+		background: var(--color-accent);
+		color: #fff;
+		font-size: var(--text-xs);
+		font-weight: 600;
+		line-height: 1.1rem;
+		text-align: center;
+	}
+
+	/* La colonne de contenu vaut la fenêtre moins les 188 px de la barre latérale : sous
+	   ~860 px, titre et boutons ne tiennent plus côte à côte, les boutons passent dessous. */
+	@media (max-width: 860px) {
+		.header { flex-direction: column; align-items: stretch; gap: 0.75rem; }
+		.header-main { flex: none; }
+		.header-actions { justify-content: flex-start; }
+	}
 
 	h1 {
 		font-size: 1.4rem;
@@ -735,14 +761,10 @@
 	@media (max-width: 640px) {
 		main { margin: 1rem auto; padding: 0 0.75rem; }
 
-		.header {
-			flex-direction: column;
-			align-items: stretch;
-			gap: 0.75rem;
-		}
-
-		.header-actions { justify-content: flex-start; }
 		.header-actions > * { flex: 1 1 auto; }
+		/* Réduits à leur icône, ils ne s'étirent pas : ce sont les boutons de navigation
+		   qui prennent la place restante. */
+		.header-actions > :global(.btn-collapse) { flex: 0 0 auto; }
 
 		h1 { font-size: 1.2rem; flex-wrap: wrap; }
 

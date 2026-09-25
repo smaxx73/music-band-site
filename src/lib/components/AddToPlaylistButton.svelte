@@ -121,10 +121,10 @@
 		class:btn-icon={!label}
 		onclick={() => (open = true)}
 		title="Ajouter à une playlist"
-		aria-label={label ? undefined : 'Ajouter à une playlist'}
+		aria-label={label ?? 'Ajouter à une playlist'}
 	>
 		<Icon name="playlist-add" />
-		{#if label}<span>{label}</span>{/if}
+		{#if label}<span class="btn-label">{label}</span>{/if}
 	</button>
 
 	{#if open}
