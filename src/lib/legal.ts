@@ -12,7 +12,7 @@ export const TO_COMPLETE = '[à compléter]'
 export const LEGAL = {
 	siteName: 'BandStash',
 	siteUrl: 'https://music.maximenguyen.fr',
-	lastUpdated: '23 septembre 2026',
+	lastUpdated: '25 septembre 2026',
 
 	publisher: {
 		name: 'Rock and More',

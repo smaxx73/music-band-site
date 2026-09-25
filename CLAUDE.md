@@ -12,7 +12,8 @@ Application web privée pour partager les enregistrements de répétitions d'un 
 Accès restreint par comptes individuels. Les contenus sont isolés par groupe actif ; le référentiel de
 morceaux est géré par tout membre du groupe actif. Chaque groupe a ses propres administrateurs
 (`user_groups.role`), qui gèrent ses membres, son nom, son logo et ses liens (YouTube, Facebook,
-Instagram) et la suppression du contenu d'autrui ; les admins
+Instagram) et la suppression du contenu d'autrui — le logo est public, image d'aperçu des liens
+d'écoute ; les admins
 globaux (`users.role`) gèrent en plus les comptes et les groupes eux-mêmes. Voir « Rôles et droits ».
 
 ## Références
@@ -75,7 +76,7 @@ NODE_ENV=production
   n'écrit le cookie que sur une vraie navigation (`isDataRequest` faux) : les liens sont
   préchargés au survol, et un survol ne doit rien changer
 - IMPORTANT : toute décision de droit passe par les helpers de `src/lib/types.ts`
-  (`canManageGroup`, `canAssignGroupAdmin`, `canDeleteGroupContent`) — jamais par une
+  (`canManageGroup`, `canAssignGroupAdmin`, `canDeleteGroupContent`, `canSharePublicly`) — jamais par une
   comparaison de rôle écrite à la main, pour que l'écran et l'API appliquent la même règle
 - IMPORTANT : les opérations sur les membres d'un groupe passent par `src/lib/server/groups.ts`,
   jamais par un `INSERT`/`UPDATE`/`DELETE` direct sur `user_groups`
@@ -98,6 +99,12 @@ NODE_ENV=production
   publié. Passer par `src/lib/server/personal.ts`. Voir « Espace personnel » dans docs/features.md
 - Un commentaire peut aussi viser une publication (`post_id`) : c'est la troisième cible de
   `comments_target`
+- IMPORTANT : `/ecoute/[token]` est la SEULE porte de l'application ouverte sans compte vers
+  du contenu (les logos de groupe, publics, sont une vitrine et non un contenu). Le jeton de l'URL est l'autorisation : il n'est stocké qu'en empreinte SHA-256
+  (`share_links.token_hash`), revérifié à chaque requête (page ET fichier audio), et tout ce
+  qui franchit cette porte passe par `src/lib/server/share-links.ts`, qui décide seul de ce
+  qui est exposé : fichier audio, titre, date, nom du groupe. Jamais commentaires, note ni
+  participants. Voir « Lien d'écoute public » dans docs/features.md
 - Une prise peut n'avoir qu'une vidéo YouTube, sans fichier : tout code qui touche à `AUDIO_DIR`,
   au lecteur audio partagé ou aux playlists vérifie `file_path IS NOT NULL`. Voir « Prises vidéo
   YouTube » dans docs/features.md
@@ -112,7 +119,8 @@ Deux axes indépendants, à ne pas confondre :
 | `user_groups.role` | `member` / `admin` | un groupe donné |
 
 - **member** — tout le contenu de son groupe actif : sessions, prises, morceaux, playlists,
-  setlists, publications, commentaires, agenda. Ne supprime que les sessions, les prises,
+  setlists, publications, commentaires, agenda. Crée et révoque les liens d'écoute publics
+  des prises du groupe (`canSharePublicly`) ; ceux de son espace perso, lui seul. Ne supprime que les sessions, les prises,
   les setlists et les publications dont il est l'auteur. Seul à voir son espace perso.
 - **admin de groupe** — en plus, sur SON groupe : ajouter/retirer des membres, renommer le
   groupe, changer son logo et ses liens réseaux, supprimer les sessions, prises, setlists
@@ -155,6 +163,7 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
                     (un enregistrement s'y classe après coup en prise d'une session)
 /perso/[id]         un enregistrement perso : lecteur, titre, note, publications
 /posts/[id]         une publication dans le groupe : lecteur ou suggestion + commentaires
+/ecoute/[token]     écoute publique d'un enregistrement, sans compte (lien à jeton)
 /mentions-legales   mentions légales (publique)
 /confidentialite    politique de confidentialité et cookies (publique)
 ```
@@ -189,6 +198,7 @@ dans docs/features.md.
   une page web. La Media Session API ne s'attache qu'à une lecture audible, et sur iOS le
   verrouillage suspend la page, donc l'enregistrement s'arrête. C'est le Wake Lock qui
   répond au besoin — voir « Enregistrement en direct » dans docs/features.md
-- Partage hors du groupe : aucun lien public ni lien à jeton. Tout lien exige un compte et
-  l'appartenance au groupe du contenu — voir « Partager un lien vers du contenu » dans
-  docs/features.md
+- Partage hors du groupe au-delà d'un fichier audio : le seul contenu ouvert sans compte est
+  la piste audio d'une prise ou d'un enregistrement perso, par lien d'écoute (`/ecoute/`).
+  Ni commentaires, ni setlists, ni sessions, ni vidéo seule — voir « Lien d'écoute public »
+  dans docs/features.md

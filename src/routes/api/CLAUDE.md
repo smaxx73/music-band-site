@@ -51,6 +51,8 @@ api/posts/[id]/+server.ts
 api/posts/[id]/song/+server.ts
 api/posts/[id]/reactions/+server.ts
 api/feed/+server.ts
+api/share-links/+server.ts
+api/share-links/[id]/+server.ts
 api/agenda/+server.ts
 api/agenda/[id]/+server.ts
 api/groups/+server.ts
@@ -65,6 +67,7 @@ api/groups/switch/+server.ts
 ## Auth
 Toutes les routes API vérifient le cookie `band_session`.
 Si absent → `return json({ error: "Non autorisé" }, { status: 401 })`
+Seule exception : `GET /api/groups/[id]/logo`, public (voir plus bas).
 Les routes qui manipulent du contenu partagé vérifient aussi `locals.user.current_group_id`.
 
 Deux niveaux de droits au-delà de l'authentification :
@@ -74,7 +77,9 @@ Deux niveaux de droits au-delà de l'authentification :
   du groupe, suppression du contenu d'autrui. Vrai aussi pour un admin global.
   `PATCH /api/groups/[id]` accepte `name` et/ou `youtube_url`, `facebook_url`, `instagram_url`
   (chaîne vide ou `null` = lien retiré). `POST /api/groups/[id]/logo` (multipart, champ `logo`)
-  crée ou remplace le logo, `DELETE` le retire ; `GET` le sert aux membres (`canViewGroup`).
+  crée ou remplace le logo, `DELETE` le retire ; `GET` le sert **publiquement**, sans
+  cookie — seule route de `api/` ouverte sans compte : c'est l'image d'aperçu des liens
+  d'écoute. `?size=thumb` sert la miniature JPEG 512 px (`getGroupLogoThumbnail`).
 - **superadmin** (`canDeleteGroup`) → suppression et export d'un groupe.
   `DELETE /api/groups/[id]` exige en plus `?confirm=<nom exact du groupe>` et supprime tout
   le contenu en cascade ; `GET /api/groups/[id]/export` en fournit l'archive JSON préalable.
@@ -185,3 +190,14 @@ la page précédente a rendu, et rien d'autre (`400` sinon) ; `group_id` suit la
 notifications (`409` si le groupe actif a changé). Passer par `src/lib/server/feed.ts`.
 C'est la seule liste paginée de l'application — par curseur, pas par `offset` : le fil bouge
 pendant qu'on le lit.
+
+Les **liens d'écoute publics** (`api/share-links/`) ouvrent la piste audio d'une prise du
+groupe actif ou d'un enregistrement perso à qui détient le lien, sans compte. Droit :
+`canSharePublicly` — tout membre pour une prise, le propriétaire seul pour un enregistrement
+perso ; une cible hors de portée répond `404`. `GET /api/share-links?recording_id=` (ou
+`?personal_recording_id=`) liste les liens valides, sans leur adresse ;
+`POST /api/share-links` (`{ recording_id | personal_recording_id, expires_in_days? }`, durée
+parmi 7, 30, 180 — défaut 180) répond `201` avec le `token` en clair, **la seule fois où il
+est donné** : seule son empreinte est stockée. `400` sur un enregistrement sans piste audio.
+`DELETE /api/share-links/[id]` révoque, même droit que la création. La page publique et son
+fichier (`/ecoute/[token]`, hors `api/`) passent par `src/lib/server/share-links.ts`.

@@ -1,11 +1,11 @@
 import { stat, unlink } from 'fs/promises'
 import sql from './db'
 import { audioPath, totalFileSize } from './storage'
+import { imageThumbnail } from './ffmpeg'
 import {
 	canAssignGroupAdmin,
 	canDeleteGroup,
 	canManageGroup,
-	canViewGroup,
 	GROUP_LINK_LABELS,
 	type GroupLinkField,
 	type GroupRole,
@@ -296,7 +296,8 @@ export async function setGroupLogo(
 		INSERT INTO group_logos (group_id, mime_type, data)
 		VALUES (${groupId}, ${mime}, ${data})
 		ON CONFLICT (group_id) DO UPDATE
-			SET mime_type = EXCLUDED.mime_type, data = EXCLUDED.data, updated_at = now()
+			SET mime_type = EXCLUDED.mime_type, data = EXCLUDED.data, updated_at = now(),
+			    thumbnail = NULL
 		RETURNING floor(EXTRACT(EPOCH FROM updated_at))::float8 AS version
 	`
 	return { ok: true, value: logo }
@@ -316,13 +317,15 @@ export async function removeGroupLogo(
 	return { ok: true, value: deleted }
 }
 
+/**
+ * Logo d'un groupe, **public** : en attendant des pages publiques de groupe, c'est
+ * l'image d'aperçu d'un lien d'écoute collé dans une messagerie, dont le robot n'a pas de
+ * compte. Un logo est une vitrine, pas un contenu de travail — rien d'autre du groupe
+ * ne s'ouvre ainsi.
+ */
 export async function getGroupLogo(
-	actor: RoleBearer,
 	groupId: number
 ): Promise<GroupOpResult<{ mime_type: LogoMime; data: Buffer; version: number }>> {
-	// 404 plutôt que 403 : ne pas révéler l'existence d'un groupe dont on n'est pas membre.
-	if (!canViewGroup(actor, groupId)) return fail(404, 'Logo introuvable.')
-
 	const [logo] = await sql<{ mime_type: LogoMime; data: Buffer; version: number }[]>`
 		SELECT mime_type, data, floor(EXTRACT(EPOCH FROM updated_at))::float8 AS version
 		FROM group_logos WHERE group_id = ${groupId}
@@ -330,6 +333,42 @@ export async function getGroupLogo(
 	if (!logo) return fail(404, 'Logo introuvable.')
 
 	return { ok: true, value: logo }
+}
+
+/** Côté de la miniature : WhatsApp demande au moins 300 px pour un bel aperçu. */
+export const LOGO_THUMBNAIL_SIZE = 512
+
+/**
+ * Miniature JPEG du logo, pour les aperçus de liens (WhatsApp ignore les images trop
+ * lourdes, et un logo peut peser 2 Mo). Fabriquée à la première demande puis gardée en
+ * base : un logo change rarement, et ffmpeg ne tourne qu'une fois par version. L'écriture
+ * vise la version lue — un logo remplacé entre-temps ne reçoit pas la miniature de l'ancien.
+ * `null` si le logo ne se laisse pas réduire : l'appelant se replie sur l'image par défaut.
+ */
+export async function getGroupLogoThumbnail(
+	groupId: number
+): Promise<GroupOpResult<{ data: Buffer; version: number } | null>> {
+	// `updated_at` en texte : un `Date` JavaScript perdrait les microsecondes, et la
+	// comparaison de l'écriture ne retrouverait plus la ligne.
+	const [logo] = await sql<{ data: Buffer; thumbnail: Buffer | null; version: number; updated_at: string }[]>`
+		SELECT data, thumbnail, updated_at::text, floor(EXTRACT(EPOCH FROM updated_at))::float8 AS version
+		FROM group_logos WHERE group_id = ${groupId}
+	`
+	if (!logo) return fail(404, 'Logo introuvable.')
+	if (logo.thumbnail) return { ok: true, value: { data: logo.thumbnail, version: logo.version } }
+
+	let thumbnail: Buffer
+	try {
+		thumbnail = await imageThumbnail(logo.data, LOGO_THUMBNAIL_SIZE)
+	} catch (err) {
+		console.error(`[groups] miniature du logo du groupe ${groupId} impossible`, err)
+		return { ok: true, value: null }
+	}
+	await sql`
+		UPDATE group_logos SET thumbnail = ${thumbnail}
+		WHERE group_id = ${groupId} AND updated_at = ${logo.updated_at}::timestamptz
+	`
+	return { ok: true, value: { data: thumbnail, version: logo.version } }
 }
 
 // ─── Suppression d'un groupe ──────────────────────────────────────────────

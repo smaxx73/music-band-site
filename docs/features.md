@@ -423,9 +423,53 @@ Ce qu'on partage d'une prise, c'est presque toujours un passage ou un commentair
 - Le presse-papiers demande un contexte sécurisé : s'il est refusé, le bouton le dit et l'URL
   reste atteignable depuis la barre d'adresse
 
-Rien de tout cela ne sort du groupe : il n'existe pas de lien public ni de lien à jeton, et
-`/audio/` vérifie la session et le groupe actif comme le reste. Partager, ici, veut dire
-partager avec les membres du groupe.
+Rien de tout cela ne sort du groupe : `/audio/` vérifie la session et le groupe actif comme
+le reste. Partager, ici, veut dire partager avec les membres du groupe. Pour faire écouter
+une prise à quelqu'un qui n'a pas de compte, c'est un autre lien — voir « Lien d'écoute
+public ».
+
+## Lien d'écoute public (`/ecoute/[token]`)
+
+Faire écouter une prise à qui n'a pas de compte : un programmateur, un ami, un ancien
+membre. C'est la **seule** porte de l'application qui s'ouvre sans connexion.
+
+- **Un fichier audio, rien d'autre.** La page montre le lecteur (waveform), le titre, la
+  date, et pour une prise le nom du groupe et le numéro de prise. Ni commentaires, ni note,
+  ni participants, ni lien vers le reste de l'application. Un bouton **télécharge** le
+  fichier, nommé d'après le titre (« Sunny - prise 3.mp3 ») plutôt que `{id}.mp3`
+- **Qui partage** (`canSharePublicly`, `src/lib/types.ts`) : une prise est au groupe
+  entier, **tout membre** peut créer ou révoquer ses liens, quel qu'en soit l'auteur. Un
+  enregistrement perso, **son propriétaire seul**. Les admins n'ont rien de plus
+- Bouton « Lien public » sur `/recording/[id]` et `/perso/[id]`, qui ouvre la gestion des
+  liens (`ShareLinkDialog.svelte`). Dès qu'un lien est actif, le bouton devient
+  « Écoutable en public (n) », **visible de tous les membres** : une prise écoutable au
+  dehors ne doit pas l'être à l'insu des autres
+- **Un jeton, pas un drapeau.** Les ids se suivent et se devinent ; le jeton fait 192 bits
+  aléatoires. Une table (`share_links`, migration 033) plutôt qu'un id signé : un lien se
+  révoque seul, sans toucher au secret des sessions
+- **Seule l'empreinte est gardée** (SHA-256) : le jeton vaut un mot de passe, et une
+  sauvegarde téléchargée ne doit pas publier d'enregistrements. Le lien ne s'affiche donc
+  **qu'à sa création** — copié d'office, et laissé dans un champ si le presse-papiers est
+  refusé. Perdu, il se révoque et se recrée. La liste des liens actifs montre leur date de
+  création, leur auteur, leur expiration et leur dernière ouverture, pas leur adresse
+- **Expiration toujours** : 1 semaine, 1 mois ou **6 mois** (défaut). Un lien expiré
+  n'ouvre plus rien et disparaît de la liste. **Révoquer** supprime la ligne
+- Le jeton est **revérifié à chaque requête**, page comme fichier : un lien révoqué coupe
+  aussitôt, lecture en cours comprise. Lien expiré, révoqué ou inventé : même `404`, aucun
+  ne doit se reconnaître
+- `Referrer-Policy: no-referrer` (le jeton ne fuit pas par un lien sortant),
+  `X-Robots-Tag: noindex`, `Cache-Control: no-store`. Aucun cookie posé
+- **Vidéo seule** : pas de lien d'écoute (`400`) — le lien YouTube se partage déjà tel quel
+- Le lien tombe avec ce qu'il ouvre (`ON DELETE CASCADE`) : prise, session, groupe,
+  enregistrement perso, compte. Un enregistrement perso **classé en prise** garde ses
+  liens : ils suivent le son, et se gèrent ensuite comme ceux de toute prise
+- Pas de notification au groupe, pas de compteur d'écoutes : la dernière ouverture suffit
+  à savoir si un lien sert encore. Les robots qui fabriquent l'aperçu d'un lien collé dans
+  une messagerie (WhatsApp, Messenger, Slack, Discord…) ne la comptent pas
+- **Aperçu du lien** dans une messagerie : balises Open Graph avec le titre, le contexte
+  (groupe, prise, date) et pour image la **miniature du logo du groupe**, ou à défaut
+  celle de BandStash (`static/brand/bandstash-og.jpg`, 512 px, ~25 Ko). Rien de plus que
+  ce que la page montre déjà. L'URL de l'image est absolue, construite depuis `ORIGIN`
 
 ## Naviguer dans une prise très commentée
 
@@ -842,9 +886,15 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 - **Logo** : PNG, JPEG, WebP ou GIF, 2 Mo maximum, stocké en base (`group_logos`) pour suivre
   le groupe dans `pg_dump` et partir avec lui. Le format est lu dans les octets du fichier,
   jamais repris du navigateur ; SVG refusé (servi depuis notre origine, il pourrait exécuter du script)
-- Servi par `GET /api/groups/[id]/logo`, aux seuls membres du groupe et aux admins globaux
-  (`canViewGroup`) ; un non-membre reçoit `404`. L'URL porte `?v=<horodatage>` pour un cache
-  navigateur long sans jamais servir un ancien logo
+- Servi par `GET /api/groups/[id]/logo`, **publiquement**, sans compte : en attendant des
+  pages publiques de groupe, c'est l'image d'aperçu d'un lien d'écoute collé dans une
+  messagerie, dont le robot n'est pas connecté. Un logo est une vitrine ; rien d'autre du
+  groupe ne s'ouvre ainsi. L'URL porte `?v=<horodatage>` pour un cache long (`public`,
+  `immutable`) sans jamais servir un ancien logo
+- **Miniature** (`?size=thumb`) : JPEG carré de 512 px sur fond blanc, ~25 Ko, fabriqué par
+  ffmpeg à la première demande puis gardé en base (`group_logos.thumbnail`, migration 034),
+  remis à zéro quand le logo change. Un logo peut peser 2 Mo, et WhatsApp ignore les images
+  d'aperçu trop lourdes. Un logo que ffmpeg ne sait pas réduire renvoie vers l'image par défaut
 - Affiché à côté du nom sur `/group` et en pastille ronde dans la barre du haut (groupe actif)
 - **Liens** : YouTube, Facebook, Instagram (`groups.youtube_url`, `facebook_url`, `instagram_url`).
   Saisie tolérante (« youtube.com/@groupe » est complété en https), mais le domaine doit être

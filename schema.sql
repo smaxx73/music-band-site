@@ -50,8 +50,11 @@ CREATE TABLE group_logos (
     mime_type   TEXT NOT NULL CHECK (mime_type IN ('image/png', 'image/jpeg', 'image/webp', 'image/gif')),
                                              -- pas de SVG : servi depuis notre origine, il pourrait exécuter du script
     data        BYTEA NOT NULL,
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
                                              -- sert aussi de version dans l'URL, pour le cache navigateur
+    thumbnail   BYTEA                        -- JPEG carré léger, image d'aperçu des liens partagés
+                                             -- (migration 034) ; fabriqué à la première demande,
+                                             -- remis à NULL quand le logo change
 );
 
 CREATE TABLE user_groups (
@@ -248,6 +251,21 @@ CREATE TABLE playlist_items (
     UNIQUE (playlist_id, position)
 );
 
+-- Lien d'écoute public : un enregistrement ouvert sans compte à qui détient le jeton
+-- (migration 033). Une prise du groupe OU un enregistrement perso (share_links_target).
+-- Seule l'empreinte du jeton est stockée : le lien ne s'affiche qu'à sa création.
+CREATE TABLE share_links (
+    id                    SERIAL PRIMARY KEY,
+    token_hash            TEXT NOT NULL UNIQUE,    -- SHA-256 hex du jeton
+    recording_id          INTEGER REFERENCES recordings(id)          ON DELETE CASCADE,
+    personal_recording_id INTEGER REFERENCES personal_recordings(id) ON DELETE CASCADE,
+    created_by_user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at            TIMESTAMPTZ NOT NULL,    -- toujours borné : 6 mois par défaut
+    last_accessed_at      TIMESTAMPTZ,             -- dernière ouverture de la page d'écoute
+    CONSTRAINT share_links_target CHECK (num_nonnulls(recording_id, personal_recording_id) = 1)
+);
+
 CREATE TABLE audio_formats (
     id          SERIAL PRIMARY KEY,
     label       TEXT NOT NULL,
@@ -339,3 +357,5 @@ CREATE INDEX idx_personal_recordings_hash ON personal_recordings(user_id, file_h
 CREATE INDEX idx_posts_group            ON posts(group_id, created_at DESC);
 CREATE INDEX idx_posts_personal         ON posts(personal_recording_id) WHERE personal_recording_id IS NOT NULL;
 CREATE INDEX idx_comments_post          ON comments(post_id) WHERE post_id IS NOT NULL;
+CREATE INDEX idx_share_links_recording  ON share_links(recording_id) WHERE recording_id IS NOT NULL;
+CREATE INDEX idx_share_links_personal   ON share_links(personal_recording_id) WHERE personal_recording_id IS NOT NULL;

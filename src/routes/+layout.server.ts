@@ -7,9 +7,16 @@ import { loginRedirect } from '$lib/redirect'
 // voir +page.server.ts et routes/accueil — elles ne redirigent jamais vers /login.
 // Les pages légales doivent rester lisibles sans compte (LCEN art. 6 III).
 const PUBLIC_PATHS = new Set(['/login', '/', '/accueil', '/mentions-legales', '/confidentialite'])
+// Les liens d'écoute publics : le jeton de l'URL est l'autorisation, revérifiée par la
+// page elle-même (src/lib/server/share-links.ts).
+const PUBLIC_PREFIXES = ['/ecoute/']
+
+function isPublicPath(pathname: string): boolean {
+	return PUBLIC_PATHS.has(pathname) || PUBLIC_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+}
 
 export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
-	if (!locals.user && !PUBLIC_PATHS.has(url.pathname)) {
+	if (!locals.user && !isPublicPath(url.pathname)) {
 		// La destination est emportée jusqu'à la connexion : un lien partagé s'ouvre
 		// presque toujours sur une session expirée, et renvoyer au tableau de bord
 		// perd justement ce qu'on venait de partager.

@@ -258,3 +258,46 @@ export function extractSegment(
 		ff.on('error', reject)
 	})
 }
+
+/**
+ * Miniature JPEG carrée d'une image (logo de groupe) : réduite pour tenir dans `size`,
+ * centrée sur fond blanc — un PNG transparent deviendrait noir en JPEG, et un aperçu de
+ * lien s'affiche carré. Une image animée donne sa première image.
+ * L'entrée passe en mémoire : c'est un logo de 2 Mo au plus, pas un fichier audio.
+ */
+export function imageThumbnail(input: Buffer, size: number): Promise<Buffer> {
+	return new Promise((resolve, reject) => {
+		const ff = spawn('ffmpeg', [
+			'-v', 'error',
+			'-i', 'pipe:0',
+			'-filter_complex', [
+				`[0:v]scale=${size}:${size}:force_original_aspect_ratio=decrease,format=rgba[fg]`,
+				`color=c=white:s=${size}x${size}[bg]`,
+				'[bg][fg]overlay=(W-w)/2:(H-h)/2:shortest=1,format=yuvj420p'
+			].join(';'),
+			'-frames:v', '1',
+			// q 3 : ~25 Ko en 512 px, loin des ~300 Ko au-delà desquels WhatsApp renonce.
+			'-q:v', '3',
+			'-f', 'image2pipe',
+			'-c:v', 'mjpeg',
+			'pipe:1'
+		])
+
+		const chunks: Buffer[] = []
+		let stderr = ''
+		ff.stdout.on('data', (d: Buffer) => chunks.push(d))
+		ff.stderr.on('data', (d: Buffer) => (stderr += d.toString()))
+		// ffmpeg peut refermer l'entrée avant de l'avoir lue en entier (image illisible) :
+		// l'erreur d'écriture n'apprend rien de plus que son code de sortie.
+		ff.stdin.on('error', () => {})
+		ff.stdin.end(input)
+
+		ff.on('close', (code) => {
+			const output = Buffer.concat(chunks)
+			if (code === 0 && output.length > 0) resolve(output)
+			else reject(new Error(`ffmpeg exited with code ${code}: ${stderr.slice(-300)}`))
+		})
+
+		ff.on('error', reject)
+	})
+}

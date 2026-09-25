@@ -14,6 +14,8 @@
 	import type { CommentWithReactions } from '$lib/types'
 	import Icon from '$lib/components/Icon.svelte'
 	import SongSelect from '$lib/components/SongSelect.svelte'
+	import ShareLinkDialog from '$lib/components/ShareLinkDialog.svelte'
+	import { canSharePublicly } from '$lib/types'
 	import { isPlaceholderSongTitle, sortedWithSong } from '$lib/songs'
 
 	let { data }: { data: PageData } = $props()
@@ -285,6 +287,15 @@
 		}
 	}
 
+	// Lien d'écoute public : tout membre peut faire entendre une prise hors du groupe.
+	// Le compteur reste visible de tous — une prise écoutable au dehors ne doit pas
+	// l'être à l'insu des autres membres.
+	let shareOpen = $state(false)
+	let shareCount = $derived(data.shareCount as number)
+	const canShare = $derived(
+		hasAudio && !!data.user?.current_group_id && canSharePublicly(data.user, { groupId: data.user.current_group_id })
+	)
+
 	// Le lecteur reste à l'écran pendant qu'on lit les commentaires : la waveform et ses
 	// marqueurs sont l'index de la discussion, ils n'ont pas à disparaître au premier
 	// défilement. Il ne se colle que s'il laisse de quoi lire — une vidéo 16/9 sur un
@@ -468,6 +479,17 @@
 				{:else}<Icon name="link" /> Copier le lien{#if shareTime !== null}&nbsp;({formatTimecode(shareTime)}){/if}
 				{/if}
 			</button>
+			{#if canShare}
+				<button
+					class="btn btn-secondary btn-sm"
+					class:shared={shareCount > 0}
+					onclick={() => (shareOpen = true)}
+					title="Faire écouter cette prise à quelqu'un qui n'a pas de compte"
+				>
+					<Icon name="globe" />
+					{shareCount > 0 ? `Écoutable en public (${shareCount})` : 'Lien public'}
+				</button>
+			{/if}
 			{#if hasAudio}
 				<AddToPlaylistButton
 					recordingId={recording.id}
@@ -532,6 +554,14 @@
 			comments = updatedComments
 		}}
 	/>
+
+	{#if shareOpen}
+		<ShareLinkDialog
+			target={{ kind: 'recording', id: recording.id }}
+			onClose={() => (shareOpen = false)}
+			onCountChange={(count) => (shareCount = count)}
+		/>
+	{/if}
 </main>
 
 <style>
@@ -543,6 +573,7 @@
 
 	.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
 	.header-actions { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+	.header-actions .shared { border-color: var(--color-accent); color: var(--color-accent); }
 
 	h1 {
 		font-size: 1.4rem;

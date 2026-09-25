@@ -8,6 +8,7 @@
 	import PublishDialog from '$lib/components/PublishDialog.svelte'
 	import ClassifyDialog from '$lib/components/ClassifyDialog.svelte'
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
+	import ShareLinkDialog from '$lib/components/ShareLinkDialog.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import { youtubeWatchUrl } from '$lib/youtube'
 	import { personalAudioUrl } from '$lib/types'
@@ -72,6 +73,11 @@
 		}
 	}
 
+	// Lien d'écoute public : faire entendre l'enregistrement à qui n'a pas de compte,
+	// sans le publier dans un groupe. Seul le propriétaire arrive sur cette page.
+	let shareOpen = $state(false)
+	let shareCount = $derived(data.shareCount as number)
+
 	// ─── Suppression ───────────────────────────────────────────────────────
 	let confirmDeleteOpen = $state(false)
 	// `?classer` ouvre la question d'emblée : c'est la suite d'un enregistrement fait sur place.
@@ -82,12 +88,15 @@
 	// Une suppression `danger` nomme ce qui part avec : ici, ce que le groupe voyait.
 	const deleteMessage = $derived.by(() => {
 		const count = recording.publications.length
-		if (count === 0) return `« ${recording.title} » et son fichier seront définitivement supprimés.`
+		const links = shareCount > 0
+			? ` ${shareCount > 1 ? 'Ses liens' : 'Son lien'} d'écoute public${shareCount > 1 ? 's' : ''} cesser${shareCount > 1 ? 'ont' : 'a'} de fonctionner.`
+			: ''
+		if (count === 0) return `« ${recording.title} » et son fichier seront définitivement supprimés.${links}`
 		const groups = recording.publications.map((p) => `« ${p.group_name} »`).join(', ')
 		const comments = recording.comment_count > 0
 			? ` et ${recording.comment_count} commentaire${recording.comment_count > 1 ? 's' : ''}`
 			: ''
-		return `« ${recording.title} » et son fichier seront définitivement supprimés, avec ${count > 1 ? 'ses publications' : 'sa publication'} dans ${groups}${comments}.`
+		return `« ${recording.title} » et son fichier seront définitivement supprimés, avec ${count > 1 ? 'ses publications' : 'sa publication'} dans ${groups}${comments}.${links}`
 	})
 
 	async function deleteRecording() {
@@ -108,6 +117,7 @@
 	}
 
 	let publishOpen = $state(false)
+
 </script>
 
 <svelte:head>
@@ -158,6 +168,17 @@
 					<!-- Enregistré avant d'avoir une session où le ranger : c'est ici qu'il la rejoint. -->
 					<button class="btn btn-secondary btn-sm" onclick={() => (classifyOpen = true)}>
 						Classer dans une session
+					</button>
+				{/if}
+				{#if recording.file_path}
+					<button
+						class="btn btn-secondary btn-sm"
+						class:shared={shareCount > 0}
+						onclick={() => (shareOpen = true)}
+						title="Faire écouter cet enregistrement à quelqu'un qui n'a pas de compte"
+					>
+						<Icon name="globe" size="0.85rem" />
+						{shareCount > 0 ? `Écoutable en public (${shareCount})` : 'Lien public'}
 					</button>
 				{/if}
 				<button class="btn btn-secondary btn-sm" onclick={startEdit}>Modifier</button>
@@ -218,6 +239,14 @@
 		/>
 	{/if}
 
+	{#if shareOpen}
+		<ShareLinkDialog
+			target={{ kind: 'personal', id: recording.id }}
+			onClose={() => (shareOpen = false)}
+			onCountChange={(count) => (shareCount = count)}
+		/>
+	{/if}
+
 	<ConfirmDialog
 		open={confirmDeleteOpen}
 		level="danger"
@@ -239,6 +268,7 @@
 	.meta { display: flex; align-items: center; gap: 0.3rem; font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 0.15rem; }
 	.notes { display: flex; gap: 0.35rem; font-size: var(--text-sm); color: var(--color-text-secondary); margin: 0.5rem 0 0; white-space: pre-line; }
 	.header-actions { display: flex; gap: 0.4rem; flex-shrink: 0; flex-wrap: wrap; }
+	.header-actions .shared { border-color: var(--color-accent); color: var(--color-accent); }
 
 	.optional { font-weight: 400; color: var(--color-text-muted); }
 	textarea { resize: vertical; }

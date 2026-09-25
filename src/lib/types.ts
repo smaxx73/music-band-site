@@ -122,6 +122,19 @@ export function canEditPost(
 	return canEditComment(user, authorUserId)
 }
 
+// Lien d'écoute public (sans compte). Une prise est au groupe entier : tout membre peut
+// la faire entendre au dehors. Un enregistrement perso, à son seul propriétaire. Les
+// admins n'ont rien de plus : ils ne voient pas l'espace perso, et sur une prise ils
+// ont déjà le droit de tout membre.
+export function canSharePublicly(
+	user: RoleBearer | null | undefined,
+	owner: { groupId: number } | { userId: number }
+): boolean {
+	if (!user) return false
+	if ('userId' in owner) return owner.userId === user.id
+	return memberGroupRole(user, owner.groupId) !== null
+}
+
 export type Group = {
 	id: number
 	name: string
@@ -145,6 +158,14 @@ export const GROUP_LINK_LABELS: Record<GroupLinkField, string> = {
 export function groupLogoUrl(groupId: number, version: number): string {
 	return `/api/groups/${groupId}/logo?v=${version}`
 }
+
+/** Miniature JPEG du logo (512 px, quelques dizaines de Ko) : image d'aperçu des liens partagés. */
+export function groupLogoThumbnailUrl(groupId: number, version: number): string {
+	return `/api/groups/${groupId}/logo?v=${version}&size=thumb`
+}
+
+/** Image d'aperçu par défaut, quand le groupe n'a pas de logo : 512 px, ~25 Ko. */
+export const DEFAULT_SHARE_IMAGE = '/brand/bandstash-og.jpg'
 
 export type UserGroup = {
 	user_id: number
@@ -492,6 +513,35 @@ export type PersonalRecording = {
 /** URL d'écoute d'un enregistrement perso — servie par Node, jamais par Caddy. */
 export function personalAudioUrl(id: number): string {
 	return `/audio/perso/${id}.mp3`
+}
+
+// ─── Liens d'écoute publics ───────────────────────────────────────────────
+
+/** Ce qu'un lien d'écoute ouvre : une prise du groupe, ou un enregistrement perso. */
+export type ShareTarget = { kind: 'recording'; id: number } | { kind: 'personal'; id: number }
+
+/** Durées proposées à la création. Un lien expire toujours : rien n'est ouvert pour de bon. */
+export const SHARE_DURATIONS_DAYS = [7, 30, 180] as const
+export type ShareDurationDays = (typeof SHARE_DURATIONS_DAYS)[number]
+export const SHARE_DEFAULT_DAYS: ShareDurationDays = 180
+
+export const SHARE_DURATION_LABELS: Record<ShareDurationDays, string> = {
+	7: '1 semaine',
+	30: '1 mois',
+	180: '6 mois'
+}
+
+/** Un lien actif, tel que le voient les membres. Le jeton n'y est pas : seule son empreinte est gardée. */
+export type ShareLinkView = {
+	id: number
+	created_at: string
+	expires_at: string
+	last_accessed_at: string | null
+	created_by: string | null
+}
+
+export function shareUrl(origin: string, token: string): string {
+	return `${origin}/ecoute/${token}`
 }
 
 export type PostType = 'recording' | 'youtube' | 'song_suggestion'

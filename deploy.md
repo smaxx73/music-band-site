@@ -54,3 +54,6 @@ Internet → Caddy système (80/443) → localhost:3000 → container app → co
 - Les fichiers audio sont dans le volume Docker `audio_data` et sont servis par
   l'application après contrôle de la session et du groupe actif. Caddy doit proxyfier
   `/audio/*` vers l'application, sans règle `file_server` publique pour ce chemin.
+- `/ecoute/*` (liens d'écoute publics) est proxyfié comme le reste : le jeton y est
+  vérifié par l'application. Il figure dans l'URL, donc dans les journaux d'accès de Caddy —
+  les garder courts (voir `accessLogRetentionDays` dans `src/lib/legal.ts`).

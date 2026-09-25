@@ -76,6 +76,14 @@
 		Ils n'ont pas accès aux espaces personnels.
 	</li>
 	<li>
+		<strong>Toute personne qui détient un lien d'écoute public</strong>, si un membre du
+		groupe (ou vous, pour votre espace personnel) en a créé un : elle peut écouter et
+		télécharger ce seul enregistrement, sans compte, jusqu'à l'expiration ou la révocation
+		du lien. Elle voit le titre, la date et le nom du groupe, jamais les commentaires, les
+		notes ni les noms des participants. Les membres du groupe voient qu'une prise est
+		écoutable en public et peuvent révoquer son lien.
+	</li>
+	<li>
 		<strong>{host.name}</strong>, hébergeur du serveur ({host.serverLocation}), en qualité de
 		sous-traitant technique.
 	</li>
@@ -133,7 +141,8 @@
 <p>
 	Les échanges sont chiffrés (HTTPS), les mots de passe sont conservés sous forme d'empreinte
 	(scrypt) et chaque fichier audio n'est servi qu'après vérification de votre session et de
-	votre appartenance au groupe concerné.
+	votre appartenance au groupe concerné — ou, pour un lien d'écoute public, d'un jeton
+	aléatoire dont seule l'empreinte est conservée, qui expire au plus tard après 6 mois.
 </p>
 
 <h2>Vos droits</h2>

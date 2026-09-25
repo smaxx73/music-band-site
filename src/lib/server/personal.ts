@@ -261,6 +261,14 @@ export async function classifyPersonalRecording(opts: {
 				await tx`UPDATE recordings SET file_path = ${filePath} WHERE id = ${created.id}`
 			}
 
+			// Ses liens d'écoute publics suivent le son : un lien déjà envoyé au dehors
+			// continue d'ouvrir le même enregistrement, devenu prise. Désormais au groupe,
+			// ils se gèrent comme ceux de toute prise, par tout membre.
+			await tx`
+				UPDATE share_links SET recording_id = ${created.id}, personal_recording_id = NULL
+				WHERE personal_recording_id = ${id}
+			`
+
 			// Ses publications et leurs commentaires tombent en cascade : l'enregistrement
 			// a changé de place, il n'est plus là pour les porter.
 			await tx`DELETE FROM personal_recordings WHERE id = ${id} AND user_id = ${userId}`

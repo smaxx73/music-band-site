@@ -8,7 +8,8 @@ src/
 │   ├── server/
 │   │   ├── db.ts          # client postgres.js + helpers SQL
 │   │   ├── storage.ts     # lecture/écriture fichiers audio
-│   │   ├── ffmpeg.ts      # conversion mp3, proxy, détection des blancs, extraction, durée
+│   │   ├── ffmpeg.ts      # conversion mp3, proxy, détection des blancs, extraction, durée,
+│   │   │                  #   miniature du logo de groupe
 │   │   ├── upload-stream.ts # réception multipart d'un fichier audio (prise ou import)
 │   │   ├── imports.ts     # zone de transit des outils audio d'après upload
 │   │   ├── youtube.ts     # vidéo YouTube d'une prise : lien, oEmbed, doublon
@@ -18,6 +19,7 @@ src/
 │   │   │                  #   classement d'un enregistrement en prise d'une session
 │   │   ├── posts.ts       # publications dans le groupe (enregistrement perso, vidéo, suggestion) + pouces
 │   │   ├── feed.ts        # fil d'actualité : toutes les sources ordonnées, paginé par curseur
+│   │   ├── share-links.ts # liens d'écoute publics : jeton, résolution, ce qui est exposé
 │   │   └── notifications.ts # écriture (fan-out) et lecture des notifications
 	│   └── components/
 	│       ├── ConfirmDialog.svelte   # confirmation réutilisable, selon le niveau de risque
@@ -41,6 +43,7 @@ src/
 │       ├── MediaPlayer.svelte     # lecteur d'un enregistrement perso (audio et/ou vidéo, hors barre du bas)
 │       ├── PublishDialog.svelte   # publier dans le groupe actif : enregistrement perso, vidéo, suggestion
 │       ├── ClassifyDialog.svelte  # classer un enregistrement perso en prise (session + morceau)
+│       ├── ShareLinkDialog.svelte # liens d'écoute publics d'un enregistrement : créer, révoquer
 │       ├── PostReactions.svelte   # pouces 👍/👎 d'une publication (fil et page de la publication)
 │       ├── FeedItem.svelte        # une carte du fil d'actualité, selon le type d'élément
 │       ├── SongSelect.svelte      # sélecteur de morceau + création sur place (« À nommer — … »)
@@ -63,6 +66,7 @@ src/
 │   ├── perso/[id]/+page.svelte    # un enregistrement perso
 │   ├── posts/[id]/+page.svelte    # une publication + ses commentaires
 │   ├── fil/+page.svelte           # fil d'actualité du groupe actif
+│   ├── ecoute/[token]/            # écoute publique sans compte (page + fichier audio)
 │   └── api/               # voir src/routes/api/CLAUDE.md
 data/audio/                # fichiers mp3 (volume Docker)
 schema.sql                 # schéma SQL — source de vérité
@@ -122,6 +126,8 @@ la confirmation est une protection d'interface, jamais une règle de sécurité.
 ## Fichiers audio
 - Stockés dans `/data/audio/{recording_id}.mp3`
 - Enregistrements perso dans `/data/audio/perso/{id}.mp3`, servis par `/audio/perso/`
+- Un lien d'écoute public sert le même fichier par `/ecoute/[token]/audio`, toujours par
+  Node : le jeton y remplace la session, et se revérifie à chaque requête
 - Convertis en mp3 128kbps à l'upload via ffmpeg
 - Servis par Node (`src/routes/audio/[id]/+server.ts`), en développement comme en production :
   la route vérifie la session et l'appartenance de la prise au groupe actif avant d'ouvrir le
