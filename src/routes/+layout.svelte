@@ -8,6 +8,7 @@
 	import NotificationsMenu from '$lib/components/NotificationsMenu.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import LegalLinks from '$lib/components/LegalLinks.svelte'
+	import { APP_VERSION } from '$lib/version'
 	import type { IconName } from '$lib/icons'
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props()
@@ -196,6 +197,8 @@
 
 				<div class="sidebar-legal">
 					<LegalLinks compact />
+					<!-- Version en service : c'est elle qu'on cite pour signaler un souci. -->
+					<span class="sidebar-version">v{APP_VERSION}</span>
 				</div>
 			</nav>
 
@@ -463,6 +466,13 @@
 	.sidebar-legal {
 		padding: 0.25rem 12px 0.5rem;
 		color: rgba(255,255,255,0.45);
+	}
+
+	.sidebar-version {
+		display: block;
+		margin-top: 0.15rem;
+		font-size: var(--text-xs, 0.75rem);
+		font-variant-numeric: tabular-nums;
 	}
 
 	.sidebar-account form {

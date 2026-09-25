@@ -28,6 +28,18 @@ git pull
 docker compose up -d --build app
 ```
 
+## Publier une version
+
+La version vit dans `package.json` (affichée en bas de la barre latérale). Choisir le
+niveau selon les règles en tête de `CHANGELOG.md`.
+
+1. Dans `CHANGELOG.md`, renommer « [Non publié] » en « [X.Y.Z] — AAAA-MM-JJ », avec les
+   migrations apportées, et rouvrir une section « [Non publié] » vide
+2. Changer `"version"` dans `package.json`
+3. Commiter et pousser comme d'habitude
+
+Sur le VPS, la mise à jour reste celle ci-dessus.
+
 ## Appliquer une migration
 
 ```bash
