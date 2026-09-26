@@ -2,11 +2,16 @@
 	import type { PageData } from './$types'
 	import { untrack } from 'svelte'
 	import { formatDateOnly } from '$lib/date'
-	import AudioPlayer from '$lib/components/AudioPlayer.svelte'
 	import PlaylistQueue from '$lib/components/PlaylistQueue.svelte'
 	import SongDetails from '$lib/components/SongDetails.svelte'
 	import Modal from '$lib/components/Modal.svelte'
-	import { player } from '$lib/player.svelte'
+	import { player, type PlayerTrack } from '$lib/player.svelte'
+	import MediaHeader from '$lib/components/MediaHeader.svelte'
+	import Icon from '$lib/components/Icon.svelte'
+	import PlaylistCover from '$lib/components/PlaylistCover.svelte'
+	import PlaylistTrackRow from '$lib/components/PlaylistTrackRow.svelte'
+	import PlayAllButton from '$lib/components/PlayAllButton.svelte'
+	import { formatDurationLong } from '$lib/types'
 
 	let { data }: { data: PageData } = $props()
 
@@ -18,7 +23,7 @@
 		song_lyrics: string | null; song_music_notes: string | null
 		session_id: number; session_date: string; session_location: string | null
 	}
-	type Playlist = { id: number; name: string; description: string | null }
+	type Playlist = { id: number; name: string; description: string | null; created_by: string }
 	type AvailableRecording = {
 		recording_id: number; take: number; duration_s: number | null
 		recording_status: string; file_path: string
@@ -30,46 +35,34 @@
 
 	const playlist = $derived(data.playlist as unknown as Playlist)
 	let items = $state(untrack(() => data.items as unknown as Item[]))
-	const peaks = $derived((data as unknown as { peaks: Record<number, number[]> }).peaks)
-	const durations = $derived((data as unknown as { durations: Record<number, number | null> }).durations)
 	let availableRecordings = $state(untrack(() => data.availableRecordings as unknown as AvailableRecording[]))
 
-	type PlayerState = {
-		currentTime: number
-		duration: number
-		isPlaying: boolean
-		ready: boolean
-	}
+	// La vue par défaut se lit et s'écoute ; réordonner, retirer et ajouter des prises
+	// se fait en mode édition, pour qu'un geste de lecture ne déplace rien par mégarde.
+	let editMode = $state(false)
 
-	let currentIdx = $state(0)
-	let playerState = $state<PlayerState>({
-		currentTime: 0,
-		duration: 0,
-		isPlaying: false,
-		ready: false
-	})
-	let autoplayTrack = $state(false)
-	let toggleToken = $state(0)
-	let toggleRequest = $state<{ token: number } | null>(null)
+	// La lecture passe par le mini-lecteur, comme pour une session : il enchaîne la
+	// playlist depuis la piste choisie, et survit à la navigation.
+	const tracks = $derived<PlayerTrack[]>(items.map((item) => ({
+		recordingId: item.recording_id,
+		songId: item.song_id,
+		songTitle: item.song_title,
+		take: item.take,
+		sessionDate: item.session_date,
+		durationS: item.duration_s
+	})))
+	const currentIdx = $derived(items.findIndex((item) => item.recording_id === player.track?.recordingId))
+	const currentItem = $derived(currentIdx >= 0 ? items[currentIdx] : null)
+
+	function playFrom(idx: number) {
+		if (idx === currentIdx) player.toggle()
+		else player.playAll(tracks.slice(idx))
+	}
 
 	function formatDate(d: string | Date) {
 		return formatDateOnly(d, {
 			day: 'numeric', month: 'short', year: 'numeric'
 		})
-	}
-
-	function audioUrl(item: Item) {
-		return `/audio/${item.recording_id}.mp3`
-	}
-
-	function jumpTo(idx: number) {
-		if (idx === currentIdx && playerState.ready) {
-			toggleToken += 1
-			toggleRequest = { token: toggleToken }
-			return
-		}
-		currentIdx = idx
-		autoplayTrack = true
 	}
 
 	let saveError = $state<string | null>(null)
@@ -143,10 +136,6 @@
 		const [moved] = newItems.splice(fromIdx, 1)
 		newItems.splice(toIdx, 0, moved)
 
-		if (currentIdx === fromIdx) currentIdx = toIdx
-		else if (fromIdx < currentIdx && toIdx >= currentIdx) currentIdx--
-		else if (fromIdx > currentIdx && toIdx <= currentIdx) currentIdx++
-
 		items = newItems
 		await savePositions()
 	}
@@ -167,30 +156,21 @@
 
 	async function removeItem(itemId: number, idx: number) {
 		await fetch(`/api/playlists/${playlist.id}/items/${itemId}`, { method: 'DELETE' })
-		const newItems = items.filter((_, i) => i !== idx)
-		if (currentIdx >= newItems.length) currentIdx = Math.max(0, newItems.length - 1)
-		items = newItems
-		if (newItems.length === 0) {
-			playerState = { currentTime: 0, duration: 0, isPlaying: false, ready: false }
-			autoplayTrack = false
-		}
+		items = items.filter((_, i) => i !== idx)
+		if (items.length === 0) editMode = false
 	}
 
-	function playNext() {
-		if (currentIdx >= items.length - 1) {
-			autoplayTrack = false
-			return
-		}
-		currentIdx += 1
-		autoplayTrack = true
-	}
+	const playlistStats = $derived.by(() => {
+		const totalS = items.reduce((n, i) => n + (i.duration_s ?? 0), 0)
+		return [
+			`${items.length} prise${items.length > 1 ? 's' : ''}`,
+			totalS > 0 ? formatDurationLong(totalS) : null,
+			`par ${playlist.created_by}`
+		]
+			.filter(Boolean)
+			.join(' · ')
+	})
 
-	const currentTrack = $derived(items[currentIdx] ? {
-		id: items[currentIdx].recording_id,
-		src: audioUrl(items[currentIdx]),
-		peaks: peaks[items[currentIdx].recording_id] ?? [],
-		duration: (items[currentIdx].duration_s ?? durations[items[currentIdx].recording_id]) ?? undefined
-	} : null)
 </script>
 
 <svelte:head>
@@ -202,65 +182,76 @@
 		<a href="/playlists">Playlists</a> / <span>{playlist.name}</span>
 	</nav>
 
-	<div class="playlist-header">
-		<div>
-			<h1>{playlist.name}</h1>
-			{#if playlist.description}<p class="desc">{playlist.description}</p>{/if}
-		</div>
-		<button class="btn btn-primary btn-sm" onclick={openAddModal}>+ Ajouter des prises</button>
-	</div>
+	<MediaHeader title={playlist.name} stats={playlistStats}>
+		{#snippet kicker()}Playlist{/snippet}
+		{#snippet cover()}
+			<PlaylistCover songs={items.map((i) => ({ id: i.song_id, title: i.song_title }))} />
+		{/snippet}
+		{#if playlist.description}<p class="desc">{playlist.description}</p>{/if}
+		{#snippet actions()}
+			{#if items.length > 0}
+				<!-- En édition, « Terminer » prend le ton principal : c'est l'état dont on sort. -->
+				<button
+					class="btn {editMode ? 'btn-primary' : 'btn-ghost mh-secondary'}"
+					aria-pressed={editMode}
+					onclick={() => (editMode = !editMode)}
+				>
+					<Icon name={editMode ? 'check' : 'pencil'} size="0.9rem" />
+					{editMode ? 'Terminer' : 'Modifier'}
+				</button>
+				<PlayAllButton {tracks} label="Écouter la playlist" />
+			{/if}
+		{/snippet}
+	</MediaHeader>
 
 	{#if items.length === 0}
 		<div class="empty-state">
 			<p class="empty">Cette playlist est vide.</p>
 			<button class="btn btn-primary" onclick={openAddModal}>+ Ajouter des prises</button>
 		</div>
-	{:else}
-		<!-- Lecteur -->
-		<div class="player-card">
-			{#if items[currentIdx]}
-				<div class="now-playing">
-					<span class="np-label">En cours</span>
-					<strong>{items[currentIdx].song_title}</strong>
-					— prise #{items[currentIdx].take}
-					· {formatDate(items[currentIdx].session_date)}
-					{#if items[currentIdx].note}<em>({items[currentIdx].note})</em>{/if}
-				</div>
-			{/if}
-
-			{#if items[currentIdx]}
-				<SongDetails
-					lyrics={items[currentIdx].song_lyrics}
-					musicNotes={items[currentIdx].song_music_notes}
-					compact
-				/>
-			{/if}
-
-			{#if currentTrack}
-				<AudioPlayer
-					track={currentTrack}
-					height={70}
-					autoplay={autoplayTrack}
-					toggleRequest={toggleRequest}
-					onStateChange={(state) => {
-						playerState = state
-						// Ce lecteur garde sa propre file : quand il démarre, il prend la
-						// main sur la prise isolée éventuellement en cours dans la barre.
-						if (state.isPlaying) player.pause()
-					}}
-					onEnded={playNext}
-				/>
-			{/if}
+	{:else if editMode}
+		<!-- Mode édition : glisser pour réordonner, × pour retirer. Toucher une piste la
+		     lance quand même — on réécoute souvent pour décider de l'ordre. -->
+		<div class="edit-bar">
+			<p class="edit-hint">Glissez les prises pour changer l'ordre.</p>
+			<button class="btn btn-primary btn-sm" onclick={openAddModal}>+ Ajouter des prises</button>
 		</div>
-
 		<PlaylistQueue
-			items={items}
+			{items}
 			currentIndex={currentIdx}
 			error={saveError}
-			onSelect={jumpTo}
+			onSelect={playFrom}
 			onReorder={reorderItems}
 			onRemove={removeItem}
 		/>
+	{:else}
+		{#if currentItem && (currentItem.song_lyrics || currentItem.song_music_notes)}
+			<!-- Paroles et notes du morceau qu'on écoute : c'est en répétant sur une
+			     playlist qu'on en a besoin. -->
+			<section class="now-playing" aria-label="Morceau en cours">
+				<p class="np-title">
+					<span class="np-label">En cours</span>
+					<strong>{currentItem.song_title}</strong> — prise {currentItem.take}
+				</p>
+				<SongDetails
+					lyrics={currentItem.song_lyrics}
+					musicNotes={currentItem.song_music_notes}
+					compact
+				/>
+			</section>
+		{/if}
+
+		<div class="tracklist">
+			{#each items as item, i (item.id)}
+				<PlaylistTrackRow
+					{item}
+					position={i + 1}
+					current={i === currentIdx}
+					playing={i === currentIdx && player.isPlaying}
+					onToggle={() => playFrom(i)}
+				/>
+			{/each}
+		</div>
 	{/if}
 
 	{#if showAddModal}
@@ -291,28 +282,43 @@
 <style>
 	main { max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
 
-	.playlist-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 0.3rem; }
-	h1 { font-size: 1.4rem; margin: 0 0 0.3rem; }
-	.desc { font-size: var(--text-sm); color: #666; margin: 0 0 1.5rem; }
+	.desc { font-size: var(--text-sm); color: var(--color-text-secondary); margin: 0; }
 	.empty-state { text-align: center; padding: 2rem 0; }
 	.empty-state .empty { margin-top: 0; }
 
-	.player-card {
+	.now-playing {
 		background: var(--color-bg-subtle);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-xl);
-		padding: 1rem 1.25rem;
-		margin-bottom: 1.5rem;
+		border: 1px solid var(--color-border-light);
+		border-radius: var(--radius-lg);
+		padding: 0.75rem 1rem;
+		margin-bottom: 1rem;
 	}
 
-	.now-playing {
-		font-size: 0.82rem; color: var(--color-text-secondary); margin-bottom: 0.6rem;
-		display: flex; align-items: baseline; gap: 0.4rem; flex-wrap: wrap;
+	.np-title {
+		display: flex;
+		align-items: baseline;
+		flex-wrap: wrap;
+		gap: 0.4rem;
+		margin: 0 0 0.4rem;
+		font-size: var(--text-sm);
+		color: var(--color-text-secondary);
 	}
+
 	.np-label {
 		font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
-		background: var(--color-primary); color: white; padding: 0.1rem 0.4rem; border-radius: var(--radius-sm);
+		background: var(--color-accent); color: #fff; padding: 0.1rem 0.4rem; border-radius: var(--radius-sm);
 	}
+
+	.edit-bar {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 0.5rem 1rem;
+		margin-bottom: 0.75rem;
+	}
+
+	.edit-hint { margin: 0; font-size: var(--text-sm); color: var(--color-text-muted); }
 
 	.add-modal-content { padding: 0.9rem 1.25rem 1.25rem; }
 	.modal-hint, .modal-error { font-size: var(--text-sm); margin: 0 0 0.75rem; }
@@ -329,11 +335,7 @@
 	@media (max-width: 640px) {
 		main { margin: 1rem auto; padding: 0 0.75rem; }
 
-		h1 { font-size: 1.2rem; }
-
-		.player-card { padding: 0.85rem 0.8rem; }
-		.playlist-header { align-items: stretch; flex-direction: column; }
-		.playlist-header .btn { align-self: flex-start; }
+		.now-playing { padding: 0.65rem 0.75rem; }
 		.recording-options button { align-items: flex-start; flex-direction: column; gap: 0.2rem; }
 	}
 </style>

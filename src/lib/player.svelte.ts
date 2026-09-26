@@ -30,6 +30,10 @@ class SharedPlayer {
 	currentTime = $state(0)
 	duration = $state(0)
 
+	// Prises à enchaîner après celle en cours (« tout écouter » d'un morceau). Vide
+	// hors de ce cas : une prise lancée seule remplace la file au lieu de s'y ajouter.
+	queue = $state<PlayerTrack[]>([])
+
 	// Nombre de waveforms montées sur le média partagé. Tant qu'il y en a une, la barre
 	// du bas reste masquée : elle ferait doublon avec les contrôles déjà à l'écran.
 	viewCount = $state(0)
@@ -39,6 +43,42 @@ class SharedPlayer {
 	 * la lecture continue là où elle en est (cas du retour sur une page qui la porte).
 	 */
 	load(next: PlayerTrack, autoplay = false) {
+		if (this.track?.recordingId !== next.recordingId) this.queue = []
+		this.#setTrack(next, autoplay)
+	}
+
+	/** Lance la première prise et garde les suivantes en file. */
+	playAll(tracks: PlayerTrack[]) {
+		if (tracks.length === 0) return
+		this.#setTrack(tracks[0], true)
+		this.queue = tracks.slice(1)
+	}
+
+	/** ▶ d'une ligne de prise : met en pause celle qui joue, lance les autres. */
+	toggleTrack(next: PlayerTrack) {
+		if (this.track?.recordingId === next.recordingId) this.toggle()
+		else this.load(next, true)
+	}
+
+	next() {
+		const [following, ...rest] = this.queue
+		if (!following) return
+		this.#setTrack(following, true)
+		this.queue = rest
+	}
+
+	/**
+	 * Fin de piste. On n'enchaîne que si aucune waveform n'est montée : la page d'une
+	 * prise dessine sa propre forme d'onde, et y charger la suivante la laisserait
+	 * afficher une autre prise que celle qu'on entend.
+	 */
+	handleEnded() {
+		this.isPlaying = false
+		if (this.viewCount === 0) this.next()
+		else this.queue = []
+	}
+
+	#setTrack(next: PlayerTrack, autoplay: boolean) {
 		const isNew = this.track?.recordingId !== next.recordingId
 		this.track = next
 
@@ -79,6 +119,7 @@ class SharedPlayer {
 	close() {
 		this.pause()
 		this.track = null
+		this.queue = []
 		this.isPlaying = false
 		this.currentTime = 0
 		this.duration = 0

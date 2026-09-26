@@ -64,7 +64,7 @@
 	onseeked={syncTime}
 	onloadedmetadata={syncDuration}
 	ondurationchange={syncDuration}
-	onended={() => (player.isPlaying = false)}
+	onended={() => player.handleEnded()}
 ></audio>
 
 {#if visible && player.track}
@@ -96,6 +96,15 @@
 				<span class="mini-time">{formatTime(total)}</span>
 			</div>
 		</div>
+
+		{#if player.queue.length > 0}
+			<button
+				class="mini-btn mini-next"
+				onclick={() => player.next()}
+				title="Prise suivante ({player.queue.length} en attente)"
+				aria-label="Prise suivante"
+			><Icon name="skip-forward" size="0.95rem" /></button>
+		{/if}
 
 		<button class="mini-btn mini-close" onclick={() => player.close()} title="Fermer le lecteur">
 			<Icon name="close" size="0.9rem" />
@@ -143,7 +152,13 @@
 		font-size: 0.8rem;
 	}
 
-	.mini-close:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
+	.mini-next {
+		width: 30px;
+		height: 30px;
+	}
+
+	.mini-close:hover,
+	.mini-next:hover { background: rgba(255, 255, 255, 0.1); color: #fff; }
 
 	.mini-body {
 		flex: 1;

@@ -3,6 +3,9 @@
 	import RecordingComments from '$lib/components/RecordingComments.svelte'
 	import RecordingPlaybackActions from '$lib/components/RecordingPlaybackActions.svelte'
 	import Icon from '$lib/components/Icon.svelte'
+	import TrackLead from '$lib/components/TrackLead.svelte'
+	import { qualityClass } from '$lib/quality'
+	import { player } from '$lib/player.svelte'
 	import { tick } from 'svelte'
 	import type { RecordingListItem } from '$lib/types'
 
@@ -39,6 +42,24 @@
 			? (recording.source_file_name ?? recording.file_path)
 			: (recording.youtube_title ?? 'Vidéo YouTube')
 	)
+	const hasAudio = $derived(!!recording.file_path)
+
+	// La prise que joue le mini-lecteur se signale dans la liste, comme la piste en
+	// cours d'une plateforme de streaming : on la retrouve sans lire la barre du bas.
+	const isCurrent = $derived(player.track?.recordingId === recording.id)
+	const isPlaying = $derived(isCurrent && player.isPlaying)
+
+	function togglePlayback() {
+		player.toggleTrack({
+			recordingId: recording.id,
+			songId,
+			songTitle,
+			take: recording.take,
+			sessionDate,
+			durationS: recording.duration_s
+		})
+	}
+
 	// L'icône vidéo signale une prise filmée : vidéo seule, ou accompagnée de sa piste audio.
 	const hasVideo = $derived(!!recording.youtube_video_id)
 	const sourceTitle = $derived(
@@ -61,16 +82,8 @@
 		return `${m}:${String(sec).padStart(2, '0')}`
 	}
 
-	const QUALITY_CLASS: Record<string, string> = {
-		'À revoir': 'a-revoir', 'à revoir': 'a-revoir',
-		'Moyen': 'moyen', 'moyen': 'moyen',
-		'Bon': 'bon', 'bon': 'bon',
-		'Référence': 'reference', 'référence': 'reference',
-		'en_cours': 'a-revoir', 'au_point': 'bon', 'repertoire': 'reference',
-	}
 	const QUALITY_OPTIONS = ['À revoir', 'Moyen', 'Bon', 'Référence']
 
-	function qualityClass(q: string) { return QUALITY_CLASS[q] ?? 'custom' }
 
 	function presetQuality(q: string) {
 		const normalized = q.trim().toLocaleLowerCase('fr-FR')
@@ -182,12 +195,43 @@
 	}
 </script>
 
-<article class="recording-row">
-	<div class="row-main">
-		<div class="row-ident">
-			<span class="take">#{recording.take}</span>
-			<span class="duration">{formatDuration(recording.duration_s)}</span>
+<article
+	class="recording-row track-row"
+	class:has-audio={hasAudio}
+	class:current={isCurrent}
+	class:playing={isPlaying}
+	class:expanded={commentsOpen}
+>
+	<div class="row-grid">
+		<div class="row-lead">
+			<TrackLead
+				number={recording.take}
+				current={isCurrent}
+				playing={isPlaying}
+				playLabel="Écouter la prise {recording.take}"
+				onToggle={hasAudio ? togglePlayback : null}
+			/>
+		</div>
 
+		<div class="row-body">
+			<!-- Le numéro de la colonne de tête s'efface au survol et pendant la lecture :
+			     le titre le porte donc aussi. -->
+			<span class="row-title">
+				{#if hasVideo}<Icon name="video" size="0.85rem" label="Prise vidéo" />{/if}
+				Prise {recording.take}
+			</span>
+			<div class="row-meta">
+				<span
+					class="file-name"
+					class:fallback={!!recording.file_path && !recording.source_file_name}
+					title={sourceTitle}
+				>{sourceName}</span>
+				<span class="sep">·</span>
+				<span class="uploader">{recording.uploaded_by}</span>
+			</div>
+		</div>
+
+		<div class="row-tags">
 			{#if editableQuality && editingQuality}
 				<span class="quality-edit">
 					<select
@@ -235,12 +279,9 @@
 			{/if}
 
 			{#if qualityError}<span class="row-error">{qualityError}</span>{/if}
-		</div>
 
-		<div class="row-actions">
-			<!-- Sous 640 px, la ligne ne porte que ce qu'il y a à lire sur cette prise, et
-			     le menu ⋮ recueille le reste. Au-dessus, la place ne manque pas : toutes
-			     les commandes restent à un clic et le menu s'efface. -->
+			<!-- Ce qu'il y a à lire sur la prise : une pastille ne paraît que s'il y a
+			     quelque chose, et elle le déplie sur place. -->
 			{#if recording.notes}
 				<button
 					class="chip"
@@ -249,14 +290,7 @@
 					onclick={() => (noteOpen = !noteOpen)}
 					title={noteOpen ? 'Masquer la note' : 'Lire la note'}
 				><Icon name="pencil" size="0.85rem" /></button>
-			{:else}
-				<a
-					href="/recording/{recording.id}#notes"
-					class="chip chip-add row-wide-only"
-					title="Ajouter une note dans le lecteur complet"
-				><Icon name="plus" size="0.7rem" /><Icon name="pencil" size="0.85rem" /></a>
 			{/if}
-
 			{#if recording.comment_count > 0}
 				<button
 					class="chip"
@@ -265,28 +299,32 @@
 					onclick={() => (commentsOpen = !commentsOpen)}
 					title={commentsOpen ? 'Masquer les commentaires' : 'Lire les commentaires'}
 				><Icon name="comment" size="0.85rem" /> {recording.comment_count}</button>
-			{:else}
+			{/if}
+		</div>
+
+		<div class="row-actions">
+			<!-- `.row-quiet` : ce qui s'écrit ou s'ouvre ailleurs. À la souris, ça ne paraît
+			     qu'au survol de la ligne, comme les actions d'une piste de streaming. Sous
+			     640 px, `.row-wide-only` le retire et le menu ⋮ le recueille. -->
+			{#if !recording.notes}
+				<a
+					href="/recording/{recording.id}#notes"
+					class="chip chip-add row-wide-only row-quiet"
+					title="Ajouter une note dans le lecteur complet"
+				><Icon name="plus" size="0.7rem" /><Icon name="pencil" size="0.85rem" /></a>
+			{/if}
+			{#if recording.comment_count === 0}
 				<a
 					href="/recording/{recording.id}#commenter"
-					class="chip chip-add row-wide-only"
+					class="chip chip-add row-wide-only row-quiet"
 					title="Ajouter un commentaire dans le lecteur complet"
 				><Icon name="plus" size="0.7rem" /><Icon name="comment" size="0.85rem" /></a>
 			{/if}
 
-			<RecordingPlaybackActions
-				recordingId={recording.id}
-				{songId}
-				{songTitle}
-				take={recording.take}
-				{sessionDate}
-				durationS={recording.duration_s}
-				hasAudio={!!recording.file_path}
-			/>
-
 			{#if recording.file_path}
 				<a
 					href="/recording/{recording.id}"
-					class="btn btn-secondary btn-sm btn-icon row-wide-only"
+					class="btn btn-ghost btn-sm btn-icon row-wide-only row-quiet"
 					title="Ouvrir le lecteur complet"
 					aria-label="Ouvrir le lecteur complet"
 				>
@@ -295,13 +333,34 @@
 			{/if}
 
 			<!-- Même instance des deux côtés : le bouton porte la modale, et l'entrée de
-			     menu l'ouvre par le lien `bind:`. -->
+			     menu l'ouvre par le lien `bind:`. `.row-quiet` vise le bouton seul — posée
+			     sur un conteneur, l'opacité emporterait aussi la modale. -->
 			<AddToPlaylistButton
 				recordingId={recording.id}
 				hasAudio={!!recording.file_path}
 				bind:open={playlistOpen}
-				buttonClass="btn btn-secondary btn-sm row-wide-only"
+				buttonClass="btn btn-ghost btn-sm row-wide-only row-quiet"
 			/>
+
+			<span class="row-play">
+				<RecordingPlaybackActions
+					recordingId={recording.id}
+					{songId}
+					{songTitle}
+					take={recording.take}
+					{sessionDate}
+					durationS={recording.duration_s}
+					hasAudio={hasAudio}
+				/>
+			</span>
+
+			<span class="duration">{formatDuration(recording.duration_s)}</span>
+
+			{#if editMode && canDelete}
+				<button class="btn btn-danger btn-sm" disabled={deleting} onclick={() => onDelete?.()}>
+					{deleting ? '…' : 'Supprimer'}
+				</button>
+			{/if}
 
 			<div class="row-menu" bind:this={menuRoot}>
 				<button
@@ -337,44 +396,24 @@
 				{/if}
 			</div>
 		</div>
-	</div>
 
-	<div class="row-meta">
-		<span
-			class="file-name"
-			class:fallback={!!recording.file_path && !recording.source_file_name}
-			title={sourceTitle}
-		>{#if hasVideo}<Icon name="video" size="0.8rem" label="Prise vidéo" /> {/if}{sourceName}</span>
-		<span class="sep">·</span>
-		<span class="uploader">{recording.uploaded_by}</span>
-
-		{#if editMode}
-			<div class="row-edit">
-				{#if canDelete}
-					<button class="btn btn-danger btn-sm" disabled={deleting} onclick={() => onDelete?.()}>
-						{deleting ? '…' : 'Supprimer'}
-					</button>
+		{#if recording.notes}
+			<!-- Repliée, la note tient sur une ligne : trois mots de contexte ne valent pas
+			     un clic. Dépliée, elle s'étale — et se modifie dans le lecteur, comme un
+			     commentaire. -->
+			<div class="row-note" class:open={noteOpen}>
+				<button class="note-toggle" aria-expanded={noteOpen} onclick={() => (noteOpen = !noteOpen)}>
+					<Icon name="pencil" class="note-icon" size="0.85rem" />
+					<span class="note-text">{recording.notes}</span>
+				</button>
+				{#if noteOpen}
+					<a href="/recording/{recording.id}#notes" class="btn btn-secondary btn-sm drawer-action">
+						<Icon name="pencil" size="0.85rem" /> Modifier dans le lecteur
+					</a>
 				{/if}
 			</div>
 		{/if}
 	</div>
-
-	{#if recording.notes}
-		<!-- Repliée, la note tient sur une ligne : trois mots de contexte ne valent pas
-		     un clic. Dépliée, elle s'étale — et se modifie dans le lecteur, comme un
-		     commentaire. -->
-		<div class="row-note" class:open={noteOpen}>
-			<button class="note-toggle" aria-expanded={noteOpen} onclick={() => (noteOpen = !noteOpen)}>
-				<Icon name="pencil" class="note-icon" size="0.85rem" />
-				<span class="note-text">{recording.notes}</span>
-			</button>
-			{#if noteOpen}
-				<a href="/recording/{recording.id}#notes" class="btn btn-secondary btn-sm drawer-action">
-					<Icon name="pencil" size="0.85rem" /> Modifier dans le lecteur
-				</a>
-			{/if}
-		</div>
-	{/if}
 
 	{#if commentsOpen}
 		<div class="row-drawer">
@@ -387,44 +426,111 @@
 </article>
 
 <style>
-	/* Une prise est une ligne-carte à toutes les largeurs : le `flex-wrap` remplace la
-	   bascule en cartes que le tableau demandait sous 640 px, et la page reste lisible
-	   entre les deux — une colonne de contenu vaut la fenêtre moins la sidebar. */
+	/* Une prise est une piste de tracklist : pas de cadre, un fond au survol, la durée
+	   calée à droite. Elle ne redevient une carte que dépliée (commentaires), pour que
+	   le tiroir ait des bords à rejoindre. La grille se replie sur la largeur de la
+	   ligne elle-même (requête de conteneur), pas sur celle de la fenêtre : la colonne
+	   de contenu vaut la fenêtre moins la sidebar. */
 	.recording-row {
-		border: 1px solid var(--color-border-light);
+		container-type: inline-size;
 		border-radius: var(--radius-lg);
+		padding: 0.4rem 0.6rem 0.4rem 0.3rem;
+		margin-bottom: 2px;
+		transition: background 0.12s;
+	}
+
+	/* Orangé très pâle : assez pour retrouver la prise en cours, sans concurrencer
+	   la pastille de qualité. */
+	.recording-row.current { background: color-mix(in srgb, var(--color-accent-light) 55%, var(--color-bg)); }
+
+	.recording-row.expanded,
+	.recording-row.expanded:hover {
 		background: var(--color-bg);
-		padding: 0.55rem 0.7rem;
-		margin-bottom: 0.45rem;
+		box-shadow: inset 0 0 0 1px var(--color-border-light);
+		margin-block: 0.35rem;
 	}
 
-	.row-main {
-		display: flex;
-		flex-wrap: wrap;
+	.row-grid {
+		display: grid;
+		grid-template-columns: 2rem minmax(0, 1fr) auto auto;
+		grid-template-areas:
+			'lead body tags actions'
+			'.    note note note';
 		align-items: center;
-		gap: 0.4rem 0.75rem;
+		column-gap: 0.75rem;
 	}
 
-	.row-ident {
+	/* Ligne étroite : les pastilles passent sous le titre, les commandes restent à
+	   droite. Le groupe de commandes ne se scinde jamais. */
+	@container (max-width: 560px) {
+		.row-grid {
+			grid-template-columns: 2rem minmax(0, 1fr) auto;
+			grid-template-areas:
+				'lead body actions'
+				'.    tags tags'
+				'.    note note';
+			row-gap: 0.3rem;
+		}
+	}
+
+	.row-lead { grid-area: lead; }
+
+	/* Souris seulement : le numéro devient ▶ au survol (`TrackLead`), et le bouton ▶
+	   de droite s'efface. Au doigt, le ▶ reste un vrai bouton. Même règle pour les
+	   commandes discrètes (`.row-quiet`). */
+	@media (hover: hover) and (pointer: fine) {
+		.recording-row:hover { background: var(--color-bg-muted); }
+		.recording-row.current:hover { background: color-mix(in srgb, var(--color-accent-light) 80%, var(--color-bg)); }
+
+		.has-audio .row-play { display: none; }
+
+		.row-actions :global(.row-quiet) { opacity: 0; transition: opacity 0.12s; }
+		.recording-row:hover .row-actions :global(.row-quiet),
+		.recording-row:focus-within .row-actions :global(.row-quiet) { opacity: 1; }
+	}
+
+	/* ─── Corps, pastilles, commandes ─────────────────── */
+	.row-body {
+		grid-area: body;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.row-title {
+		display: flex;
+		align-items: center;
+		gap: 0.35rem;
+		font-weight: 600;
+		font-size: 0.95rem;
+	}
+
+	.current .row-title { color: var(--color-accent); }
+
+	.row-tags {
+		grid-area: tags;
 		display: flex;
 		align-items: center;
 		flex-wrap: wrap;
-		gap: 0.3rem 0.6rem;
+		gap: 0.3rem 0.4rem;
 	}
 
-	.take { font-weight: 700; color: var(--color-text-secondary); }
-	.duration { font-size: var(--text-sm); color: var(--color-text-secondary); }
-
-	/* Le groupe de commandes ne se scinde jamais : il rejoint le rang de l'identité
-	   quand il y tient, et bascule d'un bloc au rang suivant sinon. Lui réserver un
-	   rang d'office gâchait une ligne — une prise sans note ni commentaire n'a que
-	   deux commandes, 94 px à poser sur 344. */
 	.row-actions {
+		grid-area: actions;
 		display: flex;
 		align-items: center;
 		flex-wrap: nowrap;
-		gap: 0.35rem;
-		margin-left: auto;
+		gap: 0.2rem;
+	}
+
+	.row-play { display: inline-flex; }
+
+	.duration {
+		min-width: 2.6rem;
+		text-align: right;
+		font-size: var(--text-sm);
+		color: var(--color-text-secondary);
+		font-variant-numeric: tabular-nums;
 	}
 
 	/* Pastille de qualité : bouton sans allure de bouton, le badge fait tout. */
@@ -594,12 +700,13 @@
 	.row-meta {
 		display: flex;
 		align-items: center;
-		flex-wrap: wrap;
-		gap: 0.2rem 0.4rem;
-		margin-top: 0.3rem;
+		gap: 0.4rem;
+		min-width: 0;
 		font-size: var(--text-xs);
 		color: var(--color-text-muted);
 	}
+
+	.uploader { flex-shrink: 0; }
 
 	.file-name {
 		min-width: 0;
@@ -613,14 +720,7 @@
 	.file-name.fallback { color: var(--color-text-muted); font-style: italic; }
 	.sep { color: var(--color-border); }
 
-	.row-edit {
-		display: flex;
-		align-items: center;
-		gap: 0.3rem;
-		margin-left: auto;
-	}
-
-	.row-note { margin-top: 0.35rem; }
+	.row-note { grid-area: note; margin-top: 0.2rem; min-width: 0; }
 
 	.note-toggle {
 		display: flex;
@@ -663,7 +763,7 @@
 	   d'interaction (`.btn-secondary:hover`) : le bouton posé dans ce tiroir en est un,
 	   et son survol s'y serait confondu avec le fond. */
 	.row-drawer {
-		margin: 0.5rem -0.7rem -0.55rem;
+		margin: 0.5rem -0.6rem -0.4rem -0.3rem;
 		padding: 0.55rem 0.7rem 0.7rem;
 		background: var(--color-bg-subtle);
 		border-top: 1px solid var(--color-border-light);

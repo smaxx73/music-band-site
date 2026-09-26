@@ -20,32 +20,26 @@
 		hasAudio: boolean
 	} = $props()
 
-	function playInMiniPlayer() {
-		player.load(
-			{
-				recordingId,
-				songId,
-				songTitle,
-				take,
-				sessionDate,
-				durationS
-			},
-			true
-		)
+	// La prise qui joue déjà se met en pause au lieu de repartir du début.
+	const playing = $derived(player.isPlaying && player.track?.recordingId === recordingId)
+
+	function togglePlayback() {
+		player.toggleTrack({ recordingId, songId, songTitle, take, sessionDate, durationS })
 	}
 </script>
 
 <!-- Écouter ici, et rien d'autre. Ouvrir le lecteur complet et ajouter à une playlist
      sont voisins sur la ligne au-dessus de 640 px, et passent dans le menu ⋮ en dessous —
-     c'est `RecordingRow` qui arbitre, cette commande-ci ne disparaît jamais. -->
+     c'est `RecordingRow` qui arbitre. À la souris, la ligne le remplace par le ▶ de sa
+     colonne de tête ; au doigt, cette commande ne disparaît jamais. -->
 {#if hasAudio}
 	<button
 		class="btn btn-secondary btn-sm btn-icon"
-		onclick={playInMiniPlayer}
-		title="Écouter dans le mini-lecteur persistant"
-		aria-label="Écouter dans le mini-lecteur persistant"
+		onclick={togglePlayback}
+		title={playing ? 'Mettre en pause' : 'Écouter dans le mini-lecteur persistant'}
+		aria-label={playing ? 'Mettre en pause' : 'Écouter dans le mini-lecteur persistant'}
 	>
-		<Icon name="play" />
+		<Icon name={playing ? 'pause' : 'play'} />
 	</button>
 {:else}
 	<!-- Une vidéo sans piste audio se regarde uniquement sur sa page dédiée. -->

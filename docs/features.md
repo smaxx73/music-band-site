@@ -315,21 +315,43 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
 
 - Prises groupées par morceau, triées par `take` ASC
 - Chaque morceau : toutes ses prises + qualité + nombre de commentaires
+- Chaque morceau s'ouvre comme un **album** : pochette générée (`SongCover.svelte`),
+  compositeur, titre, nombre de prises et durée cumulée, et un bouton rond **« tout
+  écouter »** (`PlayAllButton.svelte`). Pas d'image en base : la pochette est un dégradé
+  dont la teinte se tire de l'id du morceau — la même d'une page à l'autre, et inchangée
+  quand on renomme un morceau « À nommer » (qui porte « ? » en initiale)
+- « Tout écouter » enchaîne les prises avec piste audio dans le mini-lecteur, dans
+  l'ordre affiché ; ⏭ passe à la suivante. Le bouton met en pause la série qu'il a lancée
+  et la reprend. Une prise lancée seule remplace la file au lieu de s'y ajouter, et
+  l'enchaînement s'arrête sur la page d'une prise, dont la waveform montrerait sinon une
+  autre prise que celle qu'on entend (`src/lib/player.svelte.ts`)
 - Modification possible : date, type, titre, lieu, notes, membres de la session
   (mêmes vignettes qu'à la création — `src/lib/components/MembersInput.svelte`)
 - Modification possible par prise : la **qualité libre**, et elle seule. Elle se règle
   uniquement dans cette vue ; l'historique d'un morceau est en lecture seule. La note d'une
   prise, elle, s'écrit dans le lecteur — voir « Note d'une prise »
-- Récapitulatif sous l'en-tête : nombre de morceaux, de prises et durée totale enregistrée
+- **En-tête de page commun** aux pages qui listent des prises — session, morceau, playlist
+  (`MediaHeader.svelte`) : un visuel carré, la nature de la page en petites capitales, le
+  titre, ce qu'elle contient en chiffres, et le ▶ rond orange. La même grammaire que
+  l'en-tête « album » de chaque morceau dans une session, à l'échelle de la page. Le
+  visuel d'une session est un **feuillet d'éphéméride** (mois, jour, jour de la semaine)
+  teinté comme son type (`SessionCover.svelte`) : une session n'a pas de pochette
+- Chiffres de l'en-tête : nombre de morceaux, de prises et durée totale enregistrée. Son ▶
+  enchaîne toute la session, morceau après morceau, dans le mini-lecteur
 - Ajout d'une prise oubliée à une session passée : autorisé. « + Ajouter une prise » ouvre
   `/upload?session_id=` avec la session déjà sélectionnée (ignoré si hors du groupe actif)
-- Une prise est une **ligne-carte**, pas une ligne de tableau (`RecordingRow.svelte`,
-  partagé avec la vue morceau) : rang du haut pour ce qui identifie et ce qui agit
-  (n° de prise, durée, qualité, note, commentaires, écoute, et sous 640 px le menu ⋮), rang
-  du bas en gris pour la provenance (fichier, déposant). Les rangs se replient seuls quand
-  la place manque — il n'y a plus de largeur en dessous de laquelle la page change de forme,
-  ni de défilement horizontal. Voir « Commandes d'une prise » plus bas et « Tableaux et
-  mobile » dans docs/conventions.md
+- Une prise est une **piste de tracklist**, pas une ligne de tableau (`RecordingRow.svelte`,
+  partagé avec la vue morceau) : sans cadre, un fond au survol. Colonne de tête pour le
+  numéro, puis « Prise n » avec la provenance en gris dessous (fichier, déposant), les
+  pastilles (qualité, note, commentaires), les commandes, et la **durée calée à droite** en
+  chiffres alignés. Elle ne redevient une carte que dépliée, pour que le tiroir des
+  commentaires ait des bords à rejoindre. La grille se replie sur la largeur de la ligne
+  (requête de conteneur) : ligne étroite, les pastilles passent sous le titre — jamais de
+  défilement horizontal. Voir « Commandes d'une prise » plus bas et « Tableaux et mobile »
+  dans docs/conventions.md
+- **La prise en cours se voit** : un égaliseur orange remplace son numéro (figé en pause,
+  immobile avec `prefers-reduced-motion`), son titre passe en orange et la ligne prend un
+  fond orangé pâle. Le ▶ d'une prise qui joue devient ⏸
 - Chaque prise affiche le **nom du fichier déposé** (`recordings.source_file_name`), tronqué
   et donné en entier au survol : `file_path` vaut toujours `{id}.mp3`, unique mais muet sur
   la provenance. Les prises antérieures à la migration 023 n'ont pas de nom d'origine — il
@@ -362,6 +384,13 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
 **Au-dessus de 640 px, toutes les commandes sont sur la ligne** : pastille 📝 (ou « + 📝 »
 en pointillés s'il n'y a pas de note), 💬 (ou « + 💬 »), écouter ▶, ouvrir le lecteur
 complet, ajouter à une playlist. La place ne manque pas, rien n'a à être caché.
+
+**À la souris** (`@media (hover: hover) and (pointer: fine)`, pas une largeur), la ligne se
+lit comme une piste de streaming : le numéro devient ▶ au survol et remplace le bouton ▶ de
+droite, et ce qui s'écrit ou s'ouvre ailleurs (« + 📝 », « + 💬 », lecteur complet,
+playlist) ne paraît qu'au survol ou au focus clavier. **Au doigt**, rien de tout cela : un
+`:hover` collant demanderait deux touchers pour lancer la lecture. Le numéro reste un
+numéro et le ▶ un vrai bouton, à toutes les largeurs — tablette en paysage comprise.
 
 **Sous 640 px**, les mêmes commandes demandent 242 px de cibles tactiles là où la carte en
 offre 274 au plus : la ligne ne garde alors que ce qu'il y a **à lire** — 📝 s'il y a une
@@ -398,7 +427,10 @@ note, 💬 s'il y a des commentaires — plus l'écoute, et un menu ⋮ recueill
 - Toutes les prises de ce morceau, toutes sessions confondues
 - Triées par date de session décroissante
 - Objectif : visualiser l'évolution du morceau dans le temps
-- Mêmes lignes-cartes que la vue session (`RecordingRow.svelte`), en lecture seule :
+- En-tête de page commun (voir « Vue session ») : pochette générée, statut et tonalité
+  dans le libellé, prises, sessions et durée cumulée en chiffres. Son ▶ enchaîne toutes
+  les prises dans l'ordre de la page (les plus récentes d'abord)
+- Mêmes pistes que la vue session (`RecordingRow.svelte`), en lecture seule :
   la qualité s'y lit en badge, sans sélecteur, et aucune action d'édition n'y figure
 - Les prises affichent leur libellé de qualité libre, le nom du fichier déposé et leur note
 - Le compteur de commentaires déplie la liste des commentaires de la prise, sans ouvrir le
@@ -657,9 +689,22 @@ distincte des commentaires, qui sont datés et signés.
 
 ## Playlists (`/playlists/[id]`)
 
-- Lecture en continu : enchaînement automatique dans l'ordre `position`
-- Chaque item affiche : titre du morceau, date session, numéro de prise, note
-- Ordre modifiable par drag & drop → PATCH `position`
+- En-tête de page commun (voir « Vue session ») : **mosaïque** des pochettes des quatre
+  premiers morceaux distincts (`PlaylistCover.svelte`) — une seule pochette en deçà, pour
+  ne pas laisser de trous —, nombre de prises, durée et auteur
+- **Deux modes.** Par défaut, la playlist **se lit** : des pistes comme les prises d'une
+  session (`PlaylistTrackRow.svelte`, même colonne de tête `TrackLead.svelte`), avec morceau,
+  prise, date, lieu, note de playlist, qualité et durée. « Modifier » passe en **mode
+  édition** (`PlaylistQueue.svelte`) : réordonner, retirer, ajouter des prises. Un geste de
+  lecture ne doit rien déplacer par mégarde
+- Lecture en continu **par le mini-lecteur** : le ▶ de l'en-tête enchaîne la playlist dans
+  l'ordre `position`, le ▶ d'une piste l'enchaîne à partir d'elle, ⏭ passe à la suivante.
+  La lecture survit donc à la navigation, comme celle d'une session. Pas de forme d'onde
+  sur cette page — le chargement ne calcule plus les pics de chaque prise
+- Pendant l'écoute, les **paroles et notes** du morceau en cours s'affichent sous l'en-tête
+  (« En cours ») : c'est en répétant sur une playlist qu'on en a besoin
+- Ordre modifiable par drag & drop en mode édition → PATCH `position`. Toucher une piste en
+  mode édition la lance quand même : on réécoute pour décider de l'ordre
 - Ajout d'une prise depuis trois contextes : sa page `/recording/[id]`, chaque ligne de prise
   des vues Session et Morceau, ou directement depuis la playlist (recherche par morceau/date)
 - Le sélecteur indique les playlists qui contiennent déjà la prise, permet d'en créer une sans

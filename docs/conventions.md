@@ -32,11 +32,19 @@ src/
 │       ├── MembersInput.svelte    # participants d'une session en vignettes (saisie libre)
 │       ├── CommentList.svelte     # liste de commentaires + réactions 👍/👎 (partagée) ;
 │       │                          #   commentaire courant, suivi de lecture, repli des plus anciens
-│       ├── RecordingRow.svelte     # une prise en ligne-carte (vues session et morceau) ;
-│       │                          #   porte le menu ⋮ de la prise
+│       ├── RecordingRow.svelte     # une prise en piste de tracklist (vues session et morceau) ;
+│       │                          #   porte le menu ⋮ de la prise et l'état « en lecture »
+│       ├── SongCover.svelte       # pochette générée d'un morceau (teinte tirée de l'id)
+│       ├── PlayAllButton.svelte   # « tout écouter » : enchaîne des prises dans le mini-lecteur
+│       ├── RoundPlayButton.svelte # le ▶ rond orange des en-têtes (affichage seul)
+│       ├── MediaHeader.svelte     # en-tête des pages qui listent des prises (session, morceau, playlist)
+│       ├── SessionCover.svelte    # visuel d'une session : feuillet d'éphéméride teinté par le type
+│       ├── PlaylistCover.svelte   # visuel d'une playlist : mosaïque des pochettes de ses morceaux
 │       ├── RecordingComments.svelte # commentaires d'une prise chargés à la demande (hors lecteur)
 │       ├── NotificationsMenu.svelte # cloche + menu des notifications (barre du haut)
-│       ├── PlaylistQueue.svelte   # file de lecture playlist
+│       ├── PlaylistQueue.svelte   # mode édition d'une playlist : ordre (glisser), retrait
+│       ├── PlaylistTrackRow.svelte # une piste de playlist, en lecture
+│       ├── TrackLead.svelte       # colonne de tête d'une piste : numéro, ▶ au survol, égaliseur
 │       ├── SetlistSongs.svelte    # programme d'une setlist : ordre (glisser + ↑↓), retrait
 │       ├── AddToPlaylistButton.svelte # ajout d'une prise à une playlist (sélecteur + création)
 │       ├── AddToSetlistButton.svelte  # ajout d'un morceau à une setlist (listes et vue morceau)

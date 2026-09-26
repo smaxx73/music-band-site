@@ -4,7 +4,10 @@
 	import SessionEditor from '$lib/components/SessionEditor.svelte'
 	import SongDetails from '$lib/components/SongDetails.svelte'
 	import RecordingRow from '$lib/components/RecordingRow.svelte'
-	import { canDeleteGroupContent } from '$lib/types'
+	import SongCover from '$lib/components/SongCover.svelte'
+	import PlayAllButton from '$lib/components/PlayAllButton.svelte'
+	import type { PlayerTrack } from '$lib/player.svelte'
+	import { canDeleteGroupContent, formatDurationLong } from '$lib/types'
 	import type { RecordingListItem } from '$lib/types'
 	import { invalidateAll } from '$app/navigation'
 
@@ -59,11 +62,42 @@
 		})
 	}
 
-	// Récapitulatif sous l'en-tête : ce qu'a produit la session, d'un coup d'œil.
+	// « Tout écouter » d'un morceau : ses prises avec piste audio, dans l'ordre affiché.
+	function groupTracks(group: Group): PlayerTrack[] {
+		return group.recordings
+			.filter((r) => r.file_path)
+			.map((r) => ({
+				recordingId: r.id,
+				songId: group.song.id,
+				songTitle: group.song.title,
+				take: r.take,
+				sessionDate: String(session.date),
+				durationS: r.duration_s
+			}))
+	}
+
+	function groupDurationS(group: Group) {
+		return group.recordings.reduce((n, r) => n + (r.duration_s ?? 0), 0)
+	}
+
 	const takeCount = $derived(groups.reduce((n, g) => n + g.recordings.length, 0))
 	const totalDurationS = $derived(
 		groups.reduce((n, g) => n + g.recordings.reduce((m, r) => m + (r.duration_s ?? 0), 0), 0)
 	)
+
+	// Récapitulatif porté par l'en-tête : ce qu'a produit la session, d'un coup d'œil.
+	const sessionStats = $derived(
+		groups.length === 0
+			? null
+			: [
+					`${groups.length} morceau${groups.length > 1 ? 'x' : ''}`,
+					`${takeCount} prise${takeCount > 1 ? 's' : ''}`,
+					totalDurationS > 0 ? formatDurationLong(totalDurationS) : null
+				]
+					.filter(Boolean)
+					.join(' · ')
+	)
+	const sessionTracks = $derived(groups.flatMap(groupTracks))
 
 	let sessionSaving = $state(false)
 	let sessionError = $state<string | null>(null)
@@ -129,13 +163,6 @@
 		return formatDateOnly(d, {
 			weekday: 'long', day: 'numeric', month: 'long', year: 'numeric'
 		})
-	}
-
-	function formatDuration(s: number | null) {
-		if (!s) return '—'
-		const m = Math.floor(s / 60)
-		const sec = s % 60
-		return `${m}:${String(sec).padStart(2, '0')}`
 	}
 
 	// La ligne enregistre elle-même la qualité ; la page n'a qu'à refléter le résultat
@@ -226,7 +253,12 @@
 		saving={sessionSaving}
 		error={sessionError}
 		onSave={saveSession}
-	/>
+		stats={sessionStats}
+	>
+		{#snippet actions()}
+			<PlayAllButton tracks={sessionTracks} label="Écouter toute la session à la suite" />
+		{/snippet}
+	</SessionEditor>
 
 	{#if !hasCalendarEvent}
 		<div class="agenda-restore">
@@ -242,11 +274,6 @@
 	{#if groups.length === 0}
 		<p class="empty">Aucune prise pour cette session. <a href="/upload?session_id={session.id}">Uploader →</a></p>
 	{:else}
-		<p class="session-summary">
-			{groups.length} morceau{groups.length > 1 ? 'x' : ''} · {takeCount} prise{takeCount > 1 ? 's' : ''}
-			{#if totalDurationS > 0} · {formatDuration(totalDurationS)} enregistrées{/if}
-		</p>
-
 		{#if groups.length > 1}
 			<nav class="song-toc" aria-label="Morceaux de la session">
 				{#each groups as group}
@@ -260,12 +287,25 @@
 
 		{#each groups as group}
 			<section class="song-section" id={songAnchor(group.song.id)}>
-				<h2>
-					<a href="/songs/{group.song.id}">{group.song.title}</a>
-					{#if group.song.composer}
-						<span class="composer">— {group.song.composer}</span>
-					{/if}
-				</h2>
+				<!-- Chaque morceau s'ouvre comme un album : pochette, titre, ce qu'il contient,
+				     et de quoi enchaîner ses prises dans le mini-lecteur. -->
+				<header class="song-head">
+					<SongCover songId={group.song.id} title={group.song.title} size={56} />
+					<div class="song-head-text">
+						{#if group.song.composer}
+							<span class="song-kicker">{group.song.composer}</span>
+						{/if}
+						<h2><a href="/songs/{group.song.id}">{group.song.title}</a></h2>
+						<span class="song-head-sub">
+							{group.recordings.length} prise{group.recordings.length > 1 ? 's' : ''}
+							{#if groupDurationS(group) > 0} · {formatDurationLong(groupDurationS(group))}{/if}
+						</span>
+					</div>
+					<PlayAllButton
+						tracks={groupTracks(group)}
+						label="Écouter les prises de {group.song.title} à la suite"
+					/>
+				</header>
 
 				<SongDetails
 					lyrics={group.song.lyrics}
@@ -344,12 +384,6 @@
 		font-size: var(--text-sm);
 	}
 
-	.session-summary {
-		margin: -1rem 0 0.75rem;
-		font-size: var(--text-sm);
-		color: var(--color-text-muted);
-	}
-
 	/* Sommaire cliquable : évite de scroller une session à plusieurs morceaux */
 	.song-toc {
 		display: flex;
@@ -390,11 +424,38 @@
 		scroll-margin-top: 1rem;
 	}
 
-	h2 { font-size: var(--text-lg); margin: 0 0 0.75rem; }
+	.song-head {
+		display: flex;
+		align-items: center;
+		gap: 0.9rem;
+		margin-bottom: 0.6rem;
+	}
+
+	.song-head-text {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.05rem;
+	}
+
+	.song-kicker {
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0.06em;
+		text-transform: uppercase;
+		color: var(--color-text-muted);
+	}
+
+	h2 { font-size: 1.25rem; line-height: 1.2; margin: 0; overflow-wrap: anywhere; }
 	h2 a { color: var(--color-primary); text-decoration: none; }
 	h2 a:hover { text-decoration: underline; }
 
-	.composer { font-weight: 400; color: #777; font-size: 0.9rem; }
+	.song-head-sub {
+		font-size: var(--text-sm);
+		color: var(--color-text-secondary);
+		font-variant-numeric: tabular-nums;
+	}
 
 	.footer-actions { margin-top: 2rem; display: flex; gap: 0.75rem; align-items: center; }
 

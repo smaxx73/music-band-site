@@ -4,6 +4,11 @@
 	import SongDetails from '$lib/components/SongDetails.svelte'
 	import RecordingRow from '$lib/components/RecordingRow.svelte'
 	import AddToSetlistButton from '$lib/components/AddToSetlistButton.svelte'
+	import SongCover from '$lib/components/SongCover.svelte'
+	import MediaHeader from '$lib/components/MediaHeader.svelte'
+	import { formatDurationLong } from '$lib/types'
+	import PlayAllButton from '$lib/components/PlayAllButton.svelte'
+	import type { PlayerTrack } from '$lib/player.svelte'
 	import type { RecordingListItem } from '$lib/types'
 
 	let { data }: { data: PageData } = $props()
@@ -46,6 +51,34 @@
 		return `${m}:${String(sec).padStart(2, '0')}`
 	}
 
+	// « Tout écouter » : l'évolution du morceau, dans l'ordre de la page (récent d'abord).
+	const tracks = $derived<PlayerTrack[]>(
+		recordings
+			.filter((r) => r.file_path)
+			.map((r) => ({
+				recordingId: r.id,
+				songId: song.id,
+				songTitle: song.title,
+				take: r.take,
+				sessionDate: r.session_date,
+				durationS: r.duration_s
+			}))
+	)
+
+	const totalDurationS = $derived(recordings.reduce((n, r) => n + (r.duration_s ?? 0), 0))
+	const sessionCount = $derived(new Set(recordings.map((r) => r.session_id)).size)
+	const songStats = $derived(
+		recordings.length === 0
+			? null
+			: [
+					`${recordings.length} prise${recordings.length > 1 ? 's' : ''}`,
+					`${sessionCount} session${sessionCount > 1 ? 's' : ''}`,
+					totalDurationS > 0 ? formatDurationLong(totalDurationS) : null
+				]
+					.filter(Boolean)
+					.join(' · ')
+	)
+
 	type SessionGroup = { session_id: number; session_date: string; session_location: string | null; recordings: SongRecording[] }
 
 	const sessionGroups = $derived(() => {
@@ -75,37 +108,39 @@
 		<span>{song.title}</span>
 	</nav>
 
-	<div class="song-header">
-		<div>
-			<h1>
-				{song.title}
-				{#if song.key}<span class="key">{song.key}</span>{/if}
-			</h1>
-			{#if song.composer || song.original_artist || song.release_year}
-				<p class="composer">
-					{song.composer ?? ''}
-					{#if song.original_artist}
-						{song.composer ? '—' : ''} reprise de {song.original_artist}
-					{/if}
-					{#if song.release_year}<span class="year">({song.release_year})</span>{/if}
-				</p>
-			{/if}
-			{#if song.reference_duration_s}
-				<p class="ref-duration">Durée de référence : {formatDuration(song.reference_duration_s)}</p>
-			{/if}
-		</div>
-		<span class="badge badge-{song.status}">
-			{SONG_STATUS_LABELS[song.status] ?? song.status}
-		</span>
-	</div>
+	<MediaHeader title={song.title} stats={songStats}>
+		{#snippet kicker()}
+			Morceau
+			<span class="badge badge-{song.status} song-status">
+				{SONG_STATUS_LABELS[song.status] ?? song.status}
+			</span>
+			{#if song.key}<span class="key">{song.key}</span>{/if}
+		{/snippet}
+		{#snippet cover()}
+			<SongCover songId={song.id} title={song.title} />
+		{/snippet}
+		{#if song.composer || song.original_artist || song.release_year}
+			<p class="composer">
+				{song.composer ?? ''}
+				{#if song.original_artist}
+					{song.composer ? '—' : ''} reprise de {song.original_artist}
+				{/if}
+				{#if song.release_year}<span class="year">({song.release_year})</span>{/if}
+			</p>
+		{/if}
+		{#if song.reference_duration_s}
+			<p class="ref-duration">Durée de référence : {formatDuration(song.reference_duration_s)}</p>
+		{/if}
+		{#snippet actions()}
+			<PlayAllButton tracks={tracks} label="Écouter toutes les prises de {song.title} à la suite" />
+		{/snippet}
+	</MediaHeader>
 
 	<SongDetails lyrics={song.lyrics} musicNotes={song.music_notes} />
 
 	{#if recordings.length === 0}
 		<p class="empty">Aucune prise pour ce morceau.</p>
 	{:else}
-		<p class="summary">{recordings.length} prise{recordings.length > 1 ? 's' : ''} au total</p>
-
 		{#each sessionGroups() as group}
 			<section class="session-section">
 				<h2>
@@ -149,36 +184,23 @@
 		padding: 0 1rem;
 	}
 
-	.song-header {
-		display: flex;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 1rem;
-		margin-bottom: 1.75rem;
-	}
-
-	h1 {
-		font-size: var(--text-xl);
-		margin: 0 0 0.25rem;
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-	}
+	/* Pastilles glissées dans le libellé de l'en-tête : elles gardent leur propre casse. */
+	.song-status { letter-spacing: 0; text-transform: none; }
 
 	.key {
-		font-size: 0.85rem;
-		font-weight: 400;
+		font-size: var(--text-xs);
+		font-weight: 600;
+		letter-spacing: 0;
+		text-transform: none;
 		background: var(--color-abandoned-bg);
 		color: var(--color-text-secondary);
 		padding: 0.15rem 0.45rem;
 		border-radius: var(--radius-sm);
 	}
 
-	.composer { font-size: 0.9rem; color: #666; margin: 0; }
+	.composer { font-size: 0.9rem; color: var(--color-text-secondary); margin: 0; }
 	.composer .year { color: var(--color-text-muted); }
-	.ref-duration { font-size: 0.85rem; color: var(--color-text-muted); margin: 0.15rem 0 0; }
-
-	.summary { font-size: var(--text-sm); color: var(--color-text-muted); margin: 0 0 1.5rem; }
+	.ref-duration { font-size: 0.85rem; color: var(--color-text-muted); margin: 0; }
 
 	.footer-actions { margin-top: 2rem; display: flex; flex-wrap: wrap; gap: 0.6rem; }
 
@@ -205,8 +227,6 @@
 	@media (max-width: 640px) {
 		main { margin: 1rem auto; padding: 0 0.75rem; }
 
-		.song-header { gap: 0.5rem; }
-		h1 { font-size: 1.25rem; flex-wrap: wrap; }
 		/* La modale du sélecteur est en `position: fixed` : elle reste hors de ce flux. */
 		.footer-actions { flex-direction: column; align-items: stretch; }
 		.footer-actions .upload-action { justify-content: center; }

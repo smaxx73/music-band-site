@@ -1,6 +1,10 @@
 <script lang="ts">
 	import { formatDateOnly, toDateOnly } from '$lib/date'
 	import MembersInput from '$lib/components/MembersInput.svelte'
+	import MediaHeader from '$lib/components/MediaHeader.svelte'
+	import Icon from '$lib/components/Icon.svelte'
+	import SessionCover from '$lib/components/SessionCover.svelte'
+	import type { Snippet } from 'svelte'
 
 	type SessionType = 'repetition' | 'concert' | 'studio' | 'autre'
 
@@ -35,7 +39,9 @@
 		groupMembers = [],
 		saving = false,
 		error = null,
-		onSave = async () => false
+		onSave = async () => false,
+		stats = null,
+		actions: outerActions
 	}: {
 		session: SessionData
 		/** Membres du groupe actif, proposés comme participants. */
@@ -43,6 +49,10 @@
 		saving?: boolean
 		error?: string | null
 		onSave?: (patch: SessionPatch) => Promise<boolean>
+		/** Ce qu'a produit la session, affiché dans l'en-tête. */
+		stats?: string | null
+		/** Commandes de l'en-tête, à côté de « Modifier » (le ▶ de la session). */
+		actions?: Snippet
 	} = $props()
 
 	let editing = $state(false)
@@ -159,21 +169,31 @@
 			</div>
 		</form>
 	{:else}
-		<div class="header-top">
-			<span class="type-badge type-{session.type ?? 'repetition'}">{typeLabels[session.type ?? 'repetition']}</span>
-			<h1>{session.title ?? formatDate(session.date)}</h1>
-			<button class="btn-edit" onclick={startEditSession}>Modifier</button>
-		</div>
-		<!-- Sans titre, le h1 porte déjà la date : ne pas la répéter. -->
-		{#if session.title}
-			<p class="meta date-meta">{formatDate(session.date)}</p>
-		{/if}
-		{#if session.location}
-			<p class="meta">{session.location}</p>
-		{/if}
-		{#if session.members?.length}
-			<p class="meta">Présents : {session.members.join(', ')}</p>
-		{/if}
+		<MediaHeader title={session.title ?? formatDate(session.date)} {stats}>
+			{#snippet kicker()}
+				<span class="type-badge type-{session.type ?? 'repetition'}">{typeLabels[session.type ?? 'repetition']}</span>
+			{/snippet}
+			{#snippet cover()}
+				<SessionCover date={session.date} type={session.type ?? 'repetition'} />
+			{/snippet}
+			<!-- Sans titre, le h1 porte déjà la date : ne pas la répéter. -->
+			{#if session.title || session.location}
+				<p class="meta">
+					{#if session.title}{formatDate(session.date)}{/if}
+					{#if session.title && session.location} · {/if}
+					{#if session.location}{session.location}{/if}
+				</p>
+			{/if}
+			{#if session.members?.length}
+				<p class="meta">Présents : {session.members.join(', ')}</p>
+			{/if}
+			{#snippet actions()}
+				<button class="btn btn-ghost mh-secondary" onclick={startEditSession}>
+					<Icon name="pencil" size="0.9rem" /> Modifier
+				</button>
+				{@render outerActions?.()}
+			{/snippet}
+		</MediaHeader>
 		{#if session.notes}
 			<p class="notes">{session.notes}</p>
 		{/if}
@@ -182,23 +202,12 @@
 
 <style>
 	.session-header {
-		margin-bottom: 2rem;
+		margin-bottom: 1.5rem;
 	}
 
-	.header-top {
-		display: flex;
-		align-items: baseline;
-		gap: 0.75rem;
-		margin-bottom: 0.25rem;
-	}
-
-	h1 {
-		font-size: var(--text-xl);
-		margin: 0;
-	}
-
+	/* Dans le libellé de l'en-tête : la couleur du type, le corps du libellé. */
 	.type-badge {
-		font-size: 0.7rem;
+		font-size: inherit;
 		font-weight: 700;
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
@@ -212,28 +221,10 @@
 	.type-badge.type-studio     { background: #f3e8ff; color: #7c3aed; }
 	.type-badge.type-autre      { background: var(--color-bg-subtle);    color: var(--color-text-secondary); }
 
-	.date-meta { margin-top: 0; }
-
-	.btn-edit {
-		font-size: 0.78rem;
-		color: var(--color-text-muted);
-		background: none;
-		border: 1px solid var(--color-border-light);
-		border-radius: var(--radius-sm);
-		padding: 0.15rem 0.5rem;
-		cursor: pointer;
-		white-space: nowrap;
-	}
-
-	.btn-edit:hover {
-		background: var(--color-bg-muted);
-		color: #444;
-	}
-
 	.meta {
 		font-size: 0.9rem;
 		color: var(--color-text-secondary);
-		margin: 0.15rem 0;
+		margin: 0;
 	}
 
 	.notes {

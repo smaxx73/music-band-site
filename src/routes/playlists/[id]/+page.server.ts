@@ -2,7 +2,6 @@ import type { PageServerLoad } from './$types'
 import { error, redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 import { retargetActiveGroup } from '$lib/server/group-scope'
-import { loadPeaks } from '$lib/server/peaks'
 import { loginRedirect } from '$lib/redirect'
 
 export const load: PageServerLoad = async ({ locals, params, cookies, url, isDataRequest }) => {
@@ -64,17 +63,6 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 		ORDER BY ses.date DESC, s.title ASC, r.take ASC
 	`])
 
-	const peaksArr = await Promise.all(
-		(items as unknown as { recording_id: number; file_path: string }[]).map(
-			(item) => loadPeaks(item.recording_id, item.file_path)
-		)
-	)
-	const peaks: Record<number, number[]> = {}
-	const durations: Record<number, number | null> = {}
-	;(items as unknown as { recording_id: number }[]).forEach((item, i) => {
-		peaks[item.recording_id] = peaksArr[i].peaks
-		durations[item.recording_id] = peaksArr[i].duration
-	})
-
-	return { playlist, items, availableRecordings, peaks, durations }
+	// Pas de pics ici : la lecture passe par le mini-lecteur, qui n'en dessine pas.
+	return { playlist, items, availableRecordings }
 }
