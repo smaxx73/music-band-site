@@ -197,7 +197,7 @@
 					onclick={() => (editMode = !editMode)}
 				>
 					<Icon name={editMode ? 'check' : 'pencil'} size="0.9rem" />
-					{editMode ? 'Terminer' : 'Modifier'}
+					<span class="mh-label">{editMode ? 'Terminer' : 'Modifier'}</span>
 				</button>
 				<PlayAllButton {tracks} label="Écouter la playlist" />
 			{/if}

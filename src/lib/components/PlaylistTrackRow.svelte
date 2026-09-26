@@ -39,55 +39,54 @@
 </script>
 
 <article class="playlist-row track-row" class:current>
-	<div class="row-lead">
-		<TrackLead
-			number={position}
-			{current}
-			{playing}
-			playLabel="Écouter {item.song_title}, prise {item.take}"
-			{onToggle}
-		/>
-	</div>
+	<div class="row-grid">
+		<div class="row-lead">
+			<TrackLead
+				number={position}
+				{current}
+				{playing}
+				playLabel="Écouter {item.song_title}, prise {item.take}"
+				{onToggle}
+			/>
+		</div>
 
-	<div class="row-body">
-		<span class="row-title">{item.song_title}</span>
-		<span class="row-meta">
-			Prise {item.take} · {formatDateOnly(item.session_date, { day: 'numeric', month: 'short', year: 'numeric' })}
-			{#if item.session_location} · {item.session_location}{/if}
-		</span>
-		{#if item.note}<span class="row-note">{item.note}</span>{/if}
-	</div>
+		<div class="row-body">
+			<span class="row-title">{item.song_title}</span>
+			<span class="row-meta">
+				Prise {item.take} · {formatDateOnly(item.session_date, { day: 'numeric', month: 'short', year: 'numeric' })}
+				{#if item.session_location} · {item.session_location}{/if}
+			</span>
+			{#if item.note}<span class="row-note">{item.note}</span>{/if}
+		</div>
 
-	<div class="row-tags">
-		<span class="badge badge-quality-{qualityClass(item.recording_status)}">{item.recording_status}</span>
-	</div>
+		<div class="row-tags">
+			<span class="badge badge-quality-{qualityClass(item.recording_status)}">{item.recording_status}</span>
+		</div>
 
-	<div class="row-actions">
-		<a
-			href="/recording/{item.recording_id}"
-			class="btn btn-ghost btn-sm btn-icon row-quiet"
-			title="Ouvrir le lecteur complet"
-			aria-label="Ouvrir le lecteur complet"
-		><Icon name="external" /></a>
-		<button
-			class="btn btn-secondary btn-sm btn-icon row-play"
-			onclick={onToggle}
-			title={playing ? 'Mettre en pause' : 'Écouter'}
-			aria-label={playing ? 'Mettre en pause' : `Écouter ${item.song_title}, prise ${item.take}`}
-		><Icon name={playing ? 'pause' : 'play'} /></button>
-		<span class="duration">{formatDuration(item.duration_s)}</span>
+		<div class="row-actions">
+			<a
+				href="/recording/{item.recording_id}"
+				class="btn btn-ghost btn-sm btn-icon row-quiet"
+				title="Ouvrir le lecteur complet"
+				aria-label="Ouvrir le lecteur complet"
+			><Icon name="external" /></a>
+			<button
+				class="btn btn-secondary btn-sm btn-icon row-play"
+				onclick={onToggle}
+				title={playing ? 'Mettre en pause' : 'Écouter'}
+				aria-label={playing ? 'Mettre en pause' : `Écouter ${item.song_title}, prise ${item.take}`}
+			><Icon name={playing ? 'pause' : 'play'} /></button>
+			<span class="duration">{formatDuration(item.duration_s)}</span>
+		</div>
 	</div>
 </article>
 
 <style>
-	/* Mêmes mesures que `RecordingRow` : une playlist et une session se lisent pareil. */
+	/* Mêmes mesures que `RecordingRow` : une playlist et une session se lisent pareil.
+	   La ligne est le conteneur, la grille son enfant : une requête de conteneur ne
+	   s'applique jamais au conteneur lui-même. */
 	.playlist-row {
 		container-type: inline-size;
-		display: grid;
-		grid-template-columns: 2rem minmax(0, 1fr) auto auto;
-		grid-template-areas: 'lead body tags actions';
-		align-items: center;
-		column-gap: 0.75rem;
 		padding: 0.4rem 0.6rem 0.4rem 0.3rem;
 		margin-bottom: 2px;
 		border-radius: var(--radius-lg);
@@ -95,6 +94,14 @@
 	}
 
 	.playlist-row.current { background: color-mix(in srgb, var(--color-accent-light) 55%, var(--color-bg)); }
+
+	.row-grid {
+		display: grid;
+		grid-template-columns: 2rem minmax(0, 1fr) auto auto;
+		grid-template-areas: 'lead body tags actions';
+		align-items: center;
+		column-gap: 0.75rem;
+	}
 
 	.row-lead { grid-area: lead; }
 
@@ -146,7 +153,7 @@
 	/* Ligne étroite : le badge de qualité s'efface plutôt que d'écraser le titre ;
 	   il reste lisible sur la page de la prise. */
 	@container (max-width: 420px) {
-		.playlist-row {
+		.row-grid {
 			grid-template-columns: 2rem minmax(0, 1fr) auto;
 			grid-template-areas: 'lead body actions';
 		}

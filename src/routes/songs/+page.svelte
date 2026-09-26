@@ -5,10 +5,22 @@
 	import Modal from '$lib/components/Modal.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import AddToSetlistButton from '$lib/components/AddToSetlistButton.svelte'
+	import MediaHeader from '$lib/components/MediaHeader.svelte'
+	import PlaylistCover from '$lib/components/PlaylistCover.svelte'
+	import SongListRow from '$lib/components/SongListRow.svelte'
 	import type { IconName } from '$lib/icons'
 	import { isPlaceholderSongTitle } from '$lib/songs'
 
 	let { data, form }: { data: PageData; form: ActionData } = $props()
+
+	// La liste se lit par défaut ; le tableau (édition sur place, suppression) est le
+	// mode édition, pour qu'on parcoure le référentiel sans une rangée de boutons par ligne.
+	let editMode = $state(false)
+
+	function toggleEditMode() {
+		editMode = !editMode
+		if (!editMode) cancelEditing()
+	}
 
 	let editingId = $state<number | null>(null)
 	let editError = $state<string | null>(null)
@@ -113,6 +125,28 @@
 			return a.title.localeCompare(b.title, 'fr') * dir
 		})
 	})
+
+	// En lecture, pas d'en-têtes de colonnes à cliquer : le tri se choisit dans la barre
+	// de filtres, avec le sens le plus parlant pour chaque critère.
+	function chooseSort(key: SortKey) {
+		sortKey = key
+		sortAsc = key !== 'take_count'
+	}
+
+	const totalTakes = $derived(allSongs.reduce((n, s) => n + s.take_count, 0))
+	const headerStats = $derived(
+		[
+			`${allSongs.length} morceau${allSongs.length > 1 ? 'x' : ''}`,
+			statusCounts.au_repertoire ? `${statusCounts.au_repertoire} au répertoire` : null,
+			`${totalTakes} prise${totalTakes > 1 ? 's' : ''}`
+		]
+			.filter(Boolean)
+			.join(' · ')
+	)
+	// Le visuel du référentiel : les morceaux les plus travaillés.
+	const coverSongs = $derived(
+		[...allSongs].sort((a, b) => b.take_count - a.take_count).slice(0, 4)
+	)
 
 	function resetFilters() {
 		search = ''
@@ -223,10 +257,28 @@
 {/snippet}
 
 <main>
-	<div class="page-header">
-		<h1>Morceaux</h1>
-		<button class="btn btn-primary" onclick={openCreateModal}>+ Ajouter un morceau</button>
-	</div>
+	<MediaHeader title="Morceaux" stats={allSongs.length > 0 ? headerStats : null}>
+		{#snippet kicker()}Référentiel{/snippet}
+		{#snippet cover()}
+			<PlaylistCover songs={coverSongs} emptyIcon="music" />
+		{/snippet}
+		{#snippet actions()}
+			<button class="btn btn-ghost mh-secondary" onclick={openCreateModal}>
+				<Icon name="plus" size="0.9rem" /> <span class="mh-label">Ajouter</span>
+			</button>
+			{#if allSongs.length > 0}
+				<!-- En édition, « Terminer » prend le ton principal : c'est l'état dont on sort. -->
+				<button
+					class="btn {editMode ? 'btn-primary' : 'btn-ghost mh-secondary'}"
+					aria-pressed={editMode}
+					onclick={toggleEditMode}
+				>
+					<Icon name={editMode ? 'check' : 'pencil'} size="0.9rem" />
+					<span class="mh-label">{editMode ? 'Terminer' : 'Modifier'}</span>
+				</button>
+			{/if}
+		{/snippet}
+	</MediaHeader>
 
 	{#if createSuccess}
 		<p class="message-success">Morceau ajouté.</p>
@@ -234,12 +286,6 @@
 
 	<!-- Liste des morceaux -->
 	<section class="songs-list">
-		<div class="list-header">
-			<h2>
-				Morceaux ({visibleSongs.length}{#if isFiltered}<span class="of-total"> / {allSongs.length}</span>{/if})
-			</h2>
-		</div>
-
 		{#if allSongs.length === 0}
 			<p class="empty">Aucun morceau pour l'instant.</p>
 		{:else}
@@ -274,13 +320,40 @@
 						>À nommer <span class="pill-count">{statusCounts[PLACEHOLDER_FILTER]}</span></button>
 					{/if}
 				</div>
+				{#if !editMode}
+					<label class="sort-field">
+						<span class="sort-label">Trier</span>
+						<select
+							class="form-input sort-select"
+							value={sortKey}
+							onchange={(e) => chooseSort((e.currentTarget as HTMLSelectElement).value as SortKey)}
+						>
+							<option value="title">Titre</option>
+							<option value="take_count">Nombre de prises</option>
+							<option value="status">Statut</option>
+						</select>
+					</label>
+				{/if}
 			</div>
+
+			{#if isFiltered && visibleSongs.length > 0}
+				<p class="result-count">
+					{visibleSongs.length} morceau{visibleSongs.length > 1 ? 'x' : ''} sur {allSongs.length}
+					· <button class="link-btn" onclick={resetFilters}>Réinitialiser</button>
+				</p>
+			{/if}
 
 			{#if visibleSongs.length === 0}
 				<p class="empty">
 					Aucun morceau ne correspond.
 					<button class="link-btn" onclick={resetFilters}>Réinitialiser les filtres</button>
 				</p>
+			{:else if !editMode}
+			<div class="song-list">
+				{#each visibleSongs as song (song.id)}
+					<SongListRow {song} statusLabel={STATUS_LABELS[song.status] ?? song.status} />
+				{/each}
+			</div>
 			{:else}
 			<div class="table-scroll">
 				<table class="data-table">
@@ -459,24 +532,28 @@
 		padding: 0 1rem;
 	}
 
-	.page-header {
-		display: flex;
+	.sort-field {
+		display: inline-flex;
 		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		margin-bottom: 2rem;
+		gap: 0.4rem;
+		margin-left: auto;
 	}
 
-	.list-header {
-		display: flex;
-		align-items: baseline;
-		justify-content: space-between;
-		gap: 1rem;
-	}
-
-	.of-total {
+	.sort-label {
+		font-size: var(--text-xs);
 		color: var(--color-text-muted);
-		font-weight: 400;
+	}
+
+	.sort-select {
+		width: auto;
+		padding-block: 0.25rem;
+		font-size: var(--text-sm);
+	}
+
+	.result-count {
+		margin: -0.4rem 0 0.75rem;
+		font-size: var(--text-sm);
+		color: var(--color-text-muted);
 	}
 
 	.filters {
@@ -558,16 +635,6 @@
 		color: var(--color-accent);
 		cursor: pointer;
 		text-decoration: underline;
-	}
-
-	h1 {
-		font-size: var(--text-xl);
-		margin: 0;
-	}
-
-	h2 {
-		font-size: var(--text-lg);
-		margin-bottom: 1rem;
 	}
 
 	section {
@@ -696,12 +763,30 @@
 	@media (max-width: 640px) {
 		main { margin: 1rem auto; padding: 0 0.75rem; }
 
-		.page-header {
-			align-items: stretch;
-			flex-direction: column;
-			gap: 0.75rem;
-			margin-bottom: 1.5rem;
+		/* Recherche et tri partagent la première rangée ; les pastilles tiennent sur une
+		   ligne qui défile au doigt plutôt que de s'empiler sur deux ou trois. */
+		.filters { gap: 0.5rem; margin-bottom: 0.75rem; }
+		.search-input { flex: 1 1 8rem; order: 1; }
+		.sort-field { order: 2; margin-left: 0; }
+		.sort-label {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip: rect(0 0 0 0);
+			white-space: nowrap;
 		}
+		.status-filters {
+			order: 3;
+			flex: 1 1 100%;
+			flex-wrap: nowrap;
+			overflow-x: auto;
+			scrollbar-width: none;
+			margin-inline: -0.75rem;
+			padding-inline: 0.75rem;
+		}
+		.status-filters::-webkit-scrollbar { display: none; }
+		.filter-pill { flex-shrink: 0; }
 
 		.fields-row { grid-template-columns: 1fr; }
 		.fields-row .tonalite,

@@ -949,9 +949,17 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 - Statut `abandonne` → masqué dans le sélecteur d'upload, prises existantes conservées ; reste visible et modifiable dans `/songs`. Les propositions de travail restent disponibles.
 - Suppression bloquée si des prises existent pour ce morceau
 - Liste affiche tous les statuts du groupe actif, avec nombre de prises (`take_count`)
+- **Deux modes**, comme une playlist. Par défaut la liste **se lit** : en-tête de page
+  commun (mosaïque des quatre morceaux les plus travaillés, nombre de morceaux, au
+  répertoire, prises), puis une ligne par morceau (`SongListRow.svelte`) — pochette, titre,
+  compositeur / reprise / année, statut, tonalité, nombre de prises. Toute la ligne mène au
+  morceau ; le tri se choisit dans la barre de filtres. « Modifier » passe au **tableau**
+  (mode édition) : colonnes triables, édition sur place, suppression. « Ajouter » ouvre la
+  création dans les deux modes
 - Filtre « À nommer » et étiquette sur les morceaux créés à la volée sous un titre
   provisoire — voir « Morceau absent du référentiel »
-- Chaque ligne porte **« Setlist »**, avant « Modifier » et « Supprimer » : on parcourt le
+- Chaque ligne porte **« Setlist »**, dans les deux modes — au survol à la souris en
+  lecture, avant « Modifier » et « Supprimer » dans le tableau : on parcourt le
   référentiel pour bâtir un programme bien plus souvent que pour corriger une fiche, et la
   destruction reste en dernier. Même sélecteur qu'en vue morceau
   (`AddToSetlistButton.svelte`), et rien ne s'affiche sur un morceau `abandonne`

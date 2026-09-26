@@ -109,10 +109,24 @@
 
 	.mh-actions :global(.mh-secondary:hover:not(:disabled)) { color: var(--color-text); }
 
+	/* Au téléphone, l'en-tête tient sur une rangée : les commandes secondaires se
+	   réduisent à leur icône (libellé gardé pour les lecteurs d'écran), et le texte
+	   cède la largeur au lieu de renvoyer les boutons à la ligne. */
 	@media (max-width: 640px) {
-		.media-header { gap: 0.75rem 0.9rem; }
-		.mh-cover { width: 76px; height: 76px; border-radius: var(--radius-lg); }
-		.mh-actions :global(.btn) { min-height: 44px; }
-		h1 { font-size: 1.25rem; }
+		.media-header { gap: 0.5rem 0.75rem; margin-bottom: 1rem; }
+		.mh-cover { width: 64px; height: 64px; border-radius: var(--radius-lg); }
+		.mh-text { flex: 1 1 0; }
+		.mh-actions { gap: 0.15rem; }
+		.mh-actions :global(.btn) { min-height: 44px; min-width: 44px; }
+		.mh-actions :global(.mh-label) {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip: rect(0 0 0 0);
+			white-space: nowrap;
+		}
+		h1 { font-size: 1.2rem; }
+		.mh-stats { margin-top: 0.1rem; font-size: var(--text-xs); }
 	}
 </style>

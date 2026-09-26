@@ -189,7 +189,7 @@
 			{/if}
 			{#snippet actions()}
 				<button class="btn btn-ghost mh-secondary" onclick={startEditSession}>
-					<Icon name="pencil" size="0.9rem" /> Modifier
+					<Icon name="pencil" size="0.9rem" /> <span class="mh-label">Modifier</span>
 				</button>
 				{@render outerActions?.()}
 			{/snippet}

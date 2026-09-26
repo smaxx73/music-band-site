@@ -22,6 +22,8 @@ en montant de version (voir `deploy.md`).
 - Playlist en tracklist, lue par le mini-lecteur (paroles du morceau en cours affichées) ;
   réordonner, retirer et ajouter passent en mode édition. La forme d'onde de la page
   disparaît, et avec elle le calcul des pics au chargement
+- Référentiel de morceaux en liste à pochettes ; le tableau (édition, suppression) devient
+  le mode édition
 - Version affichée sous le nom du site, en haut à gauche
 - Correction : sur téléphone, le bas du menu latéral (compte, liens légaux) passait sous
   la barre d'actions
