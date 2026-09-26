@@ -7,6 +7,7 @@
 	import SongCover from '$lib/components/SongCover.svelte'
 	import MediaHeader from '$lib/components/MediaHeader.svelte'
 	import { formatDurationLong } from '$lib/types'
+	import { songHue } from '$lib/songs'
 	import PlayAllButton from '$lib/components/PlayAllButton.svelte'
 	import type { PlayerTrack } from '$lib/player.svelte'
 	import type { RecordingListItem } from '$lib/types'
@@ -91,7 +92,7 @@
 		<span>{song.title}</span>
 	</nav>
 
-	<MediaHeader title={song.title} stats={songStats}>
+	<MediaHeader title={song.title} stats={songStats} hue={songHue(song.id)}>
 		{#snippet kicker()}
 			Morceau
 			<span class="badge badge-{song.status} song-status">

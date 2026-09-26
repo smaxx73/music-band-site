@@ -332,7 +332,10 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
   prise, elle, s'écrit dans le lecteur — voir « Note d'une prise »
 - **En-tête de page commun** aux pages qui listent des prises — session, morceau, playlist
   (`MediaHeader.svelte`) : un visuel carré, la nature de la page en petites capitales, le
-  titre, ce qu'elle contient en chiffres, et le ▶ rond orange. La même grammaire que
+  titre, ce qu'elle contient en chiffres, et le ▶ rond orange. Posé sur un **bandeau**
+  plus foncé que la page, teinté comme son visuel : la teinte de la pochette pour un
+  morceau (`songHue`, `src/lib/songs.ts`), la couleur du type pour une session, un beige
+  neutre pour une playlist ou le référentiel. La même grammaire que
   l'en-tête « album » de chaque morceau dans une session, à l'échelle de la page. Le
   visuel d'une session est un **feuillet d'éphéméride** (mois, jour, jour de la semaine)
   teinté comme son type (`SessionCover.svelte`) : une session n'a pas de pochette

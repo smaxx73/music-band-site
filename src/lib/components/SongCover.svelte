@@ -1,13 +1,12 @@
 <script lang="ts">
-	import { isPlaceholderSongTitle } from '$lib/songs'
+	import { isPlaceholderSongTitle, songHue } from '$lib/songs'
 
 	/** `size` en px ; sans taille, la pochette remplit son conteneur (mosaïque, en-tête). */
 	let { songId, title, size = null }: { songId: number; title: string; size?: number | null } = $props()
 
-	// Pas d'image de pochette en base : la teinte se tire de l'id, pour qu'un morceau
-	// garde la même couleur d'une page à l'autre et se reconnaisse avant d'être lu.
-	// L'id seul, pas le titre : renommer un morceau « À nommer » ne doit pas le repeindre.
-	const hue = $derived((songId * 137) % 360)
+	// Pas d'image de pochette en base : un dégradé dans la teinte du morceau, qui se
+	// reconnaît ainsi avant d'être lu.
+	const hue = $derived(songHue(songId))
 
 	// Un morceau « À nommer — … » commencerait par « À » comme tous ses semblables.
 	const initial = $derived(

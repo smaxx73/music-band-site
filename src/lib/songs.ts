@@ -10,6 +10,15 @@ export function isPlaceholderSongTitle(title: string): boolean {
 }
 
 /**
+ * Teinte d'un morceau (0–360), pour sa pochette générée et l'en-tête de sa page. Tirée
+ * de l'id seul, pas du titre : un morceau garde sa couleur d'une page à l'autre, et
+ * renommer un morceau « À nommer » ne le repeint pas.
+ */
+export function songHue(songId: number): number {
+	return (songId * 137) % 360
+}
+
+/**
  * « À nommer — 22 sept. 14:05 », suffixé « #2 », « #3 »… si le titre est déjà pris :
  * les titres sont uniques dans un groupe, et deux prises classées dans la même minute
  * ne doivent pas tomber sur le même morceau par accident.

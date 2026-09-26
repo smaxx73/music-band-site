@@ -27,6 +27,15 @@
 		notes: string | null
 	}
 
+	// Teinte du bandeau d'en-tête, prise dans la couleur du type (celle de `.type-badge`
+	// et du feuillet daté). « Autre » garde le ton neutre.
+	const typeHues: Record<SessionType, number | null> = {
+		repetition: 14,
+		concert: 138,
+		studio: 262,
+		autre: null
+	}
+
 	const typeLabels: Record<SessionType, string> = {
 		repetition: 'Répétition',
 		concert: 'Concert',
@@ -169,7 +178,11 @@
 			</div>
 		</form>
 	{:else}
-		<MediaHeader title={session.title ?? formatDate(session.date)} {stats}>
+		<MediaHeader
+			title={session.title ?? formatDate(session.date)}
+			{stats}
+			hue={typeHues[session.type ?? 'repetition']}
+		>
 			{#snippet kicker()}
 				<span class="type-badge type-{session.type ?? 'repetition'}">{typeLabels[session.type ?? 'repetition']}</span>
 			{/snippet}

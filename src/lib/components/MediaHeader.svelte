@@ -9,6 +9,7 @@
 		kicker,
 		cover,
 		stats = null,
+		hue = null,
 		children,
 		actions
 	}: {
@@ -19,12 +20,17 @@
 		cover: Snippet
 		/** « 12 prises · 47 min » : ce que la page contient, en chiffres alignés. */
 		stats?: string | null
+		/**
+		 * Teinte du bandeau (0–360), celle du visuel : un morceau, un type de session.
+		 * Sans teinte, un beige chaud neutre (playlist, référentiel).
+		 */
+		hue?: number | null
 		children?: Snippet
 		actions?: Snippet
 	} = $props()
 </script>
 
-<header class="media-header">
+<header class="media-header" class:tinted={hue !== null} style={hue !== null ? `--hue: ${hue}` : undefined}>
 	<div class="mh-cover">{@render cover()}</div>
 	<div class="mh-text">
 		<div class="mh-kicker">{@render kicker()}</div>
@@ -41,12 +47,25 @@
 </header>
 
 <style>
+	/* Un bandeau plus foncé que le corps de la page, pour que l'en-tête s'en détache.
+	   Teinté comme son visuel : la page d'un morceau prend la couleur de sa pochette,
+	   une session celle de son type. Tons assez clairs pour garder le texte sombre. */
 	.media-header {
+		--mh-bg: linear-gradient(135deg, #EEE9DF, #E1D9C9);
+		--mh-ink-soft: #57524B;
 		display: flex;
 		align-items: center;
 		flex-wrap: wrap;
 		gap: 0.9rem 1.1rem;
+		padding: 1.1rem 1.25rem;
 		margin-bottom: 1.5rem;
+		border-radius: var(--radius-xl);
+		background: var(--mh-bg);
+	}
+
+	.media-header.tinted {
+		--mh-bg: linear-gradient(135deg, hsl(var(--hue) 38% 91%), hsl(var(--hue) 30% 83%));
+		--mh-ink-soft: hsl(var(--hue) 12% 32%);
 	}
 
 	.mh-cover {
@@ -76,8 +95,12 @@
 		font-weight: 600;
 		letter-spacing: 0.06em;
 		text-transform: uppercase;
-		color: var(--color-text-muted);
+		color: var(--mh-ink-soft);
 	}
+
+	/* Le texte secondaire des pages (compositeur, lieu, description) suit le bandeau :
+	   le gris du corps de page y manquerait de contraste. */
+	.mh-text :global(p) { color: var(--mh-ink-soft); }
 
 	h1 {
 		margin: 0;
@@ -90,7 +113,7 @@
 	.mh-stats {
 		margin: 0.2rem 0 0;
 		font-size: var(--text-sm);
-		color: var(--color-text-secondary);
+		color: var(--mh-ink-soft);
 		font-variant-numeric: tabular-nums;
 	}
 
@@ -105,15 +128,19 @@
 	.mh-actions :global(.btn) { gap: 0.4rem; }
 
 	/* Commandes secondaires : sans cadre, à la hauteur du texte qui suit le ▶. */
-	.mh-actions :global(.mh-secondary) { color: var(--color-text-secondary); }
+	.mh-actions :global(.mh-secondary) { color: var(--mh-ink-soft); }
 
-	.mh-actions :global(.mh-secondary:hover:not(:disabled)) { color: var(--color-text); }
+	/* Le survol du corps de page (`--color-bg-muted`) disparaîtrait sur le bandeau. */
+	.mh-actions :global(.mh-secondary:hover:not(:disabled)) {
+		color: var(--color-text);
+		background: rgba(44, 43, 40, 0.08);
+	}
 
 	/* Au téléphone, l'en-tête tient sur une rangée : les commandes secondaires se
 	   réduisent à leur icône (libellé gardé pour les lecteurs d'écran), et le texte
 	   cède la largeur au lieu de renvoyer les boutons à la ligne. */
 	@media (max-width: 640px) {
-		.media-header { gap: 0.5rem 0.75rem; margin-bottom: 1rem; }
+		.media-header { gap: 0.5rem 0.75rem; padding: 0.8rem 0.85rem; margin-bottom: 1rem; }
 		.mh-cover { width: 64px; height: 64px; border-radius: var(--radius-lg); }
 		.mh-text { flex: 1 1 0; }
 		.mh-actions { gap: 0.15rem; }
