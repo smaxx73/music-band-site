@@ -91,7 +91,11 @@
 			</button>
 			<a href="/accueil" class="brand" aria-label="BandStash — accueil">
 				<img src="/brand/bandstash-mark-simple.svg" alt="" class="brand-mark" />
-				<span>BandStash</span>
+				<!-- Version en service : c'est elle qu'on cite pour signaler un souci. -->
+				<span class="brand-text">
+					<span class="brand-name">BandStash</span>
+					<span class="brand-version">v{APP_VERSION}</span>
+				</span>
 			</a>
 			<div class="top-spacer"></div>
 			{#if currentGroup?.logo_version}
@@ -197,8 +201,6 @@
 
 				<div class="sidebar-legal">
 					<LegalLinks compact />
-					<!-- Version en service : c'est elle qu'on cite pour signaler un souci. -->
-					<span class="sidebar-version">v{APP_VERSION}</span>
 				</div>
 			</nav>
 
@@ -299,6 +301,18 @@
 		letter-spacing: -0.01em;
 	}
 
+	.brand-text {
+		display: flex;
+		flex-direction: column;
+		line-height: 1.1;
+	}
+	.brand-version {
+		font-size: 0.65rem;
+		font-weight: 400;
+		letter-spacing: 0;
+		color: rgba(255,255,255,0.45);
+		font-variant-numeric: tabular-nums;
+	}
 	.brand-mark {
 		width: 30px;
 		height: 30px;
@@ -468,13 +482,6 @@
 		color: rgba(255,255,255,0.45);
 	}
 
-	.sidebar-version {
-		display: block;
-		margin-top: 0.15rem;
-		font-size: var(--text-xs, 0.75rem);
-		font-variant-numeric: tabular-nums;
-	}
-
 	.sidebar-account form {
 		margin: 0;
 		flex-shrink: 0;
@@ -618,17 +625,23 @@
 			overflow: visible;
 		}
 
-		/* Hors écran par défaut, glisse à l'ouverture du menu */
+		/* Hors écran par défaut, glisse à l'ouverture du menu. S'arrête au-dessus de la
+		   barre d'actions (et du mini-lecteur) : sinon le bas du tiroir — compte, liens
+		   légaux, version — passe dessous, hors d'atteinte même en défilant. */
 		.app-sidebar {
 			position: fixed;
 			top: 44px;
-			bottom: 0;
+			bottom: var(--footer-actions-h);
 			left: 0;
 			width: 218px;
 			z-index: 90;
 			transform: translateX(-100%);
 			transition: transform 0.18s ease-out;
 			border-right: 1px solid rgba(255,255,255,0.08);
+		}
+
+		:global(body.has-mini-player) .app-sidebar {
+			bottom: calc(var(--footer-actions-h) + 64px);
 		}
 
 		.app-sidebar.open {
@@ -654,7 +667,7 @@
 
 	@media (max-width: 400px) {
 		.brand { gap: 0; }
-		.brand span { display: none; }
+		.brand-text { display: none; }
 	}
 
 </style>

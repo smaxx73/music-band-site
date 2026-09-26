@@ -30,7 +30,7 @@ docker compose up -d --build app
 
 ## Publier une version
 
-La version vit dans `package.json` (affichée en bas de la barre latérale). Choisir le
+La version vit dans `package.json` (affichée sous le nom du site, en haut à gauche). Choisir le
 niveau selon les règles en tête de `CHANGELOG.md`.
 
 1. Dans `CHANGELOG.md`, renommer « [Non publié] » en « [X.Y.Z] — AAAA-MM-JJ », avec les
