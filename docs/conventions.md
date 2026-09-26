@@ -39,12 +39,14 @@ src/
 │       ├── RoundPlayButton.svelte # le ▶ rond orange des en-têtes (affichage seul)
 │       ├── MediaHeader.svelte     # en-tête des pages qui listent des prises (session, morceau, playlist)
 │       ├── SessionCover.svelte    # visuel d'une session : feuillet d'éphéméride teinté par le type
-│       ├── PlaylistCover.svelte   # visuel d'une collection (playlist, référentiel) : mosaïque de pochettes
+│       ├── IconCover.svelte       # visuel fixe d'une page qui rassemble des morceaux (référentiel, playlist)
 │       ├── RecordingComments.svelte # commentaires d'une prise chargés à la demande (hors lecteur)
 │       ├── NotificationsMenu.svelte # cloche + menu des notifications (barre du haut)
 │       ├── PlaylistQueue.svelte   # mode édition d'une playlist : ordre (glisser), retrait
 │       ├── PlaylistTrackRow.svelte # une piste de playlist, en lecture
 │       ├── SongListRow.svelte     # un morceau du référentiel, en lecture (/songs)
+│       ├── TrackRow.svelte        # socle de toute piste (prise, piste de playlist, morceau) :
+│       │                          #   grille, repli, survol, état « en cours », tiroir
 │       ├── TrackLead.svelte       # colonne de tête d'une piste : numéro, ▶ au survol, égaliseur
 │       ├── SetlistSongs.svelte    # programme d'une setlist : ordre (glisser + ↑↓), retrait
 │       ├── AddToPlaylistButton.svelte # ajout d'une prise à une playlist (sélecteur + création)
@@ -159,7 +161,10 @@ la confirmation est une protection d'interface, jamais une règle de sécurité.
 Un tableau sert à **comparer des valeurs alignées** d'une ligne à l'autre. Une liste dont
 chaque ligne porte surtout des contrôles n'en est pas un : elle se construit en flex, et se
 replie seule. C'est le cas des prises (`RecordingRow.svelte`) — ne pas les remettre en
-tableau. Les règles ci-dessous valent pour les vrais tableaux : `/songs` (mode édition ;
+tableau. Toute ligne de ce genre — prise, piste de playlist, morceau du référentiel — se
+bâtit sur `TrackRow.svelte`, qui porte seul la grille, le repli sur ligne étroite, le
+survol et l'état « en cours » : une liste n'y met que son contenu, pour que deux listes
+ne divergent pas. Les règles ci-dessous valent pour les vrais tableaux : `/songs` (mode édition ;
 sa vue de lecture est une liste, `SongListRow.svelte`), `/admin/users`,
 `/admin/groups`, `/playlists`.
 

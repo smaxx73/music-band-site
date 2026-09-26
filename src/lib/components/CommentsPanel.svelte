@@ -349,7 +349,7 @@
 		cursor: pointer;
 	}
 
-	/* Même plateau creusé que le tiroir d'une prise (`row-drawer`) : les commentaires
+	/* Même plateau creusé que le tiroir d'une prise (`track-after`, TrackRow) : les commentaires
 	   se lisent au même endroit visuel des deux côtés. Posés à plat sur la page, dont
 	   ils portaient déjà le fond, seul leur filet les en séparait — et rien ne disait
 	   où finissait la liste et où commençait la saisie. Le fond de surface de la

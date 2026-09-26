@@ -6,7 +6,7 @@
 	import Icon from '$lib/components/Icon.svelte'
 	import AddToSetlistButton from '$lib/components/AddToSetlistButton.svelte'
 	import MediaHeader from '$lib/components/MediaHeader.svelte'
-	import PlaylistCover from '$lib/components/PlaylistCover.svelte'
+	import IconCover from '$lib/components/IconCover.svelte'
 	import SongListRow from '$lib/components/SongListRow.svelte'
 	import type { IconName } from '$lib/icons'
 	import { isPlaceholderSongTitle } from '$lib/songs'
@@ -143,11 +143,6 @@
 			.filter(Boolean)
 			.join(' · ')
 	)
-	// Le visuel du référentiel : les morceaux les plus travaillés.
-	const coverSongs = $derived(
-		[...allSongs].sort((a, b) => b.take_count - a.take_count).slice(0, 4)
-	)
-
 	function resetFilters() {
 		search = ''
 		statusFilter = 'all'
@@ -260,7 +255,7 @@
 	<MediaHeader title="Morceaux" stats={allSongs.length > 0 ? headerStats : null}>
 		{#snippet kicker()}Référentiel{/snippet}
 		{#snippet cover()}
-			<PlaylistCover songs={coverSongs} emptyIcon="music" />
+			<IconCover icon="music" />
 		{/snippet}
 		{#snippet actions()}
 			<button class="btn btn-ghost mh-secondary" onclick={openCreateModal}>

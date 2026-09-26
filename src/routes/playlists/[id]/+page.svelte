@@ -8,7 +8,7 @@
 	import { player, type PlayerTrack } from '$lib/player.svelte'
 	import MediaHeader from '$lib/components/MediaHeader.svelte'
 	import Icon from '$lib/components/Icon.svelte'
-	import PlaylistCover from '$lib/components/PlaylistCover.svelte'
+	import IconCover from '$lib/components/IconCover.svelte'
 	import PlaylistTrackRow from '$lib/components/PlaylistTrackRow.svelte'
 	import PlayAllButton from '$lib/components/PlayAllButton.svelte'
 	import { formatDurationLong } from '$lib/types'
@@ -185,7 +185,7 @@
 	<MediaHeader title={playlist.name} stats={playlistStats}>
 		{#snippet kicker()}Playlist{/snippet}
 		{#snippet cover()}
-			<PlaylistCover songs={items.map((i) => ({ id: i.song_id, title: i.song_title }))} />
+			<IconCover icon="playlist" />
 		{/snippet}
 		{#if playlist.description}<p class="desc">{playlist.description}</p>{/if}
 		{#snippet actions()}

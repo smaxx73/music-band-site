@@ -430,9 +430,13 @@ note, 💬 s'il y a des commentaires — plus l'écoute, et un menu ⋮ recueill
 - En-tête de page commun (voir « Vue session ») : pochette générée, statut et tonalité
   dans le libellé, prises, sessions et durée cumulée en chiffres. Son ▶ enchaîne toutes
   les prises dans l'ordre de la page (les plus récentes d'abord)
-- Mêmes pistes que la vue session (`RecordingRow.svelte`), en lecture seule :
+- **À plat**, sans intertitre de session : chaque prise se **titre par sa session** (date,
+  en lien vers elle), avec « Prise n · lieu · déposant » dessous — comme une piste de
+  playlist se titre par son morceau. Le nom du fichier déposé passe en infobulle ; il se
+  lit en vue session
+- Mêmes pistes que la vue session (`RecordingRow.svelte`, prop `session`), en lecture seule :
   la qualité s'y lit en badge, sans sélecteur, et aucune action d'édition n'y figure
-- Les prises affichent leur libellé de qualité libre, le nom du fichier déposé et leur note
+- Les prises affichent leur libellé de qualité libre et leur note
 - Le compteur de commentaires déplie la liste des commentaires de la prise, sans ouvrir le
   lecteur — mêmes 5 derniers qu'en vue session, avec le renvoi vers le lecteur au-delà
 - Même menu ⋮ qu'en vue session — voir « Menu d'une prise » plus haut
@@ -689,9 +693,9 @@ distincte des commentaires, qui sont datés et signés.
 
 ## Playlists (`/playlists/[id]`)
 
-- En-tête de page commun (voir « Vue session ») : **mosaïque** des pochettes des quatre
-  premiers morceaux distincts (`PlaylistCover.svelte`) — une seule pochette en deçà, pour
-  ne pas laisser de trous —, nombre de prises, durée et auteur
+- En-tête de page commun (voir « Vue session ») : visuel fixe (`IconCover.svelte`, l'icône
+  playlist sur fond sombre) plutôt qu'une mosaïque de pochettes — la pochette d'un morceau
+  ferait croire que la page parle de lui —, nombre de prises, durée et auteur
 - **Deux modes.** Par défaut, la playlist **se lit** : des pistes comme les prises d'une
   session (`PlaylistTrackRow.svelte`, même colonne de tête `TrackLead.svelte`), avec morceau,
   prise, date, lieu, note de playlist, qualité et durée. « Modifier » passe en **mode
@@ -950,8 +954,8 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 - Suppression bloquée si des prises existent pour ce morceau
 - Liste affiche tous les statuts du groupe actif, avec nombre de prises (`take_count`)
 - **Deux modes**, comme une playlist. Par défaut la liste **se lit** : en-tête de page
-  commun (mosaïque des quatre morceaux les plus travaillés, nombre de morceaux, au
-  répertoire, prises), puis une ligne par morceau (`SongListRow.svelte`) — pochette, titre,
+  commun (visuel fixe `IconCover.svelte`, une note sur fond sombre, comme pour une
+  playlist ; nombre de morceaux, au répertoire, prises), puis une ligne par morceau (`SongListRow.svelte`) — pochette, titre,
   compositeur / reprise / année, statut, tonalité, nombre de prises. Toute la ligne mène au
   morceau ; le tri se choisit dans la barre de filtres. « Modifier » passe au **tableau**
   (mode édition) : colonnes triables, édition sur place, suppression. « Ajouter » ouvre la

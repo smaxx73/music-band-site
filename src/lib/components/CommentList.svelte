@@ -523,7 +523,7 @@
 
 	/* `compact` ne change que la densité. Un commentaire se dessine pareil partout :
 	   ce qui distingue le tiroir d'une prise, c'est le plateau creusé qui l'accueille
-	   (`row-drawer`), pas une seconde façon de dessiner la même carte. */
+	   (`track-after`, TrackRow), pas une seconde façon de dessiner la même carte. */
 	.compact .comment {
 		padding: 0.5rem 0.7rem;
 	}

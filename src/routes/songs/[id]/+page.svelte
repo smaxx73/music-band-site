@@ -79,23 +79,6 @@
 					.join(' · ')
 	)
 
-	type SessionGroup = { session_id: number; session_date: string; session_location: string | null; recordings: SongRecording[] }
-
-	const sessionGroups = $derived(() => {
-		const map = new Map<number, SessionGroup>()
-		for (const r of recordings) {
-			if (!map.has(r.session_id)) {
-				map.set(r.session_id, {
-					session_id: r.session_id,
-					session_date: r.session_date,
-					session_location: r.session_location,
-					recordings: []
-				})
-			}
-			map.get(r.session_id)!.recordings.push(r)
-		}
-		return Array.from(map.values())
-	})
 </script>
 
 <svelte:head>
@@ -141,27 +124,19 @@
 	{#if recordings.length === 0}
 		<p class="empty">Aucune prise pour ce morceau.</p>
 	{:else}
-		{#each sessionGroups() as group}
-			<section class="session-section">
-				<h2>
-					<a href="/sessions/{group.session_id}">{formatDate(group.session_date)}</a>
-					{#if group.session_location}
-						<span class="location">— {group.session_location}</span>
-					{/if}
-				</h2>
-
-				<div class="recording-list">
-					{#each group.recordings as r (r.id)}
-						<RecordingRow
-							recording={r}
-							songId={song.id}
-							songTitle={song.title}
-							sessionDate={r.session_date}
-						/>
-					{/each}
-				</div>
-			</section>
-		{/each}
+		<!-- À plat, des plus récentes aux plus anciennes : chaque prise porte sa session
+		     en titre, comme une piste de playlist porte son morceau. -->
+		<div class="recording-list">
+			{#each recordings as r (r.id)}
+				<RecordingRow
+					recording={r}
+					songId={song.id}
+					songTitle={song.title}
+					sessionDate={r.session_date}
+					session={{ id: r.session_id, label: formatDate(r.session_date), location: r.session_location }}
+				/>
+			{/each}
+		</div>
 	{/if}
 
 	<div class="footer-actions">
@@ -214,13 +189,7 @@
 
 	.upload-action:hover { opacity: 0.88; }
 
-	.session-section { margin-bottom: 2rem; }
 
-	h2 { font-size: 1.05rem; margin: 0 0 0.75rem; }
-	h2 a { color: inherit; text-decoration: none; }
-	h2 a:hover { text-decoration: underline; }
-
-	.location { font-weight: 400; color: #777; font-size: 0.9rem; }
 
 	/* Les prises se replient toutes seules (voir RecordingRow) : il ne reste ici que
 	   ce qui entoure la liste. */

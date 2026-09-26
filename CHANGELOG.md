@@ -18,7 +18,7 @@ en montant de version (voir `deploy.md`).
 - Morceaux en en-tête façon album : pochette générée, durée cumulée, « tout écouter »
   qui enchaîne les prises dans le mini-lecteur (⏭ pour passer à la suivante)
 - En-tête commun aux pages session, morceau et playlist : visuel carré (feuillet daté
-  pour une session, pochette pour un morceau, mosaïque pour une playlist), chiffres et ▶
+  pour une session, pochette pour un morceau, icône pour une playlist), chiffres et ▶
 - Playlist en tracklist, lue par le mini-lecteur (paroles du morceau en cours affichées) ;
   réordonner, retirer et ajouter passent en mode édition. La forme d'onde de la page
   disparaît, et avec elle le calcul des pics au chargement
