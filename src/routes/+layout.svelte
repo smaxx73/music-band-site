@@ -118,8 +118,8 @@
 				<a href="/group" class="group-chip">{currentGroup.name}</a>
 			{/if}
 			<!-- Sur mobile, ce bloc quitte le header pour devenir une barre d'actions fixée
-			     en bas : le header seul n'a pas la place pour logo + groupe + ces trois
-			     boutons sans déborder. -->
+			     en bas : le header seul n'a pas la place pour logo + groupe + ces boutons
+			     sans déborder. Le profil n'y figure pas, le menu y mène. -->
 			<div class="top-actions">
 				<a href="/upload" class="top-upload" title="Uploader une prise" aria-label="Uploader une prise">+</a>
 				<!-- Raccourci mobile : c'est au téléphone qu'on lance un enregistrement en répétition. -->
@@ -597,10 +597,10 @@
 		.group-select,
 		.group-chip { max-width: 110px; }
 
-		/* Upload, notifications et profil quittent le header pour une barre d'actions
-		   fixée en bas — le header ne garde que le menu, le logo et le groupe actif.
-		   Réordonné visuellement : profil à gauche, puis enregistrement et upload,
-		   notifications à droite (l'ordre du DOM, lui, reste celui du header desktop). */
+		/* Upload et notifications quittent le header pour une barre d'actions fixée en
+		   bas — le header ne garde que le menu, le logo et le groupe actif.
+		   Réordonné visuellement : enregistrement et upload, notifications à droite
+		   (l'ordre du DOM, lui, reste celui du header desktop). */
 		.top-actions {
 			position: fixed;
 			left: 0;
@@ -615,10 +615,26 @@
 			gap: 0;
 		}
 
-		.top-actions .user-avatar { order: 1; }
+		/* Le profil sert rarement, et le tiroir du menu y mène déjà : sa place dans la
+		   barre du bas ne vaut pas la cible tactile qu'elle prend aux trois autres. */
+		.top-actions .user-avatar { display: none; }
 		.top-actions .top-record { order: 2; }
 		.top-actions .top-upload { order: 3; }
 		.top-actions :global(.notif) { order: 4; }
+
+		/* Un léger cran au-dessus des 30px du header : au-delà, les boutons écrasaient
+		   la barre sans rien gagner au pouce. */
+		.top-upload,
+		.top-record {
+			width: 32px;
+			height: 32px;
+		}
+
+		.top-upload { font-size: 1.2rem; }
+		.top-record :global(svg) {
+			width: 1.05rem;
+			height: 1.05rem;
+		}
 
 		.app-body {
 			flex-direction: column;

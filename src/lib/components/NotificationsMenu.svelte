@@ -448,6 +448,18 @@
 	/* La cloche vit dans la barre d'actions du bas sur mobile (voir +layout.svelte) :
 	   le panneau s'ouvre vers le haut, juste au-dessus. */
 	@media (max-width: 640px) {
+		.notif-bell {
+			width: 32px;
+			height: 32px;
+		}
+
+		/* Sans rond ni contour autour, la cloche paraît plus petite que 🎙 et + à taille
+		   égale : son icône occupe donc presque tout le bouton. */
+		.notif-bell :global(svg) {
+			width: 1.4rem;
+			height: 1.4rem;
+		}
+
 		.notif-panel {
 			position: fixed;
 			top: auto;

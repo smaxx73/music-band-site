@@ -146,8 +146,9 @@ au milieu de la salle, ou l'interface audio branchée au PC.
   le fichier accepté par le serveur. Indisponible en navigation privée, et l'écran le dit
 - Quitter la page pendant l'enregistrement demande confirmation ; le formulaire de
   classement n'apparaît qu'une fois l'enregistrement terminé
-- Sous 640 px, la barre d'actions du bas porte un raccourci 🎙 vers `/record`, entre le
-  profil et l'upload : c'est au téléphone, en répétition, qu'on lance un enregistrement
+- Sous 640 px, la barre d'actions du bas porte un raccourci 🎙 vers `/record`, avant
+  l'upload : c'est au téléphone, en répétition, qu'on lance un enregistrement. Le profil,
+  lui, n'y figure pas — il sert rarement et le tiroir du menu y mène déjà
 
 ## Découpe automatique d'un enregistrement (`/decoupe/[id]`)
 
