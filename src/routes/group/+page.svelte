@@ -10,6 +10,8 @@
 		type GroupLinkField
 	} from '$lib/types'
 	import Icon from '$lib/components/Icon.svelte'
+	import GroupPlaces from '$lib/components/GroupPlaces.svelte'
+	import type { GroupPlace } from '$lib/places'
 
 	let { data, form }: { data: PageData; form: ActionData } = $props()
 
@@ -262,6 +264,19 @@
 			{#if form?.error && (form?.action === 'removeMember' || form?.action === 'updateRole')}
 				<p class="error">{form.error}</p>
 			{/if}
+		</section>
+
+		<!-- Lieux proposés à la saisie du lieu d'une session : visibles de tous les membres,
+		     gérés par l'admin du groupe. -->
+		<section class="section">
+			<h2>Lieux ({data.places.length})</h2>
+			<GroupPlaces
+				places={data.places as GroupPlace[]}
+				canManage={data.canManage}
+				error={form?.error && ['addPlace', 'updatePlace', 'removePlace'].includes(form.action as string)
+					? (form.error as string)
+					: null}
+			/>
 		</section>
 
 		{#if data.canManage}

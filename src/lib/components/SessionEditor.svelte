@@ -6,6 +6,8 @@
 	import SessionCover from '$lib/components/SessionCover.svelte'
 	import SessionPhotoAdd from '$lib/components/SessionPhotoAdd.svelte'
 	import SessionPhotoField from '$lib/components/SessionPhotoField.svelte'
+	import LocationInput from '$lib/components/LocationInput.svelte'
+	import { locationDetails, type Coords, type GroupPlace } from '$lib/places'
 	import { SESSION_PHOTO_VEIL, sessionPhotoUrl, type SessionPhoto } from '$lib/session-photo'
 	import { invalidateAll } from '$app/navigation'
 	import type { Snippet } from 'svelte'
@@ -18,6 +20,8 @@
 		type: SessionType
 		title: string | null
 		location: string | null
+		location_lat: number | null
+		location_lon: number | null
 		notes: string | null
 		members: string[]
 	}
@@ -27,6 +31,7 @@
 		type: SessionType
 		title: string | null
 		location: string | null
+		location_coords: Coords | null
 		members: string[]
 		notes: string | null
 	}
@@ -55,6 +60,7 @@
 		onSave = async () => false,
 		stats = null,
 		photo = null,
+		place = null,
 		actions: outerActions
 	}: {
 		session: SessionData
@@ -67,6 +73,9 @@
 		stats?: string | null
 		/** Photo de bandeau (`session_photos`) : version et voile, `null` sans photo. */
 		photo?: SessionPhoto | null
+		/** Adresse rattachée au lieu de la session (`group_places`), s'il y en a une. */
+		/** Lieu du groupe que désigne le lieu de la session (`group_places`), s'il y en a un. */
+		place?: GroupPlace | null
 		/** Commandes de l'en-tête, à côté de « Modifier » (le ▶ de la session). */
 		actions?: Snippet
 	} = $props()
@@ -76,6 +85,8 @@
 	let editType = $state<SessionType>('repetition')
 	let editTitle = $state('')
 	let editLocation = $state('')
+	let editCoords = $state<Coords | null>(null)
+	let editPlace = $state<GroupPlace | null>(null)
 	let editMembers = $state<string[]>([])
 	let editNotes = $state('')
 	let localError = $state<string | null>(null)
@@ -100,6 +111,12 @@
 		}
 	})
 
+	const sessionCoords = $derived<Coords | null>(
+		session.location_lat !== null && session.location_lon !== null
+			? { lat: session.location_lat, lon: session.location_lon }
+			: null
+	)
+
 	const savedPhotoUrl = $derived(photo ? sessionPhotoUrl(session.id, photo.version) : null)
 	const previewPhotoUrl = $derived(pendingPhotoUrl ?? (photoRemoved ? null : savedPhotoUrl))
 
@@ -109,6 +126,8 @@
 		type: SessionType
 		title: string | null
 		location: string | null
+		place: GroupPlace | null
+		coords: Coords | null
 		members: string[]
 		photoUrl: string | null
 		veil: number
@@ -128,6 +147,8 @@
 		editType = session.type ?? 'repetition'
 		editTitle = session.title ?? ''
 		editLocation = session.location ?? ''
+		editCoords = sessionCoords
+		editPlace = place
 		editMembers = [...(session.members ?? [])]
 		editNotes = session.notes ?? ''
 		photoFile = null
@@ -201,6 +222,7 @@
 			type: editType,
 			title: editTitle.trim() || null,
 			location: editLocation.trim() || null,
+			location_coords: editLocation.trim() ? editCoords : null,
 			members: editMembers,
 			notes: editNotes.trim() || null
 		})
@@ -231,12 +253,29 @@
 		{#snippet cover()}
 			<SessionCover date={b.date} type={b.type} />
 		{/snippet}
-		<!-- Sans titre, le h1 porte déjà la date : ne pas la répéter. -->
-		{#if b.title || b.location}
-			<p class="meta">
-				{#if b.title}{formatDate(b.date)}{/if}
-				{#if b.title && b.location} · {/if}
-				{#if b.location}{b.location}{/if}
+		<!-- La date est déjà sur le feuillet (et dans le titre d'une session sans titre) :
+		     ne pas la répéter. -->
+		{#if b.location}
+			{@const details = locationDetails(b.location, b.place, b.coords)}
+			<p class="meta location">
+				<Icon name="pin" size="0.85rem" label="Lieu" class="location-icon" />
+				<span>
+					{#if details.map && !details.address}
+						<a href={details.map} target="_blank" rel="noopener noreferrer" title="Voir sur la carte">{b.location}</a>
+					{:else}
+						{b.location}
+					{/if}
+					{#if details.address}
+						<!-- L'adresse ouvre la carte : c'est elle qu'on cherche en y allant. -->
+						<span class="address">
+							{#if details.map}
+								<a href={details.map} target="_blank" rel="noopener noreferrer" title="Voir sur la carte">{details.address}</a>
+							{:else}
+								{details.address}
+							{/if}
+						</span>
+					{/if}
+				</span>
 			</p>
 		{/if}
 		{#if b.members.length}
@@ -264,6 +303,8 @@
 				type: editType,
 				title: editTitle.trim() || null,
 				location: editLocation.trim() || null,
+				place: editPlace,
+				coords: editCoords,
 				members: editMembers,
 				photoUrl: previewPhotoUrl,
 				veil: editVeil
@@ -284,26 +325,20 @@
 					</select>
 				</label>
 				<label class="form-label">
-					Titre <span class="hint">(optionnel)</span>
-					<input class="form-input" type="text" placeholder="ex : Répète avant Ducasse" bind:value={editTitle} disabled={busy} />
-				</label>
-			</div>
-			<div class="form-row">
-				<label class="form-label">
 					Date
 					<input class="form-input" type="date" bind:value={editDate} required disabled={busy} />
 				</label>
-				<label class="form-label">
-					Lieu
-					<input
-						class="form-input"
-						type="text"
-						placeholder="ex : Studio, Salle des fêtes…"
-						bind:value={editLocation}
-						disabled={busy}
-					/>
-				</label>
 			</div>
+			<label class="form-label">
+				Titre <span class="hint">(optionnel)</span>
+				<input class="form-input" type="text" placeholder="ex : Répète avant Ducasse" bind:value={editTitle} disabled={busy} />
+			</label>
+			<LocationInput
+				bind:value={editLocation}
+				bind:coords={editCoords}
+				bind:place={editPlace}
+				disabled={busy}
+			/>
 			<div class="form-label">
 				Membres présents
 				<MembersInput bind:members={editMembers} suggestions={groupMembers} disabled={busy} />
@@ -335,6 +370,8 @@
 				type: session.type ?? 'repetition',
 				title: session.title,
 				location: session.location,
+				place,
+				coords: sessionCoords,
 				members: session.members ?? [],
 				photoUrl: savedPhotoUrl,
 				veil: photo?.veil ?? SESSION_PHOTO_VEIL.default
@@ -375,6 +412,32 @@
 		font-size: 0.9rem;
 		color: var(--color-text-secondary);
 		margin: 0;
+	}
+
+	/* L'icône reste calée sur la première ligne quand un lieu long passe à la ligne. */
+	.location {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.3rem;
+	}
+
+	.location :global(.location-icon) {
+		flex-shrink: 0;
+		margin-top: 0.2em;
+	}
+
+	.location a {
+		color: inherit;
+		text-decoration: underline dotted;
+		text-underline-offset: 0.15em;
+	}
+
+	.location a:hover { text-decoration-style: solid; }
+
+	.address {
+		display: block;
+		font-size: var(--text-xs);
+		opacity: 0.9;
 	}
 
 	.notes {

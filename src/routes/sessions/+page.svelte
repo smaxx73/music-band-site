@@ -5,6 +5,8 @@
 	import { formatDateOnly, toDateOnly } from '$lib/date'
 	import Modal from '$lib/components/Modal.svelte'
 	import MembersInput from '$lib/components/MembersInput.svelte'
+	import LocationInput from '$lib/components/LocationInput.svelte'
+	import type { Coords } from '$lib/places'
 
 	let { data }: { data: PageData } = $props()
 
@@ -67,6 +69,7 @@
 	let newType = $state<SessionType>('repetition')
 	let newTitle = $state('')
 	let newLocation = $state('')
+	let newCoords = $state<Coords | null>(null)
 	// Par défaut, tout le groupe est présent : c'est le cas courant, et on retire
 	// les absents d'un clic plutôt que de retaper les présents à chaque session.
 	let newMembers = $state<string[]>([])
@@ -78,6 +81,7 @@
 		newType = 'repetition'
 		newTitle = ''
 		newLocation = ''
+		newCoords = null
 		newMembers = [...groupMembers]
 		newNotes = ''
 		newLinkEventId = null
@@ -105,6 +109,7 @@
 			: 'repetition'
 		newTitle = params.get('title') ?? ''
 		newLocation = params.get('location') ?? ''
+		newCoords = null
 		newMembers = [...groupMembers]
 		newNotes = ''
 		newLinkEventId = parseInt(linkEventId, 10)
@@ -125,6 +130,7 @@
 
 		creating = true
 		createError = null
+		const location = newLocation.trim() || null
 		try {
 			const res = await fetch('/api/sessions', {
 				method: 'POST',
@@ -133,7 +139,8 @@
 					date: newDate,
 					type: newType,
 					title: newTitle.trim() || null,
-					location: newLocation.trim() || null,
+					location,
+					location_coords: location ? newCoords : null,
 					notes: newNotes.trim() || null,
 					link_event_id: newLinkEventId,
 					members: newMembers
@@ -273,16 +280,11 @@
 							disabled={creating}
 						/>
 					</label>
-					<label class="form-label">
-						Lieu
-						<input
-							class="form-input"
-							type="text"
-							placeholder="ex : Studio, Salle des fêtes…"
-							bind:value={newLocation}
-							disabled={creating}
-						/>
-					</label>
+					<LocationInput
+						bind:value={newLocation}
+						bind:coords={newCoords}
+						disabled={creating}
+					/>
 					<div class="form-label">
 						Membres présents
 						<MembersInput bind:members={newMembers} suggestions={groupMembers} disabled={creating} />

@@ -115,6 +115,18 @@
 	<a href="https://www.deezer.com/legal/personal-datas" rel="noopener noreferrer" target="_blank">politique de confidentialité de Deezer</a>.
 </p>
 
+<h2>Services tiers : Base Adresse Nationale et OpenStreetMap</h2>
+<p>
+	Pour indiquer le lieu d'une session ou l'adresse d'un lieu du groupe, un membre peut
+	chercher une adresse dans la Base Adresse Nationale, service public de l'IGN. La recherche
+	passe par notre serveur : seul le texte saisi est transmis à l'IGN, jamais votre identité
+	ni votre compte. L'adresse choisie est enregistrée avec la session ou le lieu, dans le
+	groupe. Un lien « carte » ouvre ensuite ce lieu sur
+	OpenStreetMap, dans un nouvel onglet et seulement si vous le suivez : votre navigateur
+	contacte alors les serveurs d'OpenStreetMap. Voir la
+	<a href="https://osmfoundation.org/wiki/Privacy_Policy" rel="noopener noreferrer" target="_blank">politique de confidentialité d'OpenStreetMap</a>.
+</p>
+
 <h2>Durées de conservation</h2>
 <ul>
 	<li>Compte : jusqu'à sa suppression, à votre demande ou à votre départ de l'association.</li>

@@ -300,6 +300,57 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
   effacé, la vidéo reste sur YouTube. Le volume audio et le manifeste d'archive ne comptent
   que les prises avec piste audio
 
+## Lieux et adresses
+
+Le lieu d'une session ou d'un événement d'agenda est un **texte** (`location`) : c'est ce
+qui s'affiche partout. À la saisie, il se choisit de deux façons, dans un seul champ
+(`LocationInput.svelte`) :
+
+- **Un lieu du groupe** : une étiquette (« Chez Élise », « Studio du Hangar ») et, si on la
+  connaît, son adresse. La session porte l'étiquette ; l'adresse se relit dans
+  `group_places` par l'étiquette (sans casse ni espaces de bord), donc la corriger une fois
+  la corrige pour toutes les sessions
+- **Une adresse réelle autre**, ponctuelle, proposée par la **Base Adresse Nationale**
+  (service public de l'IGN, sans clé) dès 3 caractères. La session porte l'adresse en
+  toutes lettres et ses coordonnées (`location_lat`, `location_lon`, migration 039) pour le
+  lien vers la carte. Elle n'entre **pas** dans les lieux du groupe
+
+La liste propose d'abord « Lieux du groupe » (les plus employés d'abord, recherche sans
+casse ni accents, sur l'étiquette comme sur l'adresse), puis « Adresses ». Une ligne sous
+le champ dit ce qui est retenu : lieu du groupe (avec son adresse), adresse reconnue, ou
+— ni l'un ni l'autre — un texte gardé tel quel, sans adresse. Retaper le lieu défait
+l'adresse choisie. Même champ partout : édition et création de session, agenda, création
+rapide d'une session dans `/upload`, `/record` et au classement d'un enregistrement perso.
+
+### Gestion des lieux (`/group`)
+
+- Section **« Lieux »** de `/group` (`GroupPlaces.svelte`) : la liste, avec adresse, lien
+  vers la carte et nombre de sessions et d'événements qui portent chaque lieu. Visible de
+  tout membre
+- **Gérée par l'admin du groupe** (`canManageGroup`), comme le nom, le logo et les liens :
+  ajouter, modifier, retirer. L'adresse se cherche dans la Base Adresse Nationale
+  (`AddressField.svelte`) ou se saisit à la main — hors de France, par exemple —, sans carte
+  alors. Une étiquette est unique dans le groupe, casse ignorée (`409`)
+- **Renommer** un lieu renomme aussi les sessions et événements qui le portent : sans cela,
+  ils perdraient son adresse, et le lieu ses sessions
+- **Retirer** un lieu (confirmation `warning`) ne touche pas aux sessions : elles gardent le
+  nom, et perdent l'adresse
+- À la migration, tout lieu déjà employé **au moins deux fois** dans un groupe en devient
+  un lieu, sans adresse ; un lieu employé une seule fois reste un simple texte. La liste se
+  trie ensuite depuis `/group`
+
+### Affichage
+
+- Sous le lieu dans l'en-tête d'une session, l'adresse du lieu du groupe ; à côté du lieu
+  dans le panneau du jour de l'agenda. S'il y a des coordonnées — adresse du lieu du groupe
+  ou adresse ponctuelle —, le lien ouvre la carte OpenStreetMap dans un nouvel onglet
+- Une **indisponibilité** peut porter une adresse ponctuelle, jamais l'adresse d'un lieu
+  du groupe : son lieu est personnel
+- La recherche passe par notre serveur (`src/lib/server/addresses.ts`) : seul le texte tapé
+  part chez l'IGN. Déclaré dans la politique de confidentialité
+- Les lieux partent avec le groupe (`ON DELETE CASCADE`). Ils n'entrent pas dans l'archive
+  JSON d'un groupe
+
 ## Liste des sessions (`/sessions`)
 
 - Liste des sessions du groupe actif, triées par date décroissante
@@ -337,8 +388,11 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
   morceau (`songHue`, `src/lib/songs.ts`), la couleur du type pour une session, un beige
   neutre pour une playlist ou le référentiel. La même grammaire que
   l'en-tête « album » de chaque morceau dans une session, à l'échelle de la page. Le
-  visuel d'une session est un **feuillet d'éphéméride** (mois, jour, jour de la semaine)
-  teinté comme son type (`SessionCover.svelte`) : une session n'a pas de pochette
+  visuel d'une session est un **feuillet d'éphéméride** (mois, jour, jour de la semaine,
+  et l'année hors de l'année en cours) teinté comme son type (`SessionCover.svelte`) : une
+  session n'a pas de pochette. Il est **seul à porter la date** : l'en-tête ne la répète
+  pas sous le titre, où ne restent que le lieu et les présents. Il l'annonce en entier
+  aux lecteurs d'écran (`role="img"`)
 - La disposition suit la **largeur de l'en-tête** (requête de conteneur), pas celle de la
   fenêtre. Large : visuel, texte, commandes sur une rangée. Sous 720 px, les commandes
   secondaires se réduisent à leur icône. Sous 540 px, le visuel ne garde à côté de lui
@@ -1091,11 +1145,13 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 
 - Consultation pour tout membre : informations du groupe, compteurs (dont le nombre exact de
   prises, vidéos seules signalées, et l'espace disque de leurs pistes audio), logo, liens vers les
-  réseaux du groupe (ouverts dans un nouvel onglet), liste des membres avec leur rôle dans le groupe
+  réseaux du groupe (ouverts dans un nouvel onglet), liste des membres avec leur rôle dans le groupe,
+  lieux du groupe (voir « Lieux et adresses »)
 - Le rôle **global** d'un membre (`users.role`) n'est affiché qu'aux admins globaux, et n'est
   pas sélectionné en base sinon — le masquer côté client le laisserait dans le payload
 - Un **admin de groupe** (`user_groups.role = 'admin'`) y gère son groupe sans passer par `/admin` :
-  renommer le groupe, ajouter un membre, retirer un membre, changer le logo et les liens réseaux
+  renommer le groupe, ajouter un membre, retirer un membre, changer le logo et les liens réseaux,
+  gérer les lieux
 - Ajout **par pseudo exact**, pas par liste déroulante : un admin de groupe n'a pas à voir
   l'annuaire des comptes des autres groupes de la plateforme
 - Un membre ajouté depuis `/group` l'est toujours en rôle `member`
@@ -1160,7 +1216,8 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
   `deleteGroup()`, pas seulement par l'écran ; l'API exige le même nom en `?confirm=`
 - Suppression en cascade dans une transaction, dans cet ordre imposé par les FK :
   `playlists` → `setlists` → `posts` → `calendar_events` → `sessions` (les prises, commentaires, réactions,
-  entrées de playlist et photos de bandeau tombent en cascade) → `songs` → `notifications` → `group_logos`
+  entrées de playlist et photos de bandeau tombent en cascade), et les adresses des lieux
+  (`group_places`) avec le groupe → `songs` → `notifications` → `group_logos`
   → `user_groups` → `groups`
 - Les fichiers `.mp3` sont supprimés **après** le commit : un fichier orphelin se rattrape,
   une ligne pointant vers un fichier disparu non

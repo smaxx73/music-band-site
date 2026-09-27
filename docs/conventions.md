@@ -22,6 +22,8 @@ src/
 │   │   ├── share-links.ts # liens d'écoute publics : jeton, résolution, ce qui est exposé
 │   │   ├── song-covers.ts # pochettes de morceau : dépôt (recadrage ffmpeg), lecture, retrait
 │   │   ├── session-photos.ts # photo de bandeau d'une session : dépôt (recadrage ffmpeg), lecture, retrait
+│   │   ├── places.ts      # lieux du groupe (/group) : liste, ajout, modification (renommage propagé), retrait
+│   │   ├── addresses.ts   # Base Adresse Nationale : recherche d'une adresse pour un lieu
 │   │   ├── images.ts      # images déposées : format lu dans les octets, taille de requête
 │   │   ├── deezer.ts      # catalogue Deezer : recherche d'une reprise, détail, pochette d'album
 │   │   └── notifications.ts # écriture (fan-out) et lecture des notifications
@@ -66,6 +68,10 @@ src/
 │       ├── FeedItem.svelte        # une carte du fil d'actualité, selon le type d'élément
 │       ├── SongSelect.svelte      # sélecteur de morceau + création sur place (« À nommer — … »)
 │       ├── SessionEditor.svelte   # édition des métadonnées de session
+│       ├── LocationInput.svelte   # lieu d'une session ou d'un événement : lieu du groupe ou adresse
+│       ├── AddressField.svelte    # adresse d'un lieu du groupe (Base Adresse Nationale), dans /group
+│       ├── GroupPlaces.svelte     # section « Lieux » de /group : liste, gestion par l'admin du groupe
+│       ├── SuggestInput.svelte    # champ libre avec suggestions (combobox ARIA), générique
 │       ├── SessionPhotoAdd.svelte   # ajouter une photo de bandeau depuis l'en-tête (session sans photo)
 │       ├── SessionPhotoField.svelte # photo de bandeau en édition de session : remplacer, retirer, voile
 │       └── SongDetails.svelte     # paroles et notes musicales

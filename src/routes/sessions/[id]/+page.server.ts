@@ -4,6 +4,7 @@ import sql from '$lib/server/db'
 import { retargetActiveGroup } from '$lib/server/group-scope'
 import { listGroupMemberNames } from '$lib/server/groups'
 import { getSessionPhotoInfo } from '$lib/server/session-photos'
+import { findGroupPlace } from '$lib/server/places'
 import { loginRedirect } from '$lib/redirect'
 
 export const load: PageServerLoad = async ({ locals, params, cookies, url, isDataRequest }) => {
@@ -38,7 +39,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 	// timestamp et risquerait un décalage d'un jour selon le fuseau.
 	// Requêtes indépendantes les unes des autres : lancées ensemble, une fois la session
 	// vérifiée dans le groupe actif.
-	const [[prevSession], [nextSession], rows, groupMembers, photo] = await Promise.all([
+	const [[prevSession], [nextSession], rows, groupMembers, photo, place] = await Promise.all([
 		sql`
 			SELECT id, date, title, type FROM sessions
 			WHERE group_id = ${locals.user.current_group_id}
@@ -76,7 +77,8 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 		// Participants proposés à l'édition de la session : les membres du groupe actif.
 		listGroupMemberNames(locals.user.current_group_id),
 		// À part de `session` : le PATCH de la session renvoie sa ligne sans la photo.
-		getSessionPhotoInfo(id)
+		getSessionPhotoInfo(id),
+		findGroupPlace(locals.user.current_group_id, session.location)
 	])
 
 	// Grouper par morceau côté serveur
@@ -134,6 +136,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 		hasCalendarEvent: Boolean(session.has_calendar_event),
 		groupMembers,
 		photo,
+		place,
 		groups: Array.from(groupMap.values()),
 		prevSession: prevSession ?? null,
 		nextSession: nextSession ?? null

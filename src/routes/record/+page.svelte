@@ -4,6 +4,8 @@
 	import { formatDateOnly, toDateOnly } from '$lib/date'
 	import AudioRecorder from '$lib/components/AudioRecorder.svelte'
 	import SongSelect from '$lib/components/SongSelect.svelte'
+	import LocationInput from '$lib/components/LocationInput.svelte'
+	import type { Coords } from '$lib/places'
 	import { sortedWithSong } from '$lib/songs'
 	import { clearTakes } from '$lib/recording-store'
 	import { createSession, DuplicateError, sendAudioFile, splitUrl, type DuplicateInfo } from '$lib/upload-client'
@@ -50,6 +52,7 @@
 	let newType = $state('repetition')
 	let newTitle = $state('')
 	let newLocation = $state('')
+	let newCoords = $state<Coords | null>(null)
 
 	let multiTake = $state(false)
 	let selectedSong = $state('')
@@ -104,7 +107,8 @@
 			date: newDate,
 			type: newType,
 			title: newTitle.trim() || undefined,
-			location: newLocation.trim() || undefined
+			location: newLocation.trim() || undefined,
+			location_coords: newLocation.trim() ? newCoords : null
 		})
 		// La session existe désormais : un nouvel essai (doublon, réseau) ne doit pas
 		// en créer une seconde.
@@ -303,10 +307,9 @@
 						Titre <span class="hint">(optionnel)</span>
 						<input class="form-input" type="text" bind:value={newTitle} placeholder="ex : Répète avant Ducasse" disabled={uploading} />
 					</label>
-					<label class="form-label wide">
-						Lieu <span class="hint">(optionnel)</span>
-						<input class="form-input" type="text" bind:value={newLocation} placeholder="Studio, salle…" disabled={uploading} />
-					</label>
+					<div class="wide">
+						<LocationInput bind:value={newLocation} bind:coords={newCoords} optional disabled={uploading} />
+					</div>
 				</div>
 			{/if}
 

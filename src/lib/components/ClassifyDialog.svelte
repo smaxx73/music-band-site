@@ -1,6 +1,8 @@
 <script lang="ts">
 	import Modal from '$lib/components/Modal.svelte'
 	import SongSelect from '$lib/components/SongSelect.svelte'
+	import LocationInput from '$lib/components/LocationInput.svelte'
+	import type { Coords } from '$lib/places'
 	import { formatDateOnly } from '$lib/date'
 	import { createSession } from '$lib/upload-client'
 	import { sortedWithSong } from '$lib/songs'
@@ -45,6 +47,7 @@
 	let newType = $state('repetition')
 	let newTitle = $state('')
 	let newLocation = $state('')
+	let newCoords = $state<Coords | null>(null)
 
 	let saving = $state(false)
 	let error = $state<string | null>(null)
@@ -101,7 +104,8 @@
 					date: newDate,
 					type: newType,
 					title: newTitle.trim() || undefined,
-					location: newLocation.trim() || undefined
+					location: newLocation.trim() || undefined,
+					location_coords: newLocation.trim() ? newCoords : null
 				})
 				// La session existe : un second essai ne doit pas en créer une autre.
 				selectedSession = String(sessionId)
@@ -187,10 +191,9 @@
 							Titre <span class="hint">(optionnel)</span>
 							<input class="form-input" type="text" bind:value={newTitle} disabled={saving} />
 						</label>
-						<label class="form-label wide">
-							Lieu <span class="hint">(optionnel)</span>
-							<input class="form-input" type="text" bind:value={newLocation} disabled={saving} />
-						</label>
+						<div class="wide">
+							<LocationInput bind:value={newLocation} bind:coords={newCoords} optional disabled={saving} />
+						</div>
 					</div>
 				{/if}
 

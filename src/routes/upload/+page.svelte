@@ -3,6 +3,8 @@
 	import { goto } from '$app/navigation'
 	import { formatDateOnly } from '$lib/date'
 	import SongDetails from '$lib/components/SongDetails.svelte'
+	import LocationInput from '$lib/components/LocationInput.svelte'
+	import type { Coords } from '$lib/places'
 	import YouTubePlayer from '$lib/components/YouTubePlayer.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import SongSelect from '$lib/components/SongSelect.svelte'
@@ -57,6 +59,7 @@
 	let newType = $state('repetition')
 	let newTitle = $state('')
 	let newLocation = $state('')
+	let newCoords = $state<Coords | null>(null)
 	let file = $state<File | null>(null)
 
 	// Une répétition enregistrée d'un bloc contient plusieurs morceaux : le fichier part
@@ -150,7 +153,8 @@
 				date: newDate,
 				type: newType,
 				title: newTitle.trim() || undefined,
-				location: newLocation.trim() || undefined
+				location: newLocation.trim() || undefined,
+				location_coords: newLocation.trim() ? newCoords : null
 			})
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Erreur création session.'
@@ -251,10 +255,7 @@
 						Titre <span class="hint">(optionnel)</span>
 						<input class="form-input" type="text" bind:value={newTitle} placeholder="ex : Répète avant Ducasse" disabled={uploading} />
 					</label>
-					<label class="form-label">
-						Lieu
-						<input class="form-input" type="text" bind:value={newLocation} placeholder="Studio, salle…" disabled={uploading} />
-					</label>
+					<LocationInput bind:value={newLocation} bind:coords={newCoords} disabled={uploading} />
 				</div>
 			{/if}
 		</fieldset>

@@ -71,7 +71,14 @@ export function splitUrl(importId: string, title?: string): string {
 	return trimmed ? `/decoupe/${importId}?titre=${encodeURIComponent(trimmed)}` : `/decoupe/${importId}`
 }
 
-export type NewSession = { date: string; type: string; title?: string; location?: string }
+export type NewSession = {
+	date: string
+	type: string
+	title?: string
+	location?: string
+	/** Coordonnées d'une adresse ponctuelle choisie dans la Base Adresse Nationale. */
+	location_coords?: { lat: number; lon: number } | null
+}
 
 /** Crée une session à la volée ; lève une erreur lisible en cas d'échec. */
 export async function createSession(session: NewSession): Promise<number> {

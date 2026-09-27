@@ -3,6 +3,8 @@
 	import { tick } from 'svelte'
 	import { goto, invalidateAll } from '$app/navigation'
 	import Icon from '$lib/components/Icon.svelte'
+	import LocationInput from '$lib/components/LocationInput.svelte'
+	import { findPlace, locationDetails, type Coords, type GroupPlace } from '$lib/places'
 
 	let { data }: { data: PageData } = $props()
 
@@ -18,6 +20,21 @@
 		session_id: number | null
 		session_date: string | null
 		session_location: string | null
+		location_lat: number | null
+		location_lon: number | null
+	}
+
+	// Lieux du groupe, pour relire l'adresse d'un lieu d'événement : c'est l'étiquette qui
+	// la désigne. Une indisponibilité n'en a pas — son lieu est personnel.
+	const places = $derived(data.places as GroupPlace[])
+
+	function eventLocation(event: CalendarEventRow) {
+		const coords: Coords | null =
+			event.location_lat !== null && event.location_lon !== null
+				? { lat: event.location_lat, lon: event.location_lon }
+				: null
+		const place = event.type === 'indisponibilite' ? null : findPlace(places, event.location)
+		return locationDetails(event.location, place, coords)
 	}
 
 	type SessionRow = {
@@ -116,6 +133,7 @@
 	let formTitle = $state('')
 	let formNotes = $state('')
 	let formLocation = $state('')
+	let formCoords = $state<Coords | null>(null)
 	let formSessionId = $state('')
 	let submitting = $state(false)
 	let formError = $state('')
@@ -141,6 +159,7 @@
 		formTitle = ''
 		formNotes = ''
 		formLocation = ''
+		formCoords = null
 		formSessionId = ''
 		formError = ''
 	}
@@ -160,6 +179,7 @@
 		if (!selectedDay) return
 		submitting = true
 		formError = ''
+		const location = formLocation.trim() || null
 		try {
 			const res = await fetch('/api/agenda', {
 				method: 'POST',
@@ -169,7 +189,8 @@
 					type: formType,
 					title: formTitle || null,
 					notes: formNotes || null,
-					location: formLocation || null,
+					location,
+					location_coords: location ? formCoords : null,
 					session_id: formSessionId ? parseInt(formSessionId) : null
 				})
 			})
@@ -180,6 +201,7 @@
 				formTitle = ''
 				formNotes = ''
 				formLocation = ''
+				formCoords = null
 				formSessionId = ''
 				await invalidateAll()
 			}
@@ -335,7 +357,14 @@
 										</a>
 									{/if}
 									{#if event.location}
-										<span class="panel-event-location"><Icon name="pin" size="0.8rem" /> {event.location}</span>
+										{@const details = eventLocation(event)}
+										<span class="panel-event-location">
+											<Icon name="pin" size="0.8rem" /> {event.location}
+											{#if details.address} · {details.address}{/if}
+											{#if details.map}
+												<a href={details.map} target="_blank" rel="noopener noreferrer">Carte</a>
+											{/if}
+										</span>
 									{/if}
 									{#if event.notes}
 										<span class="panel-event-notes">{event.notes}</span>
@@ -426,11 +455,11 @@
 				{/if}
 
 				<div class="form-row">
-					<input
-						class="form-input"
-						type="text"
-						placeholder="Lieu (optionnel)"
+					<LocationInput
 						bind:value={formLocation}
+						bind:coords={formCoords}
+						optional
+						hideLabel
 					/>
 				</div>
 
@@ -721,6 +750,8 @@
 		font-size: var(--text-xs);
 		color: var(--color-text-secondary);
 	}
+
+	.panel-event-location a { color: inherit; margin-left: 0.25rem; }
 
 	.panel-event-notes {
 		font-size: var(--text-xs);

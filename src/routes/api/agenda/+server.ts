@@ -4,6 +4,7 @@ import sql from '$lib/server/db'
 import { notifyGroup } from '$lib/server/notifications'
 import { formatDateOnly } from '$lib/date'
 import { sessionTypeLabel } from '$lib/types'
+import { parseCoords } from '$lib/places'
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -58,10 +59,15 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!['indisponibilite', 'repetition', 'concert', 'studio', 'autre'].includes(type)) {
 		return json({ error: 'Type invalide.' }, { status: 400 })
 	}
+	// Coordonnées d'une adresse ponctuelle (Base Adresse Nationale), gardées avec le lieu.
+	const coords = parseCoords(body.location_coords)
+	if (coords === undefined) return json({ error: 'location_coords invalide.' }, { status: 400 })
+	const resolvedLocation = typeof location === 'string' && location.trim() ? location.trim() : null
+	const resolvedCoords = resolvedLocation ? coords : null
 
 	if (type === 'indisponibilite') {
 		const [event] = await sql`
-			INSERT INTO calendar_events (user_id, group_id, date, type, author, notes, location)
+			INSERT INTO calendar_events (user_id, group_id, date, type, author, notes, location, location_lat, location_lon)
 			VALUES (
 				${locals.user.id},
 				NULL,
@@ -69,7 +75,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				'indisponibilite',
 				${locals.user.display_name},
 				${typeof notes === 'string' && notes.trim() ? notes.trim() : null},
-				${typeof location === 'string' && location.trim() ? location.trim() : null}
+				${resolvedLocation},
+				${resolvedCoords?.lat ?? null},
+				${resolvedCoords?.lon ?? null}
 			)
 			RETURNING *
 		`
@@ -107,7 +115,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 
 	const [event] = await sql`
-		INSERT INTO calendar_events (group_id, user_id, date, type, author, title, notes, location, session_id)
+		INSERT INTO calendar_events (group_id, user_id, date, type, author, title, notes, location, location_lat, location_lon, session_id)
 		VALUES (
 			${locals.user.current_group_id},
 			${locals.user.id},
@@ -116,7 +124,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			${locals.user.display_name},
 			${typeof title === 'string' && title.trim() ? title.trim() : null},
 			${typeof notes === 'string' && notes.trim() ? notes.trim() : null},
-			${typeof location === 'string' && location.trim() ? location.trim() : null},
+			${resolvedLocation},
+			${resolvedCoords?.lat ?? null},
+			${resolvedCoords?.lon ?? null},
 			${resolvedSessionId}
 		)
 		RETURNING *

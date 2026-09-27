@@ -2,6 +2,7 @@ import type { PageServerLoad } from './$types'
 import { redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 import { loginRedirect } from '$lib/redirect'
+import { listGroupPlaces } from '$lib/server/places'
 
 function currentMonth(): string {
 	const now = new Date()
@@ -21,7 +22,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const groupId = locals.user.current_group_id
 	if (!groupId) {
-		return { events: [], sessions: [], month, openDay, userName: locals.user.display_name }
+		return { events: [], sessions: [], places: [], month, openDay, userName: locals.user.display_name }
 	}
 
 	const [y, m] = month.split('-').map(Number)
@@ -30,13 +31,14 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const nextM = m === 12 ? 1 : m + 1
 	const end = `${nextY}-${String(nextM).padStart(2, '0')}-01`
 
-	const [events, sessions] = await Promise.all([
+	const [events, sessions, places] = await Promise.all([
 		sql`
 			SELECT
 				e.id, e.group_id, e.user_id, e.type, COALESCE(u.display_name, e.author) AS author, e.title, e.notes, e.location, e.session_id, e.created_at,
 				to_char(e.date, 'YYYY-MM-DD') AS date,
 				to_char(s.date, 'YYYY-MM-DD') AS session_date,
-				s.location AS session_location
+				s.location AS session_location,
+				e.location_lat, e.location_lon
 			FROM calendar_events e
 			LEFT JOIN sessions s ON s.id = e.session_id
 			LEFT JOIN users u ON u.id = e.user_id
@@ -57,8 +59,10 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			WHERE group_id = ${groupId}
 			ORDER BY date DESC
 			LIMIT 50
-		`
+		`,
+		// Pour relire l'adresse d'un lieu d'événement, désigné par son étiquette.
+		listGroupPlaces(groupId)
 	])
 
-	return { events, sessions, month, openDay, userName: locals.user.display_name, userId: locals.user.id }
+	return { events, sessions, places, month, openDay, userName: locals.user.display_name, userId: locals.user.id }
 }

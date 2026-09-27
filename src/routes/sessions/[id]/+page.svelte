@@ -23,7 +23,8 @@
 
 	type SessionData = {
 		id: number; date: string; type: 'repetition' | 'concert' | 'studio' | 'autre'; title: string | null
-		location: string | null; notes: string | null; members: string[]
+		location: string | null; location_lat: number | null; location_lon: number | null
+		notes: string | null; members: string[]
 		created_by_user_id: number | null
 	}
 
@@ -108,6 +109,7 @@
 		type: 'repetition' | 'concert' | 'studio' | 'autre'
 		title: string | null
 		location: string | null
+		location_coords: { lat: number; lon: number } | null
 		members: string[]
 		notes: string | null
 	}) {
@@ -254,6 +256,7 @@
 		onSave={saveSession}
 		stats={sessionStats}
 		photo={data.photo}
+		place={data.place}
 	>
 		{#snippet actions()}
 			<PlayAllButton tracks={sessionTracks} label="Écouter toute la session à la suite" />

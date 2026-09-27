@@ -16,6 +16,8 @@ import {
 	type GroupOpResult
 } from '$lib/server/groups'
 import { canAssignGroupAdmin, canManageGroup, isAdmin } from '$lib/types'
+import { createGroupPlace, deleteGroupPlace, listGroupPlaces, updateGroupPlace } from '$lib/server/places'
+import { parsePlaceAddress } from '$lib/places'
 import { loginRedirect } from '$lib/redirect'
 
 // Portée sur le groupe actif. Consultation pour tout membre ; gestion des membres,
@@ -24,7 +26,7 @@ import { loginRedirect } from '$lib/redirect'
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) redirect(302, loginRedirect(url))
 	if (!locals.user.current_group_id) {
-		return { group: null, members: [], audioBytes: 0, canSeeGlobalRole: false, canManage: false, canAssignAdmin: false }
+		return { group: null, members: [], places: [], audioBytes: 0, canSeeGlobalRole: false, canManage: false, canAssignAdmin: false }
 	}
 
 	const groupId = locals.user.current_group_id
@@ -71,6 +73,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	return {
 		group,
 		members,
+		places: await listGroupPlaces(groupId),
 		audioBytes: await groupAudioBytes(groupId),
 		canSeeGlobalRole,
 		canManage: canManageGroup(locals.user, groupId),
@@ -170,6 +173,41 @@ export const actions: Actions = {
 		const data = await request.formData()
 		const result = await setGroupLogo(locals.user, groupId, data.get('logo'))
 		if (!result.ok) return toFail('uploadLogo', result)
+	},
+
+	// Lieux du groupe : admin du groupe (vérifié par places.ts, comme groups.ts le fait
+	// pour les membres). L'adresse arrive par trois champs, coordonnées facultatives.
+	addPlace: async ({ locals, request }) => {
+		const groupId = activeGroup(locals)
+		if (!locals.user || !groupId) return fail(403, { action: 'addPlace', error: 'Aucun groupe actif.' })
+
+		const data = await request.formData()
+		const address = parsePlaceAddress(data.get('address'), data.get('lat'), data.get('lon'))
+		const result = await createGroupPlace(locals.user, groupId, data.get('label') as string | null, address)
+		if (!result.ok) return fail(result.status, { action: 'addPlace', error: result.error })
+	},
+
+	updatePlace: async ({ locals, request }) => {
+		const groupId = activeGroup(locals)
+		if (!locals.user || !groupId) return fail(403, { action: 'updatePlace', error: 'Aucun groupe actif.' })
+
+		const data = await request.formData()
+		const placeId = parseInt(data.get('place_id') as string)
+		if (isNaN(placeId)) return fail(400, { action: 'updatePlace', error: 'ID invalide.' })
+		const address = parsePlaceAddress(data.get('address'), data.get('lat'), data.get('lon'))
+		const result = await updateGroupPlace(locals.user, groupId, placeId, data.get('label') as string | null, address)
+		if (!result.ok) return fail(result.status, { action: 'updatePlace', error: result.error })
+	},
+
+	removePlace: async ({ locals, request }) => {
+		const groupId = activeGroup(locals)
+		if (!locals.user || !groupId) return fail(403, { action: 'removePlace', error: 'Aucun groupe actif.' })
+
+		const data = await request.formData()
+		const placeId = parseInt(data.get('place_id') as string)
+		if (isNaN(placeId)) return fail(400, { action: 'removePlace', error: 'ID invalide.' })
+		const result = await deleteGroupPlace(locals.user, groupId, placeId)
+		if (!result.ok) return fail(result.status, { action: 'removePlace', error: result.error })
 	},
 
 	removeLogo: async ({ locals }) => {

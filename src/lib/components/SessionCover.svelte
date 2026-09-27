@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { formatDateOnly } from '$lib/date'
+	import { formatDateOnly, toDateOnly } from '$lib/date'
 
 	type SessionType = 'repetition' | 'concert' | 'studio' | 'autre'
 
@@ -10,10 +10,17 @@
 	const month = $derived(formatDateOnly(date, { month: 'short' }).replace('.', ''))
 	const day = $derived(formatDateOnly(date, { day: 'numeric' }))
 	const weekday = $derived(formatDateOnly(date, { weekday: 'short' }).replace('.', ''))
+	// L'en-tête ne répète pas la date : le feuillet est seul à la porter. L'année n'y
+	// figure qu'hors de l'année en cours, comme dans l'horodatage d'un commentaire.
+	const year = $derived(toDateOnly(date).slice(0, 4))
+	const showYear = $derived(year !== String(new Date().getFullYear()))
+	const fullDate = $derived(
+		formatDateOnly(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+	)
 </script>
 
-<span class="session-cover type-{type}" aria-hidden="true">
-	<span class="month">{month}</span>
+<span class="session-cover type-{type}" role="img" aria-label={fullDate}>
+	<span class="month">{month}{#if showYear}&nbsp;{year}{/if}</span>
 	<span class="day">{day}</span>
 	<span class="weekday">{weekday}</span>
 </span>

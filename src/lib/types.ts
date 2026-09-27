@@ -58,7 +58,7 @@ export function canViewGroup(
 	return memberGroupRole(user, groupId) !== null
 }
 
-// Administration d'un groupe : membres, nom, logo et liens, suppression du contenu
+// Administration d'un groupe : membres, nom, logo, liens et lieux, suppression du contenu
 // d'autrui. Un admin global l'est sur tous les groupes, un admin de groupe sur le sien.
 export function canManageGroup(
 	user: RoleBearer | null | undefined,

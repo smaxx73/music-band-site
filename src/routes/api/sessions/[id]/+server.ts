@@ -4,6 +4,7 @@ import { unlink } from 'fs/promises'
 import sql from '$lib/server/db'
 import { audioPath } from '$lib/server/storage'
 import { canDeleteGroupContent } from '$lib/types'
+import { parseCoords } from '$lib/places'
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -88,6 +89,10 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	if (body.members !== undefined && !Array.isArray(body.members)) {
 		return json({ error: 'members doit être un tableau.' }, { status: 400 })
 	}
+	const coords = parseCoords(body.location_coords)
+	if (coords === undefined) {
+		return json({ error: 'location_coords invalide.' }, { status: 400 })
+	}
 
 	const updates: Record<string, unknown> = {}
 	if (body.date !== undefined) updates.date = body.date
@@ -95,9 +100,14 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	if ('title' in body)
 		updates.title =
 			typeof body.title === 'string' && body.title.trim() ? body.title.trim() : null
-	if ('location' in body)
+	if ('location' in body) {
 		updates.location =
 			typeof body.location === 'string' && body.location.trim() ? body.location.trim() : null
+		// Le lieu change avec ses coordonnées : sans elles (lieu du groupe, saisie libre),
+		// celles d'une ancienne adresse ponctuelle ne doivent pas lui survivre.
+		updates.location_lat = updates.location ? (coords?.lat ?? null) : null
+		updates.location_lon = updates.location ? (coords?.lon ?? null) : null
+	}
 	if ('notes' in body)
 		updates.notes =
 			typeof body.notes === 'string' && body.notes.trim() ? body.notes.trim() : null
@@ -125,15 +135,16 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 			await tx`
 				UPDATE calendar_events
 				SET date = ${session.date}, type = ${session.type}, title = ${session.title},
-					notes = ${session.notes}, location = ${session.location}
+					notes = ${session.notes}, location = ${session.location},
+					location_lat = ${session.location_lat}, location_lon = ${session.location_lon}
 				WHERE id = ${linkedEvent.id}
 			`
 		} else {
 			await tx`
-				INSERT INTO calendar_events (group_id, user_id, date, type, author, title, notes, location, session_id)
+				INSERT INTO calendar_events (group_id, user_id, date, type, author, title, notes, location, location_lat, location_lon, session_id)
 				VALUES (
 					${session.group_id}, ${locals.user!.id}, ${session.date}, ${session.type}, ${locals.user!.display_name},
-					${session.title}, ${session.notes}, ${session.location}, ${session.id}
+					${session.title}, ${session.notes}, ${session.location}, ${session.location_lat}, ${session.location_lon}, ${session.id}
 				)
 			`
 		}

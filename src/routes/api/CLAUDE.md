@@ -31,6 +31,8 @@ api/sessions/[id]/photo/+server.ts
 api/songs/+server.ts
 api/songs/[id]/+server.ts
 api/songs/[id]/cover/+server.ts
+api/places/+server.ts
+api/places/addresses/+server.ts
 api/catalog/search/+server.ts
 api/catalog/tracks/[id]/+server.ts
 api/recordings/[id]/+server.ts
@@ -77,8 +79,8 @@ Les routes qui manipulent du contenu partagé vérifient aussi `locals.user.curr
 Deux niveaux de droits au-delà de l'authentification :
 - **admin global** (`isAdmin(locals.user.role)`) → création/suppression de groupes, comptes,
   sauvegardes, statistiques
-- **admin du groupe visé** (`canManageGroup(locals.user, groupId)`) → membres, nom, logo et liens
-  du groupe, suppression du contenu d'autrui. Vrai aussi pour un admin global.
+- **admin du groupe visé** (`canManageGroup(locals.user, groupId)`) → membres, nom, logo, liens
+  et lieux du groupe, suppression du contenu d'autrui. Vrai aussi pour un admin global.
   `PATCH /api/groups/[id]` accepte `name` et/ou `youtube_url`, `facebook_url`, `instagram_url`
   (chaîne vide ou `null` = lien retiré). `POST /api/groups/[id]/logo` (multipart, champ `logo`)
   crée ou remplace le logo, `DELETE` le retire ; `GET` le sert **publiquement**, sans
@@ -134,6 +136,21 @@ la retire (`DELETE`) ; `PATCH` (`{ veil }`) règle l'intensité du voile sombre,
 95 (`parseSessionPhotoVeil`, `src/lib/session-photo.ts`), sans changer la version de l'image ;
 `GET` la sert aux mêmes membres (`?v=` pour un cache long). Une session d'un autre groupe
 répond `404`. Passer par `src/lib/server/session-photos.ts`.
+
+Les **lieux** (`api/places/`) sont groupe-scopés. Le lieu d'une session ou d'un événement
+reste un texte (`location`) : l'étiquette d'un lieu du groupe (`group_places`, comparée sans
+casse ni espaces de bord, dont l'adresse se relit en base), ou une adresse ponctuelle dont
+les coordonnées accompagnent le texte. `POST /api/sessions`, `PATCH /api/sessions/[id]` et
+`POST /api/agenda` acceptent donc `location_coords: { lat, lon } | null` (`parseCoords`,
+`400` si mal formé) ; au `PATCH`, changer `location` sans coordonnées les efface, et
+l'événement lié à une session les reprend. `GET /api/places` rend
+`{ places: [{ id, label, address: { label, lat, lon } | null, uses }] }` à tout membre, les
+plus employés d'abord. La **gestion** des lieux n'est pas une route API : ce sont les
+actions de `/group` (`addPlace`, `updatePlace`, `removePlace`), réservées à
+`canManageGroup` et vérifiées dans `src/lib/server/places.ts` ; renommer un lieu y réécrit
+le texte des sessions et événements qui le portaient. `GET /api/places/addresses?q=` (3 à
+200 caractères, tout compte connecté) cherche dans la Base Adresse Nationale, `502` si elle
+ne répond pas (`src/lib/server/addresses.ts`).
 
 Le **catalogue** (`api/catalog/`) cherche une reprise chez Deezer, pour tout compte
 connecté : `GET /api/catalog/search?q=` (2 à 120 caractères, 8 résultats sans année),

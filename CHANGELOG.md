@@ -16,6 +16,13 @@ en montant de version (voir `deploy.md`).
 - Correction : sur petit écran, l'en-tête des pages session, morceau, playlist et
   référentiel écrasait le texte à côté des commandes (titre coupé au milieu des mots).
   Détails sur toute la largeur, commandes sur leur propre rangée
+- Lieux du groupe : une étiquette (« Chez Élise ») et son adresse, gérés dans `/group` par
+  l'admin du groupe. Le lieu d'une session ou d'un événement se choisit parmi eux, ou comme
+  une adresse réelle proposée par la Base Adresse Nationale. L'adresse s'affiche sous le
+  lieu d'une session et dans l'agenda, avec un lien vers la carte. Les lieux déjà employés
+  deux fois deviennent des lieux du groupe. **Migration `039_group_places.sql`**
+- En-tête de session : la date n'est plus réécrite sous le titre, le feuillet daté la
+  porte seul (avec l'année hors de l'année en cours)
 
 ## [1.1.0] — 2026-09-27
 

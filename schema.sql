@@ -104,12 +104,15 @@ CREATE TABLE sessions (
     type        TEXT NOT NULL DEFAULT 'repetition',
                                              -- repetition | concert | studio | autre
     title       TEXT,
-    location    TEXT,
+    location    TEXT,                        -- étiquette d'un lieu du groupe, ou adresse ponctuelle
+    location_lat DOUBLE PRECISION,           -- coordonnées d'une adresse ponctuelle (migration 039) ;
+    location_lon DOUBLE PRECISION,           -- NULL pour un lieu du groupe, dont l'adresse est dans group_places
     notes       TEXT,
     members     TEXT[],                      -- ["Marc", "Julie", "Thomas"]
     created_by  TEXT NOT NULL,
     created_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
-    created_at  TIMESTAMPTZ DEFAULT now()
+    created_at  TIMESTAMPTZ DEFAULT now(),
+    CONSTRAINT sessions_location_coords CHECK ((location_lat IS NULL) = (location_lon IS NULL))
 );
 
 -- Photo de bandeau d'une session, déposée par un membre (migration 037). En base, comme
@@ -292,6 +295,22 @@ CREATE TABLE share_links (
     CONSTRAINT share_links_target CHECK (num_nonnulls(recording_id, personal_recording_id) = 1)
 );
 
+-- Lieux du groupe (migration 039) : une étiquette (« Chez Élise ») et, si on la connaît,
+-- son adresse. Gérés depuis /group par les admins du groupe, proposés à la saisie du lieu
+-- d'une session. La session porte l'étiquette (`location`) ; l'adresse se relit ici.
+CREATE TABLE group_places (
+    id                  SERIAL PRIMARY KEY,
+    group_id            INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+    label               TEXT NOT NULL,              -- l'étiquette, ce que portent les sessions
+    address             TEXT,                       -- NULL : adresse pas encore renseignée
+    latitude            DOUBLE PRECISION,           -- NULL : adresse saisie à la main, pas de carte
+    longitude           DOUBLE PRECISION,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ,
+    CONSTRAINT group_places_coords CHECK ((latitude IS NULL) = (longitude IS NULL)),
+    CONSTRAINT group_places_coords_address CHECK (latitude IS NULL OR address IS NOT NULL)
+);
+
 CREATE TABLE audio_formats (
     id          SERIAL PRIMARY KEY,
     label       TEXT NOT NULL,
@@ -312,8 +331,11 @@ CREATE TABLE calendar_events (
     title       TEXT,
     notes       TEXT,
     location    TEXT,
+    location_lat DOUBLE PRECISION,           -- comme sessions.location_lat (migration 039)
+    location_lon DOUBLE PRECISION,
     session_id  INTEGER REFERENCES sessions(id) ON DELETE SET NULL,
-    created_at  TIMESTAMPTZ DEFAULT now()
+    created_at  TIMESTAMPTZ DEFAULT now(),
+    CONSTRAINT calendar_events_location_coords CHECK ((location_lat IS NULL) = (location_lon IS NULL))
 );
 
 CREATE TABLE notifications (
@@ -389,3 +411,4 @@ CREATE INDEX idx_posts_personal         ON posts(personal_recording_id) WHERE pe
 CREATE INDEX idx_comments_post          ON comments(post_id) WHERE post_id IS NOT NULL;
 CREATE INDEX idx_share_links_recording  ON share_links(recording_id) WHERE recording_id IS NOT NULL;
 CREATE INDEX idx_share_links_personal   ON share_links(personal_recording_id) WHERE personal_recording_id IS NOT NULL;
+CREATE UNIQUE INDEX group_places_label  ON group_places (group_id, lower(btrim(label)));

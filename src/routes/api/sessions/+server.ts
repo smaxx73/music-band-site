@@ -4,6 +4,7 @@ import sql from '$lib/server/db'
 import { notifyGroup } from '$lib/server/notifications'
 import { formatDateOnly } from '$lib/date'
 import { sessionTypeLabel } from '$lib/types'
+import { parseCoords } from '$lib/places'
 
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -38,6 +39,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const notes: unknown = body.notes
 	const members: unknown = body.members
 	const linkEventId: unknown = body.link_event_id
+	// Coordonnées d'une adresse ponctuelle choisie dans la Base Adresse Nationale ; absentes
+	// pour un lieu du groupe, dont l'adresse se relit dans group_places.
+	const coords = parseCoords(body.location_coords)
 
 	const validTypes = ['repetition', 'concert', 'studio', 'autre']
 
@@ -53,6 +57,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	if (members !== undefined && !Array.isArray(members)) {
 		return json({ error: 'members doit être un tableau.' }, { status: 400 })
 	}
+	if (coords === undefined) {
+		return json({ error: 'location_coords invalide.' }, { status: 400 })
+	}
 	if (linkEventId !== undefined && linkEventId !== null && typeof linkEventId !== 'number') {
 		return json({ error: 'link_event_id invalide.' }, { status: 400 })
 	}
@@ -65,6 +72,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const resolvedTitle = typeof title === 'string' && title.trim() ? title.trim() : null
 	const resolvedLocation = typeof location === 'string' && location.trim() ? location.trim() : null
 	const resolvedNotes = typeof notes === 'string' && notes.trim() ? notes.trim() : null
+	const resolvedCoords = resolvedLocation ? coords : null
 
 	// Transformer un événement d'agenda existant en session : on réutilise sa ligne
 	// calendar_events (on la lie via session_id) au lieu d'en insérer une seconde,
@@ -86,13 +94,15 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 	const session = await sql.begin(async (tx) => {
 		const [session] = await tx`
-			INSERT INTO sessions (group_id, date, type, title, location, notes, members, created_by, created_by_user_id)
+			INSERT INTO sessions (group_id, date, type, title, location, location_lat, location_lon, notes, members, created_by, created_by_user_id)
 			VALUES (
 				${locals.user!.current_group_id},
 				${date.trim()},
 				${resolvedType},
 				${resolvedTitle},
 				${resolvedLocation},
+				${resolvedCoords?.lat ?? null},
+				${resolvedCoords?.lon ?? null},
 				${resolvedNotes},
 				${sql.array(membersArray)},
 				${locals.user!.display_name},
@@ -105,13 +115,15 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			await tx`
 				UPDATE calendar_events
 				SET date = ${date.trim()}::date, type = ${resolvedType}, title = ${resolvedTitle},
-				    notes = ${resolvedNotes}, location = ${resolvedLocation}, session_id = ${session.id}
+				    notes = ${resolvedNotes}, location = ${resolvedLocation},
+				    location_lat = ${session.location_lat}, location_lon = ${session.location_lon},
+				    session_id = ${session.id}
 				WHERE id = ${linkedEventId}
 			`
 		} else {
 			// Toute session apparaît automatiquement dans l'agenda, quel que soit son type
 			await tx`
-				INSERT INTO calendar_events (group_id, user_id, date, type, author, title, notes, location, session_id)
+				INSERT INTO calendar_events (group_id, user_id, date, type, author, title, notes, location, location_lat, location_lon, session_id)
 				VALUES (
 					${locals.user!.current_group_id},
 					${locals.user!.id},
@@ -121,6 +133,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 					${resolvedTitle},
 					${resolvedNotes},
 					${resolvedLocation},
+					${session.location_lat},
+					${session.location_lon},
 					${session.id}
 				)
 			`
