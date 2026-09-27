@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { player } from '$lib/player.svelte'
 	import Icon from '$lib/components/Icon.svelte'
+	import SongCover from '$lib/components/SongCover.svelte'
 
 	let el = $state<HTMLAudioElement | null>(null)
 
@@ -68,12 +69,12 @@
 ></audio>
 
 {#if visible && player.track}
+	<!-- Comme la mini-barre d'une plateforme d'écoute : la pochette du morceau, ce qui
+	     joue, puis les commandes. -->
 	<div class="mini-player">
-		<button
-			class="mini-btn mini-play"
-			onclick={() => player.toggle()}
-			title={player.isPlaying ? 'Pause' : 'Lecture'}
-		><Icon name={player.isPlaying ? 'pause' : 'play'} size="1rem" /></button>
+		<a href="/recording/{player.track.recordingId}" class="mini-cover" tabindex="-1" aria-hidden="true">
+			<SongCover songId={player.track.songId} title={player.track.songTitle} size={38} />
+		</a>
 
 		<div class="mini-body">
 			<div class="mini-title">
@@ -96,6 +97,13 @@
 				<span class="mini-time">{formatTime(total)}</span>
 			</div>
 		</div>
+
+		<button
+			class="mini-btn mini-play"
+			onclick={() => player.toggle()}
+			title={player.isPlaying ? 'Pause' : 'Lecture'}
+			aria-label={player.isPlaying ? 'Pause' : 'Lecture'}
+		><Icon name={player.isPlaying ? 'pause' : 'play'} size="1rem" /></button>
 
 		{#if player.queue.length > 0}
 			<button
@@ -136,12 +144,21 @@
 		justify-content: center;
 	}
 
+	/* Le ▶ rond orange des en-têtes et des lecteurs, à l'échelle de la barre. */
 	.mini-play {
-		width: 32px;
-		height: 32px;
+		width: 36px;
+		height: 36px;
+		border-radius: 50%;
 		background: var(--color-accent);
 		color: #fff;
 		font-size: 0.9rem;
+	}
+
+	.mini-cover {
+		display: flex;
+		flex-shrink: 0;
+		border-radius: var(--radius-md);
+		overflow: hidden;
 	}
 
 	.mini-play:hover { filter: brightness(1.08); }

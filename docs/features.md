@@ -457,7 +457,11 @@ note, 💬 s'il y a des commentaires — plus l'écoute, et un menu ⋮ recueill
   groupe actif avant d'ouvrir le fichier (Caddy proxyfie ce chemin, il ne le sert pas)
 - Commentaires avec `timestamp_s` → marqueurs sur la waveform
 - Clic sur un marqueur → seek à ce timestamp + scroll vers le commentaire
-- Contrôles : ⏮ retour début | ▶/⏸ | ⏭ +10s | temps courant/total | volume
+- Contrôles : temps écoulé à gauche ; au centre ⏮ retour début | ▶/⏸ (le bouton rond
+  orange des en-têtes) | ⏭ +10s ; durée et volume à droite. Mêmes commandes que le lecteur
+  vidéo (`.player-controls`, `src/app.css`), pour que les deux ne divergent pas
+- La partie lue de la forme d'onde est orange (`--color-accent`), le reste gris : les
+  repères de commentaire y sont donc un trait sombre surmonté d'une pastille orange
 - Le lecteur reste collé en haut de la page tant qu'il laisse de quoi lire, et la liste peut
   suivre la lecture — voir « Naviguer dans une prise très commentée »
 - Ajout de commentaire : global OU ancré à la position courante du lecteur. Le formulaire

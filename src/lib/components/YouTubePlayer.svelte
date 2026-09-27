@@ -165,27 +165,26 @@
 		/>
 	</div>
 
-	<div class="controls">
-		<div class="controls-left">
-			<button class="ctrl-btn" onclick={() => seek(0)} title="Retour au début" disabled={!ready}>
+	<div class="player-controls">
+		<span class="player-time player-controls-start"><strong>{formatTimecode(currentTime)}</strong></span>
+
+		<div class="player-transport">
+			<button class="player-ctrl" onclick={() => seek(0)} title="Retour au début" disabled={!ready}>
 				<Icon name="skip-back" label="Retour au début" />
 			</button>
-			<button class="ctrl-btn" onclick={() => seek(currentTime - 10)} title="−10 s" disabled={!ready}>−10</button>
-			<button class="ctrl-btn play-btn" onclick={togglePlay} disabled={!ready}>
-				<Icon name={isPlaying ? 'pause' : 'play'} size="1.2rem" label={isPlaying ? 'Pause' : 'Lecture'} />
+			<button class="player-ctrl" onclick={() => seek(currentTime - 10)} title="−10 s" disabled={!ready}>−10</button>
+			<button class="player-play" onclick={togglePlay} disabled={!ready}>
+				<Icon name={isPlaying ? 'pause' : 'play'} size="1.15rem" label={isPlaying ? 'Pause' : 'Lecture'} />
 			</button>
-			<button class="ctrl-btn" onclick={() => seek(currentTime + 10)} title="+10 s" disabled={!ready}>+10</button>
+			<button class="player-ctrl" onclick={() => seek(currentTime + 10)} title="+10 s" disabled={!ready}>+10</button>
 		</div>
 
-		<div class="time">
-			<span class="current">{formatTimecode(currentTime)}</span>
-			<span class="sep">/</span>
-			<span>{formatTimecode(duration)}</span>
+		<div class="player-controls-end">
+			<span class="player-time">{formatTimecode(duration)}</span>
+			<button class="player-ctrl" onclick={fullscreen} title="Plein écran" disabled={!ready}>
+				<Icon name="fullscreen" label="Plein écran" />
+			</button>
 		</div>
-
-		<button class="ctrl-btn" onclick={fullscreen} title="Plein écran" disabled={!ready}>
-			<Icon name="fullscreen" label="Plein écran" />
-		</button>
 	</div>
 </div>
 
@@ -222,7 +221,7 @@
 
 	.progress { position: relative; padding-top: 0.55rem; }
 
-	.progress input[type='range'] { width: 100%; margin: 0; accent-color: var(--color-primary); }
+	.progress input[type='range'] { width: 100%; margin: 0; accent-color: var(--color-accent); }
 
 	.marker-track { position: absolute; top: 0; left: 0; right: 0; height: 0.55rem; }
 
@@ -238,53 +237,4 @@
 		background: var(--color-accent);
 		cursor: pointer;
 	}
-
-	.controls {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		flex-wrap: wrap;
-		gap: 0.6rem 1rem;
-	}
-
-	.controls-left { display: flex; gap: 0.4rem; }
-
-	.ctrl-btn {
-		background: none;
-		border: 1px solid var(--color-border-light);
-		border-radius: var(--radius-lg);
-		min-width: 34px;
-		height: 34px;
-		padding: 0 0.35rem;
-		font-size: 0.8rem;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.ctrl-btn:hover:not(:disabled) { background: var(--color-bg-muted); }
-	.ctrl-btn:disabled { opacity: var(--disabled-opacity); cursor: not-allowed; }
-
-	.play-btn {
-		width: 42px;
-		height: 42px;
-		font-size: 1.1rem;
-		background: var(--color-primary);
-		color: white;
-		border-color: var(--color-primary);
-	}
-
-	.play-btn:hover:not(:disabled) { background: var(--color-primary-hover); }
-
-	.time {
-		font-size: var(--text-sm);
-		font-variant-numeric: tabular-nums;
-		color: #444;
-		display: flex;
-		gap: 0.2rem;
-	}
-
-	.current { font-weight: 700; }
-	.sep { color: #bbb; }
 </style>

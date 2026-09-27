@@ -159,9 +159,11 @@
 		const instance = WaveSurfer.create({
 			container: waveformEl,
 			...(media ? { media } : {}),
-			waveColor: '#6b7280',
-			progressColor: '#1a1a1a',
-			cursorColor: '#1a1a1a',
+			// La partie lue en orange, comme sur les plateformes d'écoute. Le canvas ne lit
+			// pas les variables CSS : on les résout ici, pour rester sur les jetons du thème.
+			waveColor: themeColor('--color-mid', '#9B9489'),
+			progressColor: themeColor('--color-accent', '#E25E36'),
+			cursorColor: themeColor('--color-ink', '#2C2B28'),
 			barWidth: 2,
 			barGap: 1,
 			barRadius: 2,
@@ -295,6 +297,10 @@
 		lastToggleToken = toggleRequest.token
 		wavesurfer.playPause()
 	})
+
+	function themeColor(name: string, fallback: string): string {
+		return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback
+	}
 </script>
 
 <div class="player-shell">
@@ -305,46 +311,45 @@
 		{/if}
 	</div>
 
-	<div class="controls">
-		<div class="controls-left">
-			<button class="ctrl-btn" onclick={seekStart} title="Retour au début">
+	<div class="player-controls">
+		<span class="player-time player-controls-start"><strong>{formatTime(currentTime)}</strong></span>
+
+		<div class="player-transport">
+			<button class="player-ctrl" onclick={seekStart} title="Retour au début">
 				<Icon name="skip-back" label="Retour au début" />
 			</button>
-			<button class="ctrl-btn play-btn" onclick={togglePlay} disabled={!ready}>
-				<Icon name={isPlaying ? 'pause' : 'play'} size="1.2rem" label={isPlaying ? 'Pause' : 'Lecture'} />
+			<button class="player-play" onclick={togglePlay} disabled={!ready}>
+				<Icon name={isPlaying ? 'pause' : 'play'} size="1.15rem" label={isPlaying ? 'Pause' : 'Lecture'} />
 			</button>
-			<button class="ctrl-btn" onclick={skipForward} title="+10s" disabled={!ready}>
+			<button class="player-ctrl" onclick={skipForward} title="+10s" disabled={!ready}>
 				<Icon name="skip-forward" label="Avancer de 10 secondes" />
 			</button>
 		</div>
 
-		<div class="time">
-			<span class="current">{formatTime(currentTime)}</span>
-			<span class="sep">/</span>
-			<span>{formatTime(duration)}</span>
-		</div>
-
-		<div class="volume-control" class:expanded={volumeExpanded}>
-			<button
-				class="volume-toggle"
-				type="button"
-				onclick={() => (volumeExpanded = !volumeExpanded)}
-				aria-label="Régler le volume"
-				aria-expanded={volumeExpanded}
-			>
-				<Icon name={volume === 0 ? 'volume-off' : 'volume'} />
-			</button>
-			<div class="volume-popover">
-				<input
-					type="range"
-					min="0"
-					max="1"
-					step="0.05"
-					value={volume}
-					oninput={setVolume}
-					class="volume-slider"
-					aria-label="Volume"
-				/>
+		<div class="player-controls-end">
+			<span class="player-time">{formatTime(duration)}</span>
+			<div class="volume-control" class:expanded={volumeExpanded}>
+				<button
+					class="player-ctrl volume-toggle"
+					type="button"
+					onclick={() => (volumeExpanded = !volumeExpanded)}
+					aria-label="Régler le volume"
+					aria-expanded={volumeExpanded}
+				>
+					<Icon name={volume === 0 ? 'volume-off' : 'volume'} />
+				</button>
+				<div class="volume-popover">
+					<input
+						type="range"
+						min="0"
+						max="1"
+						step="0.05"
+						value={volume}
+						oninput={setVolume}
+						class="volume-slider"
+						aria-label="Volume"
+					/>
+				</div>
 			</div>
 		</div>
 	</div>
@@ -374,67 +379,8 @@
 		justify-content: center;
 		font-size: 0.85rem;
 		color: var(--color-text-muted);
-		background: linear-gradient(to bottom, rgba(255, 255, 255, 0.72), rgba(255, 255, 255, 0.72));
+		background: rgba(245, 243, 238, 0.75);
 	}
-
-	.controls {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		flex-wrap: wrap;
-		gap: 0.6rem 1rem;
-	}
-
-	.controls-left {
-		display: flex;
-		gap: 0.4rem;
-	}
-
-	.ctrl-btn {
-		background: none;
-		border: 1px solid var(--color-border-light);
-		border-radius: var(--radius-lg);
-		width: 34px;
-		height: 34px;
-		font-size: 0.95rem;
-		cursor: pointer;
-		display: flex;
-		align-items: center;
-		justify-content: center;
-	}
-
-	.ctrl-btn:hover:not(:disabled) {
-		background: var(--color-bg-muted);
-	}
-
-	.ctrl-btn:disabled {
-		opacity: var(--disabled-opacity);
-		cursor: not-allowed;
-	}
-
-	.play-btn {
-		width: 42px;
-		height: 42px;
-		font-size: 1.1rem;
-		background: var(--color-primary);
-		color: white;
-		border-color: var(--color-primary);
-	}
-
-	.play-btn:hover:not(:disabled) {
-		background: var(--color-primary-hover);
-	}
-
-	.time {
-		font-size: var(--text-sm);
-		font-variant-numeric: tabular-nums;
-		color: #444;
-		display: flex;
-		gap: 0.2rem;
-	}
-
-	.current { font-weight: 700; }
-	.sep { color: #bbb; }
 
 	.volume-control {
 		display: flex;
@@ -454,37 +400,17 @@
 
 	.volume-slider {
 		width: 72px;
-		accent-color: var(--color-primary);
+		accent-color: var(--color-accent);
 	}
 
 	/* Sur mobile, le volume reste compact pour éviter d'ajouter une ligne au lecteur. */
 	@media (max-width: 640px) {
-		.controls {
-			flex-wrap: nowrap;
-			gap: 0.4rem;
-		}
-
-		.controls-left { gap: 0.25rem; }
-		.time { white-space: nowrap; }
-
 		.volume-control {
 			flex: 0 0 auto;
 			position: relative;
 		}
 
-		.volume-toggle {
-			display: inline-flex;
-			align-items: center;
-			justify-content: center;
-			width: 34px;
-			height: 34px;
-			padding: 0;
-			border: 1px solid var(--color-border-light);
-			border-radius: var(--radius-lg);
-			background: none;
-			font-size: 0.9rem;
-			cursor: pointer;
-		}
+		.volume-toggle { display: inline-flex; }
 
 		.volume-popover {
 			display: none;

@@ -24,6 +24,8 @@ en montant de version (voir `deploy.md`).
   disparaît, et avec elle le calcul des pics au chargement
 - Référentiel de morceaux en liste à pochettes ; le tableau (édition, suppression) devient
   le mode édition
+- Lecteurs restylés : forme d'onde lue en orange, ▶ rond orange au centre, commandes
+  communes aux lecteurs audio et vidéo ; mini-lecteur avec la pochette du morceau
 - Version affichée sous le nom du site, en haut à gauche
 - Correction : sur téléphone, le bas du menu latéral (compte, liens légaux) passait sous
   la barre d'actions

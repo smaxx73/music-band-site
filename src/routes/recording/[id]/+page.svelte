@@ -743,7 +743,7 @@
 	/* Lecteur */
 	.player-card {
 		background: var(--color-bg-subtle);
-		border: 1px solid var(--color-border);
+		border: 1px solid var(--color-border-light);
 		border-radius: var(--radius-xl);
 		padding: 1rem 1.25rem;
 		margin-bottom: 2rem;
