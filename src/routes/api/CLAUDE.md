@@ -27,6 +27,7 @@ api/imports/[id]/redo/+server.ts
 api/sessions/+server.ts
 api/sessions/[id]/+server.ts
 api/sessions/[id]/reorder/+server.ts
+api/sessions/[id]/photo/+server.ts
 api/songs/+server.ts
 api/songs/[id]/+server.ts
 api/songs/[id]/cover/+server.ts
@@ -125,6 +126,14 @@ un cache long). Un morceau d'un autre groupe répond `404`. Passer par
 `src/lib/server/song-covers.ts`. Le `POST` accepte aussi `{ deezer_track_id }` en JSON :
 la pochette de l'album de ce titre, que le serveur va chercher chez Deezer — l'id seul,
 jamais une URL venue du client.
+
+La **photo de bandeau** d'une session (`api/sessions/[id]/photo`) suit les mêmes règles que
+la pochette : groupe-scopée, tout membre du groupe actif la dépose (`POST`, multipart, champ
+`photo`, 8 Mo au plus, `veil` facultatif — réponse `{ session_id, photo_version, veil }`) ou
+la retire (`DELETE`) ; `PATCH` (`{ veil }`) règle l'intensité du voile sombre, entier de 20 à
+95 (`parseSessionPhotoVeil`, `src/lib/session-photo.ts`), sans changer la version de l'image ;
+`GET` la sert aux mêmes membres (`?v=` pour un cache long). Une session d'un autre groupe
+répond `404`. Passer par `src/lib/server/session-photos.ts`.
 
 Le **catalogue** (`api/catalog/`) cherche une reprise chez Deezer, pour tout compte
 connecté : `GET /api/catalog/search?q=` (2 à 120 caractères, 8 résultats sans année),

@@ -3,6 +3,7 @@ import { error, redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 import { retargetActiveGroup } from '$lib/server/group-scope'
 import { listGroupMemberNames } from '$lib/server/groups'
+import { getSessionPhotoInfo } from '$lib/server/session-photos'
 import { loginRedirect } from '$lib/redirect'
 
 export const load: PageServerLoad = async ({ locals, params, cookies, url, isDataRequest }) => {
@@ -37,7 +38,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 	// timestamp et risquerait un décalage d'un jour selon le fuseau.
 	// Requêtes indépendantes les unes des autres : lancées ensemble, une fois la session
 	// vérifiée dans le groupe actif.
-	const [[prevSession], [nextSession], rows, groupMembers] = await Promise.all([
+	const [[prevSession], [nextSession], rows, groupMembers, photo] = await Promise.all([
 		sql`
 			SELECT id, date, title, type FROM sessions
 			WHERE group_id = ${locals.user.current_group_id}
@@ -60,8 +61,6 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 				s.id       AS song_id,
 				s.title    AS song_title,
 				s.composer AS song_composer,
-				s.lyrics   AS song_lyrics,
-				s.music_notes AS song_music_notes,
 				s.status   AS song_status,
 				floor(EXTRACT(EPOCH FROM sc.updated_at) * 1000)::float8 AS song_cover_version,
 				COUNT(c.id)::int AS comment_count
@@ -75,7 +74,9 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 			ORDER BY s.title, r.take ASC
 		`,
 		// Participants proposés à l'édition de la session : les membres du groupe actif.
-		listGroupMemberNames(locals.user.current_group_id)
+		listGroupMemberNames(locals.user.current_group_id),
+		// À part de `session` : le PATCH de la session renvoie sa ligne sans la photo.
+		getSessionPhotoInfo(id)
 	])
 
 	// Grouper par morceau côté serveur
@@ -84,8 +85,6 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 			id: number
 			title: string
 			composer: string | null
-			lyrics: string | null
-			music_notes: string | null
 			status: string
 			cover_version: number | null
 		}
@@ -105,8 +104,6 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 					id: row.song_id,
 					title: row.song_title,
 					composer: row.song_composer,
-					lyrics: row.song_lyrics,
-					music_notes: row.song_music_notes,
 					status: row.song_status,
 					cover_version: row.song_cover_version
 				},
@@ -136,6 +133,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 		session,
 		hasCalendarEvent: Boolean(session.has_calendar_event),
 		groupMembers,
+		photo,
 		groups: Array.from(groupMap.values()),
 		prevSession: prevSession ?? null,
 		nextSession: nextSession ?? null

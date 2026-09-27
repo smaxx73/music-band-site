@@ -33,7 +33,10 @@
 	<li>
 		<strong>Contenus que vous déposez</strong> : enregistrements audio (et nom du fichier
 		d'origine), liens vers des vidéos YouTube, commentaires, réactions, publications, notes,
-		sessions (dont les noms des participants saisis), morceaux, playlists, setlists.
+		sessions (dont les noms des participants saisis), morceaux, playlists, setlists, images
+		(logo du groupe, pochettes de morceaux, photos de session). Pochettes et photos de session
+		sont réencodées à l'envoi : leurs métadonnées (EXIF, dont la position GPS d'une photo) ne
+		sont pas conservées.
 	</li>
 	<li>
 		<strong>Agenda</strong> : événements du groupe et indisponibilités personnelles que vous

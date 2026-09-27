@@ -4,6 +4,10 @@
 	import MediaHeader from '$lib/components/MediaHeader.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import SessionCover from '$lib/components/SessionCover.svelte'
+	import SessionPhotoAdd from '$lib/components/SessionPhotoAdd.svelte'
+	import SessionPhotoField from '$lib/components/SessionPhotoField.svelte'
+	import { SESSION_PHOTO_VEIL, sessionPhotoUrl, type SessionPhoto } from '$lib/session-photo'
+	import { invalidateAll } from '$app/navigation'
 	import type { Snippet } from 'svelte'
 
 	type SessionType = 'repetition' | 'concert' | 'studio' | 'autre'
@@ -50,6 +54,7 @@
 		error = null,
 		onSave = async () => false,
 		stats = null,
+		photo = null,
 		actions: outerActions
 	}: {
 		session: SessionData
@@ -60,6 +65,8 @@
 		onSave?: (patch: SessionPatch) => Promise<boolean>
 		/** Ce qu'a produit la session, affiché dans l'en-tête. */
 		stats?: string | null
+		/** Photo de bandeau (`session_photos`) : version et voile, `null` sans photo. */
+		photo?: SessionPhoto | null
 		/** Commandes de l'en-tête, à côté de « Modifier » (le ▶ de la session). */
 		actions?: Snippet
 	} = $props()
@@ -72,6 +79,40 @@
 	let editMembers = $state<string[]>([])
 	let editNotes = $state('')
 	let localError = $state<string | null>(null)
+	let photoFile = $state<File | null>(null)
+	let photoRemoved = $state(false)
+	let editVeil = $state<number>(SESSION_PHOTO_VEIL.default)
+	let photoSaving = $state(false)
+	let photoAddError = $state<string | null>(null)
+
+	const busy = $derived(saving || photoSaving)
+
+	// Aperçu d'une photo choisie mais pas encore envoyée : l'original, que l'écran recadre
+	// au centre comme il recadrera la version réduite par le serveur.
+	let pendingPhotoUrl = $state<string | null>(null)
+	$effect(() => {
+		if (!photoFile) return
+		const url = URL.createObjectURL(photoFile)
+		pendingPhotoUrl = url
+		return () => {
+			URL.revokeObjectURL(url)
+			pendingPhotoUrl = null
+		}
+	})
+
+	const savedPhotoUrl = $derived(photo ? sessionPhotoUrl(session.id, photo.version) : null)
+	const previewPhotoUrl = $derived(pendingPhotoUrl ?? (photoRemoved ? null : savedPhotoUrl))
+
+	/** Ce que montre le bandeau : la session telle qu'enregistrée, ou telle qu'en cours d'édition. */
+	type Banner = {
+		date: string
+		type: SessionType
+		title: string | null
+		location: string | null
+		members: string[]
+		photoUrl: string | null
+		veil: number
+	}
 
 	function formatDate(d: string | Date) {
 		return formatDateOnly(d, {
@@ -89,13 +130,58 @@
 		editLocation = session.location ?? ''
 		editMembers = [...(session.members ?? [])]
 		editNotes = session.notes ?? ''
+		photoFile = null
+		photoRemoved = false
+		editVeil = photo?.veil ?? SESSION_PHOTO_VEIL.default
 		localError = null
+		photoAddError = null
 		editing = true
 	}
 
 	function cancelEditSession() {
 		editing = false
+		photoFile = null
+		photoRemoved = false
 		localError = null
+	}
+
+	// La photo part avant la session : le rechargement que déclenche l'enregistrement de
+	// la session relit alors aussi la photo. Remplacer emporte le voile dans la même requête.
+	async function savePhoto(): Promise<boolean> {
+		let init: RequestInit | null = null
+		if (photoFile) {
+			const body = new FormData()
+			body.append('photo', photoFile)
+			body.append('veil', String(editVeil))
+			init = { method: 'POST', body }
+		} else if (photoRemoved && photo) {
+			init = { method: 'DELETE' }
+		} else if (photo && editVeil !== photo.veil) {
+			init = {
+				method: 'PATCH',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ veil: editVeil })
+			}
+		}
+		if (!init) return true
+
+		photoSaving = true
+		try {
+			const res = await fetch(`/api/sessions/${session.id}/photo`, init)
+			if (!res.ok) {
+				localError = ((await res.json().catch(() => ({}))) as { error?: string }).error ?? `Erreur ${res.status}.`
+				return false
+			}
+			// Acquis : un second « Enregistrer » après un échec de la session ne renverra pas le fichier.
+			photoFile = null
+			photoRemoved = false
+			return true
+		} catch {
+			localError = 'Erreur réseau.'
+			return false
+		} finally {
+			photoSaving = false
+		}
 	}
 
 	async function submitSession(event: SubmitEvent) {
@@ -108,6 +194,8 @@
 
 		localError = null
 
+		if (!(await savePhoto())) return
+
 		const saved = await onSave({
 			date: editDate,
 			type: editType,
@@ -119,12 +207,68 @@
 
 		if (saved) {
 			editing = false
+		} else {
+			// La photo, elle, a pu passer : l'aperçu doit montrer celle qui est en base.
+			await invalidateAll()
 		}
 	}
 </script>
 
+<!-- Le même bandeau sert à la lecture et, en édition, d'aperçu fidèle : titre, type et
+     voile s'y voient changer avant d'être enregistrés. -->
+{#snippet banner(b: Banner, actions?: Snippet)}
+	<MediaHeader
+		title={b.title ?? formatDate(b.date)}
+		{stats}
+		hue={typeHues[b.type]}
+		photo={b.photoUrl}
+		photoVeil={b.veil}
+		{actions}
+	>
+		{#snippet kicker()}
+			<span class="type-badge type-{b.type}">{typeLabels[b.type]}</span>
+		{/snippet}
+		{#snippet cover()}
+			<SessionCover date={b.date} type={b.type} />
+		{/snippet}
+		<!-- Sans titre, le h1 porte déjà la date : ne pas la répéter. -->
+		{#if b.title || b.location}
+			<p class="meta">
+				{#if b.title}{formatDate(b.date)}{/if}
+				{#if b.title && b.location} · {/if}
+				{#if b.location}{b.location}{/if}
+			</p>
+		{/if}
+		{#if b.members.length}
+			<p class="meta">Présents : {b.members.join(', ')}</p>
+		{/if}
+	</MediaHeader>
+{/snippet}
+
+{#snippet viewActions()}
+	<button class="btn btn-ghost mh-secondary" onclick={startEditSession}>
+		<Icon name="pencil" size="0.9rem" /> <span class="mh-label">Modifier</span>
+	</button>
+	<!-- Une photo déjà posée ne se change qu'en édition : ici, seulement l'ajout. -->
+	{#if !photo}
+		<SessionPhotoAdd sessionId={session.id} onError={(m) => (photoAddError = m)} />
+	{/if}
+	{@render outerActions?.()}
+{/snippet}
+
 <div class="session-header">
 	{#if editing}
+		<div class="preview" aria-label="Aperçu du bandeau">
+			{@render banner({
+				date: editDate,
+				type: editType,
+				title: editTitle.trim() || null,
+				location: editLocation.trim() || null,
+				members: editMembers,
+				photoUrl: previewPhotoUrl,
+				veil: editVeil
+			})}
+		</div>
 		<form class="form-section edit-form" onsubmit={submitSession}>
 			{#if localError ?? error}
 				<p class="message-error">{localError ?? error}</p>
@@ -132,7 +276,7 @@
 			<div class="form-row">
 				<label class="form-label">
 					Type
-					<select class="form-input" bind:value={editType} disabled={saving}>
+					<select class="form-input" bind:value={editType} disabled={busy}>
 						<option value="repetition">Répétition</option>
 						<option value="concert">Concert</option>
 						<option value="studio">Studio</option>
@@ -141,13 +285,13 @@
 				</label>
 				<label class="form-label">
 					Titre <span class="hint">(optionnel)</span>
-					<input class="form-input" type="text" placeholder="ex : Répète avant Ducasse" bind:value={editTitle} disabled={saving} />
+					<input class="form-input" type="text" placeholder="ex : Répète avant Ducasse" bind:value={editTitle} disabled={busy} />
 				</label>
 			</div>
 			<div class="form-row">
 				<label class="form-label">
 					Date
-					<input class="form-input" type="date" bind:value={editDate} required disabled={saving} />
+					<input class="form-input" type="date" bind:value={editDate} required disabled={busy} />
 				</label>
 				<label class="form-label">
 					Lieu
@@ -156,57 +300,50 @@
 						type="text"
 						placeholder="ex : Studio, Salle des fêtes…"
 						bind:value={editLocation}
-						disabled={saving}
+						disabled={busy}
 					/>
 				</label>
 			</div>
 			<div class="form-label">
 				Membres présents
-				<MembersInput bind:members={editMembers} suggestions={groupMembers} disabled={saving} />
+				<MembersInput bind:members={editMembers} suggestions={groupMembers} disabled={busy} />
 			</div>
 			<label class="form-label">
 				Notes
-				<textarea class="form-input" rows="3" bind:value={editNotes} disabled={saving}></textarea>
+				<textarea class="form-input" rows="3" bind:value={editNotes} disabled={busy}></textarea>
 			</label>
+			<SessionPhotoField
+				hasPhoto={photo !== null}
+				bind:file={photoFile}
+				bind:removed={photoRemoved}
+				bind:veil={editVeil}
+				disabled={busy}
+			/>
 			<div class="form-actions">
-				<button type="submit" class="btn btn-primary" disabled={saving}>
-					{saving ? 'Enregistrement…' : 'Enregistrer'}
+				<button type="submit" class="btn btn-primary" disabled={busy}>
+					{busy ? 'Enregistrement…' : 'Enregistrer'}
 				</button>
-				<button type="button" class="btn btn-ghost" onclick={cancelEditSession} disabled={saving}>
+				<button type="button" class="btn btn-ghost" onclick={cancelEditSession} disabled={busy}>
 					Annuler
 				</button>
 			</div>
 		</form>
 	{:else}
-		<MediaHeader
-			title={session.title ?? formatDate(session.date)}
-			{stats}
-			hue={typeHues[session.type ?? 'repetition']}
-		>
-			{#snippet kicker()}
-				<span class="type-badge type-{session.type ?? 'repetition'}">{typeLabels[session.type ?? 'repetition']}</span>
-			{/snippet}
-			{#snippet cover()}
-				<SessionCover date={session.date} type={session.type ?? 'repetition'} />
-			{/snippet}
-			<!-- Sans titre, le h1 porte déjà la date : ne pas la répéter. -->
-			{#if session.title || session.location}
-				<p class="meta">
-					{#if session.title}{formatDate(session.date)}{/if}
-					{#if session.title && session.location} · {/if}
-					{#if session.location}{session.location}{/if}
-				</p>
-			{/if}
-			{#if session.members?.length}
-				<p class="meta">Présents : {session.members.join(', ')}</p>
-			{/if}
-			{#snippet actions()}
-				<button class="btn btn-ghost mh-secondary" onclick={startEditSession}>
-					<Icon name="pencil" size="0.9rem" /> <span class="mh-label">Modifier</span>
-				</button>
-				{@render outerActions?.()}
-			{/snippet}
-		</MediaHeader>
+		{@render banner(
+			{
+				date: toDateOnly(session.date),
+				type: session.type ?? 'repetition',
+				title: session.title,
+				location: session.location,
+				members: session.members ?? [],
+				photoUrl: savedPhotoUrl,
+				veil: photo?.veil ?? SESSION_PHOTO_VEIL.default
+			},
+			viewActions
+		)}
+		{#if photoAddError}
+			<p class="message-error" role="alert">{photoAddError}</p>
+		{/if}
 		{#if session.notes}
 			<p class="notes">{session.notes}</p>
 		{/if}
@@ -251,6 +388,9 @@
 	}
 
 	.edit-form { margin-top: 0; }
+
+	/* L'aperçu ne se clique pas : il montre, le formulaire en dessous modifie. */
+	.preview { pointer-events: none; }
 
 	.form-row {
 		display: grid;

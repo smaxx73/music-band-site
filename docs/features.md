@@ -341,6 +341,10 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
   teinté comme son type (`SessionCover.svelte`) : une session n'a pas de pochette
 - Chiffres de l'en-tête : nombre de morceaux, de prises et durée totale enregistrée. Son ▶
   enchaîne toute la session, morceau après morceau, dans le mini-lecteur
+- **Pas de paroles ni de notes musicales** sous les morceaux : on vient ici réécouter et
+  comparer des prises, et des paroles dépliées sous chaque morceau poussaient les prises
+  hors de l'écran. Elles se lisent sur la page du morceau, sur la prise et en playlist
+- **Photo de bandeau** : voir « Photo de bandeau d'une session » plus bas
 - Ajout d'une prise oubliée à une session passée : autorisé. « + Ajouter une prise » ouvre
   `/upload?session_id=` avec la session déjà sélectionnée (ignoré si hors du groupe actif)
 - Une prise est une **piste de tracklist**, pas une ligne de tableau (`RecordingRow.svelte`,
@@ -381,6 +385,40 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
   est la suite naturelle et se voit comme telle. Le formulaire y est
   centré à l'écran et prend le focus — on commente mieux en réécoutant, et l'ancrage au
   timestamp n'existe que là
+
+### Photo de bandeau d'une session
+
+Le bandeau d'une session prend la teinte de son type. Tout membre du groupe peut y poser
+une photo — la salle, la scène, le groupe en répétition —, comme il modifie le titre ou le lieu.
+
+- **Tant qu'il n'y a pas de photo**, « Photo » dans les actions de l'en-tête
+  (`SessionPhotoAdd.svelte`) ouvre directement le choix du fichier, qui part aussitôt
+- **Une photo posée ne se change qu'en mode édition** (« Modifier ») : le bouton de l'en-tête
+  disparaît, pour qu'un clic égaré ne remplace pas le bandeau. Le formulaire porte
+  « Photo du bandeau » (`SessionPhotoField.svelte`) : remplacer, retirer, régler le voile
+- En édition, le **bandeau s'affiche en aperçu** au-dessus du formulaire, tel qu'il sera
+  enregistré : titre, type, lieu, présents, photo choisie et voile y changent en direct
+- Rien n'est appliqué avant « Enregistrer » — photo choisie, retrait, voile —, et « Annuler »
+  abandonne tout comme le reste du formulaire. C'est pourquoi retirer ne demande pas de
+  confirmation : la teinte revient, et la photo se redépose
+- **Voile sombre réglable** par session, de 20 à 95 % d'opacité au bord gauche (75 % par
+  défaut, `SESSION_PHOTO_VEIL`, `src/lib/session-photo.ts`) : une photo déjà sombre s'en
+  passe presque, une photo claire en demande davantage. Le plancher garde le titre lisible.
+  Régler le voile ne change pas la version de l'image, qui reste en cache
+- PNG, JPEG, WebP ou GIF, **8 Mo** au plus ; format lu dans les octets, SVG refusé
+- **Adaptée au format sans intervention** : ffmpeg la recadre au centre en 1600 × 600 et la
+  réencode en JPEG, en appliquant l'orientation d'une photo de téléphone. L'original n'est
+  pas gardé, ni ses métadonnées (EXIF, position GPS). L'écran recadre encore au centre
+  (`background-size: cover`) : le bandeau est plus allongé sur ordinateur (≈ 6:1) qu'au
+  téléphone (≈ 3,5:1), et 8:3 garde de quoi remplir les deux sans couper les têtes au téléphone
+- Le **voile sombre**, plus dense à gauche où se lit le titre, passe le texte en clair :
+  une photo n'a pas de ton garanti, le contraste ne doit pas en dépendre (`MediaHeader`,
+  props `photo` et `photoVeil`)
+- En base (`session_photos`, migrations 037 et 038), comme une pochette : elle suit la session dans
+  `pg_dump` et part avec elle. Elle n'entre pas dans l'archive JSON d'un groupe
+- Servie par `GET /api/sessions/[id]/photo` aux **seuls membres du groupe**, `?v=<version>`
+  pour un cache long. Rien n'est public
+- Pas de notification : une photo n'annonce pas de nouveau contenu
 
 ### Commandes d'une prise, et menu ⋮ sous 640 px
 
@@ -1114,8 +1152,8 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 - Confirmation par saisie du nom exact du groupe. Vérifiée **côté serveur** dans
   `deleteGroup()`, pas seulement par l'écran ; l'API exige le même nom en `?confirm=`
 - Suppression en cascade dans une transaction, dans cet ordre imposé par les FK :
-  `playlists` → `setlists` → `posts` → `calendar_events` → `sessions` (les prises, commentaires, réactions et
-  entrées de playlist tombent en cascade) → `songs` → `notifications` → `group_logos`
+  `playlists` → `setlists` → `posts` → `calendar_events` → `sessions` (les prises, commentaires, réactions,
+  entrées de playlist et photos de bandeau tombent en cascade) → `songs` → `notifications` → `group_logos`
   → `user_groups` → `groups`
 - Les fichiers `.mp3` sont supprimés **après** le commit : un fichier orphelin se rattrape,
   une ligne pointant vers un fichier disparu non

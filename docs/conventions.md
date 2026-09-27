@@ -9,7 +9,7 @@ src/
 │   │   ├── db.ts          # client postgres.js + helpers SQL
 │   │   ├── storage.ts     # lecture/écriture fichiers audio
 │   │   ├── ffmpeg.ts      # conversion mp3, proxy, détection des blancs, extraction, durée,
-│   │   │                  #   miniature du logo de groupe
+│   │   │                  #   miniature du logo de groupe, recadrage des images déposées
 │   │   ├── upload-stream.ts # réception multipart d'un fichier audio (prise ou import)
 │   │   ├── imports.ts     # zone de transit des outils audio d'après upload
 │   │   ├── youtube.ts     # vidéo YouTube d'une prise : lien, oEmbed, doublon
@@ -21,6 +21,7 @@ src/
 │   │   ├── feed.ts        # fil d'actualité : toutes les sources ordonnées, paginé par curseur
 │   │   ├── share-links.ts # liens d'écoute publics : jeton, résolution, ce qui est exposé
 │   │   ├── song-covers.ts # pochettes de morceau : dépôt (recadrage ffmpeg), lecture, retrait
+│   │   ├── session-photos.ts # photo de bandeau d'une session : dépôt (recadrage ffmpeg), lecture, retrait
 │   │   ├── images.ts      # images déposées : format lu dans les octets, taille de requête
 │   │   ├── deezer.ts      # catalogue Deezer : recherche d'une reprise, détail, pochette d'album
 │   │   └── notifications.ts # écriture (fan-out) et lecture des notifications
@@ -65,6 +66,8 @@ src/
 │       ├── FeedItem.svelte        # une carte du fil d'actualité, selon le type d'élément
 │       ├── SongSelect.svelte      # sélecteur de morceau + création sur place (« À nommer — … »)
 │       ├── SessionEditor.svelte   # édition des métadonnées de session
+│       ├── SessionPhotoAdd.svelte   # ajouter une photo de bandeau depuis l'en-tête (session sans photo)
+│       ├── SessionPhotoField.svelte # photo de bandeau en édition de session : remplacer, retirer, voile
 │       └── SongDetails.svelte     # paroles et notes musicales
 ├── routes/
 │   ├── +layout.svelte     # layout global + vérif auth

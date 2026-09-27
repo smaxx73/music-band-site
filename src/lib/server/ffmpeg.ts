@@ -265,19 +265,33 @@ export function extractSegment(
  * image. L'entrée passe en mémoire : une image de quelques Mo, pas un fichier audio.
  */
 export function imageThumbnail(input: Buffer, size: number, fit: 'contain' | 'cover' = 'contain'): Promise<Buffer> {
+	return imageFrame(input, size, size, fit)
+}
+
+/**
+ * Même traitement dans un cadre quelconque (photo de bandeau d'une session). Le JPEG
+ * produit ne porte aucune métadonnée de l'original : pas d'EXIF, donc pas de position GPS.
+ * L'orientation EXIF d'une photo de téléphone, elle, est appliquée par ffmpeg au décodage.
+ */
+export function imageFrame(
+	input: Buffer,
+	width: number,
+	height: number,
+	fit: 'contain' | 'cover' = 'contain'
+): Promise<Buffer> {
 	// `contain` (logo) : l'image entière, centrée sur fond blanc — un logo ne se rogne pas.
-	// `cover` (pochette) : le carré est rempli, les bords en trop sont coupés au centre,
-	// comme une pochette d'album. Le fond blanc reste dessous pour la transparence.
+	// `cover` (pochette, bandeau) : le cadre est rempli, les bords en trop sont coupés au
+	// centre. Le fond blanc reste dessous pour la transparence.
 	const scale = fit === 'cover'
-		? `scale=${size}:${size}:force_original_aspect_ratio=increase,crop=${size}:${size}`
-		: `scale=${size}:${size}:force_original_aspect_ratio=decrease`
+		? `scale=${width}:${height}:force_original_aspect_ratio=increase,crop=${width}:${height}`
+		: `scale=${width}:${height}:force_original_aspect_ratio=decrease`
 	return new Promise((resolve, reject) => {
 		const ff = spawn('ffmpeg', [
 			'-v', 'error',
 			'-i', 'pipe:0',
 			'-filter_complex', [
 				`[0:v]${scale},format=rgba[fg]`,
-				`color=c=white:s=${size}x${size}[bg]`,
+				`color=c=white:s=${width}x${height}[bg]`,
 				'[bg][fg]overlay=(W-w)/2:(H-h)/2:shortest=1,format=yuvj420p'
 			].join(';'),
 			'-frames:v', '1',

@@ -112,6 +112,20 @@ CREATE TABLE sessions (
     created_at  TIMESTAMPTZ DEFAULT now()
 );
 
+-- Photo de bandeau d'une session, déposée par un membre (migration 037). En base, comme
+-- la pochette : elle suit la session dans pg_dump. L'original n'est pas gardé, seulement
+-- un JPEG recadré au format du bandeau. Sans photo, le bandeau prend la teinte du type.
+CREATE TABLE session_photos (
+    session_id          INTEGER PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+    image               BYTEA NOT NULL,         -- JPEG 1600 × 600, recadré au centre
+    veil                SMALLINT NOT NULL DEFAULT 75 CHECK (veil BETWEEN 20 AND 95),
+                                                -- opacité (%) du voile sombre sous le titre
+                                                -- (migration 038), réglée à l'édition
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+                                                -- sert aussi de version dans l'URL, pour le cache
+    updated_by_user_id  INTEGER REFERENCES users(id) ON DELETE SET NULL
+);
+
 CREATE TABLE recordings (
     id          SERIAL PRIMARY KEY,
     session_id  INTEGER REFERENCES sessions(id) ON DELETE CASCADE,

@@ -10,6 +10,8 @@
 		cover,
 		stats = null,
 		hue = null,
+		photo = null,
+		photoVeil = 75,
 		children,
 		actions
 	}: {
@@ -25,12 +27,27 @@
 		 * Sans teinte, un beige chaud neutre (playlist, référentiel).
 		 */
 		hue?: number | null
+		/**
+		 * Photo posée en fond du bandeau (session) : recadrée au centre à la taille réelle
+		 * du bandeau, sous un voile sombre qui passe le texte en clair. Prend le pas sur
+		 * la teinte.
+		 */
+		photo?: string | null
+		/** Opacité du voile au bord gauche, en % (voir `SESSION_PHOTO_VEIL`). */
+		photoVeil?: number
 		children?: Snippet
 		actions?: Snippet
 	} = $props()
 </script>
 
-<header class="media-header" class:tinted={hue !== null} style={hue !== null ? `--hue: ${hue}` : undefined}>
+<header
+	class="media-header"
+	class:tinted={hue !== null && !photo}
+	class:photo={!!photo}
+	style={photo
+		? `--mh-photo: url("${photo}"); --mh-veil: ${photoVeil / 100}`
+		: hue !== null ? `--hue: ${hue}` : undefined}
+>
 	<div class="mh-cover">{@render cover()}</div>
 	<div class="mh-text">
 		<div class="mh-kicker">{@render kicker()}</div>
@@ -67,6 +84,25 @@
 		--mh-bg: linear-gradient(135deg, hsl(var(--hue) 38% 91%), hsl(var(--hue) 30% 83%));
 		--mh-ink-soft: hsl(var(--hue) 12% 32%);
 	}
+
+	/* Une photo n'a pas de ton garanti : le voile, plus dense à gauche où se lit le
+	   texte, assure le contraste quelle que soit l'image. Le texte passe en clair.
+	   Son intensité se règle par session ; la droite garde la même proportion. */
+	.media-header.photo {
+		--mh-bg:
+			linear-gradient(
+				90deg,
+				rgba(24, 21, 18, var(--mh-veil)),
+				rgba(24, 21, 18, calc(var(--mh-veil) * 0.68)) 60%,
+				rgba(24, 21, 18, calc(var(--mh-veil) * 0.57))
+			),
+			var(--mh-photo) center / cover no-repeat,
+			#3b3833;
+		--mh-ink-soft: rgba(255, 255, 255, 0.84);
+		color: #fff;
+	}
+
+	.media-header.photo h1 { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); }
 
 	.mh-cover {
 		width: 104px;
@@ -134,6 +170,11 @@
 	.mh-actions :global(.mh-secondary:hover:not(:disabled)) {
 		color: var(--color-text);
 		background: rgba(44, 43, 40, 0.08);
+	}
+
+	.photo .mh-actions :global(.mh-secondary:hover:not(:disabled)) {
+		color: #fff;
+		background: rgba(255, 255, 255, 0.16);
 	}
 
 	/* Au téléphone, l'en-tête tient sur une rangée : les commandes secondaires se

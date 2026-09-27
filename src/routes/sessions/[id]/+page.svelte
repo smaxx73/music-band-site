@@ -2,7 +2,6 @@
 	import type { PageData } from './$types'
 	import { formatDateOnly } from '$lib/date'
 	import SessionEditor from '$lib/components/SessionEditor.svelte'
-	import SongDetails from '$lib/components/SongDetails.svelte'
 	import RecordingRow from '$lib/components/RecordingRow.svelte'
 	import SongCover from '$lib/components/SongCover.svelte'
 	import PlayAllButton from '$lib/components/PlayAllButton.svelte'
@@ -14,8 +13,7 @@
 	let { data }: { data: PageData } = $props()
 
 	type Song = {
-		id: number; title: string; composer: string | null
-		lyrics: string | null; music_notes: string | null; status: string
+		id: number; title: string; composer: string | null; status: string
 		cover_version: number | null
 	}
 	// La vue session ajoute au socle partagé l'auteur du dépôt : c'est lui qui décide
@@ -255,6 +253,7 @@
 		error={sessionError}
 		onSave={saveSession}
 		stats={sessionStats}
+		photo={data.photo}
 	>
 		{#snippet actions()}
 			<PlayAllButton tracks={sessionTracks} label="Écouter toute la session à la suite" />
@@ -308,11 +307,6 @@
 					/>
 				</header>
 
-				<SongDetails
-					lyrics={group.song.lyrics}
-					musicNotes={group.song.music_notes}
-					compact
-				/>
 				<div class="recording-list">
 					{#each group.recordings as r (r.id)}
 						<RecordingRow
