@@ -13,16 +13,22 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
-- Correction : sur petit écran, l'en-tête des pages session, morceau, playlist et
-  référentiel écrasait le texte à côté des commandes (titre coupé au milieu des mots).
-  Détails sur toute la largeur, commandes sur leur propre rangée
+## [1.2.0] — 2026-09-27
+
+Migration à appliquer : `039_group_places.sql`. Additive (une table, deux colonnes sur
+`sessions` et `calendar_events`) : l'ancienne version tourne encore sur le schéma migré,
+donc migrer d'abord, reconstruire l'app ensuite.
+
 - Lieux du groupe : une étiquette (« Chez Élise ») et son adresse, gérés dans `/group` par
   l'admin du groupe. Le lieu d'une session ou d'un événement se choisit parmi eux, ou comme
   une adresse réelle proposée par la Base Adresse Nationale. L'adresse s'affiche sous le
   lieu d'une session et dans l'agenda, avec un lien vers la carte. Les lieux déjà employés
   deux fois deviennent des lieux du groupe. **Migration `039_group_places.sql`**
 - En-tête de session : la date n'est plus réécrite sous le titre, le feuillet daté la
-  porte seul (avec l'année hors de l'année en cours)
+  porte seul (avec l'année hors de l'année en cours) ; une icône précède le lieu
+- Correction : sur petit écran, l'en-tête des pages session, morceau, playlist et
+  référentiel écrasait le texte à côté des commandes (titre coupé au milieu des mots).
+  Détails sur toute la largeur, commandes sur leur propre rangée
 
 ## [1.1.0] — 2026-09-27
 
