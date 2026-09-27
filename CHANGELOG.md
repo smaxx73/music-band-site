@@ -13,6 +13,12 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.1.0] — 2026-09-27
+
+Migrations à appliquer, dans l'ordre : `036_song_covers.sql`, `037_session_photos.sql`,
+`038_session_photo_veil.sql`. Toutes additives : l'ancienne version tourne encore sur le
+schéma migré, donc migrer d'abord, reconstruire l'app ensuite.
+
 - Prises en tracklist dans les vues session et morceau : numéro qui devient ▶ au survol
   (souris seulement), égaliseur et titre orange sur la prise en cours, durée à droite
 - Morceaux en en-tête façon album : pochette générée, durée cumulée, « tout écouter »
@@ -30,6 +36,11 @@ en montant de version (voir `deploy.md`).
   (recadrée en carré). **Migration `036_song_covers.sql`**
 - Recherche d'une reprise dans le catalogue Deezer : remplit artiste, année et durée,
   importe la pochette de l'album
+- Photo de bandeau d'une session : tout membre peut en poser une (recadrée au centre au
+  format du bandeau, métadonnées EXIF retirées), sous un voile sombre dont l'intensité se
+  règle en mode édition, avec aperçu du bandeau en direct. Une photo posée ne se change
+  qu'en édition. **Migrations `037_session_photos.sql` et `038_session_photo_veil.sql`**
+- Vue session : les paroles et notes musicales ne s'affichent plus sous les morceaux
 - Version affichée sous le nom du site, en haut à gauche
 - Correction : sur téléphone, le bas du menu latéral (compte, liens légaux) passait sous
   la barre d'actions
