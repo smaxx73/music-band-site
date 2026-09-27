@@ -256,26 +256,21 @@
 		<!-- La date est déjà sur le feuillet (et dans le titre d'une session sans titre) :
 		     ne pas la répéter. -->
 		{#if b.location}
+			<!-- L'étiquette suffit : « Chez Élise » dit où l'on joue au groupe qui l'a nommée.
+			     L'adresse reste au survol et derrière le lien vers la carte. -->
 			{@const details = locationDetails(b.location, b.place, b.coords)}
 			<p class="meta location">
 				<Icon name="pin" size="0.85rem" label="Lieu" class="location-icon" />
-				<span>
-					{#if details.map && !details.address}
-						<a href={details.map} target="_blank" rel="noopener noreferrer" title="Voir sur la carte">{b.location}</a>
-					{:else}
-						{b.location}
-					{/if}
-					{#if details.address}
-						<!-- L'adresse ouvre la carte : c'est elle qu'on cherche en y allant. -->
-						<span class="address">
-							{#if details.map}
-								<a href={details.map} target="_blank" rel="noopener noreferrer" title="Voir sur la carte">{details.address}</a>
-							{:else}
-								{details.address}
-							{/if}
-						</span>
-					{/if}
-				</span>
+				{#if details.map}
+					<a
+						href={details.map}
+						target="_blank"
+						rel="noopener noreferrer"
+						title={details.address ? `${details.address} — voir sur la carte` : 'Voir sur la carte'}
+					>{b.location}</a>
+				{:else}
+					<span title={details.address ?? undefined}>{b.location}</span>
+				{/if}
 			</p>
 		{/if}
 		{#if b.members.length}
@@ -434,11 +429,6 @@
 
 	.location a:hover { text-decoration-style: solid; }
 
-	.address {
-		display: block;
-		font-size: var(--text-xs);
-		opacity: 0.9;
-	}
 
 	.notes {
 		font-size: var(--text-sm);

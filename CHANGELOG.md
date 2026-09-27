@@ -13,6 +13,9 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+- En-tête de session : un lieu du groupe n'affiche que son étiquette, l'adresse complète
+  passe au survol (le lien vers la carte reste)
+
 ## [1.2.0] — 2026-09-27
 
 Migration à appliquer : `039_group_places.sql`. Additive (une table, deux colonnes sur

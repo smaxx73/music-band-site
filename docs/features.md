@@ -341,9 +341,11 @@ rapide d'une session dans `/upload`, `/record` et au classement d'un enregistrem
 
 ### Affichage
 
-- Sous le lieu dans l'en-tête d'une session, l'adresse du lieu du groupe ; à côté du lieu
-  dans le panneau du jour de l'agenda. S'il y a des coordonnées — adresse du lieu du groupe
-  ou adresse ponctuelle —, le lien ouvre la carte OpenStreetMap dans un nouvel onglet
+- Dans l'en-tête d'une session, **l'étiquette seule** : « Chez Élise » dit assez où l'on
+  joue au groupe qui l'a nommée, et l'adresse complète alourdissait l'en-tête. L'adresse
+  reste au survol. Dans le panneau du jour de l'agenda, elle suit le lieu
+- S'il y a des coordonnées — adresse du lieu du groupe ou adresse ponctuelle —, le lieu
+  ouvre la carte OpenStreetMap dans un nouvel onglet
 - Une **indisponibilité** peut porter une adresse ponctuelle, jamais l'adresse d'un lieu
   du groupe : son lieu est personnel
 - La recherche passe par notre serveur (`src/lib/server/addresses.ts`) : seul le texte tapé
