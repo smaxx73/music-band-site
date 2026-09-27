@@ -40,42 +40,58 @@
 	} = $props()
 </script>
 
-<header
-	class="media-header"
-	class:tinted={hue !== null && !photo}
-	class:photo={!!photo}
-	style={photo
-		? `--mh-photo: url("${photo}"); --mh-veil: ${photoVeil / 100}`
-		: hue !== null ? `--hue: ${hue}` : undefined}
->
-	<div class="mh-cover">{@render cover()}</div>
-	<div class="mh-text">
-		<div class="mh-kicker">{@render kicker()}</div>
-		<h1>{title}</h1>
-		{@render children?.()}
+<!-- Le cadre est le conteneur, l'en-tête sa grille : une requête de conteneur ne
+     s'applique jamais au conteneur lui-même. La disposition suit la largeur de l'en-tête,
+     pas celle de la fenêtre — la colonne de contenu perd déjà 188 px de sidebar. -->
+<div class="mh-frame">
+	<header
+		class="media-header"
+		class:tinted={hue !== null && !photo}
+		class:photo={!!photo}
+		style={photo
+			? `--mh-photo: url("${photo}"); --mh-veil: ${photoVeil / 100}`
+			: hue !== null ? `--hue: ${hue}` : undefined}
+	>
+		<div class="mh-cover">{@render cover()}</div>
+		<div class="mh-id">
+			<div class="mh-kicker">{@render kicker()}</div>
+			<h1>{title}</h1>
+		</div>
+		{#if children}<div class="mh-body">{@render children()}</div>{/if}
 		{#if stats}<p class="mh-stats">{stats}</p>{/if}
-	</div>
-	<!-- À droite, calées sur la ligne des chiffres : centrées sur la hauteur du visuel,
-	     elles flottaient. Le ▶ ferme la rangée au bord droit, comme dans l'en-tête d'un
-	     morceau au sein d'une session ; les commandes secondaires le précèdent. -->
-	{#if actions}
-		<div class="mh-actions">{@render actions()}</div>
-	{/if}
-</header>
+		<!-- À droite, calées sur la ligne des chiffres : centrées sur la hauteur du visuel,
+		     elles flottaient. Le ▶ ferme la rangée au bord droit, comme dans l'en-tête d'un
+		     morceau au sein d'une session ; les commandes secondaires le précèdent. -->
+		{#if actions}
+			<div class="mh-actions">{@render actions()}</div>
+		{/if}
+	</header>
+</div>
 
 <style>
+	.mh-frame {
+		container-type: inline-size;
+		margin-bottom: 1.5rem;
+	}
+
 	/* Un bandeau plus foncé que le corps de la page, pour que l'en-tête s'en détache.
 	   Teinté comme son visuel : la page d'un morceau prend la couleur de sa pochette,
-	   une session celle de son type. Tons assez clairs pour garder le texte sombre. */
+	   une session celle de son type. Tons assez clairs pour garder le texte sombre.
+	   Large : le texte, centré sur la hauteur du visuel, entre lui et les commandes. */
 	.media-header {
 		--mh-bg: linear-gradient(135deg, #EEE9DF, #E1D9C9);
 		--mh-ink-soft: #57524B;
-		display: flex;
-		align-items: center;
-		flex-wrap: wrap;
-		gap: 0.9rem 1.1rem;
+		display: grid;
+		grid-template-columns: 104px minmax(0, 1fr) auto;
+		grid-template-rows: 1fr auto auto auto 1fr;
+		grid-template-areas:
+			'cover .     actions'
+			'cover id    actions'
+			'cover body  actions'
+			'cover stats actions'
+			'cover .     actions';
+		column-gap: 1.1rem;
 		padding: 1.1rem 1.25rem;
-		margin-bottom: 1.5rem;
 		border-radius: var(--radius-xl);
 		background: var(--mh-bg);
 	}
@@ -105,6 +121,8 @@
 	.media-header.photo h1 { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); }
 
 	.mh-cover {
+		grid-area: cover;
+		align-self: center;
 		width: 104px;
 		height: 104px;
 		flex-shrink: 0;
@@ -113,12 +131,21 @@
 		box-shadow: 0 2px 10px rgba(44, 43, 40, 0.16);
 	}
 
-	.mh-text {
-		flex: 1 1 12rem;
+	.mh-id {
+		grid-area: id;
 		min-width: 0;
 		display: flex;
 		flex-direction: column;
 		gap: 0.15rem;
+	}
+
+	.mh-body {
+		grid-area: body;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.15rem;
+		margin-top: 0.15rem;
 	}
 
 	/* Même libellé que l'en-tête d'un morceau dans une session (`.song-kicker`). */
@@ -136,7 +163,7 @@
 
 	/* Le texte secondaire des pages (compositeur, lieu, description) suit le bandeau :
 	   le gris du corps de page y manquerait de contraste. */
-	.mh-text :global(p) { color: var(--mh-ink-soft); }
+	.mh-body :global(p) { color: var(--mh-ink-soft); }
 
 	h1 {
 		margin: 0;
@@ -147,6 +174,7 @@
 	}
 
 	.mh-stats {
+		grid-area: stats;
 		margin: 0.2rem 0 0;
 		font-size: var(--text-sm);
 		color: var(--mh-ink-soft);
@@ -154,11 +182,11 @@
 	}
 
 	.mh-actions {
+		grid-area: actions;
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		align-self: flex-end;
-		margin-left: auto;
+		align-self: end;
 	}
 
 	.mh-actions :global(.btn) { gap: 0.4rem; }
@@ -177,13 +205,9 @@
 		background: rgba(255, 255, 255, 0.16);
 	}
 
-	/* Au téléphone, l'en-tête tient sur une rangée : les commandes secondaires se
-	   réduisent à leur icône (libellé gardé pour les lecteurs d'écran), et le texte
-	   cède la largeur au lieu de renvoyer les boutons à la ligne. */
-	@media (max-width: 640px) {
-		.media-header { gap: 0.5rem 0.75rem; padding: 0.8rem 0.85rem; margin-bottom: 1rem; }
-		.mh-cover { width: 64px; height: 64px; border-radius: var(--radius-lg); }
-		.mh-text { flex: 1 1 0; }
+	/* Largeur moyenne : les commandes secondaires se réduisent à leur icône (libellé
+	   gardé pour les lecteurs d'écran) avant que le texte ne soit écrasé. */
+	@container (max-width: 720px) {
 		.mh-actions { gap: 0.15rem; }
 		.mh-actions :global(.btn) { min-height: 44px; min-width: 44px; }
 		.mh-actions :global(.mh-label) {
@@ -194,7 +218,33 @@
 			clip: rect(0 0 0 0);
 			white-space: nowrap;
 		}
+	}
+
+	/* Étroit : garder les commandes à côté du texte le réduisait à une colonne où le
+	   titre se coupait au milieu des mots. Le visuel ouvre l'en-tête avec le titre et
+	   les chiffres, les détails prennent toute la largeur, et les commandes leur propre
+	   rangée, calées à droite comme le ▶ l'est partout. */
+	@container (max-width: 540px) {
+		.media-header {
+			grid-template-columns: 64px minmax(0, 1fr);
+			grid-template-rows: none;
+			grid-template-areas:
+				'cover id'
+				'cover stats'
+				'body  body'
+				'actions actions';
+			column-gap: 0.75rem;
+			padding: 0.8rem 0.85rem;
+		}
+		.mh-cover { width: 64px; height: 64px; border-radius: var(--radius-lg); }
+		.mh-id { align-self: end; }
+		.mh-stats { align-self: start; margin-top: 0.1rem; font-size: var(--text-xs); }
+		.mh-body { margin-top: 0.55rem; }
+		.mh-actions { justify-self: end; margin-top: 0.4rem; }
 		h1 { font-size: 1.2rem; }
-		.mh-stats { margin-top: 0.1rem; font-size: var(--text-xs); }
+	}
+
+	@media (max-width: 640px) {
+		.mh-frame { margin-bottom: 1rem; }
 	}
 </style>

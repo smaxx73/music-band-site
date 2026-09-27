@@ -13,6 +13,10 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+- Correction : sur petit écran, l'en-tête des pages session, morceau, playlist et
+  référentiel écrasait le texte à côté des commandes (titre coupé au milieu des mots).
+  Détails sur toute la largeur, commandes sur leur propre rangée
+
 ## [1.1.0] — 2026-09-27
 
 Migrations à appliquer, dans l'ordre : `036_song_covers.sql`, `037_session_photos.sql`,

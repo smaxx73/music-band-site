@@ -339,6 +339,13 @@ audio, une vidéo YouTube, ou les deux (contrainte `recordings_source`, migratio
   l'en-tête « album » de chaque morceau dans une session, à l'échelle de la page. Le
   visuel d'une session est un **feuillet d'éphéméride** (mois, jour, jour de la semaine)
   teinté comme son type (`SessionCover.svelte`) : une session n'a pas de pochette
+- La disposition suit la **largeur de l'en-tête** (requête de conteneur), pas celle de la
+  fenêtre. Large : visuel, texte, commandes sur une rangée. Sous 720 px, les commandes
+  secondaires se réduisent à leur icône. Sous 540 px, le visuel ne garde à côté de lui
+  que le libellé, le titre et les chiffres ; les détails (date, lieu, présents,
+  compositeur…) prennent toute la largeur dessous, et les commandes leur propre rangée,
+  calées à droite. Laisser les commandes à côté du texte réduisait celui-ci à une colonne
+  où le titre se coupait au milieu des mots
 - Chiffres de l'en-tête : nombre de morceaux, de prises et durée totale enregistrée. Son ▶
   enchaîne toute la session, morceau après morceau, dans le mini-lecteur
 - **Pas de paroles ni de notes musicales** sous les morceaux : on vient ici réécouter et
