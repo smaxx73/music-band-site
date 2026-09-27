@@ -16,6 +16,7 @@
 	type Song = {
 		id: number; title: string; composer: string | null
 		lyrics: string | null; music_notes: string | null; status: string
+		cover_version: number | null
 	}
 	// La vue session ajoute au socle partagé l'auteur du dépôt : c'est lui qui décide
 	// du droit de suppression (voir canDeleteGroupContent).
@@ -290,7 +291,7 @@
 				<!-- Chaque morceau s'ouvre comme un album : pochette, titre, ce qu'il contient,
 				     et de quoi enchaîner ses prises dans le mini-lecteur. -->
 				<header class="song-head">
-					<SongCover songId={group.song.id} title={group.song.title} size={56} />
+					<SongCover songId={group.song.id} title={group.song.title} size={56} coverVersion={group.song.cover_version} />
 					<div class="song-head-text">
 						{#if group.song.composer}
 							<span class="song-kicker">{group.song.composer}</span>

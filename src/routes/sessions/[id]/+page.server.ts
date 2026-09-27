@@ -63,13 +63,15 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 				s.lyrics   AS song_lyrics,
 				s.music_notes AS song_music_notes,
 				s.status   AS song_status,
+				floor(EXTRACT(EPOCH FROM sc.updated_at) * 1000)::float8 AS song_cover_version,
 				COUNT(c.id)::int AS comment_count
 			FROM recordings r
 			JOIN songs s ON s.id = r.song_id
+			LEFT JOIN song_covers sc ON sc.song_id = s.id
 			LEFT JOIN users u ON u.id = r.uploaded_by_user_id
 			LEFT JOIN comments c ON c.recording_id = r.id
 			WHERE r.session_id = ${id}
-			GROUP BY r.id, s.id
+			GROUP BY r.id, s.id, sc.updated_at
 			ORDER BY s.title, r.take ASC
 		`,
 		// Participants proposés à l'édition de la session : les membres du groupe actif.
@@ -85,6 +87,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 			lyrics: string | null
 			music_notes: string | null
 			status: string
+			cover_version: number | null
 		}
 		recordings: {
 			id: number; take: number; status: string; notes: string | null
@@ -104,7 +107,8 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 					composer: row.song_composer,
 					lyrics: row.song_lyrics,
 					music_notes: row.song_music_notes,
-					status: row.song_status
+					status: row.song_status,
+					cover_version: row.song_cover_version
 				},
 				recordings: []
 			})

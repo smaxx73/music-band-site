@@ -5,6 +5,7 @@
 	import RecordingRow from '$lib/components/RecordingRow.svelte'
 	import AddToSetlistButton from '$lib/components/AddToSetlistButton.svelte'
 	import SongCover from '$lib/components/SongCover.svelte'
+	import SongCoverEditor from '$lib/components/SongCoverEditor.svelte'
 	import MediaHeader from '$lib/components/MediaHeader.svelte'
 	import { formatDurationLong } from '$lib/types'
 	import { songHue } from '$lib/songs'
@@ -20,6 +21,7 @@
 		original_artist: string | null; reference_duration_s: number | null
 		lyrics: string | null
 		music_notes: string | null; status: string
+		cover_version: number | null
 	}
 	// La vue morceau ajoute au socle partagé la session d'où vient la prise : c'est ce
 	// qui la situe dans le temps, toutes sessions confondues.
@@ -101,7 +103,7 @@
 			{#if song.key}<span class="key">{song.key}</span>{/if}
 		{/snippet}
 		{#snippet cover()}
-			<SongCover songId={song.id} title={song.title} />
+			<SongCover songId={song.id} title={song.title} coverVersion={song.cover_version} />
 		{/snippet}
 		{#if song.composer || song.original_artist || song.release_year}
 			<p class="composer">
@@ -116,6 +118,12 @@
 			<p class="ref-duration">Durée de référence : {formatDuration(song.reference_duration_s)}</p>
 		{/if}
 		{#snippet actions()}
+			<SongCoverEditor
+				songId={song.id}
+				title={song.title}
+				coverVersion={song.cover_version}
+				searchQuery={[song.title, song.original_artist].filter(Boolean).join(' ')}
+			/>
 			<PlayAllButton tracks={tracks} label="Écouter toutes les prises de {song.title} à la suite" />
 		{/snippet}
 	</MediaHeader>

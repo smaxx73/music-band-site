@@ -450,6 +450,53 @@ note, 💬 s'il y a des commentaires — plus l'écoute, et un menu ⋮ recueill
   et on peut en créer une sans quitter la page. Un morceau `abandonne` n'affiche pas le bouton,
   comme il ne se propose pas au dépôt d'une prise
 
+## Pochette d'un morceau
+
+Sans pochette, un morceau a un dégradé dans sa teinte (`songHue`) avec son initiale. Tout
+membre du groupe peut lui donner une vraie image, comme il gère le reste du référentiel.
+
+- « Pochette » dans l'en-tête de `/songs/[id]` (`SongCoverEditor.svelte`) : choisir une
+  image, la remplacer, la retirer. Retirer ne demande pas de confirmation : le dégradé
+  revient, et l'image se redépose
+- PNG, JPEG, WebP ou GIF, **8 Mo** au plus — une photo de téléphone dépasse vite les 2 Mo du
+  logo. Le format est lu dans les octets ; SVG refusé
+- L'image est **recadrée en carré au centre** et réencodée par ffmpeg en deux JPEG : 512 px
+  pour les en-têtes, 160 px pour les listes et le mini-lecteur. L'original n'est pas gardé
+- En base (`song_covers`, migration 036), comme le logo : elle suit le morceau dans
+  `pg_dump` et part avec lui. Elle n'entre pas dans l'archive JSON d'un groupe
+- Servie par `GET /api/songs/[id]/cover` aux **seuls membres du groupe** — contrairement au
+  logo, rien n'est public. `?v=<version>` pour un cache long ; le mini-lecteur, qui ne
+  connaît pas la version, demande l'URL sans elle et se contente d'un cache de 5 min
+- `SongCover` pose l'image par-dessus le dégradé : tant qu'elle charge, ou si elle manque,
+  le dégradé tient la place. Toutes les pochettes en profitent — listes, en-têtes, mini-lecteur
+
+### Retrouver une reprise dans le catalogue Deezer
+
+Pour une reprise, retaper l'artiste, l'année et la durée est fastidieux : le catalogue
+public de Deezer (API sans clé) les connaît.
+
+- **Formulaire d'ajout et d'édition de `/songs`** : « Rechercher une reprise sur Deezer »
+  (`CatalogSearch.svelte`). Choisir un résultat remplit titre (sans mention de version,
+  `title_short`), artiste d'origine, année et durée de référence ; les champs restent
+  modifiables. Le compositeur n'est pas repris : Deezer ne connaît que les interprètes
+- La pochette de l'album du titre choisi est **importée à l'enregistrement** (« Ne pas
+  l'importer » pour s'en passer). Son échec ne défait pas l'enregistrement : l'écran le
+  dit, et la pochette se redépose depuis la page du morceau
+- **Fenêtre « Pochette »** de `/songs/[id]` : la recherche y part d'emblée sur le titre et
+  l'artiste d'origine, et choisir un résultat importe sa pochette
+- Les résultats montrent l'**album** : une compilation (« Number 1's », 2007) arrive souvent
+  avant l'original (« Talking Book », 1972), et c'est lui qui donne la bonne année
+- **Année** : la plus ancienne entre celle du titre et celle de l'album — la première est
+  souvent celle de la réédition numérique. Elle ne vient que du détail d'un titre
+  (`GET /api/catalog/tracks/[id]`) : la recherche ne la donne pas
+- Tout passe par notre serveur (`src/lib/server/deezer.ts`) : seul le texte cherché part
+  chez Deezer. La pochette est importée **par l'id du titre**, jamais par une URL venue du
+  navigateur, et seulement depuis le CDN d'images de Deezer (`*.dzcdn.net`) : le serveur ne
+  télécharge pas n'importe quoi. Les vignettes des résultats, elles, viennent directement
+  de Deezer — déclaré dans la politique de confidentialité
+- Pas dans la création rapide d'un morceau (« + Nouveau morceau… » pendant un envoi) :
+  c'est un geste de répétition, pressé, pas un moment de catalogage
+
 ## Lecteur audio (`/recording/[id]`)
 
 - WaveSurfer.js initialisé dans `onMount`, importé dynamiquement

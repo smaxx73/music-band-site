@@ -100,6 +100,18 @@
 	<a href="https://policies.google.com/privacy" rel="noopener noreferrer" target="_blank">politique de confidentialité de Google</a>.
 </p>
 
+<h2>Services tiers : Deezer</h2>
+<p>
+	Pour compléter la fiche d'une reprise, un membre peut chercher un titre dans le catalogue
+	public de Deezer. La recherche passe par notre serveur : seul le texte saisi est transmis
+	à Deezer, jamais votre identité ni votre compte. Les vignettes des résultats, elles, sont
+	affichées depuis les serveurs d'images de Deezer : votre navigateur les contacte alors, et
+	Deezer reçoit votre adresse IP. Rien n'est chargé tant que vous ne lancez pas de
+	recherche. Quand un membre choisit un titre, sa pochette est copiée sur nos serveurs et
+	n'est plus demandée à Deezer ensuite. Voir la
+	<a href="https://www.deezer.com/legal/personal-datas" rel="noopener noreferrer" target="_blank">politique de confidentialité de Deezer</a>.
+</p>
+
 <h2>Durées de conservation</h2>
 <ul>
 	<li>Compte : jusqu'à sa suppression, à votre demande ou à votre départ de l'association.</li>

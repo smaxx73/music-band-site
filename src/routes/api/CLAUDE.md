@@ -29,6 +29,9 @@ api/sessions/[id]/+server.ts
 api/sessions/[id]/reorder/+server.ts
 api/songs/+server.ts
 api/songs/[id]/+server.ts
+api/songs/[id]/cover/+server.ts
+api/catalog/search/+server.ts
+api/catalog/tracks/[id]/+server.ts
 api/recordings/[id]/+server.ts
 api/youtube/+server.ts
 api/comments/+server.ts
@@ -114,6 +117,19 @@ rattacher la vidéo à la piste audio envoyée. Les deux passent par `resolveYou
 (`src/lib/server/youtube.ts`) : lien reconnu, vidéo lisible, `409` si déjà dans le groupe. Toute
 route qui touche à `AUDIO_DIR` (peaks, suppression, volume, manifeste) filtre sur
 `file_path IS NOT NULL` ; une prise sans piste audio ne va jamais dans une playlist (`400`).
+
+La **pochette** d'un morceau (`api/songs/[id]/cover`) est groupe-scopée : tout membre du
+groupe actif la dépose (`POST`, multipart, champ `cover`, 8 Mo au plus) ou la retire
+(`DELETE`) ; `GET` la sert aux mêmes membres (`?size=thumb` pour la vignette, `?v=` pour
+un cache long). Un morceau d'un autre groupe répond `404`. Passer par
+`src/lib/server/song-covers.ts`. Le `POST` accepte aussi `{ deezer_track_id }` en JSON :
+la pochette de l'album de ce titre, que le serveur va chercher chez Deezer — l'id seul,
+jamais une URL venue du client.
+
+Le **catalogue** (`api/catalog/`) cherche une reprise chez Deezer, pour tout compte
+connecté : `GET /api/catalog/search?q=` (2 à 120 caractères, 8 résultats sans année),
+`GET /api/catalog/tracks/[id]` (détail avec l'année). Deezer injoignable → `502`. Passer
+par `src/lib/server/deezer.ts`.
 
 `POST /api/songs` répond `409` avec `{ error, song: { id, title, status } }` quand le titre
 existe déjà : un sélecteur qui crée un morceau à la volée choisit alors l'existant.

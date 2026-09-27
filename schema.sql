@@ -85,6 +85,18 @@ CREATE TABLE songs (
     UNIQUE (group_id, title)
 );
 
+-- Pochette d'un morceau, déposée par un membre (migration 036). En base, comme le logo :
+-- elle suit le morceau dans pg_dump. L'original n'est pas gardé, seulement deux JPEG
+-- carrés recadrés à l'envoi. Sans pochette, l'écran génère un dégradé (songHue).
+CREATE TABLE song_covers (
+    song_id             INTEGER PRIMARY KEY REFERENCES songs(id) ON DELETE CASCADE,
+    image               BYTEA NOT NULL,         -- JPEG carré 512 px (en-têtes)
+    thumbnail           BYTEA NOT NULL,         -- JPEG carré 160 px (listes, mini-lecteur)
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+                                                -- sert aussi de version dans l'URL, pour le cache
+    updated_by_user_id  INTEGER REFERENCES users(id) ON DELETE SET NULL
+);
+
 CREATE TABLE sessions (
     id          SERIAL PRIMARY KEY,
     group_id    INTEGER NOT NULL REFERENCES groups(id),

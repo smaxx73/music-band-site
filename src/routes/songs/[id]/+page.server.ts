@@ -12,8 +12,10 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 	if (isNaN(id)) error(400, 'ID invalide')
 
 	const [song] = await sql`
-		SELECT * FROM songs
-		WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
+		SELECT s.*, floor(EXTRACT(EPOCH FROM sc.updated_at) * 1000)::float8 AS cover_version
+		FROM songs s
+		LEFT JOIN song_covers sc ON sc.song_id = s.id
+		WHERE s.id = ${id} AND s.group_id = ${locals.user.current_group_id}
 	`
 	if (!song) {
 		// Un lien reçu peut viser un autre groupe de l'utilisateur : y basculer plutôt

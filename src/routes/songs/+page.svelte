@@ -8,6 +8,7 @@
 	import MediaHeader from '$lib/components/MediaHeader.svelte'
 	import IconCover from '$lib/components/IconCover.svelte'
 	import SongListRow from '$lib/components/SongListRow.svelte'
+	import CatalogSearch, { type CatalogTrack } from '$lib/components/CatalogSearch.svelte'
 	import type { IconName } from '$lib/icons'
 	import { isPlaceholderSongTitle } from '$lib/songs'
 
@@ -35,6 +36,14 @@
 		editError = null
 	}
 
+	// Fiche enregistrée, mais pochette du catalogue non importée : on le dit, sans défaire.
+	let coverNotice = $state<string | null>(null)
+
+	function readCoverError(data: unknown): string | null {
+		const error = (data as { cover_error?: unknown } | undefined)?.cover_error
+		return typeof error === 'string' ? `La pochette n'a pas pu être importée : ${error}` : null
+	}
+
 	let showCreateModal = $state(false)
 	let createSuccess = $state(false)
 	let createError = $state<string | null>(null)
@@ -52,6 +61,22 @@
 		abandonne: 'Abandonné'
 	}
 
+	// Un titre choisi dans le catalogue remplit la fiche qu'on est en train d'écrire. Les
+	// champs restent modifiables : c'est une aide à la saisie, pas une source qui fait foi.
+	// Le compositeur n'est pas repris — Deezer ne connaît que les interprètes.
+	function fillFromCatalog(track: CatalogTrack, root: HTMLElement) {
+		const form = root.closest('form')
+		if (!form) return
+		const set = (name: string, value: string) => {
+			const field = form.elements.namedItem(name)
+			if (field instanceof HTMLInputElement) field.value = value
+		}
+		set('title', track.title)
+		set('original_artist', track.artist)
+		if (track.release_year) set('release_year', String(track.release_year))
+		if (track.duration_s) set('reference_duration', formatDurationInput(track.duration_s))
+	}
+
 	// Préremplit le champ de durée en édition ("3:45"), au format attendu en retour du formulaire.
 	function formatDurationInput(s: number | null | undefined) {
 		if (!s && s !== 0) return ''
@@ -61,7 +86,7 @@
 	}
 
 	// ─── Filtrage / tri (côté client : la liste complète est déjà chargée) ───
-	type SongRow = Song & { take_count: number }
+	type SongRow = Song & { take_count: number; cover_version: number | null }
 	type SortKey = 'title' | 'take_count' | 'status'
 
 	let search = $state('')
@@ -158,6 +183,11 @@
 <!-- Champs partagés entre la modale d'ajout et l'édition inline -->
 {#snippet songFields(song: Song | null)}
 	<div class="fields-create">
+		<CatalogSearch
+			name="deezer_track_id"
+			initialQuery={song ? [song.title, song.original_artist].filter(Boolean).join(' ') : ''}
+			onPick={fillFromCatalog}
+		/>
 		<label class="form-label">
 			<span>Titre <span class="required">*</span></span>
 			<input
@@ -277,6 +307,9 @@
 
 	{#if createSuccess}
 		<p class="message-success">Morceau ajouté.</p>
+	{/if}
+	{#if coverNotice}
+		<p class="message-error">{coverNotice}</p>
 	{/if}
 
 	<!-- Liste des morceaux -->
@@ -400,6 +433,7 @@
 														editError = (result.data as { error?: string } | undefined)?.error ?? 'Erreur.'
 														return
 													}
+													coverNotice = result.type === 'success' ? readCoverError(result.data) : null
 													await update()
 													editingId = null
 												}
@@ -498,6 +532,7 @@
 						createError = (result.data as { error?: string } | undefined)?.error ?? 'Erreur.'
 						return
 					}
+					coverNotice = result.type === 'success' ? readCoverError(result.data) : null
 					await update()
 					showCreateModal = false
 					createSuccess = true

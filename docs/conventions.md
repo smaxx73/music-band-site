@@ -20,6 +20,9 @@ src/
 │   │   ├── posts.ts       # publications dans le groupe (enregistrement perso, vidéo, suggestion) + pouces
 │   │   ├── feed.ts        # fil d'actualité : toutes les sources ordonnées, paginé par curseur
 │   │   ├── share-links.ts # liens d'écoute publics : jeton, résolution, ce qui est exposé
+│   │   ├── song-covers.ts # pochettes de morceau : dépôt (recadrage ffmpeg), lecture, retrait
+│   │   ├── images.ts      # images déposées : format lu dans les octets, taille de requête
+│   │   ├── deezer.ts      # catalogue Deezer : recherche d'une reprise, détail, pochette d'album
 │   │   └── notifications.ts # écriture (fan-out) et lecture des notifications
 	│   └── components/
 	│       ├── ConfirmDialog.svelte   # confirmation réutilisable, selon le niveau de risque
@@ -34,7 +37,9 @@ src/
 │       │                          #   commentaire courant, suivi de lecture, repli des plus anciens
 │       ├── RecordingRow.svelte     # une prise en piste de tracklist (vues session et morceau) ;
 │       │                          #   porte le menu ⋮ de la prise et l'état « en lecture »
-│       ├── SongCover.svelte       # pochette générée d'un morceau (teinte tirée de l'id)
+│       ├── SongCover.svelte       # pochette d'un morceau : l'image déposée, sinon un dégradé
+│       ├── SongCoverEditor.svelte # déposer, remplacer, retirer la pochette (page du morceau)
+│       ├── CatalogSearch.svelte   # recherche d'une reprise sur Deezer (fiche et pochette)
 │       ├── PlayAllButton.svelte   # « tout écouter » : enchaîne des prises dans le mini-lecteur
 │       ├── RoundPlayButton.svelte # le ▶ rond orange des en-têtes (affichage seul)
 │       ├── MediaHeader.svelte     # en-tête des pages qui listent des prises (session, morceau, playlist)

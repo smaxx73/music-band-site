@@ -26,6 +26,10 @@ en montant de version (voir `deploy.md`).
   le mode édition
 - Lecteurs restylés : forme d'onde lue en orange, ▶ rond orange au centre, commandes
   communes aux lecteurs audio et vidéo ; mini-lecteur avec la pochette du morceau
+- Pochette d'un morceau : tout membre peut en déposer une depuis la page du morceau
+  (recadrée en carré). **Migration `036_song_covers.sql`**
+- Recherche d'une reprise dans le catalogue Deezer : remplit artiste, année et durée,
+  importe la pochette de l'album
 - Version affichée sous le nom du site, en haut à gauche
 - Correction : sur téléphone, le bas du menu latéral (compte, liens légaux) passait sous
   la barre d'actions

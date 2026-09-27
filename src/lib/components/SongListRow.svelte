@@ -13,6 +13,7 @@
 		key: string | null
 		status: string
 		take_count: number
+		cover_version: number | null
 	}
 
 	// Un morceau du référentiel, en lecture : une pochette à la place du numéro, et le
@@ -31,7 +32,7 @@
 	)
 </script>
 
-{#snippet lead()}<SongCover songId={song.id} title={song.title} size={44} />{/snippet}
+{#snippet lead()}<SongCover songId={song.id} title={song.title} size={44} coverVersion={song.cover_version} />{/snippet}
 
 {#snippet title()}<a class="song-link" href="/songs/{song.id}">{song.title}</a>{/snippet}
 

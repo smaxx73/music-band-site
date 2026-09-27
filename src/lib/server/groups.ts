@@ -11,6 +11,7 @@ import {
 	type GroupRole,
 	type RoleBearer
 } from '$lib/types'
+import { detectImageMime, imageRequestTooLarge, type ImageMime } from './images'
 
 // Les mêmes opérations sont exposées par les form actions (/group, /admin/groups/[id])
 // et par les routes API. Elles vivent ici pour que les règles de droits ne soient
@@ -254,25 +255,11 @@ export async function updateGroupLinks(
 
 export const LOGO_MAX_BYTES = 2 * 1024 * 1024
 
-type LogoMime = 'image/png' | 'image/jpeg' | 'image/webp' | 'image/gif'
+// Le type part en Content-Type au service du logo : il est lu dans les octets.
+type LogoMime = ImageMime
 
-// Le type est lu dans les premiers octets, jamais repris du navigateur : c'est lui
-// qui part en Content-Type au service de l'image. SVG exclu — servi depuis notre
-// origine, il pourrait embarquer du script.
-function detectLogoMime(bytes: Uint8Array): LogoMime | null {
-	const ascii = (start: number, end: number) => String.fromCharCode(...bytes.subarray(start, end))
-	if (bytes.length >= 8 && bytes[0] === 0x89 && ascii(1, 4) === 'PNG') return 'image/png'
-	if (bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg'
-	if (bytes.length >= 12 && ascii(0, 4) === 'RIFF' && ascii(8, 12) === 'WEBP') return 'image/webp'
-	if (bytes.length >= 6 && (ascii(0, 6) === 'GIF87a' || ascii(0, 6) === 'GIF89a')) return 'image/gif'
-	return null
-}
-
-// Garde-fou avant de lire le corps : BODY_SIZE_LIMIT est réglé à 200 Mo pour l'audio,
-// et formData() mettrait tout en mémoire. La marge couvre l'enveloppe multipart.
 export function logoRequestTooLarge(request: Request): boolean {
-	const length = Number(request.headers.get('content-length'))
-	return Number.isFinite(length) && length > LOGO_MAX_BYTES + 64 * 1024
+	return imageRequestTooLarge(request, LOGO_MAX_BYTES)
 }
 
 export async function setGroupLogo(
@@ -286,7 +273,7 @@ export async function setGroupLogo(
 	if (file.size > LOGO_MAX_BYTES) return fail(413, 'Le logo ne peut pas dépasser 2 Mo.')
 
 	const data = Buffer.from(await file.arrayBuffer())
-	const mime = detectLogoMime(data)
+	const mime = detectImageMime(data)
 	if (!mime) return fail(415, 'Format non pris en charge : PNG, JPEG, WebP ou GIF uniquement.')
 
 	const [group] = await sql`SELECT id FROM groups WHERE id = ${groupId}`
