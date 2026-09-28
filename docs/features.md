@@ -1267,14 +1267,23 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
   Un événement ou une indisponibilité mène à `/agenda?date=…`, panneau du jour ouvert
 - Colonne gauche : 3 dernières sessions (date, morceaux travaillés en résumé) ; s'il en existe
   d'autres, la 3ᵉ s'estompe en fondu vers le bas pour signaler la suite derrière « Toutes → »
-- Colonne droite : flux d'actualité (sessions, playlists modifiées, **setlists créées**,
-  **publications** et **derniers commentaires**, triés par horodatage décroissant, chaque entrée renvoyant vers la
-  page concernée), puis playlists triées par date de modification
+- Colonne droite : flux d'actualité (**sessions créées**, **prises ajoutées**, playlists
+  créées ou modifiées, **setlists créées**, **publications** et **derniers commentaires**),
+  trié par horodatage de création/dépôt/modification décroissant. La date prévue d'une
+  session ne détermine pas sa place dans le flux, et les sessions futures y figurent aussi.
+  Chaque entrée renvoie vers la page concernée, puis viennent les playlists triées par date
+  de modification (ou de création si elles n'ont jamais été modifiées)
+- Les prises sont regroupées par membre, session et jour, comme dans `/fil` ; un nouveau
+  dépôt fait remonter la série
+- Huit dernières entrées affichées, y compris après filtrage par type : chaque source
+  charge au moins huit entrées
+- Actualisation toutes les 60 secondes tant que l'onglet est visible, et dès qu'on y
+  revient ; le filtre sélectionné est conservé
 - Un commentaire y mène là où il a été écrit : la prise, la setlist ou la publication. La
   requête part de `comments` et rejoint les trois cibles — c'est la cible qui dit à quel groupe il appartient
 - Une setlist y figure à sa **création** : elle annonce ce que le groupe prépare. Sa
   modification, elle, n'apprend rien de plus au reste du groupe
-- Le filtre du flux propose « Toutes / Sessions / Playlists / Setlists / Publications /
+- Le filtre du flux propose « Toutes / Sessions / Prises / Playlists / Setlists / Publications /
   Commentaires »
 - Une **publication** y figure à sa création, et ses commentaires y mènent à `/posts/[id]` —
   voir « Publications »

@@ -116,3 +116,26 @@ export function commentThread(row: {
 	if (row.setlist_id !== null) return { kind: 'setlist', id: row.setlist_id }
 	return { kind: 'post', id: row.post_id as number, anchorable: false }
 }
+
+/** Derniers commentaires du groupe actif, avec la cible vers laquelle les ouvrir. */
+export function listRecentGroupComments(groupId: number, limit = 8) {
+	return sql`
+		SELECT
+			c.id, COALESCE(u.display_name, c.author) AS author, c.content, c.created_at,
+			r.id AS recording_id, so.title AS song_title,
+			sl.id AS setlist_id, sl.name AS setlist_name,
+			p.id AS post_id,
+			COALESCE(pr.title, p.youtube_title, p.song_title, 'Publication') AS post_title
+		FROM comments c
+		LEFT JOIN recordings r ON r.id = c.recording_id
+		LEFT JOIN sessions ses ON ses.id = r.session_id
+		LEFT JOIN songs so ON so.id = r.song_id
+		LEFT JOIN setlists sl ON sl.id = c.setlist_id
+		LEFT JOIN posts p ON p.id = c.post_id
+		LEFT JOIN personal_recordings pr ON pr.id = p.personal_recording_id
+		LEFT JOIN users u ON u.id = c.author_user_id
+		WHERE ses.group_id = ${groupId} OR sl.group_id = ${groupId} OR p.group_id = ${groupId}
+		ORDER BY c.created_at DESC, c.id DESC
+		LIMIT ${limit}
+	`
+}

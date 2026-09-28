@@ -1,6 +1,10 @@
 import type { PageServerLoad } from './$types'
 import sql from '$lib/server/db'
 import { listRecentPosts } from '$lib/server/posts'
+import { listRecentGroupComments } from '$lib/server/comments'
+
+// Huit entrées par source suffisent pour les huit dernières, même après filtrage.
+const ACTIVITY_LIMIT = 8
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// Hors connexion, "/" sert de page d'accueil publique (voir +page.svelte) :
@@ -12,13 +16,13 @@ export const load: PageServerLoad = async ({ locals }) => {
 	if (!groupId) {
 		return {
 			upcomingItems: [], sessions: [], playlists: [], setlists: [], posts: [],
-			stats: null, unavailabilities: [], recentComments: []
+			stats: null, unavailabilities: [], recentComments: [], recentSessions: [], recentRecordings: []
 		}
 	}
 
 	const [
 		upcomingSessions, upcomingGroupEvents, sessions, playlists, setlists, posts,
-		statsRows, unavailabilities, recentComments
+		statsRows, unavailabilities, recentComments, recentSessions, recentRecordings
 	] = await Promise.all([
 		sql`
 			SELECT
@@ -67,7 +71,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			LEFT JOIN playlist_items pi ON pi.playlist_id = p.id
 			WHERE p.group_id = ${groupId}
 			GROUP BY p.id
-			ORDER BY p.updated_at DESC NULLS LAST, p.created_at DESC
+			ORDER BY COALESCE(p.updated_at, p.created_at) DESC NULLS LAST, p.id DESC
 		`,
 		// Les dernières setlists créées, pour l'actualité : une setlist annonce ce que le
 		// groupe prépare, au même titre qu'une session ou une playlist.
@@ -78,11 +82,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 			FROM setlists sl
 			LEFT JOIN users u ON u.id = sl.created_by_user_id
 			WHERE sl.group_id = ${groupId}
-			ORDER BY sl.created_at DESC
-			LIMIT 3
+			ORDER BY sl.created_at DESC, sl.id DESC
+			LIMIT ${ACTIVITY_LIMIT}
 		`,
 		// Ce que les membres apportent depuis leur espace : enregistrements, vidéos, idées.
-		listRecentPosts(groupId, 5),
+		listRecentPosts(groupId, ACTIVITY_LIMIT),
 		sql`
 			SELECT
 				(SELECT COUNT(*)::int FROM sessions    WHERE group_id = ${groupId})                                                    AS session_count,
@@ -102,28 +106,32 @@ export const load: PageServerLoad = async ({ locals }) => {
 			ORDER BY e.date ASC
 			LIMIT 4
 		`,
-		// Les derniers commentaires du groupe, sur une prise, une setlist ou une
-		// publication : c'est la cible qui dit à quel groupe le commentaire appartient.
+		listRecentGroupComments(groupId, ACTIVITY_LIMIT),
+		// L'activité suit la création, quelle que soit la date prévue de la session.
+		sql`
+			SELECT s.id, s.date::text AS date, s.title, s.location, s.created_at
+			FROM sessions s
+			WHERE s.group_id = ${groupId} AND s.created_at IS NOT NULL
+			ORDER BY s.created_at DESC, s.id DESC
+			LIMIT ${ACTIVITY_LIMIT}
+		`,
+		// Comme dans /fil : les prises d'un membre, d'une session et d'un jour
+		// sont une seule nouvelle, datée du dernier dépôt de la série.
 		sql`
 			SELECT
-				c.id, COALESCE(u.display_name, c.author) AS author, c.content, c.created_at,
-				r.id     AS recording_id,
-				so.title AS song_title,
-				sl.id    AS setlist_id,
-				sl.name  AS setlist_name,
-				p.id     AS post_id,
-				COALESCE(pr.title, p.youtube_title, p.song_title, 'Publication') AS post_title
-			FROM comments c
-			LEFT JOIN recordings r ON r.id = c.recording_id
-			LEFT JOIN sessions ses ON ses.id = r.session_id
-			LEFT JOIN songs so     ON so.id = r.song_id
-			LEFT JOIN setlists sl  ON sl.id = c.setlist_id
-			LEFT JOIN posts p      ON p.id = c.post_id
-			LEFT JOIN personal_recordings pr ON pr.id = p.personal_recording_id
-			LEFT JOIN users u      ON u.id = c.author_user_id
-			WHERE ses.group_id = ${groupId} OR sl.group_id = ${groupId} OR p.group_id = ${groupId}
-			ORDER BY c.created_at DESC
-			LIMIT 5
+				s.id AS session_id, s.date::text AS session_date, s.title AS session_title,
+				COALESCE(MAX(u.display_name), MAX(r.uploaded_by)) AS author,
+				COUNT(*)::int AS recording_count, MAX(r.created_at) AS created_at,
+				ARRAY_AGG(DISTINCT so.title ORDER BY so.title) AS song_titles
+			FROM recordings r
+			JOIN sessions s ON s.id = r.session_id
+			JOIN songs so ON so.id = r.song_id
+			LEFT JOIN users u ON u.id = r.uploaded_by_user_id
+			WHERE s.group_id = ${groupId} AND r.created_at IS NOT NULL
+			GROUP BY s.id, COALESCE(r.uploaded_by_user_id::text, r.uploaded_by),
+				date_trunc('day', r.created_at)
+			ORDER BY MAX(r.created_at) DESC, MIN(r.id) DESC
+			LIMIT ${ACTIVITY_LIMIT}
 		`,
 	])
 
@@ -158,5 +166,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		stats: statsRows[0] ?? null,
 		unavailabilities,
 		recentComments,
+		recentSessions,
+		recentRecordings,
 	}
 }

@@ -1,5 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types'
+	import { onMount } from 'svelte'
+	import { invalidateAll } from '$app/navigation'
 	import { formatDateOnly, toDateOnly } from '$lib/date'
 	import PublicLanding from '$lib/components/PublicLanding.svelte'
 	import Icon from '$lib/components/Icon.svelte'
@@ -15,7 +17,12 @@
 	type UpcomingItem =
 		| { kind: 'session'; id: number; date: string; location: string | null; title: null; song_count: number; song_titles: string[] }
 		| { kind: 'event'; id: number; date: string; location: string | null; title: string | null; eventType: string }
-	type PlaylistRow = { id: number; name: string; item_count: number; updated_at: string }
+	type PlaylistRow = { id: number; name: string; item_count: number; updated_at: string | null; created_at: string }
+	type RecentSession = { id: number; date: string; title: string | null; location: string | null; created_at: string }
+	type RecentRecordings = {
+		session_id: number; session_date: string; session_title: string | null; author: string
+		recording_count: number; created_at: string; song_titles: string[]
+	}
 	type Stats = { session_count: number; recording_count: number; playlist_count: number }
 	type Unavailability = { id: number; date: string; author: string }
 	type SetlistRow = { id: number; name: string; created_at: string; created_by: string }
@@ -29,7 +36,7 @@
 
 	const upcomingItems = $derived(data.upcomingItems as unknown as UpcomingItem[])
 	const sessions = $derived(data.sessions as unknown as SessionRow[])
-	// Le serveur en charge davantage : le fil d'activité s'en sert aussi
+	// La colonne de sessions reste classée par date de répétition.
 	const RECENT_SESSIONS_SHOWN = 3
 	const playlists = $derived(data.playlists as unknown as PlaylistRow[])
 	const setlists = $derived((data.setlists ?? []) as unknown as SetlistRow[])
@@ -37,6 +44,29 @@
 	const stats = $derived(data.stats as Stats | null)
 	const unavailabilities = $derived((data.unavailabilities ?? []) as unknown as Unavailability[])
 	const recentComments = $derived((data.recentComments ?? []) as unknown as RecentComment[])
+
+	const recentSessions = $derived((data.recentSessions ?? []) as unknown as RecentSession[])
+	const recentRecordings = $derived((data.recentRecordings ?? []) as unknown as RecentRecordings[])
+
+	// Le tableau de bord reste à jour lorsqu’on le laisse ouvert ou qu’on y revient.
+	onMount(() => {
+		let refreshing = false
+		async function refresh() {
+			if (!data.user || document.visibilityState !== 'visible' || refreshing) return
+			refreshing = true
+			try { await invalidateAll() }
+			catch { /* Hors ligne : garder les dernières données, puis réessayer. */ }
+			finally { refreshing = false }
+		}
+		const timer = setInterval(refresh, 60_000)
+		window.addEventListener('focus', refresh)
+		document.addEventListener('visibilitychange', refresh)
+		return () => {
+			clearInterval(timer)
+			window.removeEventListener('focus', refresh)
+			document.removeEventListener('visibilitychange', refresh)
+		}
+	})
 
 	const firstName = $derived((data as any).user?.display_name?.split(' ')[0] ?? 'vous')
 
@@ -91,14 +121,15 @@
 		return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean
 	}
 
-	// Activity timeline derived from sessions + playlists + setlists + posts + comments
-	type ActivityKind = 'session' | 'playlist' | 'setlist' | 'post' | 'comment'
+	// L’activité utilise les dates de création/dépôt, indépendamment du calendrier.
+	type ActivityKind = 'session' | 'recordings' | 'playlist' | 'setlist' | 'post' | 'comment'
 	type ActivityItem = {
 		kind: ActivityKind; ts: number; date: string; label: string; detail: string
 		color: string; href?: string
 	}
 	const ACTIVITY_ICON: Record<ActivityKind, IconName> = {
 		session: 'calendar',
+		recordings: 'music',
 		playlist: 'playlist',
 		setlist: 'list',
 		post: 'send',
@@ -108,25 +139,38 @@
 	const allActivity = $derived((): ActivityItem[] => {
 		const items: ActivityItem[] = []
 
-		for (const s of sessions) {
+		for (const s of recentSessions) {
 			items.push({
 				kind: 'session',
-				ts: new Date(toDateOnly(s.date) || s.date).getTime(),
-				date: formatShortDate(s.date),
-				label: 'Session',
-				detail: [s.location, s.song_titles?.filter(Boolean).slice(0, 2).join(', ')].filter(Boolean).join(' · '),
+				ts: new Date(s.created_at).getTime(),
+				date: formatShortDate(s.created_at),
+				label: 'Session créée',
+				detail: [s.title, formatShortDate(s.date), s.location].filter(Boolean).join(' · '),
 				color: 'var(--color-accent)',
 				href: `/sessions/${s.id}`,
 			})
 		}
 
-		for (const p of playlists.slice(0, 2)) {
-			if (p.updated_at) {
+		for (const batch of recentRecordings) {
+			items.push({
+				kind: 'recordings',
+				ts: new Date(batch.created_at).getTime(),
+				date: formatShortDate(batch.created_at),
+				label: `${batch.recording_count} prise${batch.recording_count > 1 ? 's ajoutées' : ' ajoutée'} — ${batch.author}`,
+				detail: [batch.session_title ?? formatShortDate(batch.session_date), batch.song_titles.slice(0, 2).join(', ')].filter(Boolean).join(' · '),
+				color: 'var(--color-accent)',
+				href: `/sessions/${batch.session_id}`,
+			})
+		}
+
+		for (const p of playlists) {
+			const at = p.updated_at ?? p.created_at
+			if (at) {
 				items.push({
 					kind: 'playlist',
-					ts: new Date(p.updated_at).getTime(),
-					date: formatShortDate(p.updated_at),
-					label: 'Playlist modifiée',
+					ts: new Date(at).getTime(),
+					date: formatShortDate(at),
+					label: p.updated_at && new Date(p.updated_at).getTime() !== new Date(p.created_at).getTime() ? 'Playlist modifiée' : 'Playlist créée',
 					detail: p.name,
 					color: 'var(--color-blue)',
 					href: `/playlists/${p.id}`,
@@ -189,6 +233,7 @@
 	const activityFilterOptions: { value: 'all' | ActivityKind; label: string }[] = [
 		{ value: 'all', label: 'Toutes' },
 		{ value: 'session', label: 'Sessions' },
+		{ value: 'recordings', label: 'Prises' },
 		{ value: 'playlist', label: 'Playlists' },
 		{ value: 'setlist', label: 'Setlists' },
 		{ value: 'post', label: 'Publications' },
