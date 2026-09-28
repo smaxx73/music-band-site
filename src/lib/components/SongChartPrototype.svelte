@@ -1,16 +1,21 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte'
 
-	type BlockType = 'chordpro' | 'abc'
+	type BlockType = 'chordpro' | 'notation'
 	type Block = { id: number; type: BlockType; label: string }
 	type Line = { kind: 'section'; label: string } | { kind: 'line'; source: string } | { kind: 'empty' }
 	type Token = { chord: string | null; text: string }
+	type ImportedScore = {
+		file: File
+		format: 'musicxml' | 'mxl'
+		warning: string | null
+	}
 
 	// La liste décrit seulement la composition. Les sources restent dans un magasin
 	// séparé : c'est la forme que prendront les futurs fichiers et enregistrements.
 	const sampleBlocks: Block[] = [
 		{ id: 1, type: 'chordpro', label: 'Couplet' },
-		{ id: 2, type: 'abc', label: 'Intro' },
+		{ id: 2, type: 'notation', label: 'Intro' },
 		{ id: 3, type: 'chordpro', label: 'Refrain' }
 	]
 	const sampleContent: Record<number, string> = {
@@ -36,6 +41,7 @@ K:D
 
 	let blocks = $state<Block[]>(structuredClone(sampleBlocks))
 	let blockContent = $state<Record<number, string>>(structuredClone(sampleContent))
+	let notationAssets = $state<Record<number, ImportedScore>>({})
 	let selectedId = $state(1)
 	let transpose = $state(0)
 	let previewMode = $state<'rendered' | 'text'>('rendered')
@@ -45,6 +51,9 @@ K:D
 	let abcErrorMap = new Map<number, string>()
 	let abcErrors = $state<Record<number, string>>({})
 	let notationLoadError = $state<string | null>(null)
+	let importError = $state<string | null>(null)
+	let importInProgress = $state(false)
+	let scoreFileInput = $state<HTMLInputElement>()
 
 	const selected = $derived(blocks.find((block) => block.id === selectedId) ?? blocks[0])
 	const selectedSource = $derived(selected ? blockContent[selected.id] ?? '' : '')
@@ -59,7 +68,7 @@ K:D
 		blockContent
 		renderAbc
 		if (!renderAbc) return
-		for (const block of blocks.filter((item) => item.type === 'abc')) {
+		for (const block of blocks.filter((item) => item.type === 'notation')) {
 			const target = abcTargets.get(block.id)
 			if (target) drawAbc(target, block.id, blockContent[block.id] ?? '')
 		}
@@ -72,6 +81,84 @@ K:D
 		} catch {
 			notationLoadError = 'Le moteur de gravure n’a pas pu se charger ; les blocs de texte restent éditables.'
 		}
+	}
+
+	function chooseScoreFile() {
+		importError = null
+		scoreFileInput?.click()
+	}
+
+	async function importScore(event: Event) {
+		const file = (event.currentTarget as HTMLInputElement).files?.[0]
+		// Permet d'importer deux fois le même fichier après l'avoir modifié.
+		if (scoreFileInput) scoreFileInput.value = ''
+		if (!file) return
+
+		const extension = file.name.toLowerCase().split('.').pop()
+		if (!['musicxml', 'xml', 'mxl'].includes(extension ?? '')) {
+			importError = 'Choisis un fichier MusicXML (.musicxml ou .xml) ou compressé (.mxl).'
+			return
+		}
+		if (file.size > 10 * 1024 * 1024) {
+			importError = 'Le fichier dépasse la limite du prototype (10 Mo).'
+			return
+		}
+
+		importInProgress = true
+		importError = null
+		try {
+			const xml = await readMusicXml(file, extension === 'mxl')
+			const { convertMusicXmlToAbc } = await import('@educandu/abc-tools')
+			const { result, warningMessage } = convertMusicXmlToAbc(xml, { d: 4 })
+			const id = Math.max(0, ...blocks.map((block) => block.id)) + 1
+			const insertionIndex = Math.max(0, blocks.findIndex((block) => block.id === selectedId) + 1)
+			const label = file.name.replace(/\.(musicxml|xml|mxl)$/i, '') || 'Mini-partition'
+			const block: Block = { id, type: 'notation', label }
+			blocks = [...blocks.slice(0, insertionIndex), block, ...blocks.slice(insertionIndex)]
+			blockContent = { ...blockContent, [id]: result }
+			notationAssets = {
+				...notationAssets,
+				[id]: { file, format: extension === 'mxl' ? 'mxl' : 'musicxml', warning: warningMessage || null }
+			}
+			selectedId = id
+			transpose = 0
+		} catch (error) {
+			importError = error instanceof Error ? `Conversion impossible : ${error.message}` : 'Conversion MusicXML impossible.'
+		} finally {
+			importInProgress = false
+		}
+	}
+
+	async function readMusicXml(file: File, compressed: boolean): Promise<string> {
+		const bytes = new Uint8Array(await file.arrayBuffer())
+		if (!compressed) return new TextDecoder().decode(bytes)
+
+		const { unzipSync, strFromU8 } = await import('fflate')
+		let archive: Record<string, Uint8Array>
+		try {
+			archive = unzipSync(bytes)
+		} catch {
+			throw new Error('le fichier MXL n’est pas une archive ZIP valide')
+		}
+		const totalSize = Object.values(archive).reduce((total, data) => total + data.byteLength, 0)
+		if (totalSize > 50 * 1024 * 1024) throw new Error('le contenu décompressé dépasse 50 Mo')
+		const container = archive['META-INF/container.xml']
+		if (!container) throw new Error('le conteneur MusicXML META-INF/container.xml est manquant')
+		const containerXml = new DOMParser().parseFromString(strFromU8(container), 'application/xml')
+		const scorePath = containerXml.querySelector('rootfile')?.getAttribute('full-path')
+		if (!scorePath || !archive[scorePath]) throw new Error('la partition MusicXML est introuvable dans le fichier MXL')
+		return strFromU8(archive[scorePath])
+	}
+
+	function downloadOriginal(blockId: number) {
+		const asset = notationAssets[blockId]
+		if (!asset) return
+		const url = URL.createObjectURL(asset.file)
+		const link = document.createElement('a')
+		link.href = url
+		link.download = asset.file.name
+		link.click()
+		setTimeout(() => URL.revokeObjectURL(url), 0)
 	}
 
 	function abcTarget(node: HTMLElement, block: Block) {
@@ -92,7 +179,7 @@ K:D
 		}
 	}
 
-	function add(type: BlockType) {
+	function add(type: 'chordpro' | 'notation') {
 		const id = Math.max(0, ...blocks.map((block) => block.id)) + 1
 		const index = Math.max(0, blocks.findIndex((block) => block.id === selectedId) + 1)
 		const block: Block = type === 'chordpro'
@@ -124,10 +211,11 @@ K:D
 		const index = blocks.findIndex((block) => block.id === selectedId)
 		blocks = blocks.filter((block) => block.id !== selectedId)
 		const nextContent = { ...blockContent }; delete nextContent[selectedId]; blockContent = nextContent
+		const nextAssets = { ...notationAssets }; delete nextAssets[selectedId]; notationAssets = nextAssets
 		selectedId = blocks[Math.max(0, index - 1)].id; transpose = 0
 	}
 
-	function reset() { blocks = structuredClone(sampleBlocks); blockContent = structuredClone(sampleContent); selectedId = 1; transpose = 0 }
+	function reset() { blocks = structuredClone(sampleBlocks); blockContent = structuredClone(sampleContent); notationAssets = {}; selectedId = 1; transpose = 0 }
 
 	async function printDocument() {
 		// L'impression est toujours basée sur la vue lisible, jamais sur les sources brutes.
@@ -195,7 +283,9 @@ K:D
 		<aside class="block-list" aria-label="Blocs du document">
 			<div class="list-heading"><h2>Blocs</h2><span>{blocks.length}</span></div>
 			<div class="blocks">{#each blocks as block, index (block.id)}<button class:selected={block.id === selectedId} class="block-card" onclick={() => { selectedId = block.id; transpose = 0 }}><span class="order">{index + 1}</span><span class="icon">{block.type === 'chordpro' ? 'Aa' : '𝄞'}</span><span><strong>{block.label || 'Sans titre'}</strong><small>{block.type === 'chordpro' ? 'Paroles et accords' : 'Mini-partition'}</small></span></button>{/each}</div>
-			<div class="add-buttons"><button class="button" onclick={() => add('chordpro')}>+ Paroles / accords</button><button class="button" onclick={() => add('abc')}>+ Mini-partition</button></div>
+			<div class="add-buttons"><button class="button" onclick={() => add('chordpro')}>+ Paroles / accords</button><button class="button" onclick={() => add('notation')}>+ Mini-partition vide</button><button class="button import-button" onclick={chooseScoreFile} disabled={importInProgress}>{importInProgress ? 'Conversion…' : 'Importer MusicXML / MXL'}</button></div>
+			<input bind:this={scoreFileInput} class="file-input" type="file" accept=".musicxml,.xml,.mxl,application/vnd.recordare.musicxml+xml,application/xml" onchange={importScore} />
+			{#if importError}<p class="import-error">{importError}</p>{/if}
 		</aside>
 
 		<section class="editor-panel">
@@ -203,7 +293,12 @@ K:D
 				<label>Nom du bloc <input value={selected.label} oninput={(event) => updateBlock({ label: event.currentTarget.value })} /></label>
 				{#if selected.type === 'chordpro'}<div class="tools"><label>Transposer l’aperçu <select bind:value={transpose}><option value={-5}>−5</option><option value={-4}>−4</option><option value={-3}>−3</option><option value={-2}>−2</option><option value={-1}>−1</option><option value={0}>0</option><option value={1}>+1</option><option value={2}>+2</option><option value={3}>+3</option><option value={4}>+4</option><option value={5}>+5</option></select></label><button class="button apply" onclick={applyTranspose} disabled={!transpose}>Appliquer</button></div>{/if}
 				<textarea bind:this={editor} value={selectedSource} oninput={(event) => updateSource(event.currentTarget.value)} spellcheck="false" aria-label="Source du bloc"></textarea>
-				{#if selected.type === 'chordpro'}<div class="chords">{#each chords as chord}<button onclick={() => insertChord(chord)}>{chord}</button>{/each}</div>{:else}<p class="hint">ABC : définis la mesure (`M:`), la durée (`L:`), la tonalité (`K:`), puis les notes. Les accords se placent entre guillemets.</p>{/if}
+				{#if selected.type === 'chordpro'}<div class="chords">{#each chords as chord}<button onclick={() => insertChord(chord)}>{chord}</button>{/each}</div>{:else}
+					{#if notationAssets[selected.id]}
+						<div class="original-file"><span><strong>Original conservé :</strong> {notationAssets[selected.id].file.name} ({notationAssets[selected.id].format.toUpperCase()})</span><button class="button" onclick={() => downloadOriginal(selected.id)}>Télécharger</button></div>
+						{#if notationAssets[selected.id].warning}<p class="conversion-warning">Conversion ABC : {notationAssets[selected.id].warning}</p>{/if}
+					{:else}<p class="hint">ABC : définis la mesure (`M:`), la durée (`L:`), la tonalité (`K:`), puis les notes. Les accords se placent entre guillemets.</p>{/if}
+				{/if}
 			{/if}
 		</section>
 
@@ -223,9 +318,9 @@ K:D
 	.composer { max-width: 1400px; margin: 2rem auto 4rem; padding: 0 1rem; color: var(--color-text); } header { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: 1.5rem; } .header-actions { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: flex-end; } .print-button { color: #fff; background: var(--color-accent); border-color: var(--color-accent); } h1 { font-size: clamp(1.5rem, 3vw, 2rem); margin: .15rem 0 .35rem; } h2 { margin: 0; font-size: 1rem; } p { margin: 0; }
 	.eyebrow { color: var(--color-text-muted); font-size: var(--text-xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; } .intro { color: var(--color-text-secondary); max-width: 48rem; } .button, .chords button { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .4rem .65rem; color: var(--color-text); background: var(--color-bg); font: inherit; cursor: pointer; } .button:hover:not(:disabled), .chords button:hover { background: var(--color-bg-subtle); } button:disabled { opacity: .45; cursor: not-allowed; }
 	.workspace { display: grid; grid-template-columns: 230px minmax(300px, .85fr) minmax(350px, 1.15fr); align-items: start; border: 1px solid var(--color-border-light); border-radius: var(--radius); background: var(--color-bg); overflow: hidden; } .block-list { padding: .75rem; border-right: 1px solid var(--color-border-light); background: var(--color-bg-subtle); } .list-heading { display: flex; justify-content: space-between; padding: .25rem .25rem .7rem; } .list-heading span { color: var(--color-text-muted); }
-	.blocks { display: grid; gap: .35rem; } .block-card { display: grid; grid-template-columns: 1.3rem 1.45rem 1fr; gap: .4rem; align-items: center; width: 100%; padding: .55rem .45rem; border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--color-text); background: transparent; text-align: left; cursor: pointer; } .block-card:hover { background: var(--color-bg); } .block-card.selected { border-color: var(--color-accent); background: var(--color-bg); } .order { color: var(--color-text-muted); font: var(--text-xs) ui-monospace, monospace; text-align: center; } .icon { color: var(--color-accent); font-weight: 700; } .block-card strong, .block-card small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .block-card strong { font-size: var(--text-sm); } .block-card small { color: var(--color-text-muted); font-size: var(--text-xs); } .add-buttons { display: grid; gap: .45rem; margin-top: 1rem; } .add-buttons .button { text-align: left; font-size: var(--text-sm); }
+	.blocks { display: grid; gap: .35rem; } .block-card { display: grid; grid-template-columns: 1.3rem 1.45rem 1fr; gap: .4rem; align-items: center; width: 100%; padding: .55rem .45rem; border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--color-text); background: transparent; text-align: left; cursor: pointer; } .block-card:hover { background: var(--color-bg); } .block-card.selected { border-color: var(--color-accent); background: var(--color-bg); } .order { color: var(--color-text-muted); font: var(--text-xs) ui-monospace, monospace; text-align: center; } .icon { color: var(--color-accent); font-weight: 700; } .block-card strong, .block-card small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .block-card strong { font-size: var(--text-sm); } .block-card small { color: var(--color-text-muted); font-size: var(--text-xs); } .add-buttons { display: grid; gap: .45rem; margin-top: 1rem; } .add-buttons .button { text-align: left; font-size: var(--text-sm); } .import-button { border-style: dashed; color: var(--color-accent); } .file-input { display: none; } .import-error { margin: .7rem .15rem 0; color: #b42318; font-size: var(--text-xs); line-height: 1.4; }
 	.editor-panel { min-width: 0; border-right: 1px solid var(--color-border-light); } .editor-heading, .preview-heading { display: flex; justify-content: space-between; gap: .75rem; align-items: flex-start; padding: 1rem; border-bottom: 1px solid var(--color-border-light); } .actions { display: flex; gap: .35rem; } .actions .button { padding: .25rem .45rem; } .delete { color: #b42318; } .editor-panel > label { display: grid; gap: .3rem; padding: .8rem 1rem .4rem; color: var(--color-text-secondary); font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; } input, select { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .4rem .5rem; color: var(--color-text); background: var(--color-bg); font: inherit; text-transform: none; letter-spacing: normal; }
-	.tools { display: flex; align-items: center; gap: .55rem; padding: .35rem 1rem .65rem; color: var(--color-text-secondary); font-size: var(--text-xs); } .tools label { display: flex; align-items: center; gap: .4rem; } .apply { color: #fff; background: var(--color-accent); border-color: var(--color-accent); } textarea { display: block; box-sizing: border-box; width: calc(100% - 2rem); min-height: 20rem; margin: .2rem 1rem .8rem; resize: vertical; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .7rem; color: var(--color-text); background: var(--color-bg-subtle); font: .82rem/1.55 ui-monospace, monospace; } .chords { display: flex; flex-wrap: wrap; gap: .35rem; padding: 0 1rem 1rem; } .chords button { color: var(--color-accent); padding: .2rem .45rem; border-radius: 999px; font: 600 var(--text-xs)/1.2 ui-monospace, monospace; } .hint { margin: 0 1rem 1rem; color: var(--color-text-muted); font-size: var(--text-sm); line-height: 1.45; }
+	.tools { display: flex; align-items: center; gap: .55rem; padding: .35rem 1rem .65rem; color: var(--color-text-secondary); font-size: var(--text-xs); } .tools label { display: flex; align-items: center; gap: .4rem; } .apply { color: #fff; background: var(--color-accent); border-color: var(--color-accent); } textarea { display: block; box-sizing: border-box; width: calc(100% - 2rem); min-height: 20rem; margin: .2rem 1rem .8rem; resize: vertical; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .7rem; color: var(--color-text); background: var(--color-bg-subtle); font: .82rem/1.55 ui-monospace, monospace; } .chords { display: flex; flex-wrap: wrap; gap: .35rem; padding: 0 1rem 1rem; } .chords button { color: var(--color-accent); padding: .2rem .45rem; border-radius: 999px; font: 600 var(--text-xs)/1.2 ui-monospace, monospace; } .hint, .conversion-warning { margin: 0 1rem 1rem; color: var(--color-text-muted); font-size: var(--text-sm); line-height: 1.45; } .original-file { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; margin: 0 1rem .55rem; padding: .6rem; border: 1px solid var(--color-border-light); border-radius: var(--radius-sm); color: var(--color-text-secondary); font-size: var(--text-sm); } .original-file strong { color: var(--color-text); } .conversion-warning { color: #9a6700; }
 	.preview { min-width: 0; background: #fffefb; } .preview-heading { display: flex; } .preview-heading h2 { margin-top: .2rem; font-size: 1.25rem; } .preview-heading > div > p:last-child { margin-top: .1rem; color: var(--color-text-muted); font-size: var(--text-xs); } .preview-tabs { display: flex; border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow: hidden; } .preview-tabs button { border: 0; border-right: 1px solid var(--color-border); padding: .3rem .45rem; color: var(--color-text-secondary); background: var(--color-bg); font: var(--text-xs) inherit; cursor: pointer; } .preview-tabs button:last-child { border-right: 0; } .preview-tabs button.active { color: #fff; background: var(--color-accent); } .plain-text { margin: 0; padding: 1rem; min-height: 24rem; overflow: auto; color: var(--color-text); background: var(--color-bg-subtle); font: .8rem/1.55 ui-monospace, monospace; white-space: pre-wrap; } .rendered { padding: .8rem 1rem; border-bottom: 1px solid var(--color-border-light); } .caption { display: flex; gap: .45rem; align-items: baseline; margin-bottom: .55rem; } .caption span { color: var(--color-text-muted); font-size: var(--text-xs); } .caption strong { font-size: var(--text-sm); } .chart h3 { margin: .65rem 0 .3rem; color: var(--color-accent); font-size: var(--text-sm); text-transform: uppercase; letter-spacing: .06em; } .chart h3:first-child { margin-top: 0; } .chart-line { min-height: 2.65rem; white-space: pre-wrap; line-height: 1.35; } .token { display: inline-flex; flex-direction: column; vertical-align: bottom; } .chord { min-height: 1.2rem; color: var(--color-accent); font: 700 .78rem/1.15 ui-monospace, monospace; } .lyric { min-height: 1.35rem; white-space: pre-wrap; } .space { height: .55rem; } .abc-output { overflow-x: auto; } .abc-output :global(svg) { max-width: 100%; height: auto; } .abc-error { margin-bottom: .5rem; color: #b42318; font-size: var(--text-sm); } .load-error { margin: .75rem 1rem 0; }
 	@media (max-width: 1050px) { .workspace { grid-template-columns: 210px 1fr; } .preview { grid-column: 1 / -1; border-top: 1px solid var(--color-border-light); } .rendered { max-width: 760px; margin: auto; } } @media (max-width: 650px) { header { flex-direction: column; } .workspace { grid-template-columns: 1fr; } .block-list, .editor-panel { border-right: 0; border-bottom: 1px solid var(--color-border-light); } .blocks, .add-buttons { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 

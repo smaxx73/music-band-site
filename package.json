@@ -23,9 +23,11 @@
 		"vite": "^8.0.7"
 	},
 	"dependencies": {
+		"@educandu/abc-tools": "^3.0.3",
 		"@sveltejs/adapter-node": "^5.5.4",
 		"abcjs": "^6.7.1",
 		"busboy": "^1.6.0",
+		"fflate": "^0.8.3",
 		"postgres": "^3.4.9",
 		"wavesurfer.js": "^7.12.6"
 	}

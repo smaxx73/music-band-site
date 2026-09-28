@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@educandu/abc-tools':
+        specifier: ^3.0.3
+        version: 3.0.3
       '@sveltejs/adapter-node':
         specifier: ^5.5.4
         version: 5.5.4(@sveltejs/kit@2.57.1(@sveltejs/vite-plugin-svelte@7.0.0(svelte@5.55.4)(vite@8.0.8(@types/node@25.6.0)))(svelte@5.55.4)(typescript@6.0.3)(vite@8.0.8(@types/node@25.6.0)))
@@ -17,6 +20,9 @@ importers:
       busboy:
         specifier: ^1.6.0
         version: 1.6.0
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
       postgres:
         specifier: ^3.4.9
         version: 3.4.9
@@ -53,6 +59,10 @@ importers:
         version: 8.0.8(@types/node@25.6.0)
 
 packages:
+
+  '@educandu/abc-tools@3.0.3':
+    resolution: {integrity: sha512-QnUW4bogq1pNCbrvTeEaryClM8DiNTNelnrCsKeBcJz0qWx/HiArsGrBdEvk3EyI08fHcS/ycjppO0Z9baxJ5A==}
+    engines: {node: ^20.0.0}
 
   '@emnapi/core@1.9.2':
     resolution: {integrity: sha512-UC+ZhH3XtczQYfOlu3lNEkdW/p4dsJ1r/bP7H8+rhao3TTTMO1ATq/4DdIi23XuGoFY+Cz0JmCbdVl0hz9jZcA==}
@@ -425,6 +435,9 @@ packages:
   '@types/trusted-types@2.0.7':
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
 
+  abc-notation-transposition@1.0.6:
+    resolution: {integrity: sha512-2JLAIGddWJAyGRpLIOLTvEdyWPJHN8mG0DcHRje583+zn7KHAMzr4kJcCLQbtYTiZJE9yFWTFLYcczboP0C6Rw==}
+
   abcjs@6.7.1:
     resolution: {integrity: sha512-H9fnuhSSP3tbcJf4K3a/sgX8lM2M5cx8drlXEsPNrsRca/MGxhSb6HcT0ICFVoNW7Izx3kMHf7PExarC+5LUJw==}
 
@@ -497,6 +510,9 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
+
+  fflate@0.8.3:
+    resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
 
   fsevents@2.3.3:
     resolution: {integrity: sha512-5xoDfX+fL7faATnagmWPpbFtwh/R77WmMMqqHGS65C3vvB0YHrgF+B1YmZ3441tMj5n63k0212XNoJwzlhffQw==}
@@ -772,6 +788,10 @@ packages:
     resolution: {integrity: sha512-B58NGBEoc8Y9MWWCQGl/gq9xBCe4IiKM0a2x7GZdQKOW5Exr8S1W24J6OgM1njK8xCRGvAJIL/MxXHf6SkmQKQ==}
 
 snapshots:
+
+  '@educandu/abc-tools@3.0.3':
+    dependencies:
+      abc-notation-transposition: 1.0.6
 
   '@emnapi/core@1.9.2':
     dependencies:
@@ -1049,6 +1069,8 @@ snapshots:
 
   '@types/trusted-types@2.0.7': {}
 
+  abc-notation-transposition@1.0.6: {}
+
   abcjs@6.7.1: {}
 
   acorn@8.16.0: {}
@@ -1090,6 +1112,8 @@ snapshots:
   fdir@6.5.0(picomatch@4.0.4):
     optionalDependencies:
       picomatch: 4.0.4
+
+  fflate@0.8.3: {}
 
   fsevents@2.3.3:
     optional: true
