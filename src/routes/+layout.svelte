@@ -13,6 +13,9 @@
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props()
 
+	// Fermeture locale ; une nouvelle annonce du serveur réaffiche le bandeau.
+	let groupSwitchNotice = $derived(data.group_switched_to)
+
 	// Menu mobile : tiroir latéral, refermé dès qu'on navigue
 	let menuOpen = $state(false)
 	afterNavigate(() => { menuOpen = false })
@@ -206,11 +209,20 @@
 
 			<!-- Page content -->
 			<div class="app-content">
-				{#if data.group_switched_to}
+				{#if groupSwitchNotice}
 					<!-- Un lien reçu visait un autre groupe : la bascule a déjà eu lieu, mais
 					     elle vaut pour tous les onglets — la taire serait plus déroutant. -->
 					<div class="group-switch-banner">
-						Groupe actif basculé sur <strong>{data.group_switched_to}</strong> pour ouvrir ce lien.
+						<span>Groupe actif basculé sur <strong>{groupSwitchNotice}</strong> pour ouvrir ce lien.</span>
+						<button
+							type="button"
+							class="group-switch-close"
+							aria-label="Fermer le bandeau de changement de groupe"
+							title="Fermer"
+							onclick={() => (groupSwitchNotice = null)}
+						>
+							<Icon name="close" size="1rem" />
+						</button>
 					</div>
 				{/if}
 				{#if data.user.groups.length === 0}
@@ -550,6 +562,9 @@
 
 	/* ─── Bascule de groupe sur lien entrant ─────── */
 	.group-switch-banner {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
 		background: var(--color-bg-subtle);
 		border-bottom: 1px solid var(--color-border);
 		padding: 0.5rem 1rem;
@@ -559,6 +574,25 @@
 	}
 
 	.group-switch-banner strong { color: var(--color-text); }
+	.group-switch-banner > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+
+	.group-switch-close {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		flex-shrink: 0;
+		width: 32px;
+		height: 32px;
+		padding: 0;
+		border: none;
+		border-radius: var(--radius-md);
+		background: transparent;
+		color: inherit;
+		cursor: pointer;
+	}
+
+	.group-switch-close:hover { background: var(--color-border); color: var(--color-text); }
+	.group-switch-close:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 
 	/* ─── No-group banner ────────────────────────── */
 	.no-group-banner {

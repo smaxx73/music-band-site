@@ -639,7 +639,8 @@ Toutes les pages de contenu sont des permaliens (`/recording/12`, `/sessions/4`,
   le groupe où il n'était pas en train de travailler recevait « introuvable », le même message
   que pour un id qui n'existe pas. La bascule a lieu dans le `load`
   (`src/lib/server/group-scope.ts`), l'URL est rejouée avec le nouveau cookie, et un bandeau
-  l'annonce — le cookie étant commun aux onglets, la taire serait plus déroutant que le dire
+  l'annonce — le cookie étant commun aux onglets, la taire serait plus déroutant que le dire.
+  Le bandeau peut être fermé avec sa croix ; il réapparaît lors d'une nouvelle bascule par lien
 - **Seule une vraie navigation bascule** (`isDataRequest` est faux) : coller le lien reçu,
   l'ouvrir depuis un message, revenir de la connexion. SvelteKit précharge les liens **au
   survol** (`data-sveltekit-preload-data` dans `src/app.html`) ; sans cette distinction,
