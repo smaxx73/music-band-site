@@ -129,6 +129,13 @@ K:D
 
 	function reset() { blocks = structuredClone(sampleBlocks); blockContent = structuredClone(sampleContent); selectedId = 1; transpose = 0 }
 
+	async function printDocument() {
+		// L'impression est toujours basée sur la vue lisible, jamais sur les sources brutes.
+		previewMode = 'rendered'
+		await tick()
+		window.print()
+	}
+
 	function plainTextDocument() {
 		return blocks
 			.map((block, index) => `--- ${index + 1}. ${block.label || 'Sans titre'} — ${block.type === 'chordpro' ? 'ChordPro' : 'ABC'} ---\n${blockContent[block.id] ?? ''}`)
@@ -182,7 +189,7 @@ K:D
 </script>
 
 <section class="composer" aria-labelledby="composer-title">
-	<header><div><p class="eyebrow">Prototype local — aucune sauvegarde</p><h1 id="composer-title">Composer une feuille de répétition</h1><p class="intro">Assemble des sections ChordPro et des mini-partitions dans l’ordre du morceau.</p></div><button class="button" onclick={reset}>Réinitialiser</button></header>
+	<header><div><p class="eyebrow">Prototype local — aucune sauvegarde</p><h1 id="composer-title">Composer une feuille de répétition</h1><p class="intro">Assemble des sections ChordPro et des mini-partitions dans l’ordre du morceau.</p></div><div class="header-actions"><button class="button print-button" onclick={printDocument}>Imprimer / PDF</button><button class="button" onclick={reset}>Réinitialiser</button></div></header>
 
 	<div class="workspace">
 		<aside class="block-list" aria-label="Blocs du document">
@@ -213,7 +220,7 @@ K:D
 </section>
 
 <style>
-	.composer { max-width: 1400px; margin: 2rem auto 4rem; padding: 0 1rem; color: var(--color-text); } header { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: 1.5rem; } h1 { font-size: clamp(1.5rem, 3vw, 2rem); margin: .15rem 0 .35rem; } h2 { margin: 0; font-size: 1rem; } p { margin: 0; }
+	.composer { max-width: 1400px; margin: 2rem auto 4rem; padding: 0 1rem; color: var(--color-text); } header { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: 1.5rem; } .header-actions { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: flex-end; } .print-button { color: #fff; background: var(--color-accent); border-color: var(--color-accent); } h1 { font-size: clamp(1.5rem, 3vw, 2rem); margin: .15rem 0 .35rem; } h2 { margin: 0; font-size: 1rem; } p { margin: 0; }
 	.eyebrow { color: var(--color-text-muted); font-size: var(--text-xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; } .intro { color: var(--color-text-secondary); max-width: 48rem; } .button, .chords button { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .4rem .65rem; color: var(--color-text); background: var(--color-bg); font: inherit; cursor: pointer; } .button:hover:not(:disabled), .chords button:hover { background: var(--color-bg-subtle); } button:disabled { opacity: .45; cursor: not-allowed; }
 	.workspace { display: grid; grid-template-columns: 230px minmax(300px, .85fr) minmax(350px, 1.15fr); align-items: start; border: 1px solid var(--color-border-light); border-radius: var(--radius); background: var(--color-bg); overflow: hidden; } .block-list { padding: .75rem; border-right: 1px solid var(--color-border-light); background: var(--color-bg-subtle); } .list-heading { display: flex; justify-content: space-between; padding: .25rem .25rem .7rem; } .list-heading span { color: var(--color-text-muted); }
 	.blocks { display: grid; gap: .35rem; } .block-card { display: grid; grid-template-columns: 1.3rem 1.45rem 1fr; gap: .4rem; align-items: center; width: 100%; padding: .55rem .45rem; border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--color-text); background: transparent; text-align: left; cursor: pointer; } .block-card:hover { background: var(--color-bg); } .block-card.selected { border-color: var(--color-accent); background: var(--color-bg); } .order { color: var(--color-text-muted); font: var(--text-xs) ui-monospace, monospace; text-align: center; } .icon { color: var(--color-accent); font-weight: 700; } .block-card strong, .block-card small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .block-card strong { font-size: var(--text-sm); } .block-card small { color: var(--color-text-muted); font-size: var(--text-xs); } .add-buttons { display: grid; gap: .45rem; margin-top: 1rem; } .add-buttons .button { text-align: left; font-size: var(--text-sm); }
@@ -221,4 +228,22 @@ K:D
 	.tools { display: flex; align-items: center; gap: .55rem; padding: .35rem 1rem .65rem; color: var(--color-text-secondary); font-size: var(--text-xs); } .tools label { display: flex; align-items: center; gap: .4rem; } .apply { color: #fff; background: var(--color-accent); border-color: var(--color-accent); } textarea { display: block; box-sizing: border-box; width: calc(100% - 2rem); min-height: 20rem; margin: .2rem 1rem .8rem; resize: vertical; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .7rem; color: var(--color-text); background: var(--color-bg-subtle); font: .82rem/1.55 ui-monospace, monospace; } .chords { display: flex; flex-wrap: wrap; gap: .35rem; padding: 0 1rem 1rem; } .chords button { color: var(--color-accent); padding: .2rem .45rem; border-radius: 999px; font: 600 var(--text-xs)/1.2 ui-monospace, monospace; } .hint { margin: 0 1rem 1rem; color: var(--color-text-muted); font-size: var(--text-sm); line-height: 1.45; }
 	.preview { min-width: 0; background: #fffefb; } .preview-heading { display: flex; } .preview-heading h2 { margin-top: .2rem; font-size: 1.25rem; } .preview-heading > div > p:last-child { margin-top: .1rem; color: var(--color-text-muted); font-size: var(--text-xs); } .preview-tabs { display: flex; border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow: hidden; } .preview-tabs button { border: 0; border-right: 1px solid var(--color-border); padding: .3rem .45rem; color: var(--color-text-secondary); background: var(--color-bg); font: var(--text-xs) inherit; cursor: pointer; } .preview-tabs button:last-child { border-right: 0; } .preview-tabs button.active { color: #fff; background: var(--color-accent); } .plain-text { margin: 0; padding: 1rem; min-height: 24rem; overflow: auto; color: var(--color-text); background: var(--color-bg-subtle); font: .8rem/1.55 ui-monospace, monospace; white-space: pre-wrap; } .rendered { padding: .8rem 1rem; border-bottom: 1px solid var(--color-border-light); } .caption { display: flex; gap: .45rem; align-items: baseline; margin-bottom: .55rem; } .caption span { color: var(--color-text-muted); font-size: var(--text-xs); } .caption strong { font-size: var(--text-sm); } .chart h3 { margin: .65rem 0 .3rem; color: var(--color-accent); font-size: var(--text-sm); text-transform: uppercase; letter-spacing: .06em; } .chart h3:first-child { margin-top: 0; } .chart-line { min-height: 2.65rem; white-space: pre-wrap; line-height: 1.35; } .token { display: inline-flex; flex-direction: column; vertical-align: bottom; } .chord { min-height: 1.2rem; color: var(--color-accent); font: 700 .78rem/1.15 ui-monospace, monospace; } .lyric { min-height: 1.35rem; white-space: pre-wrap; } .space { height: .55rem; } .abc-output { overflow-x: auto; } .abc-output :global(svg) { max-width: 100%; height: auto; } .abc-error { margin-bottom: .5rem; color: #b42318; font-size: var(--text-sm); } .load-error { margin: .75rem 1rem 0; }
 	@media (max-width: 1050px) { .workspace { grid-template-columns: 210px 1fr; } .preview { grid-column: 1 / -1; border-top: 1px solid var(--color-border-light); } .rendered { max-width: 760px; margin: auto; } } @media (max-width: 650px) { header { flex-direction: column; } .workspace { grid-template-columns: 1fr; } .block-list, .editor-panel { border-right: 0; border-bottom: 1px solid var(--color-border-light); } .blocks, .add-buttons { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+	@page { size: A4; margin: 12mm; }
+	@media print {
+		:global(.app-top-bar), :global(.app-sidebar), :global(.breadcrumb), :global(.mini-player), :global(.group-switch-banner), :global(.no-group-banner) { display: none !important; }
+		:global(.app-body), :global(.app-content) { display: block !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
+		.composer { max-width: none; margin: 0; padding: 0; color: #000; }
+		.composer > header, .block-list, .editor-panel, .preview-tabs, .load-error { display: none !important; }
+		.workspace { display: block; border: 0; border-radius: 0; overflow: visible; background: #fff; }
+		.preview { display: block; background: #fff; }
+		.preview-heading { padding: 0 0 5mm; border-bottom: 1px solid #222; }
+		.preview-heading h2 { font-size: 16pt; }
+		.rendered { break-inside: avoid; page-break-inside: avoid; padding: 5mm 0; border-bottom-color: #bbb; }
+		.caption { margin-bottom: 3mm; }
+		.chart h3 { color: #000; }
+		.chord { color: #000; }
+		.abc-output { overflow: visible; }
+		.abc-output :global(svg) { display: block; max-width: 100%; }
+	}
 </style>
