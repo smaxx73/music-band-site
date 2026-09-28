@@ -12,6 +12,7 @@
 		hue = null,
 		photo = null,
 		photoVeil = 75,
+		headingLevel = 1,
 		children,
 		actions
 	}: {
@@ -35,6 +36,8 @@
 		photo?: string | null
 		/** Opacité du voile au bord gauche, en % (voir `SESSION_PHOTO_VEIL`). */
 		photoVeil?: number
+		/** Niveau du titre : h1 sur une page, h2 dans une liste de cartes. */
+		headingLevel?: 1 | 2
 		children?: Snippet
 		actions?: Snippet
 	} = $props()
@@ -55,7 +58,7 @@
 		<div class="mh-cover">{@render cover()}</div>
 		<div class="mh-id">
 			<div class="mh-kicker">{@render kicker()}</div>
-			<h1>{title}</h1>
+			<svelte:element this={headingLevel === 1 ? 'h1' : 'h2'}>{title}</svelte:element>
 		</div>
 		{#if children}<div class="mh-body">{@render children()}</div>{/if}
 		{#if stats}<p class="mh-stats">{stats}</p>{/if}
@@ -118,7 +121,7 @@
 		color: #fff;
 	}
 
-	.media-header.photo h1 { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); }
+	.media-header.photo :is(h1, h2) { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); }
 
 	.mh-cover {
 		grid-area: cover;
@@ -165,7 +168,7 @@
 	   le gris du corps de page y manquerait de contraste. */
 	.mh-body :global(p) { color: var(--mh-ink-soft); }
 
-	h1 {
+	:is(h1, h2) {
 		margin: 0;
 		font-size: var(--text-xl);
 		line-height: 1.2;
@@ -241,7 +244,7 @@
 		.mh-stats { align-self: start; margin-top: 0.1rem; font-size: var(--text-xs); }
 		.mh-body { margin-top: 0.55rem; }
 		.mh-actions { justify-self: end; margin-top: 0.4rem; }
-		h1 { font-size: 1.2rem; }
+		:is(h1, h2) { font-size: 1.2rem; }
 	}
 
 	@media (max-width: 640px) {

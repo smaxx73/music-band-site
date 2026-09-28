@@ -6,6 +6,9 @@
 	import Modal from '$lib/components/Modal.svelte'
 	import MembersInput from '$lib/components/MembersInput.svelte'
 	import LocationInput from '$lib/components/LocationInput.svelte'
+	import SessionHeader from '$lib/components/SessionHeader.svelte'
+	import { SESSION_PHOTO_VEIL, sessionPhotoUrl } from '$lib/session-photo'
+	import { formatDurationLong } from '$lib/types'
 	import type { Coords } from '$lib/places'
 
 	let { data }: { data: PageData } = $props()
@@ -15,12 +18,15 @@
 	type SessionRow = {
 		id: number
 		date: string
-		type: string
+		type: SessionType
 		title: string | null
 		location: string | null
 		members: string[]
 		song_count: number
 		recording_count: number
+		total_duration_s: number
+		photo_version: number | null
+		photo_veil: number | null
 	}
 
 	const typeLabels: Record<string, string> = {
@@ -170,6 +176,14 @@
 			year: 'numeric'
 		})
 	}
+
+	function sessionStats(s: SessionRow) {
+		return [
+			`${s.song_count} morceau${s.song_count > 1 ? 'x' : ''}`,
+			`${s.recording_count} prise${s.recording_count > 1 ? 's' : ''}`,
+			s.total_duration_s > 0 ? formatDurationLong(s.total_duration_s) : null
+		].filter(Boolean).join(' · ')
+	}
 </script>
 
 <svelte:head>
@@ -216,25 +230,21 @@
 				</h2>
 
 				<ul class="sessions-list">
-					{#each group.sessions as s}
+					{#each group.sessions as s (s.id)}
 						<li>
 							<a href="/sessions/{s.id}" class="session-card">
-								<div class="session-top">
-									<span class="type-badge type-{s.type ?? 'repetition'}">{typeLabels[s.type] ?? s.type}</span>
-									<div class="session-date">{s.title ?? formatDate(s.date)}</div>
-								</div>
-								{#if s.title}
-									<div class="session-location">{formatDate(s.date)}</div>
-								{:else if s.location}
-									<div class="session-location">{s.location}</div>
-								{/if}
-								<div class="session-meta">
-									{s.song_count} morceau{s.song_count > 1 ? 'x' : ''} ·
-									{s.recording_count} prise{s.recording_count > 1 ? 's' : ''}
-									{#if s.members?.length}
-										· {s.members.join(', ')}
-									{/if}
-								</div>
+								<SessionHeader
+									date={s.date}
+									type={s.type ?? 'repetition'}
+									title={s.title}
+									location={s.location}
+									members={s.members ?? []}
+									stats={sessionStats(s)}
+									photoUrl={s.photo_version !== null ? sessionPhotoUrl(s.id, s.photo_version) : null}
+									veil={s.photo_veil ?? SESSION_PHOTO_VEIL.default}
+									headingLevel={2}
+									linkLocation={false}
+								/>
 							</a>
 						</li>
 					{/each}
@@ -435,56 +445,22 @@
 
 	.session-card {
 		display: block;
-		border: 1px solid var(--color-border);
 		border-radius: var(--radius-xl);
-		padding: 1rem 1.25rem;
 		text-decoration: none;
 		color: inherit;
-		transition: border-color 0.15s, box-shadow 0.15s;
+		transition: box-shadow 0.15s;
 	}
 
 	.session-card:hover {
-		border-color: #aaa;
-		box-shadow: 0 2px 6px rgba(0, 0, 0, 0.07);
+		box-shadow: 0 2px 10px rgba(44, 43, 40, 0.16);
 	}
 
-	.session-top {
-		display: flex;
-		align-items: center;
-		gap: 0.5rem;
-		margin-bottom: 0.1rem;
+	.session-card:focus-visible {
+		outline: 2px solid var(--color-accent);
+		outline-offset: 3px;
 	}
 
-	.type-badge {
-		font-size: 0.68rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		padding: 0.1rem 0.45rem;
-		border-radius: var(--radius-sm);
-		white-space: nowrap;
-		flex-shrink: 0;
-	}
-
-	.type-badge.type-repetition { background: var(--color-accent-light); color: var(--color-accent); }
-	.type-badge.type-concert    { background: var(--color-green-light);  color: var(--color-green); }
-	.type-badge.type-studio     { background: #f3e8ff; color: #7c3aed; }
-	.type-badge.type-autre      { background: var(--color-bg-subtle);    color: var(--color-text-secondary); }
-
-	.session-date {
-		font-weight: 700;
-		font-size: var(--text-base);
-	}
-
-	.session-location {
-		font-size: var(--text-sm);
-		color: var(--color-text-secondary);
-		margin-top: 0.15rem;
-	}
-
-	.session-meta {
-		font-size: 0.8rem;
-		color: var(--color-text-muted);
-		margin-top: 0.4rem;
+	.session-card :global(.mh-frame) {
+		margin-bottom: 0;
 	}
 </style>

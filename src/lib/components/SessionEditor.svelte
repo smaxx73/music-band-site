@@ -1,13 +1,12 @@
 <script lang="ts">
-	import { formatDateOnly, toDateOnly } from '$lib/date'
+	import { toDateOnly } from '$lib/date'
 	import MembersInput from '$lib/components/MembersInput.svelte'
-	import MediaHeader from '$lib/components/MediaHeader.svelte'
+	import SessionHeader from '$lib/components/SessionHeader.svelte'
 	import Icon from '$lib/components/Icon.svelte'
-	import SessionCover from '$lib/components/SessionCover.svelte'
 	import SessionPhotoAdd from '$lib/components/SessionPhotoAdd.svelte'
 	import SessionPhotoField from '$lib/components/SessionPhotoField.svelte'
 	import LocationInput from '$lib/components/LocationInput.svelte'
-	import { locationDetails, type Coords, type GroupPlace } from '$lib/places'
+	import { type Coords, type GroupPlace } from '$lib/places'
 	import { SESSION_PHOTO_VEIL, sessionPhotoUrl, type SessionPhoto } from '$lib/session-photo'
 	import { invalidateAll } from '$app/navigation'
 	import type { Snippet } from 'svelte'
@@ -34,22 +33,6 @@
 		location_coords: Coords | null
 		members: string[]
 		notes: string | null
-	}
-
-	// Teinte du bandeau d'en-tête, prise dans la couleur du type (celle de `.type-badge`
-	// et du feuillet daté). « Autre » garde le ton neutre.
-	const typeHues: Record<SessionType, number | null> = {
-		repetition: 14,
-		concert: 138,
-		studio: 262,
-		autre: null
-	}
-
-	const typeLabels: Record<SessionType, string> = {
-		repetition: 'Répétition',
-		concert: 'Concert',
-		studio: 'Studio',
-		autre: 'Autre',
 	}
 
 	let {
@@ -131,15 +114,6 @@
 		members: string[]
 		photoUrl: string | null
 		veil: number
-	}
-
-	function formatDate(d: string | Date) {
-		return formatDateOnly(d, {
-			weekday: 'long',
-			day: 'numeric',
-			month: 'long',
-			year: 'numeric'
-		})
 	}
 
 	function startEditSession() {
@@ -239,44 +213,7 @@
 <!-- Le même bandeau sert à la lecture et, en édition, d'aperçu fidèle : titre, type et
      voile s'y voient changer avant d'être enregistrés. -->
 {#snippet banner(b: Banner, actions?: Snippet)}
-	<MediaHeader
-		title={b.title ?? formatDate(b.date)}
-		{stats}
-		hue={typeHues[b.type]}
-		photo={b.photoUrl}
-		photoVeil={b.veil}
-		{actions}
-	>
-		{#snippet kicker()}
-			<span class="type-badge type-{b.type}">{typeLabels[b.type]}</span>
-		{/snippet}
-		{#snippet cover()}
-			<SessionCover date={b.date} type={b.type} />
-		{/snippet}
-		<!-- La date est déjà sur le feuillet (et dans le titre d'une session sans titre) :
-		     ne pas la répéter. -->
-		{#if b.location}
-			<!-- L'étiquette suffit : « Chez Élise » dit où l'on joue au groupe qui l'a nommée.
-			     L'adresse reste au survol et derrière le lien vers la carte. -->
-			{@const details = locationDetails(b.location, b.place, b.coords)}
-			<p class="meta location">
-				<Icon name="pin" size="0.85rem" label="Lieu" class="location-icon" />
-				{#if details.map}
-					<a
-						href={details.map}
-						target="_blank"
-						rel="noopener noreferrer"
-						title={details.address ? `${details.address} — voir sur la carte` : 'Voir sur la carte'}
-					>{b.location}</a>
-				{:else}
-					<span title={details.address ?? undefined}>{b.location}</span>
-				{/if}
-			</p>
-		{/if}
-		{#if b.members.length}
-			<p class="meta">Présents : {b.members.join(', ')}</p>
-		{/if}
-	</MediaHeader>
+	<SessionHeader {...b} {stats} {actions} />
 {/snippet}
 
 {#snippet viewActions()}
@@ -386,49 +323,6 @@
 	.session-header {
 		margin-bottom: 1.5rem;
 	}
-
-	/* Dans le libellé de l'en-tête : la couleur du type, le corps du libellé. */
-	.type-badge {
-		font-size: inherit;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		padding: 0.15rem 0.5rem;
-		border-radius: var(--radius-sm);
-		white-space: nowrap;
-	}
-
-	.type-badge.type-repetition { background: var(--color-accent-light); color: var(--color-accent); }
-	.type-badge.type-concert    { background: var(--color-green-light);  color: var(--color-green); }
-	.type-badge.type-studio     { background: #f3e8ff; color: #7c3aed; }
-	.type-badge.type-autre      { background: var(--color-bg-subtle);    color: var(--color-text-secondary); }
-
-	.meta {
-		font-size: 0.9rem;
-		color: var(--color-text-secondary);
-		margin: 0;
-	}
-
-	/* L'icône reste calée sur la première ligne quand un lieu long passe à la ligne. */
-	.location {
-		display: flex;
-		align-items: flex-start;
-		gap: 0.3rem;
-	}
-
-	.location :global(.location-icon) {
-		flex-shrink: 0;
-		margin-top: 0.2em;
-	}
-
-	.location a {
-		color: inherit;
-		text-decoration: underline dotted;
-		text-underline-offset: 0.15em;
-	}
-
-	.location a:hover { text-decoration-style: solid; }
-
 
 	.notes {
 		font-size: var(--text-sm);
