@@ -13,8 +13,18 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.2.1] — 2026-09-29
+
+Aucune migration à appliquer.
+
 - En-tête de session : un lieu du groupe n'affiche que son étiquette, l'adresse complète
   passe au survol (le lien vers la carte reste)
+- Liste des sessions : chaque carte reprend le bandeau de l'en-tête d'une session,
+  avec le feuillet daté, la couleur du type ou la photo et son voile, le lieu, les
+  participants et le résumé des morceaux, prises et durée
+- Correction : le numéro de version du header suit les modifications de `package.json`
+  en développement, sans nécessiter de redémarrage manuel du serveur
+- Mobile : le numéro de version apparaît aussi en bas du menu, sous les liens légaux
 
 ## [1.2.0] — 2026-09-27
 

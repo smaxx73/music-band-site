@@ -204,6 +204,7 @@
 
 				<div class="sidebar-legal">
 					<LegalLinks compact />
+					<p class="sidebar-version">BandStash · v{APP_VERSION}</p>
 				</div>
 			</nav>
 
@@ -494,6 +495,14 @@
 		color: rgba(255,255,255,0.45);
 	}
 
+	.sidebar-version {
+		display: none;
+		margin: 0.5rem 0 0;
+		font-size: var(--text-xs);
+		color: rgba(255,255,255,0.65);
+		font-variant-numeric: tabular-nums;
+	}
+
 	.sidebar-account form {
 		margin: 0;
 		flex-shrink: 0;
@@ -611,6 +620,8 @@
 
 	/* ─── Mobile : la sidebar devient un tiroir latéral ─ */
 	@media (max-width: 640px) {
+		.sidebar-version { display: block; }
+
 		.menu-toggle,
 		.top-upload,
 		.top-record { display: flex; }

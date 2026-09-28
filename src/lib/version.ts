@@ -1,2 +1,4 @@
-// Remplacée au build par la version de package.json (voir vite.config.ts).
-export const APP_VERSION: string = __APP_VERSION__
+import { version } from '../../package.json'
+
+// Suivie par Vite en développement et figée dans le code au build.
+export const APP_VERSION: string = version
