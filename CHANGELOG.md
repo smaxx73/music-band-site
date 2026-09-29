@@ -13,6 +13,14 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+Migration à appliquer : `040_song_titles_per_group.sql`. Compatible avec l'application
+actuelle : elle remplace l'unicité globale des titres par une unicité dans chaque groupe,
+sans modifier les morceaux existants.
+
+- Correction : un morceau créé dans un groupe n'empêche plus de créer ou de renommer
+  un morceau du même titre dans un autre groupe. Les doublons restent refusés au sein
+  d'un même groupe. **Migration `040_song_titles_per_group.sql`**
+
 ## [1.2.1] — 2026-09-29
 
 Aucune migration à appliquer.
