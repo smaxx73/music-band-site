@@ -25,6 +25,16 @@ export type StoredTake = {
 
 type StoredChunk = { takeId: number; seq: number; data: Blob }
 
+// Les blocs, l'annulation et le démarrage suivant doivent toucher IndexedDB dans cet
+// ordre. Sinon une écriture encore en attente peut recréer une prise déjà effacée.
+let mutations: Promise<void> = Promise.resolve()
+
+function enqueueMutation(action: () => Promise<void>): Promise<void> {
+	const pending = mutations.then(action)
+	mutations = pending.catch(() => {})
+	return pending
+}
+
 function openDb(): Promise<IDBDatabase> {
 	return new Promise((resolve, reject) => {
 		if (typeof indexedDB === 'undefined') {
@@ -54,32 +64,50 @@ function chunkRange(takeId: number): IDBKeyRange {
 	return IDBKeyRange.bound([takeId, 0], [takeId, Number.MAX_SAFE_INTEGER])
 }
 
-export async function beginTake(take: StoredTake): Promise<void> {
+export function beginTake(take: StoredTake): Promise<void> {
+	return enqueueMutation(() => writeTake(take))
+}
+
+async function writeTake(take: StoredTake): Promise<void> {
 	const db = await openDb()
 	const tx = db.transaction('takes', 'readwrite')
 	tx.objectStore('takes').put(take)
-	await done(tx)
-	db.close()
+	try {
+		await done(tx)
+	} finally {
+		db.close()
+	}
 }
 
-export async function appendChunk(take: StoredTake, seq: number, data: Blob): Promise<void> {
+export function appendChunk(take: StoredTake, seq: number, data: Blob): Promise<void> {
+	return enqueueMutation(() => writeChunk(take, seq, data))
+}
+
+async function writeChunk(take: StoredTake, seq: number, data: Blob): Promise<void> {
 	const db = await openDb()
 	// Bloc et métadonnées dans la même transaction : la durée annoncée à la reprise
 	// correspond toujours aux blocs réellement présents.
 	const tx = db.transaction(['takes', 'chunks'], 'readwrite')
 	tx.objectStore('chunks').put({ takeId: take.id, seq, data } satisfies StoredChunk)
 	tx.objectStore('takes').put(take)
-	await done(tx)
-	db.close()
+	try {
+		await done(tx)
+	} finally {
+		db.close()
+	}
 }
 
 /** L'enregistrement le plus récent resté en attente, s'il en existe un. */
 export async function findPendingTake(): Promise<StoredTake | null> {
+	await mutations
 	const db = await openDb()
 	const tx = db.transaction('takes', 'readonly')
 	const req = tx.objectStore('takes').getAll()
-	await done(tx)
-	db.close()
+	try {
+		await done(tx)
+	} finally {
+		db.close()
+	}
 	const takes = (req.result as StoredTake[]).filter((t) => t.sizeBytes > 0)
 	takes.sort((a, b) => b.startedAt - a.startedAt)
 	return takes[0] ?? null
@@ -87,11 +115,15 @@ export async function findPendingTake(): Promise<StoredTake | null> {
 
 /** Recolle les blocs dans l'ordre : concaténés, ils forment un fichier WebM/MP4 valide. */
 export async function assembleTake(take: StoredTake): Promise<Blob> {
+	await mutations
 	const db = await openDb()
 	const tx = db.transaction('chunks', 'readonly')
 	const req = tx.objectStore('chunks').getAll(chunkRange(take.id))
-	await done(tx)
-	db.close()
+	try {
+		await done(tx)
+	} finally {
+		db.close()
+	}
 	const chunks = (req.result as StoredChunk[]).sort((a, b) => a.seq - b.seq)
 	return new Blob(
 		chunks.map((c) => c.data),
@@ -100,11 +132,18 @@ export async function assembleTake(take: StoredTake): Promise<Blob> {
 }
 
 /** Efface tous les enregistrements conservés : un seul est proposé à la reprise. */
-export async function clearTakes(): Promise<void> {
+export function clearTakes(): Promise<void> {
+	return enqueueMutation(clearStoredTakes)
+}
+
+async function clearStoredTakes(): Promise<void> {
 	const db = await openDb()
 	const tx = db.transaction(['takes', 'chunks'], 'readwrite')
 	tx.objectStore('takes').clear()
 	tx.objectStore('chunks').clear()
-	await done(tx)
-	db.close()
+	try {
+		await done(tx)
+	} finally {
+		db.close()
+	}
 }

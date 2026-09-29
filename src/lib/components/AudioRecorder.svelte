@@ -39,7 +39,7 @@
 	// En deçà, il n'y a rien à perdre : annuler ne demande pas confirmation.
 	const CONFIRM_CANCEL_ABOVE_S = 5
 
-	type Phase = 'idle' | 'arming' | 'armed' | 'recording' | 'paused' | 'done'
+	type Phase = 'idle' | 'arming' | 'armed' | 'starting' | 'recording' | 'paused' | 'stopping' | 'cancelling' | 'done'
 	let phase = $state<Phase>('idle')
 	let error = $state<string | null>(null)
 	let warning = $state<string | null>(null)
@@ -53,6 +53,8 @@
 	let clipping = $state(false)
 
 	let pending = $state<StoredTake | null>(null)
+	let pendingLoaded = $state(false)
+	let pendingBusy = $state(false)
 	let backupOk = $state(true)
 	let wakeLockOk = $state(true)
 
@@ -72,6 +74,7 @@
 	let timerId: ReturnType<typeof setInterval> | null = null
 	let clipUntil = 0
 	let wakeLock: WakeLockSentinel | null = null
+	let destroyed = false
 	// Vrai entre la demande d'annulation et l'arrêt effectif du `MediaRecorder` : les
 	// derniers blocs arrivent après `stop()` et n'ont plus à être gardés nulle part.
 	let cancelling = false
@@ -85,7 +88,7 @@
 		!!navigator.mediaDevices?.getUserMedia &&
 		typeof MediaRecorder !== 'undefined'
 
-	const busy = $derived(phase === 'recording' || phase === 'paused')
+	const busy = $derived(phase === 'starting' || phase === 'recording' || phase === 'paused' || phase === 'stopping' || phase === 'cancelling')
 	$effect(() => onbusychange?.(busy))
 
 	onMount(async () => {
@@ -93,10 +96,13 @@
 			pending = await findPendingTake()
 		} catch {
 			// Pas de stockage local : rien à reprendre, l'enregistrement marchera sans secours.
+		} finally {
+			pendingLoaded = true
 		}
 	})
 
 	onDestroy(() => {
+		destroyed = true
 		if (recorder && recorder.state !== 'inactive') recorder.stop()
 		releaseInput()
 		stopTimer()
@@ -132,6 +138,7 @@
 		try {
 			stream = await navigator.mediaDevices.getUserMedia(constraints(id))
 		} catch (err) {
+			if (destroyed) return
 			phase = 'idle'
 			const name = err instanceof DOMException ? err.name : ''
 			error =
@@ -142,14 +149,40 @@
 						: "Impossible d'ouvrir l'entrée audio."
 			return
 		}
+		if (destroyed) {
+			releaseInput()
+			return
+		}
 
-		// Les libellés des entrées ne sont donnés qu'une fois l'accès accordé.
-		const all = await navigator.mediaDevices.enumerateDevices()
+		// Une erreur d'énumération ne doit pas bloquer le micro déjà ouvert.
+		let all: MediaDeviceInfo[] = []
+		try {
+			all = await navigator.mediaDevices.enumerateDevices()
+		} catch {
+			// Le micro déjà autorisé suffit pour enregistrer.
+		}
+		if (destroyed) {
+			releaseInput()
+			return
+		}
+		if (!stream?.active) {
+			phase = 'idle'
+			error = "L'entrée audio n'est plus disponible. Réactive le micro."
+			releaseInput()
+			return
+		}
 		devices = all.filter((d) => d.kind === 'audioinput')
 		deviceId = stream.getAudioTracks()[0]?.getSettings().deviceId ?? id
 
 		stream.getAudioTracks()[0]?.addEventListener('ended', onInputLost)
-		startMeter(stream)
+		try {
+			startMeter(stream)
+		} catch {
+			analyser = null
+			audioCtx?.close().catch(() => {})
+			audioCtx = null
+			warning = "Le vumètre est indisponible, mais le micro peut enregistrer."
+		}
 		phase = 'armed'
 	}
 
@@ -157,6 +190,10 @@
 		if (phase === 'recording' || phase === 'paused') {
 			error = "L'entrée audio a été débranchée : l'enregistrement s'est arrêté, ce qui a été capté est conservé."
 			stop()
+		} else if (phase === 'starting') {
+			error = "L'entrée audio a été débranchée avant le début de l'enregistrement."
+			phase = 'idle'
+			releaseInput()
 		} else {
 			phase = 'idle'
 			releaseInput()
@@ -219,48 +256,77 @@
 	}
 
 	async function start() {
-		if (!stream) return
+		if (!stream || phase !== 'armed' || pending) return
+		phase = 'starting'
 		error = null
 		warning = null
 		discardResult()
 
 		const mimeType = pickMimeType()
+		backupOk = true
 		try {
+			await clearTakes()
+		} catch {
+			backupOk = false
+		}
+		if (phase !== 'starting' || destroyed) return
+		if (!stream?.active) {
+			phase = 'idle'
+			error = "L'entrée audio n'est plus disponible. Réactive le micro."
+			releaseInput()
+			return
+		}
+		try {
+			const startedAt = Date.now()
 			recorder = new MediaRecorder(stream, {
 				...(mimeType ? { mimeType } : {}),
 				audioBitsPerSecond: BITRATE
 			})
+			chunks = []
+			seq = 0
+			resetProgress()
+			take = {
+				id: startedAt,
+				// Le type effectif, sans ses paramètres (`;codecs=opus`) : le serveur compare
+				// le type exact à `audio_formats`.
+				mimeType: baseMime(recorder.mimeType || mimeType || 'audio/webm'),
+				startedAt,
+				durationS: 0,
+				sizeBytes: 0
+			}
+
+			if (backupOk) {
+				try {
+					await beginTake(take)
+				} catch {
+					backupOk = false
+				}
+			}
+			if (phase !== 'starting' || destroyed || !stream?.active) {
+				recorder = null
+				take = null
+				if (!destroyed && phase === 'starting') {
+					phase = 'idle'
+					error = "L'entrée audio n'est plus disponible. Réactive le micro."
+					releaseInput()
+				}
+				return
+			}
+
+			recorder.ondataavailable = (e) => onChunk(e.data)
+			recorder.onstop = onRecorderStop
+			recorder.onerror = () => {
+				error = "L'enregistrement s'est interrompu. Vérifie la prise avant de l'envoyer."
+			}
+			recorder.start(TIMESLICE_MS)
 		} catch {
-			error = "Ce navigateur ne sait pas enregistrer l'audio."
+			recorder = null
+			take = null
+			phase = stream ? 'armed' : 'idle'
+			error = "Impossible de démarrer l'enregistrement audio."
+			clearTakes().catch(() => {})
 			return
 		}
-
-		chunks = []
-		seq = 0
-		sizeBytes = 0
-		elapsedS = 0
-		elapsedBeforeSegment = 0
-		take = {
-			id: Date.now(),
-			// Le type effectif, sans ses paramètres (`;codecs=opus`) : le serveur compare
-			// le type exact à `audio_formats`.
-			mimeType: baseMime(recorder.mimeType || mimeType || 'audio/webm'),
-			startedAt: Date.now(),
-			durationS: 0,
-			sizeBytes: 0
-		}
-
-		backupOk = true
-		try {
-			await clearTakes()
-			await beginTake(take)
-		} catch {
-			backupOk = false
-		}
-
-		recorder.ondataavailable = (e) => onChunk(e.data)
-		recorder.onstop = onRecorderStop
-		recorder.start(TIMESLICE_MS)
 
 		segmentStartedAt = performance.now()
 		phase = 'recording'
@@ -303,10 +369,12 @@
 	}
 
 	function stop() {
-		if (!recorder || recorder.state === 'inactive') return
+		if (!recorder || (phase !== 'recording' && phase !== 'paused')) return
 		if (phase === 'recording') elapsedBeforeSegment = currentElapsed()
 		// Le dernier bloc arrive par `dataavailable` juste avant `stop`.
-		recorder.stop()
+		if (recorder.state !== 'inactive') recorder.stop()
+		phase = 'stopping'
+		stopTimer()
 	}
 
 	/**
@@ -322,13 +390,23 @@
 
 	function cancelRecording() {
 		confirming = null
-		if (!recorder || recorder.state === 'inactive') {
+		if (!recorder) {
 			discardRecording()
 			return
 		}
 		// Le dernier `dataavailable` arrive avant `onRecorderStop`, qui fera le ménage.
 		cancelling = true
-		recorder.stop()
+		if (recorder.state !== 'inactive') recorder.stop()
+		stopTimer()
+		resetProgress()
+		phase = 'cancelling'
+	}
+
+	function resetProgress() {
+		elapsedBeforeSegment = 0
+		elapsedS = 0
+		sizeBytes = 0
+		warning = null
 	}
 
 	/** Remet l'enregistreur au point de départ, micro ouvert s'il l'est resté. */
@@ -337,16 +415,17 @@
 		chunks = []
 		take = null
 		seq = 0
-		elapsedBeforeSegment = 0
-		elapsedS = 0
-		sizeBytes = 0
-		warning = null
+		resetProgress()
 		phase = stream ? 'armed' : 'idle'
 		clearTakes().catch(() => {})
 		onchange(null, 0)
 	}
 
 	function onRecorderStop() {
+		if ((phase === 'recording' || phase === 'paused') && !error) {
+			error = "L'enregistrement s'est arrêté de façon inattendue. Vérifie la prise avant de l'envoyer."
+		}
+		if (phase === 'recording') elapsedBeforeSegment = currentElapsed()
 		stopTimer()
 		releaseWakeLock()
 		window.removeEventListener('beforeunload', onBeforeUnload)
@@ -358,6 +437,7 @@
 		elapsedS = elapsedBeforeSegment
 		if (!take || chunks.length === 0) {
 			phase = stream ? 'armed' : 'idle'
+			if (!error) error = 'Aucun son n’a été enregistré. Réessaie.'
 			return
 		}
 		setResult(new Blob(chunks, { type: take.mimeType }), take, elapsedBeforeSegment)
@@ -403,14 +483,18 @@
 	}
 
 	async function restart() {
+		if (phase !== 'done') return
 		confirming = null
+		phase = 'arming'
 		discardResult()
+		resetProgress()
 		await clearTakes().catch(() => {})
 		await arm()
 	}
 
 	async function recoverPending() {
-		if (!pending) return
+		if (!pending || pendingBusy) return
+		pendingBusy = true
 		try {
 			const blob = await assembleTake(pending)
 			if (!blob.size) throw new Error('vide')
@@ -419,12 +503,17 @@
 			setResult(blob, t, t.durationS)
 		} catch {
 			error = "L'enregistrement conservé n'a pas pu être relu."
+		} finally {
+			pendingBusy = false
 		}
 	}
 
 	async function dropPending() {
+		if (pendingBusy) return
+		pendingBusy = true
 		pending = null
 		await clearTakes().catch(() => {})
+		pendingBusy = false
 	}
 
 	function baseMime(type: string): string {
@@ -507,10 +596,10 @@
 					({formatElapsed(pending.durationS)}, {formatSize(pending.sizeBytes)}) n'a pas été envoyé.
 				</p>
 				<div class="row">
-					<button type="button" class="btn btn-secondary btn-sm" onclick={recoverPending} {disabled}>
+					<button type="button" class="btn btn-secondary btn-sm" onclick={recoverPending} disabled={disabled || pendingBusy}>
 						Récupérer
 					</button>
-					<button type="button" class="btn btn-ghost btn-sm" onclick={dropPending} {disabled}>
+					<button type="button" class="btn btn-ghost btn-sm" onclick={dropPending} disabled={disabled || pendingBusy}>
 						Supprimer
 					</button>
 				</div>
@@ -526,7 +615,7 @@
 				type="button"
 				class="btn btn-primary start-btn"
 				onclick={() => arm()}
-				disabled={disabled || phase === 'arming' || !!pending}
+				disabled={disabled || phase === 'arming' || !pendingLoaded || !!pending}
 			>
 				<Icon name="mic" />
 				{phase === 'arming' ? 'Ouverture du micro…' : 'Activer le micro'}
@@ -534,6 +623,10 @@
 			<p class="hint">
 				Micro de l'appareil, casque ou interface audio branchée. Le son est capté tel quel,
 				sans les corrections automatiques des appels vidéo.
+			</p>
+		{:else if phase === 'starting' || phase === 'stopping' || phase === 'cancelling'}
+			<p class="hint" role="status">
+				{phase === 'starting' ? 'Préparation de l’enregistrement…' : phase === 'stopping' ? 'Finalisation de l’enregistrement…' : 'Annulation de l’enregistrement…'}
 			</p>
 		{:else if phase === 'done'}
 			<div class="result">
