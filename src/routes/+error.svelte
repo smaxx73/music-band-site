@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { page } from '$app/stores'
-	import { invalidateAll } from '$app/navigation'
 
 	// Le contenu visé appartient à un autre groupe de l'utilisateur, et la requête ne
 	// permettait pas de basculer d'office (voir src/lib/server/group-scope.ts) : la
@@ -24,9 +23,7 @@
 				switchError = json.error ?? 'La bascule a échoué.'
 				return
 			}
-			// Le groupe actif a changé pour toute l'application : tout recharger, pas
-			// seulement cette page, sinon la barre du haut continuerait d'afficher l'ancien.
-			await invalidateAll()
+			// Recharger la page et son layout sous le nouveau cookie de groupe.
 			location.reload()
 		} catch {
 			switchError = 'Erreur réseau.'

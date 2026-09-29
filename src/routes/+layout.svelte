@@ -2,7 +2,8 @@
 	import '../app.css'
 	import type { LayoutData } from './$types'
 	import { page } from '$app/state'
-	import { goto, afterNavigate } from '$app/navigation'
+	import { afterNavigate } from '$app/navigation'
+	import { onMount } from 'svelte'
 	import { groupLogoUrl, isAdmin } from '$lib/types'
 	import MiniPlayer from '$lib/components/MiniPlayer.svelte'
 	import NotificationsMenu from '$lib/components/NotificationsMenu.svelte'
@@ -15,6 +16,34 @@
 
 	// Fermeture locale ; une nouvelle annonce du serveur réaffiche le bandeau.
 	let groupSwitchNotice = $derived(data.group_switched_to)
+	let groupSwitchError = $state<string | null>(null)
+	let switchingGroup = $state(false)
+
+	// Le cookie du groupe est commun aux onglets. Au retour dans cet onglet, on
+	// recharge l'ensemble de la page si un autre onglet l'a changé.
+	onMount(() => {
+		let checking = false
+		async function checkActiveGroup() {
+			if (!data.user || switchingGroup || checking || document.visibilityState !== 'visible') return
+			checking = true
+			try {
+				const response = await fetch('/api/groups/switch', { cache: 'no-store' })
+				if (!response.ok) return
+				const { group_id } = await response.json()
+				if (group_id !== data.user?.current_group_id) location.reload()
+			} catch {
+				// Hors ligne : le prochain retour dans l'onglet réessaiera.
+			} finally {
+				checking = false
+			}
+		}
+		window.addEventListener('focus', checkActiveGroup)
+		document.addEventListener('visibilitychange', checkActiveGroup)
+		return () => {
+			window.removeEventListener('focus', checkActiveGroup)
+			document.removeEventListener('visibilitychange', checkActiveGroup)
+		}
+	})
 
 	// Menu mobile : tiroir latéral, refermé dès qu'on navigue
 	let menuOpen = $state(false)
@@ -33,14 +62,30 @@
 	}
 
 	async function switchGroup(e: Event) {
-		const select = e.target as HTMLSelectElement
-		const groupId = parseInt(select.value)
-		await fetch('/api/groups/switch', {
-			method: 'POST',
-			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ group_id: groupId })
-		})
-		goto('/', { invalidateAll: true })
+		const select = e.currentTarget as HTMLSelectElement
+		const groupId = Number(select.value)
+		if (switchingGroup || groupId === data.user?.current_group_id) return
+		// Le contenu visible appartient encore à l'ancien groupe jusqu'au rechargement.
+		select.value = String(data.user?.current_group_id ?? '')
+		switchingGroup = true
+		groupSwitchError = null
+		try {
+			const response = await fetch('/api/groups/switch', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ group_id: groupId })
+			})
+			if (!response.ok) {
+				const body = await response.json().catch(() => ({}))
+				throw new Error(body.error ?? 'Le changement de groupe a échoué.')
+			}
+			// Une navigation complète recharge le layout et la page sous le même cookie.
+			location.assign('/')
+		} catch (error) {
+			select.value = String(data.user?.current_group_id ?? '')
+			groupSwitchError = error instanceof Error ? error.message : 'Le changement de groupe a échoué.'
+			switchingGroup = false
+		}
 	}
 
 	const currentGroup = $derived(
@@ -111,7 +156,7 @@
 				</a>
 			{/if}
 			{#if data.user.groups.length > 1}
-				<select class="group-select" onchange={switchGroup}>
+				<select class="group-select" onchange={switchGroup} disabled={switchingGroup} aria-busy={switchingGroup} aria-label="Groupe actif">
 					{#each data.user.groups as g}
 						<option value={g.id} selected={g.id === data.user.current_group_id}>{g.name}</option>
 					{/each}
@@ -210,6 +255,9 @@
 
 			<!-- Page content -->
 			<div class="app-content">
+				{#if groupSwitchError}
+					<div class="group-switch-banner" role="alert">{groupSwitchError}</div>
+				{/if}
 				{#if groupSwitchNotice}
 					<!-- Un lien reçu visait un autre groupe : la bascule a déjà eu lieu, mais
 					     elle vaut pour tous les onglets — la taire serait plus déroutant. -->

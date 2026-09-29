@@ -2,6 +2,14 @@ import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import { setActiveGroupCookie } from '$lib/server/group-scope'
 
+// Permet à un onglet repris après une bascule ailleurs de vérifier le cookie partagé.
+export const GET: RequestHandler = ({ locals }) => {
+	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
+	return json({ group_id: locals.user.current_group_id }, {
+		headers: { 'cache-control': 'no-store' }
+	})
+}
+
 export const POST: RequestHandler = async ({ locals, request, cookies }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
 
