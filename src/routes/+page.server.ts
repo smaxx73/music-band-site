@@ -28,7 +28,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			SELECT
 				s.id, s.date, s.location, s.members,
 				COUNT(DISTINCT r.song_id)::int                             AS song_count,
-				ARRAY_AGG(DISTINCT songs.title ORDER BY songs.title)       AS song_titles
+				COALESCE(ARRAY_AGG(DISTINCT songs.title ORDER BY songs.title)
+					FILTER (WHERE songs.title IS NOT NULL), ARRAY[]::TEXT[]) AS song_titles
 			FROM sessions s
 			LEFT JOIN recordings r ON r.session_id = s.id
 			LEFT JOIN songs       ON songs.id = r.song_id
@@ -55,7 +56,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			SELECT
 				s.id, s.date, s.location, s.members,
 				COUNT(DISTINCT r.song_id)::int                             AS song_count,
-				ARRAY_AGG(DISTINCT songs.title ORDER BY songs.title)       AS song_titles
+				COALESCE(ARRAY_AGG(DISTINCT songs.title ORDER BY songs.title)
+					FILTER (WHERE songs.title IS NOT NULL), ARRAY[]::TEXT[]) AS song_titles
 			FROM sessions s
 			LEFT JOIN recordings r ON r.session_id = s.id
 			LEFT JOIN songs       ON songs.id = r.song_id
