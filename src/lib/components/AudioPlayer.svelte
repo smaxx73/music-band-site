@@ -42,6 +42,7 @@
 		loadingText = 'Chargement…',
 		onStateChange = () => {},
 		onMarkerSelect = () => {},
+		onPlayRequest = null,
 		onEnded = () => {}
 	}: {
 		track: AudioTrack
@@ -59,6 +60,8 @@
 		loadingText?: string
 		onStateChange?: (state: PlayerState) => void
 		onMarkerSelect?: (markerId: AudioMarker['id']) => void
+		/** Laisse une page transférer une préécoute vers le lecteur partagé avant de jouer. */
+		onPlayRequest?: ((currentTime: number) => void) | null
 		onEnded?: () => void
 	} = $props()
 
@@ -241,6 +244,10 @@
 	}
 
 	function togglePlay() {
+		if (!isPlaying && onPlayRequest) {
+			onPlayRequest(currentTime)
+			return
+		}
 		wavesurfer?.playPause()
 	}
 

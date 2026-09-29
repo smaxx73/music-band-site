@@ -94,7 +94,7 @@
 			<a href="/admin/users" class="btn-secondary">Gérer les utilisateurs</a>
 			<a href="/admin/settings" class="btn-secondary">Paramètres</a>
 			{#if isSuperadmin(data.user?.role)}
-				<a href="/admin/partition" class="btn-secondary">Prototype de partition</a>
+				<a href="/admin/partition" class="btn-secondary">Feuilles de répétition</a>
 			{/if}
 			<a href="/api/admin/backup" class="btn-secondary" download>
 				Télécharger la sauvegarde SQL

@@ -3,11 +3,11 @@
 </script>
 
 <svelte:head>
-	<title>Prototype de partition</title>
+	<title>Feuilles de répétition</title>
 </svelte:head>
 
 <nav class="breadcrumb" aria-label="Fil d’Ariane">
-	<a href="/admin">Administration</a> / <span>Prototype de partition</span>
+	<a href="/admin">Administration</a> / <span>Feuilles de répétition</span>
 </nav>
 
 <SongChartPrototype />

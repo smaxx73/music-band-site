@@ -118,6 +118,7 @@
 			<p class="ref-duration">Durée de référence : {formatDuration(song.reference_duration_s)}</p>
 		{/if}
 		{#snippet actions()}
+			<a class="btn btn-secondary" href="/songs/{song.id}/partition">Partition / paroles</a>
 			<SongCoverEditor
 				songId={song.id}
 				title={song.title}

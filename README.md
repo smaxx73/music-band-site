@@ -25,6 +25,7 @@ Application web privée pour partager et archiver les enregistrements de répét
 - Référentiel de morceaux avec titre, compositeur, tonalité et statut (En apprentissage / Proposition de travail / Au répertoire / Abandonné)
 - Historique complet d'un morceau : toutes ses prises toutes sessions confondues, triées par date décroissante
 - Liste des morceaux avec nombre de prises disponibles
+- Feuille de répétition partagée par morceau : blocs ChordPro et mini-partitions, import MusicXML/MXL, sauvegarde en base, accès aux originaux et impression PDF
 
 ### Commentaires
 

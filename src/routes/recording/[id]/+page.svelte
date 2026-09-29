@@ -90,38 +90,45 @@
 		peaks: data.peaks as number[],
 		duration: (recording.duration_s ?? (data as { peaksDuration?: number | null }).peaksDuration) ?? undefined
 	})
+	const sharedTrackMatches = $derived(player.track?.recordingId === recording.id)
 
-	// La page devient la vue détaillée du lecteur partagé : arriver ici sur la prise
-	// déjà en cours ne coupe pas la lecture, `load` ne retouche pas le `src`.
-	// Une prise sans piste audio a son propre lecteur et laisse le lecteur partagé tranquille.
+	function sharedRecordingTrack(r: Recording) {
+		return {
+			recordingId: r.id,
+			songId: r.song_id,
+			songTitle: r.song_title,
+			take: r.take,
+			sessionDate: String(r.session_date),
+			durationS: r.duration_s
+		}
+	}
+
+	// Une navigation vers un commentaire ne remplace jamais la prise déjà chargée. Si le
+	// lecteur est libre, cette page peut l'initialiser sans lancer la lecture.
 	$effect(() => {
 		const r = recording
 		if (!r.file_path) return
-		untrack(() =>
-			player.load({
-				recordingId: r.id,
-				songId: r.song_id,
-				songTitle: r.song_title,
-				take: r.take,
-				sessionDate: String(r.session_date),
-				durationS: r.duration_s
-			})
-		)
+		untrack(() => {
+			if (!player.track) player.load(sharedRecordingTrack(r))
+		})
 	})
 
-	// Dès que la prise a sa piste audio, la page la pilote seule, onglet Vidéo compris : la
-	// barre du bas y rejouerait la même prise en double, et les commentaires suivent le
-	// lecteur affiché, pas la barre.
+	// La waveform ne masque la barre du bas que lorsqu'elle pilote la même prise.
 	$effect(() => {
-		if (!hasAudio) return
+		if (!hasAudio || !sharedTrackMatches) return
 		player.attachView()
 		return () => player.detachView()
 	})
 
+	function playThisRecording(at: number) {
+		player.load(sharedRecordingTrack(recording), true)
+		if (at > 0) player.seek(at)
+	}
+
 	// Un seul lecteur actif à l'écran. Revenir à l'audio n'a rien à arrêter : le lecteur
 	// vidéo est retiré de la page, et détruit avec lui.
 	function selectView(next: 'audio' | 'video') {
-		if (next === 'video') player.pause()
+		if (next === 'video' && sharedTrackMatches) player.pause()
 		view = next
 	}
 
@@ -528,19 +535,22 @@
 				}}
 			/>
 		{:else}
-			<AudioPlayer
-				track={playerTrack}
-				media={player.media}
-				markers={commentMarkers}
-				seekRequest={seekRequest}
-				onStateChange={(state) => {
-					playerState = state
-				}}
-				onMarkerSelect={(markerId) => {
-					highlightToken += 1
-					highlightRequest = { id: Number(markerId), token: highlightToken }
-				}}
-			/>
+			{#key sharedTrackMatches}
+				<AudioPlayer
+					track={playerTrack}
+					media={sharedTrackMatches ? player.media : null}
+					markers={commentMarkers}
+					seekRequest={seekRequest}
+					onPlayRequest={sharedTrackMatches ? null : playThisRecording}
+					onStateChange={(state) => {
+						playerState = state
+					}}
+					onMarkerSelect={(markerId) => {
+						highlightToken += 1
+						highlightRequest = { id: Number(markerId), token: highlightToken }
+					}}
+				/>
+			{/key}
 		{/if}
 	</div>
 

@@ -412,3 +412,25 @@ CREATE INDEX idx_comments_post          ON comments(post_id) WHERE post_id IS NO
 CREATE INDEX idx_share_links_recording  ON share_links(recording_id) WHERE recording_id IS NOT NULL;
 CREATE INDEX idx_share_links_personal   ON share_links(personal_recording_id) WHERE personal_recording_id IS NOT NULL;
 CREATE UNIQUE INDEX group_places_label  ON group_places (group_id, lower(btrim(label)));
+-- Feuilles de répétition (voir migration 041)
+CREATE TABLE score_documents (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    song_id INTEGER UNIQUE REFERENCES songs(id) ON DELETE CASCADE,
+    title TEXT NOT NULL,
+    manifest JSONB NOT NULL DEFAULT '[]'::jsonb,
+    contents JSONB NOT NULL DEFAULT '{}'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE TABLE score_originals (
+    document_id INTEGER NOT NULL REFERENCES score_documents(id) ON DELETE CASCADE,
+    block_id INTEGER NOT NULL,
+    file_name TEXT NOT NULL,
+    format TEXT NOT NULL CHECK (format IN ('musicxml', 'mxl')),
+    warning TEXT,
+    content BYTEA NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (document_id, block_id)
+);
+CREATE INDEX idx_score_documents_user ON score_documents(user_id, updated_at DESC);
