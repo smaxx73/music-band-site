@@ -2,6 +2,7 @@
 	import { onDestroy, onMount } from 'svelte'
 	import Icon from './Icon.svelte'
 	import ConfirmDialog from './ConfirmDialog.svelte'
+	import type { AudioTrim } from '$lib/types'
 	import {
 		appendChunk,
 		assembleTake,
@@ -19,11 +20,14 @@
 	let {
 		disabled = false,
 		onchange,
+		ontrimchange,
 		onbusychange
 	}: {
 		disabled?: boolean
 		/** Enregistrement prêt à envoyer (et sa durée), ou `null` quand il est écarté. */
 		onchange: (file: File | null, durationS: number) => void
+		/** Bornes à appliquer au fichier lors de l'envoi ; null garde tout l'audio. */
+		ontrimchange?: (trim: AudioTrim | null) => void
 		/** Vrai tant qu'un enregistrement est en cours : la page ne doit pas démonter le composant. */
 		onbusychange?: (busy: boolean) => void
 	} = $props()
@@ -38,6 +42,7 @@
 	const BITRATE = 128_000
 	// En deçà, il n'y a rien à perdre : annuler ne demande pas confirmation.
 	const CONFIRM_CANCEL_ABOVE_S = 5
+	const MIN_TRIM_S = 0.5
 
 	type Phase = 'idle' | 'arming' | 'armed' | 'starting' | 'recording' | 'paused' | 'stopping' | 'cancelling' | 'done'
 	let phase = $state<Phase>('idle')
@@ -60,6 +65,17 @@
 
 	let previewUrl = $state<string | null>(null)
 	let resultFile = $state<File | null>(null)
+	let trimDuration = $state(0)
+	let trimStart = $state(0)
+	let trimEnd = $state(0)
+	let previewing = $state(false)
+	let waveBars = $state<number[]>([])
+	let audioEl = $state<HTMLAudioElement | null>(null)
+	let timelineEl = $state<HTMLDivElement | null>(null)
+	let dragging: 'start' | 'end' | null = null
+	let wavePeaks: number[] = []
+	const selectedDuration = $derived(Math.max(0, trimEnd - trimStart))
+	const hasTrim = $derived(trimStart > 0.01 || trimEnd < trimDuration - 0.01)
 
 	let stream: MediaStream | null = null
 	let audioCtx: AudioContext | null = null
@@ -235,6 +251,10 @@
 			const now = performance.now()
 			if (peak >= 0.98) clipUntil = now + 1500
 			clipping = now < clipUntil
+			if (phase === 'recording') {
+				const bucket = Math.floor(currentElapsed() * 10)
+				wavePeaks[bucket] = Math.max(wavePeaks[bucket] ?? 0, peak)
+			}
 			rafId = requestAnimationFrame(tick)
 		}
 		rafId = requestAnimationFrame(tick)
@@ -283,6 +303,7 @@
 				audioBitsPerSecond: BITRATE
 			})
 			chunks = []
+			wavePeaks = []
 			seq = 0
 			resetProgress()
 			take = {
@@ -467,6 +488,11 @@
 		if (previewUrl) URL.revokeObjectURL(previewUrl)
 		previewUrl = URL.createObjectURL(blob)
 		resultFile = new File([blob], fileName(t), { type: t.mimeType })
+		trimDuration = durationS
+		trimStart = 0
+		trimEnd = durationS
+		waveBars = makeWaveBars(wavePeaks)
+		ontrimchange?.(null)
 		sizeBytes = blob.size
 		elapsedS = durationS
 		phase = 'done'
@@ -476,9 +502,11 @@
 	}
 
 	function discardResult() {
+		stopPreview()
 		if (previewUrl) URL.revokeObjectURL(previewUrl)
 		previewUrl = null
 		resultFile = null
+		ontrimchange?.(null)
 		onchange(null, 0)
 	}
 
@@ -580,6 +608,103 @@
 			minute: '2-digit'
 		})
 	}
+
+	function makeWaveBars(peaks: number[]): number[] {
+		if (!peaks.length) return []
+		const count = 80
+		return Array.from({ length: count }, (_, i) => {
+			const from = Math.floor(i * peaks.length / count)
+			const to = Math.max(from + 1, Math.ceil((i + 1) * peaks.length / count))
+			let max = 0
+			for (let j = from; j < to; j++) max = Math.max(max, peaks[j] ?? 0)
+			return Math.max(6, Math.min(100, Math.sqrt(max) * 100))
+		})
+	}
+
+	function formatTrimTime(seconds: number): string {
+		const whole = Math.floor(seconds)
+		return `${formatElapsed(whole)}.${Math.floor((seconds - whole) * 10)}`
+	}
+
+	function stopPreview() {
+		previewing = false
+		audioEl?.pause()
+	}
+
+	function emitTrim() {
+		ontrimchange?.(hasTrim ? { startS: trimStart, endS: trimEnd } : null)
+	}
+
+	function setTrim(edge: 'start' | 'end', seconds: number) {
+		if (disabled || trimDuration < MIN_TRIM_S) return
+		const rounded = Math.round(seconds * 100) / 100
+		if (edge === 'start') trimStart = Math.max(0, Math.min(rounded, trimEnd - MIN_TRIM_S))
+		else trimEnd = Math.min(trimDuration, Math.max(rounded, trimStart + MIN_TRIM_S))
+		stopPreview()
+		emitTrim()
+	}
+
+	function resetTrim() {
+		trimStart = 0
+		trimEnd = trimDuration
+		stopPreview()
+		emitTrim()
+	}
+
+	function timeAtPointer(event: PointerEvent): number {
+		if (!timelineEl || !trimDuration) return 0
+		const rect = timelineEl.getBoundingClientRect()
+		return Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)) * trimDuration
+	}
+
+	function startDrag(event: PointerEvent) {
+		if (disabled || !timelineEl || trimDuration < MIN_TRIM_S) return
+		const marked = event.target instanceof Element ? event.target.closest('[data-edge]')?.getAttribute('data-edge') : null
+		const position = timeAtPointer(event)
+		dragging = marked === 'start' || marked === 'end'
+			? marked
+			: Math.abs(position - trimStart) <= Math.abs(position - trimEnd) ? 'start' : 'end'
+		timelineEl.setPointerCapture(event.pointerId)
+		if (!marked) setTrim(dragging, position)
+	}
+
+	function moveDrag(event: PointerEvent) {
+		if (dragging) setTrim(dragging, timeAtPointer(event))
+	}
+
+	function endDrag(event: PointerEvent) {
+		if (!dragging) return
+		dragging = null
+		if (timelineEl?.hasPointerCapture(event.pointerId)) timelineEl.releasePointerCapture(event.pointerId)
+	}
+
+	function moveByKey(event: KeyboardEvent, edge: 'start' | 'end') {
+		if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return
+		event.preventDefault()
+		setTrim(edge, (edge === 'start' ? trimStart : trimEnd) + (event.key === 'ArrowRight' ? 1 : -1) * (event.shiftKey ? 1 : 0.1))
+	}
+
+	function onAudioMetadata() {
+		const duration = audioEl?.duration
+		if (!duration || !Number.isFinite(duration)) return
+		const wasFull = !hasTrim
+		trimDuration = duration
+		trimEnd = wasFull ? duration : Math.min(trimEnd, duration)
+		trimStart = Math.min(trimStart, Math.max(0, trimEnd - MIN_TRIM_S))
+		emitTrim()
+	}
+
+	async function playSelection() {
+		if (!audioEl) return
+		if (previewing) { stopPreview(); return }
+		audioEl.currentTime = trimStart
+		previewing = true
+		try { await audioEl.play() } catch { previewing = false }
+	}
+
+	function onAudioTime() {
+		if (previewing && audioEl && audioEl.currentTime >= trimEnd - 0.03) stopPreview()
+	}
 </script>
 
 <div class="recorder">
@@ -635,7 +760,45 @@
 					Enregistrement prêt — {formatElapsed(elapsedS)} · {formatSize(sizeBytes)}
 				</p>
 				{#if previewUrl}
-					<audio controls src={previewUrl} preload="metadata"></audio>
+					<audio bind:this={audioEl} controls src={previewUrl} preload="metadata" onloadedmetadata={onAudioMetadata} ontimeupdate={onAudioTime} onpause={() => (previewing = false)} onended={() => (previewing = false)}></audio>
+					<div class="trim-editor">
+						<div class="trim-heading">
+							<strong>Recadrer l'audio</strong>
+							<span>Glisse les poignées au doigt ou à la souris.</span>
+						</div>
+						<!-- svelte-ignore a11y_no_static_element_interactions -->
+						<div
+							class="trim-timeline"
+							bind:this={timelineEl}
+							onpointerdown={startDrag}
+							onpointermove={moveDrag}
+							onpointerup={endDrag}
+							onpointercancel={endDrag}
+						>
+							<div class="waveform" aria-hidden="true">
+								{#if waveBars.length}
+									{#each waveBars as bar}
+										<span style:height={`${bar}%`}></span>
+									{/each}
+								{:else}
+									<div class="waveform-fallback"></div>
+								{/if}
+							</div>
+							<div class="trim-shade left" style:width={`${trimDuration ? trimStart / trimDuration * 100 : 0}%`}></div>
+							<div class="trim-shade right" style:width={`${trimDuration ? (trimDuration - trimEnd) / trimDuration * 100 : 0}%`}></div>
+							<button type="button" class="trim-handle" data-edge="start" style:left={`${trimDuration ? trimStart / trimDuration * 100 : 0}%`} aria-label={`Début de la sélection : ${formatTrimTime(trimStart)}`} title="Début de la sélection" onkeydown={(e) => moveByKey(e, 'start')} {disabled}></button>
+							<button type="button" class="trim-handle" data-edge="end" style:left={`${trimDuration ? trimEnd / trimDuration * 100 : 100}%`} aria-label={`Fin de la sélection : ${formatTrimTime(trimEnd)}`} title="Fin de la sélection" onkeydown={(e) => moveByKey(e, 'end')} {disabled}></button>
+						</div>
+						<div class="trim-times">
+							<span>Début <strong>{formatTrimTime(trimStart)}</strong></span>
+							<span>{formatTrimTime(selectedDuration)} conservées</span>
+							<span>Fin <strong>{formatTrimTime(trimEnd)}</strong></span>
+						</div>
+						<div class="trim-actions">
+							<button type="button" class="btn btn-secondary btn-sm" onclick={playSelection} {disabled}>{previewing ? 'Arrêter la préécoute' : 'Écouter la sélection'}</button>
+							{#if hasTrim}<button type="button" class="btn btn-ghost btn-sm" onclick={resetTrim} {disabled}>Tout garder</button>{/if}
+						</div>
+					</div>
 				{/if}
 				<button type="button" class="btn btn-ghost btn-sm" onclick={() => requestCancel('result')} {disabled}>
 					Recommencer
@@ -862,6 +1025,21 @@
 	.result { display: flex; flex-direction: column; gap: 0.5rem; }
 	.result .btn { align-self: flex-start; }
 	.result audio { width: 100%; }
+	.trim-editor { display: flex; flex-direction: column; gap: 0.45rem; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+	.trim-heading { display: flex; flex-direction: column; gap: 0.1rem; font-size: var(--text-sm); }
+	.trim-heading span { color: var(--color-text-muted); font-size: var(--text-xs); }
+	.trim-timeline { position: relative; height: 78px; margin: 0 12px; border-radius: var(--radius-sm); background: var(--color-bg-muted); cursor: crosshair; touch-action: none; user-select: none; }
+	.waveform { position: absolute; inset: 10px 0; display: flex; align-items: center; gap: 1px; overflow: hidden; pointer-events: none; }
+	.waveform span { flex: 1; min-width: 0; border-radius: 2px; background: var(--color-accent); }
+	.waveform-fallback { width: 100%; height: 3px; background: var(--color-accent); }
+	.trim-shade { position: absolute; top: 0; bottom: 0; background: rgba(0, 0, 0, 0.48); pointer-events: none; }
+	.trim-shade.left { left: 0; }
+	.trim-shade.right { right: 0; }
+	.trim-handle { position: absolute; z-index: 1; top: 0; bottom: 0; width: 24px; transform: translateX(-50%); border: 0; border-left: 3px solid var(--color-accent); border-right: 3px solid var(--color-accent); border-radius: 4px; background: rgba(255, 255, 255, 0.22); cursor: ew-resize; touch-action: none; }
+	.trim-handle:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 2px; }
+	.trim-times { display: flex; justify-content: space-between; gap: 0.5rem; font-size: var(--text-xs); font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
+	.trim-times strong { color: var(--color-text); }
+	.trim-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
 	.summary {
 		display: flex;

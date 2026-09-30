@@ -6,9 +6,10 @@
 	import SongSelect from '$lib/components/SongSelect.svelte'
 	import LocationInput from '$lib/components/LocationInput.svelte'
 	import type { Coords } from '$lib/places'
+	import type { AudioTrim } from '$lib/types'
 	import { sortedWithSong } from '$lib/songs'
 	import { clearTakes } from '$lib/recording-store'
-	import { createSession, DuplicateError, sendAudioFile, splitUrl, type DuplicateInfo } from '$lib/upload-client'
+	import { createSession, DuplicateError, sendAudioFile, splitUrl, trimFields, type DuplicateInfo } from '$lib/upload-client'
 
 	/**
 	 * Enregistrer d'abord, classer ensuite : en répétition, on lance le micro sans
@@ -42,6 +43,7 @@
 	}
 
 	let file = $state<File | null>(null)
+	let audioTrim = $state<AudioTrim | null>(null)
 	// Date le titre provisoire d'un morceau créé à la volée : c'est l'heure de la prise
 	// qui aide à la reconnaître plus tard, pas celle du classement.
 	let recordedAt = $state<Date | null>(null)
@@ -76,6 +78,7 @@
 	 */
 	function onRecorded(recorded: File | null, durationS: number) {
 		file = recorded
+		audioTrim = null
 		error = null
 		duplicate = null
 		if (!recorded) return
@@ -138,7 +141,7 @@
 				const audioImport = await sendAudioFile<{ id: string }>(
 					'/api/imports',
 					file,
-					{ destination: 'perso' },
+					{ destination: 'perso', ...trimFields(audioTrim) },
 					onProgress
 				)
 				await clearTakes().catch(() => {})
@@ -149,7 +152,7 @@
 				const created = await sendAudioFile<{ id: number }>(
 					'/api/personal',
 					file,
-					{ title: persoTitle.trim(), notes: persoNotes.trim() },
+					{ title: persoTitle.trim(), notes: persoNotes.trim(), ...trimFields(audioTrim) },
 					onProgress
 				)
 				await clearTakes().catch(() => {})
@@ -163,7 +166,7 @@
 				const audioImport = await sendAudioFile<{ id: string }>(
 					'/api/imports',
 					file,
-					{ session_id: String(sessionId) },
+					{ session_id: String(sessionId), ...trimFields(audioTrim) },
 					onProgress
 				)
 				// Le serveur a le fichier : la copie de secours n'a plus lieu d'être.
@@ -175,7 +178,7 @@
 			const result = await sendAudioFile<{ id: number }>(
 				'/api/upload',
 				file,
-				{ session_id: String(sessionId), song_id: selectedSong },
+				{ session_id: String(sessionId), song_id: selectedSong, ...trimFields(audioTrim) },
 				onProgress
 			)
 			await clearTakes().catch(() => {})
@@ -203,6 +206,7 @@
 		<AudioRecorder
 			disabled={uploading}
 			onchange={onRecorded}
+			ontrimchange={(trim) => (audioTrim = trim)}
 			onbusychange={(busy) => (recording = busy)}
 		/>
 	</section>

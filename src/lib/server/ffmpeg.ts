@@ -1,22 +1,31 @@
 import { spawn } from 'child_process'
+import type { AudioTrim } from '$lib/types'
 
 /**
- * Convertit un fichier audio en mp3 128kbps avec suppression des silences.
+ * Convertit un fichier audio en mp3 128kbps. Sans coupe manuelle, les silences
+ * aux extrémités sont aussi supprimés.
  * Lecture depuis le disque, écriture sur le disque — jamais en mémoire Node.
  */
-export function convertToMp3(inputPath: string, outputPath: string): Promise<void> {
+export function convertToMp3(inputPath: string, outputPath: string, trim: AudioTrim | null = null): Promise<void> {
 	return new Promise((resolve, reject) => {
 		const ff = spawn('ffmpeg', [
+			...(trim ? ['-ss', trim.startS.toFixed(3)] : []),
 			'-i', inputPath,
+			...(trim ? ['-t', (trim.endS - trim.startS).toFixed(3)] : []),
 			'-ar', '44100',
 			'-ab', '128k',
 			'-ac', '2',
-			'-af', [
-				'silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB',
-				'areverse',
-				'silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB',
-				'areverse'
-			].join(','),
+			// Une coupe manuelle garde exactement la portion choisie ; le rognage
+			// automatique des silences ne sert qu'aux dépôts sans bornes.
+			...(!trim ? [
+				'-af',
+				[
+					'silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB',
+					'areverse',
+					'silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB',
+					'areverse'
+				].join(',')
+			] : []),
 			'-f', 'mp3',
 			'-y',
 			outputPath

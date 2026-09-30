@@ -1,9 +1,15 @@
+import type { AudioTrim } from '$lib/types'
+
 /**
  * Envoi d'un fichier audio depuis le navigateur, partagé par `/upload` (fichier choisi)
  * et `/record` (enregistrement fait sur place) : même route, mêmes erreurs, même suivi.
  */
 
 export type DuplicateInfo = { id: number; take: number; session_date: string; song_title: string }
+
+export function trimFields(trim: AudioTrim | null): Record<string, string> {
+	return trim ? { trim_start: trim.startS.toFixed(3), trim_end: trim.endS.toFixed(3) } : {}
+}
 
 /** Le serveur a reconnu le fichier (ou la vidéo) : `409` avec la prise existante. */
 export class DuplicateError extends Error {

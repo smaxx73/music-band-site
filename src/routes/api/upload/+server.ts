@@ -3,6 +3,7 @@ import { json } from '@sveltejs/kit'
 import { copyFile, unlink } from 'fs/promises'
 import sql from '$lib/server/db'
 import { convertToMp3, getDuration } from '$lib/server/ffmpeg'
+import { assertTrimmedAudio, hashWithTrim, readAudioTrim } from '$lib/server/audio-trim'
 import { audioPath, ensureAudioDir } from '$lib/server/storage'
 import {
 	allowedAudioMime,
@@ -28,7 +29,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	})
 	if (!received.ok) return json({ error: received.error }, { status: received.status })
 
-	const { tmpPath: rawTmpPath, hash: fileHash, fileName, fields } = received
+	const { tmpPath: rawTmpPath, hash: sourceHash, fileName, fields } = received
 	const sourceFileName = cleanSourceFileName(fileName)
 	const mp3TmpPath = rawTmpPath + '.mp3'
 
@@ -43,6 +44,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		await unlink(rawTmpPath).catch(() => {})
 		return json({ error: 'song_id manquant ou invalide.' }, { status: 400 })
 	}
+	const { trim, error: trimError } = await readAudioTrim(fields, rawTmpPath)
+	if (trimError) {
+		await unlink(rawTmpPath).catch(() => {})
+		return json({ error: trimError }, { status: 400 })
+	}
+	const fileHash = hashWithTrim(sourceHash, trim)
 
 	try {
 		// Détection de doublon par hash SHA-256
@@ -74,7 +81,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		}
 
 		// Conversion ffmpeg : disk → disk, jamais en mémoire Node
-		await convertToMp3(rawTmpPath, mp3TmpPath)
+		await convertToMp3(rawTmpPath, mp3TmpPath, trim)
+		await assertTrimmedAudio(mp3TmpPath, trim)
 		await unlink(rawTmpPath).catch(() => {})
 
 		// Durée via ffprobe
@@ -133,6 +141,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		unlink(mp3TmpPath).catch(() => {})
 
 		const code = (err as { code?: string }).code
+		if (code === 'invalid_trim') return json({ error: 'La coupe ne contient pas de son.' }, { status: 400 })
 		if (code === 'song_not_found') return json({ error: 'Morceau introuvable.' }, { status: 404 })
 		if (code === 'session_not_found') return json({ error: 'Session introuvable.' }, { status: 404 })
 

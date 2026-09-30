@@ -3,7 +3,8 @@ import { json } from '@sveltejs/kit'
 import { randomUUID } from 'crypto'
 import { rename, unlink } from 'fs/promises'
 import sql from '$lib/server/db'
-import { createProxy, getDuration } from '$lib/server/ffmpeg'
+import { createProxy, extractSegment, getDuration } from '$lib/server/ffmpeg'
+import { assertTrimmedAudio, hashWithTrim, readAudioTrim } from '$lib/server/audio-trim'
 import {
 	allowedAudioMime,
 	cleanSourceFileName,
@@ -25,8 +26,9 @@ import { findPersonalDuplicate } from '$lib/server/personal'
  * Rien n'entre dans `recordings` ni dans `personal_recordings` ici : le fichier attend
  * dans la zone de transit que la découpe soit validée depuis `/decoupe/[id]`.
  *
- * L'original est conservé tel quel — c'est lui qui sera taillé. Seul un proxy léger est
- * fabriqué ici, pour porter l'analyse et la préécoute.
+ * L'original est conservé tel quel sauf si l'utilisateur a recadré une prise faite
+ * dans le navigateur : dans ce cas, seule la portion retenue rejoint la zone de transit.
+ * Un proxy léger porte l'analyse et la préécoute.
  */
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -40,7 +42,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	})
 	if (!received.ok) return json({ error: received.error }, { status: received.status })
 
-	const { tmpPath, hash, fileName, mimeType, fields } = received
+	const { tmpPath, hash: sourceHash, fileName, mimeType, fields } = received
+	const { trim, error: trimError } = await readAudioTrim(fields, tmpPath)
+	if (trimError) {
+		await unlink(tmpPath).catch(() => {})
+		return json({ error: trimError }, { status: 400 })
+	}
+	const hash = hashWithTrim(sourceHash, trim)
 	const personal = fields.destination === 'perso'
 
 	// L'espace perso ne demande ni groupe ni session : il appartient à son propriétaire.
@@ -93,12 +101,18 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			}
 		}
 
-		// L'original entre dans la zone de transit sans être touché : aucun transcodage
-		// avant la découpe, donc un seul encodage au total sur le chemin d'une prise.
-		// Le fichier temporaire de busboy et la zone de transit vivent tous deux sous
-		// le répertoire temporaire : `rename` suffit, sans recopier 200 Mo.
+		// Sans cadrage, l'original entre sans transcodage : un seul encodage au total.
+		// Un cadrage est appliqué ici, avant l'analyse, pour que les temps affichés
+		// sur l'écran de découpe commencent bien à zéro.
 		await ensureImportsDir()
-		await rename(tmpPath, sourcePath(id))
+		if (trim) {
+			// La découpe ultérieure voit seulement la plage choisie et son temps part de zéro.
+			await extractSegment(tmpPath, sourcePath(id), trim.startS, trim.endS - trim.startS)
+			await assertTrimmedAudio(sourcePath(id), trim)
+			await unlink(tmpPath).catch(() => {})
+		} else {
+			await rename(tmpPath, sourcePath(id))
+		}
 
 		// Le proxy, lui, se refabrique à volonté — il ne porte que le travail.
 		await createProxy(sourcePath(id), proxyPath(id))
@@ -109,7 +123,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			userId,
 			sessionId,
 			fileName: cleanSourceFileName(fileName) ?? 'enregistrement',
-			sourceMime: mimeType || null,
+			sourceMime: trim ? 'audio/mpeg' : mimeType || null,
 			fileHash: hash,
 			// Sur le proxy, pas l'original : un enregistrement fait dans le navigateur
 			// (WebM de MediaRecorder) ne porte pas sa durée, le mp3 du proxy si.
@@ -121,10 +135,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 		return json(created, { status: 201 })
 	} catch (err) {
+		const invalidTrim = (err as { code?: string }).code === 'invalid_trim'
 		console.error('[imports]', err)
 		unlink(tmpPath).catch(() => {})
 		unlink(sourcePath(id)).catch(() => {})
 		unlink(proxyPath(id)).catch(() => {})
+		if (invalidTrim) return json({ error: 'La coupe ne contient pas de son.' }, { status: 400 })
 		return json({ error: "Erreur lors de la préparation du fichier." }, { status: 500 })
 	}
 }

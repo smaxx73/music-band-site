@@ -3,7 +3,8 @@
 	import AudioRecorder from '$lib/components/AudioRecorder.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import { clearTakes } from '$lib/recording-store'
-	import { sendAudioFile } from '$lib/upload-client'
+	import { sendAudioFile, trimFields } from '$lib/upload-client'
+	import type { AudioTrim } from '$lib/types'
 	import type { PostType } from '$lib/types'
 
 	/**
@@ -64,6 +65,7 @@
 	// svelte-ignore state_referenced_locally
 	let source = $state<Source>(recordings.some((r) => !r.published_here) ? 'existing' : 'file')
 	let file = $state<File | null>(null)
+	let audioTrim = $state<AudioTrim | null>(null)
 	let newTitle = $state('')
 	let recorderBusy = $state(false)
 	let progress = $state<number | null>(null)
@@ -96,12 +98,14 @@
 		if (busy) return
 		source = next
 		file = null
+		audioTrim = null
 		error = null
 	}
 
 	/** Un enregistrement fait sur place porte la date du jour, comme dans l'espace perso. */
 	function onRecorded(recorded: File | null) {
 		file = recorded
+		audioTrim = null
 		error = null
 		if (recorded && !newTitle.trim()) {
 			newTitle = `Enregistrement du ${new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
@@ -115,7 +119,7 @@
 			const created = await sendAudioFile<{ id: number; title: string }>(
 				'/api/personal',
 				audio,
-				{ title: newTitle.trim(), notes: '' },
+				{ title: newTitle.trim(), notes: '', ...(source === 'record' ? trimFields(audioTrim) : {}) },
 				(p) => (progress = p)
 			)
 			// Le serveur a le fichier : la copie de secours de l'enregistreur n'a plus lieu d'être.
@@ -233,7 +237,7 @@
 							/>
 						</label>
 					{:else}
-						<AudioRecorder disabled={submitting} onchange={onRecorded} onbusychange={(b) => (recorderBusy = b)} />
+						<AudioRecorder disabled={submitting} onchange={onRecorded} ontrimchange={(trim) => (audioTrim = trim)} onbusychange={(b) => (recorderBusy = b)} />
 					{/if}
 					<label class="form-label">
 						Titre <span class="optional">{source === 'file' ? '(par défaut : le nom du fichier)' : ''}</span>

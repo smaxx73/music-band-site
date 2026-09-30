@@ -742,3 +742,5 @@ export type FeedPage = {
 	/** Curseur de la page suivante, `null` en fin de fil. */
 	next: string | null
 }
+/** Portion conservée d'un enregistrement fait dans le navigateur, en secondes. */
+export type AudioTrim = { startS: number; endS: number }

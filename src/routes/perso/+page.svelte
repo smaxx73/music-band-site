@@ -11,7 +11,8 @@
 	import PendingImports from '$lib/components/PendingImports.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import { clearTakes } from '$lib/recording-store'
-	import { sendAudioFile, splitUrl } from '$lib/upload-client'
+	import { sendAudioFile, splitUrl, trimFields } from '$lib/upload-client'
+	import type { AudioTrim } from '$lib/types'
 	import { formatDurationLong, type PostType } from '$lib/types'
 
 	let { data }: { data: PageData } = $props()
@@ -36,6 +37,7 @@
 	type Source = 'file' | 'record' | 'youtube'
 	let source = $state<Source>('file')
 	let file = $state<File | null>(null)
+	let audioTrim = $state<AudioTrim | null>(null)
 	let recorderBusy = $state(false)
 	let title = $state('')
 	let notes = $state('')
@@ -56,6 +58,7 @@
 		if (sending || recorderBusy) return
 		source = next
 		file = null
+		audioTrim = null
 		multiPart = false
 		addError = null
 	}
@@ -63,6 +66,7 @@
 	/** Un enregistrement fait sur place porte la date du jour : c'est ce qui le distingue. */
 	function onRecorded(recorded: File | null, durationS: number) {
 		file = recorded
+		audioTrim = null
 		addError = null
 		if (!recorded) return
 		if (!title.trim()) {
@@ -97,7 +101,7 @@
 				const audioImport = await sendAudioFile<{ id: string }>(
 					'/api/imports',
 					file,
-					{ destination: 'perso' },
+					{ destination: 'perso', ...(source === 'record' ? trimFields(audioTrim) : {}) },
 					(p) => (progress = p)
 				)
 				if (source === 'record') await clearTakes().catch(() => {})
@@ -108,7 +112,7 @@
 			const created = await sendAudioFile<{ id: number }>(
 				'/api/personal',
 				file,
-				{ title: title.trim(), notes: notes.trim() },
+				{ title: title.trim(), notes: notes.trim(), ...(source === 'record' ? trimFields(audioTrim) : {}) },
 				(p) => (progress = p)
 			)
 			// Le serveur a le fichier : la copie de secours de l'enregistreur n'a plus lieu d'être.
@@ -199,7 +203,7 @@
 				/>
 			</label>
 		{:else if source === 'record'}
-			<AudioRecorder disabled={sending} onchange={onRecorded} onbusychange={(busy) => (recorderBusy = busy)} />
+			<AudioRecorder disabled={sending} onchange={onRecorded} ontrimchange={(trim) => (audioTrim = trim)} onbusychange={(busy) => (recorderBusy = busy)} />
 		{:else}
 			<label class="form-label">
 				Lien de la vidéo

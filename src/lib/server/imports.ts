@@ -22,8 +22,8 @@ import {
  * et une recréation du conteneur qui l'emporterait ne perd rien de validé.
  *
  * Chaque import tient en deux fichiers :
- * - **l'original**, conservé intact, dans lequel les prises seront taillées. C'est lui
- *   qui décide de la qualité du rendu, et il n'est transcodé qu'une fois, à la découpe ;
+ * - **la source**, conservée intacte sauf si l'enregistrement a été recadré avant
+ *   l'envoi, dans laquelle les prises seront taillées ;
  * - **un proxy** léger (mono 22 kHz), sur lequel tout le travail se fait — détection des
  *   blancs, forme d'onde, préécoute. Décoder une heure d'audio à chaque relance
  *   d'analyse, ou la transférer au navigateur pour une écoute de cinq secondes, n'a

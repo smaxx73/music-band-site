@@ -3,6 +3,7 @@ import { json } from '@sveltejs/kit'
 import { copyFile, unlink } from 'fs/promises'
 import sql from '$lib/server/db'
 import { convertToMp3, getDuration } from '$lib/server/ffmpeg'
+import { assertTrimmedAudio, hashWithTrim, readAudioTrim } from '$lib/server/audio-trim'
 import {
 	allowedAudioMime,
 	cleanSourceFileName,
@@ -45,7 +46,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	})
 	if (!received.ok) return json({ error: received.error }, { status: received.status })
 
-	const { tmpPath: rawTmpPath, hash: fileHash, fileName, fields } = received
+	const { tmpPath: rawTmpPath, hash: sourceHash, fileName, fields } = received
 	const sourceFileName = cleanSourceFileName(fileName)
 	const mp3TmpPath = rawTmpPath + '.mp3'
 	const discard = () => {
@@ -58,6 +59,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		discard()
 		return json({ error: 'Le titre est obligatoire.' }, { status: 400 })
 	}
+	const { trim, error: trimError } = await readAudioTrim(fields, rawTmpPath)
+	if (trimError) {
+		discard()
+		return json({ error: trimError }, { status: 400 })
+	}
+	const fileHash = hashWithTrim(sourceHash, trim)
 
 	let insertedId: number | null = null
 	try {
@@ -86,7 +93,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			video = { videoId, title: info.title }
 		}
 
-		await convertToMp3(rawTmpPath, mp3TmpPath)
+		await convertToMp3(rawTmpPath, mp3TmpPath, trim)
+		await assertTrimmedAudio(mp3TmpPath, trim)
 		await unlink(rawTmpPath).catch(() => {})
 		const duration = await getDuration(mp3TmpPath)
 
@@ -114,6 +122,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		return json(await getPersonalRecording(created.id, userId), { status: 201 })
 	} catch (err) {
 		discard()
+		if ((err as { code?: string }).code === 'invalid_trim') {
+			return json({ error: 'La coupe ne contient pas de son.' }, { status: 400 })
+		}
 		// Une ligne sans fichier ne doit pas survivre : elle promettrait une écoute impossible.
 		if (insertedId !== null) {
 			await sql`DELETE FROM personal_recordings WHERE id = ${insertedId}`.catch(() => {})
