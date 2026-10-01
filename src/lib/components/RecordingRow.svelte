@@ -2,11 +2,14 @@
 	import AddToPlaylistButton from '$lib/components/AddToPlaylistButton.svelte'
 	import RecordingComments from '$lib/components/RecordingComments.svelte'
 	import RecordingPlaybackActions from '$lib/components/RecordingPlaybackActions.svelte'
+	import ShareLinkDialog from '$lib/components/ShareLinkDialog.svelte'
+	import Modal from '$lib/components/Modal.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import TrackLead from '$lib/components/TrackLead.svelte'
 	import TrackRow from '$lib/components/TrackRow.svelte'
 	import { qualityClass } from '$lib/quality'
 	import { player } from '$lib/player.svelte'
+	import { formatTimecode } from '$lib/youtube'
 	import { tick } from 'svelte'
 	import type { RecordingListItem } from '$lib/types'
 
@@ -15,6 +18,7 @@
 		songId,
 		songTitle,
 		sessionDate,
+		allowPublicShare = false,
 		editableQuality = false,
 		editMode = false,
 		canDelete = false,
@@ -27,6 +31,7 @@
 		songId: number
 		songTitle: string
 		sessionDate: string
+		allowPublicShare?: boolean
 		/** La qualité ne se règle que dans la vue session ; ailleurs, simple badge. */
 		editableQuality?: boolean
 		editMode?: boolean
@@ -56,6 +61,30 @@
 	// cours d'une plateforme de streaming : on la retrouve sans lire la barre du bas.
 	const isCurrent = $derived(player.track?.recordingId === recording.id)
 	const isPlaying = $derived(isCurrent && player.isPlaying)
+	const shareTime = $derived(isCurrent && player.currentTime > 1 ? Math.floor(player.currentTime) : null)
+	let shareCount = $derived(recording.share_count)
+	let shareOpen = $state(false)
+	let shareChoicesOpen = $state(false)
+	let linkCopied = $state(false)
+	let linkCopyFailed = $state(false)
+	let failedUrl = $state<string | null>(null)
+
+	async function copyGroupLink() {
+		const target = new URL(`/recording/${recording.id}`, location.origin)
+		if (shareTime !== null) target.searchParams.set('t', String(shareTime))
+		linkCopied = false
+		linkCopyFailed = false
+		failedUrl = null
+		try {
+			await navigator.clipboard.writeText(target.toString())
+			linkCopied = true
+			setTimeout(() => (linkCopied = false), 2000)
+		} catch {
+			linkCopyFailed = true
+			failedUrl = target.toString()
+			setTimeout(() => (linkCopyFailed = false), 3000)
+		}
+	}
 
 	function togglePlayback() {
 		player.toggleTrack({
@@ -310,6 +339,14 @@
 				title={commentsOpen ? 'Masquer les commentaires' : 'Lire les commentaires'}
 			><Icon name="comment" size="0.85rem" /> {recording.comment_count}</button>
 		{/if}
+		<button
+			class="chip share-trigger"
+			onclick={() => (shareChoicesOpen = true)}
+			aria-label={shareCount > 0 ? `Partager la prise ${recording.take}, ${shareCount} lien${shareCount > 1 ? 's' : ''} public${shareCount > 1 ? 's' : ''} actif${shareCount > 1 ? 's' : ''}` : `Partager la prise ${recording.take}`}
+		>
+			<Icon name="link" size="0.85rem" /> Partager
+			{#if shareCount > 0}<span class="share-count" aria-hidden="true">{shareCount}</span>{/if}
+		</button>
 	</div>
 {/snippet}
 
@@ -448,6 +485,38 @@
 	after={commentsOpen ? drawer : undefined}
 />
 
+{#if shareChoicesOpen}
+	<Modal title="Partager la prise {recording.take}" size="sm" onClose={() => (shareChoicesOpen = false)}>
+		<div class="share-choices">
+			<button class="btn btn-secondary" onclick={copyGroupLink}>
+				{#if linkCopied}<Icon name="check" /> Lien pour le groupe copié
+				{:else if linkCopyFailed}<Icon name="alert" /> Copie impossible
+				{:else}<Icon name="link" /> Copier le lien pour le groupe{#if shareTime !== null}&nbsp;({formatTimecode(shareTime)}){/if}
+				{/if}
+			</button>
+			<p>Seuls les membres du groupe peuvent ouvrir ce lien.</p>
+			{#if failedUrl}
+				<label for="group-share-url-{recording.id}">Copie le lien depuis ce champ :</label>
+				<input id="group-share-url-{recording.id}" class="form-input" type="text" readonly value={failedUrl} onfocus={(e) => e.currentTarget.select()} />
+			{/if}
+			{#if allowPublicShare && hasAudio}
+				<button class="btn btn-primary" onclick={() => { shareChoicesOpen = false; shareOpen = true }}>
+					<Icon name="globe" /> Partager hors du groupe
+				</button>
+				<p>Crée ou gère un lien d’écoute accessible sans compte.</p>
+			{/if}
+		</div>
+	</Modal>
+{/if}
+
+{#if shareOpen}
+	<ShareLinkDialog
+		target={{ kind: 'recording', id: recording.id }}
+		onClose={() => (shareOpen = false)}
+		onCountChange={(count) => (shareCount = count)}
+	/>
+{/if}
+
 <style>
 	/* La grille, le repli, le survol et l'état « en cours » sont ceux de `TrackRow`,
 	   communs à toutes les pistes. Il ne reste ici que ce qui est propre à une prise :
@@ -474,6 +543,13 @@
 	}
 
 	.row-play { display: inline-flex; }
+	.share-trigger { background: var(--color-bg); border-color: var(--color-border-light); }
+	.share-count { min-width: 1.1rem; padding: 0 0.3rem; border-radius: 999px; background: var(--color-accent); color: #fff; font-size: var(--text-xs); font-weight: 600; line-height: 1.1rem; text-align: center; }
+	.share-choices { display: flex; flex-direction: column; gap: 0.4rem; padding: 1rem 1.25rem 1.25rem; }
+	.share-choices .btn { justify-content: flex-start; min-height: 2.75rem; white-space: normal; text-align: left; }
+	.share-choices p { margin: 0 0 0.65rem; color: var(--color-text-secondary); font-size: var(--text-sm); }
+	.share-choices label { font-size: var(--text-sm); }
+	.share-choices input { min-width: 0; }
 
 	/* Pastille de qualité : bouton sans allure de bouton, le badge fait tout. */
 	.quality-pill {

@@ -39,6 +39,7 @@
 	let creating = $state(false)
 	let revokingId = $state<number | null>(null)
 	let createdUrl = $state<string | null>(null)
+	let createdLinkId = $state<number | null>(null)
 	let copied = $state(false)
 	let copyFailed = $state(false)
 	let urlField = $state<HTMLInputElement | null>(null)
@@ -71,6 +72,7 @@
 		creating = true
 		error = null
 		createdUrl = null
+		createdLinkId = null
 		try {
 			const res = await fetch('/api/share-links', {
 				method: 'POST',
@@ -82,6 +84,7 @@
 			links = [link, ...links]
 			onCountChange(links.length)
 			createdUrl = shareUrl(location.origin, token)
+			createdLinkId = link.id
 			await copy()
 		} catch {
 			error = 'Erreur réseau.'
@@ -97,7 +100,6 @@
 		try {
 			await navigator.clipboard.writeText(createdUrl)
 			copied = true
-			setTimeout(() => (copied = false), 2000)
 		} catch {
 			// Presse-papiers refusé : le lien est sélectionné dans le champ, à copier à la main.
 			copyFailed = true
@@ -113,6 +115,10 @@
 			if (!res.ok) { error = await readError(res, 'Impossible de révoquer le lien.'); return }
 			links = links.filter((l) => l.id !== id)
 			onCountChange(links.length)
+			if (createdLinkId === id) {
+				createdUrl = null
+				createdLinkId = null
+			}
 		} catch {
 			error = 'Erreur réseau.'
 		} finally {
@@ -123,7 +129,7 @@
 	const longDate = { day: 'numeric', month: 'long', year: 'numeric' } as const
 </script>
 
-<Modal title="Lien d'écoute public" {onClose}>
+<Modal title="Partager hors du groupe" {onClose}>
 	<div class="share-dialog">
 		<p class="explain">
 			<Icon name="globe" size="0.9rem" />
@@ -135,16 +141,18 @@
 
 		{#if createdUrl}
 			<div class="created">
-				<label class="form-label" for="share-url">Lien créé{copied ? ' et copié' : ''}</label>
+				<h3>Lien public prêt à partager</h3>
+				<label class="form-label" for="share-url">Adresse du lien public</label>
 				<div class="url-row">
 					<input id="share-url" class="form-input" type="text" readonly value={createdUrl} bind:this={urlField} onfocus={(e) => e.currentTarget.select()} />
-					<button class="btn btn-secondary btn-sm" onclick={copy}>
-						{#if copied}<Icon name="check" /> Copié{:else}<Icon name="link" /> Copier{/if}
-					</button>
 				</div>
+				<button class="btn btn-primary copy-public" onclick={copy}>
+					{#if copied}<Icon name="check" /> Lien public copié{:else}<Icon name="link" /> Copier le lien public{/if}
+				</button>
+				{#if copied}<p class="copy-status" role="status">Le lien public est dans le presse-papiers.</p>{/if}
 				<p class="warn">
-					{copyFailed ? 'Copie automatique impossible : copie-le depuis le champ. ' : ''}Il ne sera
-					plus affiché ensuite. Perdu, il se révoque et se recrée.
+					{copyFailed ? 'Copie automatique impossible : copie le lien depuis le champ. ' : ''}L'adresse ne sera
+					plus affichée après fermeture. Si tu la perds, révoque ce lien et crée-en un autre.
 				</p>
 			</div>
 		{/if}
@@ -157,7 +165,7 @@
 				{/each}
 			</select>
 			<button class="btn btn-primary btn-sm" onclick={create} disabled={creating}>
-				{creating ? 'Création…' : createdUrl ? 'Créer un autre lien' : 'Créer un lien'}
+				{creating ? 'Création…' : createdUrl ? 'Créer un autre lien public' : 'Créer un lien public'}
 			</button>
 		</div>
 
@@ -206,8 +214,11 @@
 		padding: 0.75rem; border-radius: var(--radius-md);
 		background: var(--color-bg-subtle); border: 1px solid var(--color-border-light);
 	}
+	.created h3 { margin: 0 0 0.45rem; }
 	.url-row { display: flex; gap: 0.4rem; margin-top: 0.3rem; }
 	.url-row input { flex: 1; min-width: 0; font-family: var(--font-mono, monospace); font-size: var(--text-xs); }
+	.copy-public { width: 100%; justify-content: center; margin-top: 0.6rem; min-height: 2.5rem; }
+	.copy-status { margin: 0.4rem 0 0; font-size: var(--text-sm); color: var(--color-success-text); }
 	.warn { margin: 0.4rem 0 0; font-size: var(--text-xs); color: var(--color-text-muted); }
 
 	.create-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }

@@ -6,7 +6,7 @@
 	import SongCover from '$lib/components/SongCover.svelte'
 	import PlayAllButton from '$lib/components/PlayAllButton.svelte'
 	import type { PlayerTrack } from '$lib/player.svelte'
-	import { canDeleteGroupContent, formatDurationLong } from '$lib/types'
+	import { canDeleteGroupContent, canSharePublicly, formatDurationLong } from '$lib/types'
 	import type { RecordingListItem } from '$lib/types'
 	import { invalidateAll } from '$app/navigation'
 
@@ -33,6 +33,9 @@
 	let session = $derived(data.session as unknown as SessionData)
 	let groups = $derived(data.groups as unknown as Group[])
 	const hasCalendarEvent = $derived(data.hasCalendarEvent as boolean)
+	const allowPublicShare = $derived(
+		!!data.user?.current_group_id && canSharePublicly(data.user, { groupId: data.user.current_group_id })
+	)
 
 	// Mêmes règles qu'à l'API : l'auteur d'un contenu, ou un administrateur du groupe.
 	// L'écran n'affiche donc que des actions que le serveur acceptera.
@@ -317,6 +320,7 @@
 							songId={group.song.id}
 							songTitle={group.song.title}
 							sessionDate={String(session.date)}
+							{allowPublicShare}
 							editableQuality
 							{editMode}
 							canDelete={canDeleteRecording(r)}

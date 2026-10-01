@@ -172,14 +172,14 @@
 				{/if}
 				{#if recording.file_path}
 					<button
-						class="btn btn-secondary btn-sm btn-collapse"
+						class="btn btn-primary btn-sm share-public"
 						class:shared={shareCount > 0}
 						onclick={() => (shareOpen = true)}
-						title="Faire écouter cet enregistrement à quelqu'un qui n'a pas de compte"
-						aria-label={shareCount > 0 ? `Écoutable en public, ${shareCount} lien${shareCount > 1 ? 's' : ''} actif${shareCount > 1 ? 's' : ''}` : 'Lien public'}
+						title="Créer ou gérer un lien d'écoute accessible sans compte"
+						aria-label={shareCount > 0 ? `Partager hors du groupe, ${shareCount} lien${shareCount > 1 ? 's' : ''} public${shareCount > 1 ? 's' : ''} actif${shareCount > 1 ? 's' : ''}` : 'Partager hors du groupe'}
 					>
 						<Icon name="globe" />
-						<span class="btn-label">{shareCount > 0 ? 'Écoutable en public' : 'Lien public'}</span>
+						<span>Partager hors du groupe</span>
 						{#if shareCount > 0}<span class="share-count" aria-hidden="true">{shareCount}</span>{/if}
 					</button>
 				{/if}
@@ -271,7 +271,8 @@
 	.meta { display: flex; align-items: center; gap: 0.3rem; font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 0.15rem; }
 	.notes { display: flex; gap: 0.35rem; font-size: var(--text-sm); color: var(--color-text-secondary); margin: 0.5rem 0 0; white-space: pre-line; }
 	.header-actions { display: flex; align-items: center; gap: 0.4rem; flex: 0 1 auto; min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
-	.header-actions .shared { border-color: var(--color-accent); color: var(--color-accent); }
+	.header-actions .share-public { text-align: left; white-space: normal; }
+	.header-actions .share-public.shared { box-shadow: 0 0 0 2px var(--color-accent); }
 	.share-count {
 		min-width: 1.1rem; padding: 0 0.3rem; border-radius: 999px;
 		background: var(--color-accent); color: #fff;
@@ -306,5 +307,6 @@
 
 	@media (max-width: 640px) {
 		main { margin: 1rem auto; padding: 0 0.75rem; }
+		.header-actions .share-public { order: -1; width: 100%; justify-content: center; min-height: 2.5rem; }
 	}
 </style>

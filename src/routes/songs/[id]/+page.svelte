@@ -7,7 +7,7 @@
 	import SongCover from '$lib/components/SongCover.svelte'
 	import SongCoverEditor from '$lib/components/SongCoverEditor.svelte'
 	import MediaHeader from '$lib/components/MediaHeader.svelte'
-	import { formatDurationLong } from '$lib/types'
+	import { canSharePublicly, formatDurationLong } from '$lib/types'
 	import { songHue } from '$lib/songs'
 	import PlayAllButton from '$lib/components/PlayAllButton.svelte'
 	import type { PlayerTrack } from '$lib/player.svelte'
@@ -33,6 +33,9 @@
 
 	const song = $derived(data.song as unknown as Song)
 	const recordings = $derived(data.recordings as unknown as SongRecording[])
+	const allowPublicShare = $derived(
+		!!data.user?.current_group_id && canSharePublicly(data.user, { groupId: data.user.current_group_id })
+	)
 
 	const SONG_STATUS_LABELS: Record<string, string> = {
 		en_apprentissage: 'En apprentissage',
@@ -143,6 +146,7 @@
 					songId={song.id}
 					songTitle={song.title}
 					sessionDate={r.session_date}
+					{allowPublicShare}
 					session={{ id: r.session_id, label: formatDate(r.session_date), location: r.session_location }}
 				/>
 			{/each}

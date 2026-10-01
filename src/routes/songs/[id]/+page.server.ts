@@ -31,7 +31,8 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 			ses.id       AS session_id,
 			ses.date     AS session_date,
 			ses.location AS session_location,
-			COUNT(c.id)::int AS comment_count
+			COUNT(c.id)::int AS comment_count,
+			(SELECT COUNT(*)::int FROM share_links sl WHERE sl.recording_id = r.id AND sl.expires_at > now()) AS share_count
 		FROM recordings r
 		JOIN sessions ses ON ses.id = r.session_id
 		LEFT JOIN users u ON u.id = r.uploaded_by_user_id

@@ -248,6 +248,7 @@ export type RecordingListItem = Pick<
 	| 'youtube_title'
 > & {
 	comment_count: number
+	share_count: number
 }
 
 /**

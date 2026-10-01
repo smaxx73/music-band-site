@@ -666,7 +666,7 @@ Ce qu'on partage d'une prise, c'est presque toujours un passage ou un commentair
   pour l'audio comme pour la vidéo YouTube
 - `#comment-<id>` amène le commentaire à l'écran et le met en évidence, en dépliant d'abord les
   plus anciens s'il en fait partie — la même mécanique que les marqueurs de la waveform
-- **« 🔗 Copier le lien »** sur la page de la prise reprend la position courante du lecteur :
+- **« Copier le lien pour le groupe »** sur la page de la prise reprend la position courante du lecteur :
   partager depuis 1:23 partage 1:23. Chaque commentaire a le sien, qui porte son repère **et**
   son ancre (`?t=83#comment-5000`) : le destinataire arrive au bon endroit du morceau, pas
   seulement sur la page. Aller chercher l'URL dans la barre d'adresse est la manœuvre qui
@@ -691,10 +691,13 @@ membre. C'est la **seule** porte de l'application qui s'ouvre sans connexion.
 - **Qui partage** (`canSharePublicly`, `src/lib/types.ts`) : une prise est au groupe
   entier, **tout membre** peut créer ou révoquer ses liens, quel qu'en soit l'auteur. Un
   enregistrement perso, **son propriétaire seul**. Les admins n'ont rien de plus
-- Bouton « Lien public » sur `/recording/[id]` et `/perso/[id]`, qui ouvre la gestion des
-  liens (`ShareLinkDialog.svelte`). Dès qu'un lien est actif, le bouton devient
-  « Écoutable en public (n) », **visible de tous les membres** : une prise écoutable au
-  dehors ne doit pas l'être à l'insu des autres
+- Bouton « Partager hors du groupe » sur `/recording/[id]` et `/perso/[id]`, avec un libellé
+  toujours visible sur mobile, qui ouvre la gestion des liens (`ShareLinkDialog.svelte`).
+  Les lignes de prises des pages morceau et session portent une pastille compacte
+  « Partager » : elle propose le lien pour le groupe et, si la prise a de l'audio,
+  le lien public. Le nombre de liens publics actifs apparaît sur la pastille.
+  Dès qu'un lien est actif, son nombre apparaît sur le bouton, **visible de tous les membres** :
+  une prise écoutable au dehors ne doit pas l'être à l'insu des autres
 - **Un jeton, pas un drapeau.** Les ids se suivent et se devinent ; le jeton fait 192 bits
   aléatoires. Une table (`share_links`, migration 033) plutôt qu'un id signé : un lien se
   révoque seul, sans toucher au secret des sessions
