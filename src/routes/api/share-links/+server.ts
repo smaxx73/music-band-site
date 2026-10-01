@@ -21,7 +21,7 @@ function parseTarget(recordingId: unknown, personalId: unknown): ShareTarget | n
 	return { kind: hasRecording ? 'recording' : 'personal', id }
 }
 
-/** GET — `?recording_id=` ou `?personal_recording_id=` : les liens valides de la cible. */
+/** GET — `?recording_id=` ou `?personal_recording_id=` : les liens valides de la cible, jetons compris. */
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
 
@@ -35,10 +35,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	return json(await listShareLinks(target))
 }
 
-/**
- * POST — `{ recording_id | personal_recording_id, expires_in_days? }`. Retourne le lien
- * créé avec son `token` en clair : c'est la seule fois qu'il est donné.
- */
+/** POST — `{ recording_id | personal_recording_id, expires_in_days? }`. Retourne le lien créé. */
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
 
@@ -64,6 +61,5 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		return json({ error: "Cet enregistrement n'a pas de piste audio : partagez directement la vidéo YouTube." }, { status: 400 })
 	}
 
-	const { token, link } = await createShareLink(target, locals.user.id, days as ShareDurationDays)
-	return json({ ...link, token }, { status: 201 })
+	return json(await createShareLink(target, locals.user.id, days as ShareDurationDays), { status: 201 })
 }

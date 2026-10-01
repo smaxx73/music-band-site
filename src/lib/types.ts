@@ -539,6 +539,8 @@ export type ShareLinkView = {
 	expires_at: string
 	last_accessed_at: string | null
 	created_by: string | null
+	/** `null` : lien antérieur à la migration 042, ou AUTH_SECRET changé depuis — il ne se recopie pas. */
+	token: string | null
 }
 
 export function shareUrl(origin: string, token: string): string {

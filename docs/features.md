@@ -720,11 +720,16 @@ membre. C'est la **seule** porte de l'application qui s'ouvre sans connexion.
 - **Un jeton, pas un drapeau.** Les ids se suivent et se devinent ; le jeton fait 192 bits
   aléatoires. Une table (`share_links`, migration 033) plutôt qu'un id signé : un lien se
   révoque seul, sans toucher au secret des sessions
-- **Seule l'empreinte est gardée** (SHA-256) : le jeton vaut un mot de passe, et une
-  sauvegarde téléchargée ne doit pas publier d'enregistrements. Le lien ne s'affiche donc
-  **qu'à sa création** — copié d'office, et laissé dans un champ si le presse-papiers est
-  refusé. Perdu, il se révoque et se recrée. La liste des liens actifs montre leur date de
-  création, leur auteur, leur expiration et leur dernière ouverture, pas leur adresse
+- **Un lien se recopie**, il ne se recrée pas à chaque partage : chaque lien actif porte
+  « Copier », pour tout membre qui peut partager. Le lien est copié d'office à sa création,
+  et s'affiche dans un champ si le presse-papiers est refusé. La liste montre aussi la date
+  de création, l'auteur, l'expiration et la dernière ouverture de chaque lien
+- **Jamais en clair en base** : le jeton vaut un mot de passe, et une sauvegarde
+  téléchargée ne doit pas publier d'enregistrements. Il est retrouvé par son empreinte
+  (SHA-256), et gardé **chiffré** (AES-256-GCM, clé dérivée d'`AUTH_SECRET`, migration 042)
+  pour être recopié : sans le `.env` du serveur, la colonne est illisible. Changer
+  `AUTH_SECRET` laisse les liens fonctionner mais les rend impossibles à recopier, comme
+  ceux créés avant la migration 042 : ceux-là se recréent puis se révoquent
 - **Expiration toujours** : 1 semaine, 1 mois ou **6 mois** (défaut). Un lien expiré
   n'ouvre plus rien et disparaît de la liste. **Révoquer** supprime la ligne
 - Le jeton est **revérifié à chaque requête**, page comme fichier : un lien révoqué coupe

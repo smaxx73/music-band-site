@@ -241,9 +241,11 @@ Les **liens d'écoute publics** (`api/share-links/`) ouvrent la piste audio d'un
 groupe actif ou d'un enregistrement perso à qui détient le lien, sans compte. Droit :
 `canSharePublicly` — tout membre pour une prise, le propriétaire seul pour un enregistrement
 perso ; une cible hors de portée répond `404`. `GET /api/share-links?recording_id=` (ou
-`?personal_recording_id=`) liste les liens valides, sans leur adresse ;
+`?personal_recording_id=`) liste les liens valides avec leur `token`, pour les recopier (`null` pour un lien antérieur
+à la migration 042) ;
 `POST /api/share-links` (`{ recording_id | personal_recording_id, expires_in_days? }`, durée
-parmi 7, 30, 180 — défaut 180) répond `201` avec le `token` en clair, **la seule fois où il
-est donné** : seule son empreinte est stockée. `400` sur un enregistrement sans piste audio.
+parmi 7, 30, 180 — défaut 180) répond `201` avec le lien et son `token`. En base, le jeton
+n'est jamais en clair : empreinte SHA-256 pour le retrouver, chiffré (clé dérivée
+d'`AUTH_SECRET`) pour le recopier. `400` sur un enregistrement sans piste audio.
 `DELETE /api/share-links/[id]` révoque, même droit que la création. La page publique et son
 fichier (`/ecoute/[token]`, hors `api/`) passent par `src/lib/server/share-links.ts`.

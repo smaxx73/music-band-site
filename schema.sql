@@ -282,10 +282,13 @@ CREATE TABLE playlist_items (
 
 -- Lien d'écoute public : un enregistrement ouvert sans compte à qui détient le jeton
 -- (migration 033). Une prise du groupe OU un enregistrement perso (share_links_target).
--- Seule l'empreinte du jeton est stockée : le lien ne s'affiche qu'à sa création.
+-- Le jeton est retrouvé par son empreinte ; il n'est relisible que scellé par AUTH_SECRET.
 CREATE TABLE share_links (
     id                    SERIAL PRIMARY KEY,
     token_hash            TEXT NOT NULL UNIQUE,    -- SHA-256 hex du jeton
+    token_sealed          TEXT,                    -- jeton chiffré (AES-256-GCM, clé dérivée
+                                                   -- d'AUTH_SECRET), pour le recopier (migration
+                                                   -- 042) ; NULL pour un lien plus ancien
     recording_id          INTEGER REFERENCES recordings(id)          ON DELETE CASCADE,
     personal_recording_id INTEGER REFERENCES personal_recordings(id) ON DELETE CASCADE,
     created_by_user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,

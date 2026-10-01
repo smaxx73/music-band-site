@@ -100,8 +100,9 @@ NODE_ENV=production
 - Un commentaire peut aussi viser une publication (`post_id`) : c'est la troisième cible de
   `comments_target`
 - IMPORTANT : `/ecoute/[token]` est la SEULE porte de l'application ouverte sans compte vers
-  du contenu (les logos de groupe, publics, sont une vitrine et non un contenu). Le jeton de l'URL est l'autorisation : il n'est stocké qu'en empreinte SHA-256
-  (`share_links.token_hash`), revérifié à chaque requête (page ET fichier audio), et tout ce
+  du contenu (les logos de groupe, publics, sont une vitrine et non un contenu). Le jeton de l'URL est l'autorisation : il est retrouvé par son empreinte SHA-256
+  (`share_links.token_hash`) et n'est relisible que chiffré par une clé dérivée
+  d'`AUTH_SECRET` (`token_sealed`, jamais en clair en base), revérifié à chaque requête (page ET fichier audio), et tout ce
   qui franchit cette porte passe par `src/lib/server/share-links.ts`, qui décide seul de ce
   qui est exposé : fichier audio, titre, date, nom du groupe. Jamais commentaires, note ni
   participants. Voir « Lien d'écoute public » dans docs/features.md

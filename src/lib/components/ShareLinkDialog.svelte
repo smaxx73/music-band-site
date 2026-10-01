@@ -14,10 +14,9 @@
 	} from '$lib/types'
 
 	/**
-	 * Liens d'écoute publics d'un enregistrement : en créer, les révoquer. Le jeton n'est
-	 * gardé qu'en empreinte : un lien ne s'affiche qu'une fois, à sa création. La liste
-	 * montre donc les liens actifs sans leur adresse — de quoi savoir qu'ils existent et
-	 * les refermer.
+	 * Liens d'écoute publics d'un enregistrement : en créer, les recopier, les révoquer.
+	 * Un lien se recopie autant de fois qu'on veut le partager : en recréer un à chaque
+	 * destinataire multiplierait les accès ouverts à révoquer un jour.
 	 */
 	let {
 		target,
@@ -38,11 +37,10 @@
 	let days = $state<ShareDurationDays>(SHARE_DEFAULT_DAYS)
 	let creating = $state(false)
 	let revokingId = $state<number | null>(null)
-	let createdUrl = $state<string | null>(null)
-	let createdLinkId = $state<number | null>(null)
-	let copied = $state(false)
-	let copyFailed = $state(false)
-	let urlField = $state<HTMLInputElement | null>(null)
+	let copiedId = $state<number | null>(null)
+	/** Lien dont la copie a été refusée : son adresse s'affiche, à copier à la main. */
+	let manualId = $state<number | null>(null)
+	let copiedTimer: ReturnType<typeof setTimeout> | undefined
 
 	async function readError(res: Response, fallback: string) {
 		const body = await res.json().catch(() => ({})) as { error?: string }
@@ -71,8 +69,6 @@
 	async function create() {
 		creating = true
 		error = null
-		createdUrl = null
-		createdLinkId = null
 		try {
 			const res = await fetch('/api/share-links', {
 				method: 'POST',
@@ -80,12 +76,10 @@
 				body: JSON.stringify({ [param]: target.id, expires_in_days: days })
 			})
 			if (!res.ok) { error = await readError(res, 'Impossible de créer le lien.'); return }
-			const { token, ...link } = await res.json() as ShareLinkView & { token: string }
+			const link = await res.json() as ShareLinkView
 			links = [link, ...links]
 			onCountChange(links.length)
-			createdUrl = shareUrl(location.origin, token)
-			createdLinkId = link.id
-			await copy()
+			await copy(link)
 		} catch {
 			error = 'Erreur réseau.'
 		} finally {
@@ -93,18 +87,24 @@
 		}
 	}
 
-	async function copy() {
-		if (!createdUrl) return
-		copied = false
-		copyFailed = false
+	async function copy(link: ShareLinkView) {
+		if (!link.token) return
+		clearTimeout(copiedTimer)
+		copiedId = null
 		try {
-			await navigator.clipboard.writeText(createdUrl)
-			copied = true
+			await navigator.clipboard.writeText(shareUrl(location.origin, link.token))
+			manualId = null
+			copiedId = link.id
+			copiedTimer = setTimeout(() => (copiedId = null), 2500)
 		} catch {
-			// Presse-papiers refusé : le lien est sélectionné dans le champ, à copier à la main.
-			copyFailed = true
-			urlField?.select()
+			// Presse-papiers refusé (contexte non sécurisé) : l'adresse s'affiche dans un champ.
+			manualId = link.id
 		}
+	}
+
+	function selectOnMount(node: HTMLInputElement) {
+		node.focus()
+		node.select()
 	}
 
 	async function revoke(id: number) {
@@ -115,10 +115,7 @@
 			if (!res.ok) { error = await readError(res, 'Impossible de révoquer le lien.'); return }
 			links = links.filter((l) => l.id !== id)
 			onCountChange(links.length)
-			if (createdLinkId === id) {
-				createdUrl = null
-				createdLinkId = null
-			}
+			if (manualId === id) manualId = null
 		} catch {
 			error = 'Erreur réseau.'
 		} finally {
@@ -139,29 +136,6 @@
 			</span>
 		</p>
 
-		{#if createdUrl}
-			<div class="created">
-				<div class="url-row">
-					<input
-						class="form-input"
-						type="text"
-						readonly
-						value={createdUrl}
-						aria-label="Adresse du lien public"
-						bind:this={urlField}
-						onfocus={(e) => e.currentTarget.select()}
-					/>
-					<button class="btn btn-primary btn-sm" onclick={copy}>
-						{#if copied}<Icon name="check" /> Copié{:else}<Icon name="link" /> Copier{/if}
-					</button>
-				</div>
-				<p class="warn" role="status">
-					{#if copied}<strong>Lien copié.</strong>{:else if copyFailed}<strong>Copie automatique impossible : copie-le depuis le champ.</strong>{/if}
-					Il ne sera plus affiché après fermeture : perdu, il se révoque et se recrée.
-				</p>
-			</div>
-		{/if}
-
 		<div class="create-row">
 			<label class="form-label" for="share-days">Valable</label>
 			<select id="share-days" class="form-input" bind:value={days} disabled={creating}>
@@ -170,7 +144,7 @@
 				{/each}
 			</select>
 			<button class="btn btn-primary btn-sm" onclick={create} disabled={creating}>
-				{creating ? 'Création…' : createdUrl ? 'Créer un autre lien' : 'Créer un lien'}
+				{creating ? 'Création…' : 'Créer un lien'}
 			</button>
 		</div>
 
@@ -196,9 +170,33 @@
 								{link.last_accessed_at ? `ouvert pour la dernière fois ${formatDateTime(link.last_accessed_at)}` : 'jamais ouvert'}
 							</span>
 						</div>
-						<button class="btn btn-ghost btn-sm" onclick={() => revoke(link.id)} disabled={revokingId === link.id}>
-							{revokingId === link.id ? 'Révocation…' : 'Révoquer'}
-						</button>
+						<div class="link-actions">
+							{#if link.token}
+								<button class="btn btn-secondary btn-sm" onclick={() => copy(link)}>
+									{#if copiedId === link.id}<Icon name="check" /> Copié{:else}<Icon name="link" /> Copier{/if}
+								</button>
+							{/if}
+							<button class="btn btn-ghost btn-sm" onclick={() => revoke(link.id)} disabled={revokingId === link.id}>
+								{revokingId === link.id ? 'Révocation…' : 'Révoquer'}
+							</button>
+						</div>
+						{#if link.token && manualId === link.id}
+							<input
+								class="form-input manual-url"
+								type="text"
+								readonly
+								value={shareUrl(location.origin, link.token)}
+								aria-label="Adresse du lien public"
+								use:selectOnMount
+								onfocus={(e) => e.currentTarget.select()}
+							/>
+							<p class="muted manual-hint">Copie automatique impossible : copie l'adresse depuis le champ.</p>
+						{:else if !link.token}
+							<p class="muted manual-hint">
+								Lien créé avant qu'on puisse les recopier : son adresse n'a pas été gardée.
+								Pour le repartager, crée un nouveau lien et révoque celui-ci.
+							</p>
+						{/if}
 					</li>
 				{/each}
 			</ul>
@@ -215,16 +213,6 @@
 	}
 	.explain :global(svg) { flex-shrink: 0; margin-top: 0.2rem; }
 
-	.created {
-		padding: 0.6rem; border-radius: var(--radius-md);
-		background: var(--color-bg-subtle); border: 1px solid var(--color-border-light);
-	}
-	.url-row { display: flex; gap: 0.4rem; }
-	.url-row input { flex: 1; min-width: 0; font-family: var(--font-mono, monospace); font-size: var(--text-xs); }
-	.url-row .btn { flex-shrink: 0; }
-	.warn { margin: 0.4rem 0 0; font-size: var(--text-xs); color: var(--color-text-muted); }
-	.warn strong { color: var(--color-text-secondary); }
-
 	.create-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 	.create-row .form-label { margin: 0; }
 	.create-row select { width: auto; }
@@ -234,14 +222,17 @@
 
 	.links { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem; }
 	.links li {
-		display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+		display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.4rem 0.75rem;
 		padding: 0.5rem 0.65rem; border: 1px solid var(--color-border-light); border-radius: var(--radius-md);
 	}
-	.link-meta { display: flex; flex-direction: column; gap: 0.1rem; font-size: var(--text-sm); min-width: 0; }
+	.link-meta { display: flex; flex-direction: column; gap: 0.1rem; font-size: var(--text-sm); min-width: 0; flex: 1 1 12rem; }
+	.link-actions { display: flex; gap: 0.3rem; flex-shrink: 0; }
+	.manual-url { flex-basis: 100%; font-family: var(--font-mono, monospace); font-size: var(--text-xs); }
+	.manual-hint { flex-basis: 100%; margin: 0; }
 	.muted { font-size: var(--text-xs); color: var(--color-text-muted); }
 
 	@media (max-width: 640px) {
-		.url-row .btn { min-height: 2.5rem; }
+		.link-actions .btn { min-height: 2.5rem; }
 		.links li { align-items: flex-start; }
 	}
 </style>

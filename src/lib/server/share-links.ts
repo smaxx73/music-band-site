@@ -1,5 +1,6 @@
-import { createHash, randomBytes } from 'crypto'
+import { createCipheriv, createDecipheriv, createHash, hkdfSync, randomBytes } from 'crypto'
 import sql from './db'
+import { authSecret } from './config'
 import type { ShareDurationDays, ShareLinkView, ShareTarget } from '$lib/types'
 
 // Liens d'écoute publics : la seule porte de l'application qui s'ouvre sans compte.
@@ -12,12 +13,45 @@ const TOKEN_BYTES = 24
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{32}$/
 
 /**
- * Seule l'empreinte du jeton est en base : il vaut un mot de passe, et une sauvegarde
- * `pg_dump` téléchargée ne doit pas publier d'enregistrements. Un SHA-256 suffit, sans
- * sel ni scrypt : le jeton est aléatoire, il n'y a pas de dictionnaire à décourager.
+ * Un lien se retrouve par l'empreinte de son jeton : il vaut un mot de passe, et une
+ * sauvegarde `pg_dump` téléchargée ne doit pas publier d'enregistrements. Un SHA-256
+ * suffit, sans sel ni scrypt : le jeton est aléatoire, il n'y a pas de dictionnaire à
+ * décourager.
  */
 function hashToken(token: string): string {
 	return createHash('sha256').update(token).digest('hex')
+}
+
+/**
+ * Le jeton est aussi gardé scellé, pour qu'un lien se recopie au lieu de se recréer à
+ * chaque partage. La clé dérive d'AUTH_SECRET, qui n'est pas en base : un `pg_dump` seul
+ * ne publie toujours rien. Changer AUTH_SECRET rend les jetons scellés illisibles — les
+ * liens marchent encore (recherche par empreinte), mais ne se recopient plus.
+ */
+let sealKey: Buffer | null = null
+function getSealKey(): Buffer {
+	sealKey ??= Buffer.from(hkdfSync('sha256', authSecret(), '', 'bandstash:share-link-token', 32))
+	return sealKey
+}
+
+/** `iv (12) | tag (16) | chiffré`, en base64url. */
+function sealToken(token: string): string {
+	const iv = randomBytes(12)
+	const cipher = createCipheriv('aes-256-gcm', getSealKey(), iv)
+	const encrypted = Buffer.concat([cipher.update(token, 'utf8'), cipher.final()])
+	return Buffer.concat([iv, cipher.getAuthTag(), encrypted]).toString('base64url')
+}
+
+function unsealToken(sealed: string | null): string | null {
+	if (!sealed) return null
+	try {
+		const raw = Buffer.from(sealed, 'base64url')
+		const decipher = createDecipheriv('aes-256-gcm', getSealKey(), raw.subarray(0, 12))
+		decipher.setAuthTag(raw.subarray(12, 28))
+		return Buffer.concat([decipher.update(raw.subarray(28)), decipher.final()]).toString('utf8')
+	} catch {
+		return null
+	}
 }
 
 function targetFilter(target: ShareTarget) {
@@ -56,19 +90,30 @@ export async function findShareTarget(
 }
 
 const VIEW_COLUMNS = sql`
-	sl.id, sl.created_at, sl.expires_at, sl.last_accessed_at,
+	sl.id, sl.created_at, sl.expires_at, sl.last_accessed_at, sl.token_sealed,
 	u.display_name AS created_by
 `
 
-/** Liens encore valides. Un lien expiré ne s'affiche plus : il n'ouvre plus rien. */
+type ShareLinkRow = Omit<ShareLinkView, 'token'> & { token_sealed: string | null }
+
+function toView({ token_sealed, ...row }: ShareLinkRow): ShareLinkView {
+	return { ...row, token: unsealToken(token_sealed) }
+}
+
+/**
+ * Liens encore valides, avec leur jeton pour les recopier. Réservé à qui peut partager
+ * la cible (`canSharePublicly`) : il pourrait de toute façon en créer un.
+ * Un lien expiré ne s'affiche plus : il n'ouvre plus rien.
+ */
 export async function listShareLinks(target: ShareTarget): Promise<ShareLinkView[]> {
-	return (await sql<ShareLinkView[]>`
+	const rows = await sql<ShareLinkRow[]>`
 		SELECT ${VIEW_COLUMNS}
 		FROM share_links sl
 		LEFT JOIN users u ON u.id = sl.created_by_user_id
 		WHERE ${targetFilter(target)} AND sl.expires_at > now()
 		ORDER BY sl.created_at DESC
-	`) as unknown as ShareLinkView[]
+	`
+	return rows.map(toView)
 }
 
 /** Nombre de liens valides : ce que la page de l'enregistrement signale à tous. */
@@ -80,17 +125,17 @@ export async function activeShareCount(target: ShareTarget): Promise<number> {
 	return count
 }
 
-/** Le jeton en clair n'existe qu'ici et dans la réponse à son créateur. */
 export async function createShareLink(
 	target: ShareTarget,
 	userId: number,
 	days: ShareDurationDays
-): Promise<{ token: string; link: ShareLinkView }> {
+): Promise<ShareLinkView> {
 	const token = randomBytes(TOKEN_BYTES).toString('base64url')
 	const [created] = await sql<{ id: number }[]>`
-		INSERT INTO share_links (token_hash, recording_id, personal_recording_id, created_by_user_id, expires_at)
+		INSERT INTO share_links (token_hash, token_sealed, recording_id, personal_recording_id, created_by_user_id, expires_at)
 		VALUES (
 			${hashToken(token)},
+			${sealToken(token)},
 			${target.kind === 'recording' ? target.id : null},
 			${target.kind === 'personal' ? target.id : null},
 			${userId},
@@ -98,13 +143,13 @@ export async function createShareLink(
 		)
 		RETURNING id
 	`
-	const [link] = await sql<ShareLinkView[]>`
+	const [link] = await sql<ShareLinkRow[]>`
 		SELECT ${VIEW_COLUMNS}
 		FROM share_links sl
 		LEFT JOIN users u ON u.id = sl.created_by_user_id
 		WHERE sl.id = ${created.id}
 	`
-	return { token, link }
+	return { ...toView(link), token }
 }
 
 /** Ce qu'ouvre un lien, pour en vérifier le droit avant de le révoquer. */
