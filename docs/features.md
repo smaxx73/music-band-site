@@ -487,12 +487,13 @@ une photo — la salle, la scène, le groupe en répétition —, comme il modif
 
 **Au-dessus de 640 px, toutes les commandes sont sur la ligne** : pastille 📝 (ou « + 📝 »
 en pointillés s'il n'y a pas de note), 💬 (ou « + 💬 »), écouter ▶, ouvrir le lecteur
-complet, ajouter à une playlist. La place ne manque pas, rien n'a à être caché.
+complet, ajouter à une playlist, partager (🔗, voir « Partager une prise »). La place ne
+manque pas, rien n'a à être caché.
 
 **À la souris** (`@media (hover: hover) and (pointer: fine)`, pas une largeur), la ligne se
 lit comme une piste de streaming : le numéro devient ▶ au survol et remplace le bouton ▶ de
 droite, et ce qui s'écrit ou s'ouvre ailleurs (« + 📝 », « + 💬 », lecteur complet,
-playlist) ne paraît qu'au survol ou au focus clavier. **Au doigt**, rien de tout cela : un
+playlist, partage) ne paraît qu'au survol ou au focus clavier. **Au doigt**, rien de tout cela : un
 `:hover` collant demanderait deux touchers pour lancer la lecture. Le numéro reste un
 numéro et le ▶ un vrai bouton, à toutes les largeurs — tablette en paysage comprise.
 
@@ -502,7 +503,8 @@ note, 💬 s'il y a des commentaires — plus l'écoute, et un menu ⋮ recueill
 
 - **Composition stable** du menu, indépendante de ce que la prise contient déjà : ouvrir le
   lecteur complet, ajouter à une playlist, ajouter ou modifier la note, ajouter un
-  commentaire. Un menu qui ne grouperait que les ajouts fondrait à une seule entrée sur une
+  commentaire, copier le lien pour le groupe, lien d'écoute public (si la prise a de
+  l'audio et qu'on peut partager). Un menu qui ne grouperait que les ajouts fondrait à une seule entrée sur une
   prise déjà annotée et commentée, et vaudrait alors moins que le bouton qu'il remplace
 - Une prise **sans piste audio** n'a ni playlist ni lecteur complet dans son menu :
   « 🎬 Voir » mène déjà à sa page, et une vidéo seule n'entre pas dans une playlist
@@ -666,13 +668,30 @@ Ce qu'on partage d'une prise, c'est presque toujours un passage ou un commentair
   pour l'audio comme pour la vidéo YouTube
 - `#comment-<id>` amène le commentaire à l'écran et le met en évidence, en dépliant d'abord les
   plus anciens s'il en fait partie — la même mécanique que les marqueurs de la waveform
-- **« Copier le lien pour le groupe »** sur la page de la prise reprend la position courante du lecteur :
-  partager depuis 1:23 partage 1:23. Chaque commentaire a le sien, qui porte son repère **et**
+- **« Copier le lien pour le groupe »** reprend la position courante du lecteur : partager
+  depuis 1:23 partage 1:23 — sur la page de la prise, et sur une ligne de prise si c'est
+  elle que joue la barre du bas. Chaque commentaire a le sien, qui porte son repère **et**
   son ancre (`?t=83#comment-5000`) : le destinataire arrive au bon endroit du morceau, pas
   seulement sur la page. Aller chercher l'URL dans la barre d'adresse est la manœuvre qui
   décourage de partager, sur téléphone surtout
-- Le presse-papiers demande un contexte sécurisé : s'il est refusé, le bouton le dit et l'URL
-  reste atteignable depuis la barre d'adresse
+- Le presse-papiers demande un contexte sécurisé : s'il est refusé, le lien s'affiche dans un
+  champ, sélectionné au focus, pour être copié à la main
+
+### Partager une prise : un seul bouton
+
+Une prise se partage de deux façons — avec le groupe, ou au dehors —, et ce sont deux gestes
+de poids très différent : le premier copie un lien, le second crée un accès sans compte. Deux
+boutons à long libellé côte à côte prenaient la place de toutes les autres commandes, en
+pleine largeur sur téléphone, et la ligne d'une prise ouvrait une modale pour copier un lien.
+
+- **Un bouton 🔗 « Partager »** (`ShareMenu.svelte`) ouvre un petit menu : « Copier le lien
+  pour le groupe » (copié d'un geste, le menu confirme puis se referme) et « Lien d'écoute
+  public… », qui ouvre sa gestion (`ShareLinkDialog.svelte`). Ce second choix n'apparaît qu'à
+  qui peut partager (`canSharePublicly`) une prise qui a de l'audio
+- Sur la page de la prise, le bouton garde son libellé à toutes les largeurs, sans s'étirer ;
+  le nombre de liens publics actifs y figure en pastille 🌐
+- Sur une ligne de prise, c'est une commande comme les autres : au survol à la souris, dans
+  le menu ⋮ sous 640 px
 
 Rien de tout cela ne sort du groupe : `/audio/` vérifie la session et le groupe actif comme
 le reste. Partager, ici, veut dire partager avec les membres du groupe. Pour faire écouter
@@ -691,13 +710,13 @@ membre. C'est la **seule** porte de l'application qui s'ouvre sans connexion.
 - **Qui partage** (`canSharePublicly`, `src/lib/types.ts`) : une prise est au groupe
   entier, **tout membre** peut créer ou révoquer ses liens, quel qu'en soit l'auteur. Un
   enregistrement perso, **son propriétaire seul**. Les admins n'ont rien de plus
-- Bouton « Partager hors du groupe » sur `/recording/[id]` et `/perso/[id]`, avec un libellé
-  toujours visible sur mobile, qui ouvre la gestion des liens (`ShareLinkDialog.svelte`).
-  Les lignes de prises des pages morceau et session portent une pastille compacte
-  « Partager » : elle propose le lien pour le groupe et, si la prise a de l'audio,
-  le lien public. Le nombre de liens publics actifs apparaît sur la pastille.
-  Dès qu'un lien est actif, son nombre apparaît sur le bouton, **visible de tous les membres** :
-  une prise écoutable au dehors ne doit pas l'être à l'insu des autres
+- On y arrive par le menu « Partager » d'une prise (voir « Partager une prise : un seul
+  bouton »), et par le bouton « Lien public » de `/perso/[id]` — un enregistrement perso n'a
+  pas de lien pour le groupe. Tous deux ouvrent la gestion des liens (`ShareLinkDialog.svelte`)
+- Dès qu'un lien est actif, son nombre se voit, **de tous les membres** : une prise écoutable
+  au dehors ne doit pas l'être à l'insu des autres. Pastille 🌐 n sur le bouton de la page, et
+  sur la ligne de la prise parmi les pastilles à lire, à toutes les largeurs — elle n'y paraît
+  que s'il y a un lien, et ouvre leur gestion à qui peut partager
 - **Un jeton, pas un drapeau.** Les ids se suivent et se devinent ; le jeton fait 192 bits
   aléatoires. Une table (`share_links`, migration 033) plutôt qu'un id signé : un lien se
   révoque seul, sans toucher au secret des sessions

@@ -64,6 +64,7 @@ src/
 │       ├── ClassifyDialog.svelte  # classer un enregistrement perso en prise (session + morceau)
 │       ├── PendingImports.svelte  # fichiers encore en transit : reprendre ou refaire une découpe
 │       ├── ShareLinkDialog.svelte # liens d'écoute publics d'un enregistrement : créer, révoquer
+│       ├── ShareMenu.svelte       # bouton « Partager » d'une prise : lien pour le groupe, lien public
 │       ├── PostReactions.svelte   # pouces 👍/👎 d'une publication (fil et page de la publication)
 │       ├── FeedItem.svelte        # une carte du fil d'actualité, selon le type d'élément
 │       ├── SongSelect.svelte      # sélecteur de morceau + création sur place (« À nommer — … »)

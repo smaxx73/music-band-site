@@ -10,11 +10,12 @@
 	import SongDetails from '$lib/components/SongDetails.svelte'
 	import AddToPlaylistButton from '$lib/components/AddToPlaylistButton.svelte'
 	import YouTubePlayer from '$lib/components/YouTubePlayer.svelte'
-	import { youtubeWatchUrl, formatTimecode, parseTimecode } from '$lib/youtube'
+	import { youtubeWatchUrl, parseTimecode } from '$lib/youtube'
 	import type { CommentWithReactions } from '$lib/types'
 	import Icon from '$lib/components/Icon.svelte'
 	import SongSelect from '$lib/components/SongSelect.svelte'
 	import ShareLinkDialog from '$lib/components/ShareLinkDialog.svelte'
+	import ShareMenu from '$lib/components/ShareMenu.svelte'
 	import { canSharePublicly } from '$lib/types'
 	import { isPlaceholderSongTitle, sortedWithSong } from '$lib/songs'
 
@@ -269,30 +270,11 @@
 	})
 
 	// Copier le lien plutôt que d'aller le chercher dans la barre d'adresse : sur
-	// téléphone, c'est la manœuvre qui décourage de partager.
-	let linkCopied = $state(false)
-	let linkCopyFailed = $state(false)
+	// téléphone, c'est la manœuvre qui décourage de partager. Le repère suit le
+	// lecteur : partager depuis 1:23 partage 1:23.
 	const shareTime = $derived(
 		playerState.currentTime > 1 ? Math.floor(playerState.currentTime) : null
 	)
-
-	async function copyLink() {
-		const target = new URL(`/recording/${recording.id}`, location.origin)
-		// Le repère suit le lecteur : partager depuis 1:23 partage 1:23.
-		if (shareTime !== null) target.searchParams.set('t', String(shareTime))
-		linkCopied = false
-		linkCopyFailed = false
-		try {
-			await navigator.clipboard.writeText(target.toString())
-			linkCopied = true
-			setTimeout(() => (linkCopied = false), 2000)
-		} catch {
-			// Presse-papiers refusé (contexte non sécurisé, permission) : l'URL reste
-			// dans la barre d'adresse, on ne fait que le dire.
-			linkCopyFailed = true
-			setTimeout(() => (linkCopyFailed = false), 3000)
-		}
-	}
 
 	// Lien d'écoute public : tout membre peut faire entendre une prise hors du groupe.
 	// Le compteur reste visible de tous — une prise écoutable au dehors ne doit pas
@@ -474,32 +456,15 @@
 			{#if nextRecording}
 				<a href="/recording/{nextRecording.id}" class="btn btn-secondary btn-sm" title="Prise suivante">Prise {nextRecording.take} →</a>
 			{/if}
-			<button
-				class="btn btn-secondary btn-sm group-link-button"
-				onclick={copyLink}
-				title={shareTime !== null
-					? `Copier le lien pour le groupe à ${formatTimecode(shareTime)}`
-					: 'Copier le lien pour le groupe'}
-				aria-label={linkCopied ? 'Lien pour le groupe copié' : linkCopyFailed ? 'Copie impossible' : 'Copier le lien pour le groupe'}
-			>
-				{#if linkCopied}<Icon name="check" /><span class="btn-label">Lien pour le groupe copié</span>
-				{:else if linkCopyFailed}<Icon name="alert" /><span class="btn-label">Copie impossible</span>
-				{:else}<Icon name="link" /><span class="btn-label">Copier le lien pour le groupe{#if shareTime !== null}&nbsp;({formatTimecode(shareTime)}){/if}</span>
-				{/if}
-			</button>
-			{#if canShare}
-				<button
-					class="btn btn-primary btn-sm share-public"
-					class:shared={shareCount > 0}
-					onclick={() => (shareOpen = true)}
-					title="Créer ou gérer un lien d'écoute accessible sans compte"
-					aria-label={shareCount > 0 ? `Partager hors du groupe, ${shareCount} lien${shareCount > 1 ? 's' : ''} public${shareCount > 1 ? 's' : ''} actif${shareCount > 1 ? 's' : ''}` : 'Partager hors du groupe'}
-				>
-					<Icon name="globe" />
-					<span>Partager hors du groupe</span>
-					{#if shareCount > 0}<span class="share-count" aria-hidden="true">{shareCount}</span>{/if}
-				</button>
-			{/if}
+			<ShareMenu
+				class="share-menu-slot"
+				recordingId={recording.id}
+				time={shareTime}
+				canSharePublic={canShare}
+				{shareCount}
+				label="Partager"
+				onOpenPublic={() => (shareOpen = true)}
+			/>
 			{#if hasAudio}
 				<AddToPlaylistButton
 					recordingId={recording.id}
@@ -589,21 +554,6 @@
 	   du morceau qui se replie mot par mot. */
 	.header-main { flex: 1 0 14rem; min-width: 0; }
 	.header-actions { display: flex; align-items: center; gap: 0.5rem; flex: 0 1 auto; min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
-	.header-actions .share-public { text-align: left; white-space: normal; }
-	.header-actions .group-link-button { white-space: normal; }
-	.header-actions .share-public.shared { box-shadow: 0 0 0 2px var(--color-accent); }
-
-	.share-count {
-		min-width: 1.1rem;
-		padding: 0 0.3rem;
-		border-radius: 999px;
-		background: var(--color-accent);
-		color: #fff;
-		font-size: var(--text-xs);
-		font-weight: 600;
-		line-height: 1.1rem;
-		text-align: center;
-	}
 
 	/* La colonne de contenu vaut la fenêtre moins les 188 px de la barre latérale : sous
 	   ~860 px, titre et boutons ne tiennent plus côte à côte, les boutons passent dessous. */
@@ -774,11 +724,11 @@
 		main { margin: 1rem auto; padding: 0 0.75rem; }
 
 		.header-actions > * { flex: 1 1 auto; }
-		.header-actions > .share-public { order: -2; flex: 1 1 100%; justify-content: center; min-height: 2.5rem; }
-		.header-actions > .group-link-button { order: -1; flex: 1 1 100%; justify-content: center; min-height: 2.5rem; }
-		/* Réduits à leur icône, ils ne s'étirent pas : ce sont les boutons de navigation
-		   qui prennent la place restante. */
-		.header-actions > :global(.btn-collapse) { flex: 0 0 auto; }
+		/* Réduits à leur icône ou à un mot, ils ne s'étirent pas : ce sont les boutons de
+		   navigation qui prennent la place restante. */
+		.header-actions > :global(.btn-collapse),
+		.header-actions > :global(.share-menu-slot) { flex: 0 0 auto; }
+		.header-actions > :global(.share-menu-slot .btn) { min-height: 2.5rem; }
 
 		h1 { font-size: 1.2rem; flex-wrap: wrap; }
 

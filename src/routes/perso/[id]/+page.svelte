@@ -12,6 +12,7 @@
 	import Icon from '$lib/components/Icon.svelte'
 	import { youtubeWatchUrl } from '$lib/youtube'
 	import { personalAudioUrl } from '$lib/types'
+	import { publicLinksLabel } from '$lib/share-client'
 
 	let { data }: { data: PageData } = $props()
 
@@ -171,15 +172,15 @@
 					</button>
 				{/if}
 				{#if recording.file_path}
+					<!-- Pas de lien pour le groupe ici : l'espace perso n'est à personne d'autre. -->
 					<button
-						class="btn btn-primary btn-sm share-public"
-						class:shared={shareCount > 0}
+						class="btn btn-secondary btn-sm"
 						onclick={() => (shareOpen = true)}
 						title="Créer ou gérer un lien d'écoute accessible sans compte"
-						aria-label={shareCount > 0 ? `Partager hors du groupe, ${shareCount} lien${shareCount > 1 ? 's' : ''} public${shareCount > 1 ? 's' : ''} actif${shareCount > 1 ? 's' : ''}` : 'Partager hors du groupe'}
+						aria-label={shareCount > 0 ? `Lien public — ${publicLinksLabel(shareCount)}` : 'Lien public'}
 					>
 						<Icon name="globe" />
-						<span>Partager hors du groupe</span>
+						<span>Lien public</span>
 						{#if shareCount > 0}<span class="share-count" aria-hidden="true">{shareCount}</span>{/if}
 					</button>
 				{/if}
@@ -271,12 +272,10 @@
 	.meta { display: flex; align-items: center; gap: 0.3rem; font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 0.15rem; }
 	.notes { display: flex; gap: 0.35rem; font-size: var(--text-sm); color: var(--color-text-secondary); margin: 0.5rem 0 0; white-space: pre-line; }
 	.header-actions { display: flex; align-items: center; gap: 0.4rem; flex: 0 1 auto; min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
-	.header-actions .share-public { text-align: left; white-space: normal; }
-	.header-actions .share-public.shared { box-shadow: 0 0 0 2px var(--color-accent); }
 	.share-count {
-		min-width: 1.1rem; padding: 0 0.3rem; border-radius: 999px;
-		background: var(--color-accent); color: #fff;
-		font-size: var(--text-xs); font-weight: 600; line-height: 1.1rem; text-align: center;
+		padding: 0 0.35rem; border-radius: 999px;
+		background: var(--color-accent-light); color: var(--color-accent);
+		font-size: var(--text-xs); font-weight: 600; line-height: 1.2rem;
 	}
 
 	/* Colonne de contenu = fenêtre moins les 188 px de la barre latérale : sous ~860 px,
@@ -307,6 +306,5 @@
 
 	@media (max-width: 640px) {
 		main { margin: 1rem auto; padding: 0 0.75rem; }
-		.header-actions .share-public { order: -1; width: 100%; justify-content: center; min-height: 2.5rem; }
 	}
 </style>

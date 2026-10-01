@@ -129,30 +129,35 @@
 	const longDate = { day: 'numeric', month: 'long', year: 'numeric' } as const
 </script>
 
-<Modal title="Partager hors du groupe" {onClose}>
+<Modal title="Lien d'écoute public" {onClose}>
 	<div class="share-dialog">
 		<p class="explain">
 			<Icon name="globe" size="0.9rem" />
 			<span>
-				Toute personne qui a le lien peut <strong>écouter et télécharger</strong> ce fichier audio,
-				sans compte. Elle ne voit ni les commentaires, ni la note, ni les participants.
+				Qui a le lien peut <strong>écouter et télécharger</strong> ce fichier, sans compte —
+				rien d'autre : ni commentaires, ni note, ni participants.
 			</span>
 		</p>
 
 		{#if createdUrl}
 			<div class="created">
-				<h3>Lien public prêt à partager</h3>
-				<label class="form-label" for="share-url">Adresse du lien public</label>
 				<div class="url-row">
-					<input id="share-url" class="form-input" type="text" readonly value={createdUrl} bind:this={urlField} onfocus={(e) => e.currentTarget.select()} />
+					<input
+						class="form-input"
+						type="text"
+						readonly
+						value={createdUrl}
+						aria-label="Adresse du lien public"
+						bind:this={urlField}
+						onfocus={(e) => e.currentTarget.select()}
+					/>
+					<button class="btn btn-primary btn-sm" onclick={copy}>
+						{#if copied}<Icon name="check" /> Copié{:else}<Icon name="link" /> Copier{/if}
+					</button>
 				</div>
-				<button class="btn btn-primary copy-public" onclick={copy}>
-					{#if copied}<Icon name="check" /> Lien public copié{:else}<Icon name="link" /> Copier le lien public{/if}
-				</button>
-				{#if copied}<p class="copy-status" role="status">Le lien public est dans le presse-papiers.</p>{/if}
-				<p class="warn">
-					{copyFailed ? 'Copie automatique impossible : copie le lien depuis le champ. ' : ''}L'adresse ne sera
-					plus affichée après fermeture. Si tu la perds, révoque ce lien et crée-en un autre.
+				<p class="warn" role="status">
+					{#if copied}<strong>Lien copié.</strong>{:else if copyFailed}<strong>Copie automatique impossible : copie-le depuis le champ.</strong>{/if}
+					Il ne sera plus affiché après fermeture : perdu, il se révoque et se recrée.
 				</p>
 			</div>
 		{/if}
@@ -165,7 +170,7 @@
 				{/each}
 			</select>
 			<button class="btn btn-primary btn-sm" onclick={create} disabled={creating}>
-				{creating ? 'Création…' : createdUrl ? 'Créer un autre lien public' : 'Créer un lien public'}
+				{creating ? 'Création…' : createdUrl ? 'Créer un autre lien' : 'Créer un lien'}
 			</button>
 		</div>
 
@@ -211,15 +216,14 @@
 	.explain :global(svg) { flex-shrink: 0; margin-top: 0.2rem; }
 
 	.created {
-		padding: 0.75rem; border-radius: var(--radius-md);
+		padding: 0.6rem; border-radius: var(--radius-md);
 		background: var(--color-bg-subtle); border: 1px solid var(--color-border-light);
 	}
-	.created h3 { margin: 0 0 0.45rem; }
-	.url-row { display: flex; gap: 0.4rem; margin-top: 0.3rem; }
+	.url-row { display: flex; gap: 0.4rem; }
 	.url-row input { flex: 1; min-width: 0; font-family: var(--font-mono, monospace); font-size: var(--text-xs); }
-	.copy-public { width: 100%; justify-content: center; margin-top: 0.6rem; min-height: 2.5rem; }
-	.copy-status { margin: 0.4rem 0 0; font-size: var(--text-sm); color: var(--color-success-text); }
+	.url-row .btn { flex-shrink: 0; }
 	.warn { margin: 0.4rem 0 0; font-size: var(--text-xs); color: var(--color-text-muted); }
+	.warn strong { color: var(--color-text-secondary); }
 
 	.create-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 	.create-row .form-label { margin: 0; }
@@ -237,6 +241,7 @@
 	.muted { font-size: var(--text-xs); color: var(--color-text-muted); }
 
 	@media (max-width: 640px) {
-		.links li { flex-direction: column; align-items: stretch; }
+		.url-row .btn { min-height: 2.5rem; }
+		.links li { align-items: flex-start; }
 	}
 </style>
