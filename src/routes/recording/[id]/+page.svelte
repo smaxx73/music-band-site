@@ -312,7 +312,7 @@
 
 <svelte:window bind:innerHeight />
 
-<main style="--comment-scroll-margin: {stickyPlayer ? playerHeight + 24 : 16}px">
+<main class="page" style="--comment-scroll-margin: {stickyPlayer ? playerHeight + 24 : 16}px">
 	<!-- Fil d'Ariane -->
 	<nav class="breadcrumb">
 		<a href="/sessions">Sessions</a> /
@@ -369,20 +369,20 @@
 					{#if renameClash}
 						<p class="song-fix-hint">
 							« {renameClash.title} » existe déjà.
-							<button class="link-btn" onclick={() => moveTo(String(renameClash!.id))} disabled={moving}>
+							<button class="btn-link" onclick={() => moveTo(String(renameClash!.id))} disabled={moving}>
 								Rattacher la prise à ce morceau
 							</button>
 						</p>
 					{/if}
 					{#if renameError}<p class="notes-error">{renameError}</p>{/if}
 					{#if !moveOpen}
-						<button class="link-btn" onclick={() => (moveOpen = true)}>
+						<button class="btn-link" onclick={() => (moveOpen = true)}>
 							C'est un morceau déjà au référentiel ?
 						</button>
 					{/if}
 				</div>
 			{:else if !moveOpen}
-				<button class="link-btn change-song" onclick={() => (moveOpen = true)}>Changer de morceau</button>
+				<button class="btn-link change-song" onclick={() => (moveOpen = true)}>Changer de morceau</button>
 			{/if}
 			{#if moveOpen}
 				<div class="song-fix">
@@ -543,12 +543,6 @@
 </main>
 
 <style>
-	main {
-		max-width: 720px;
-		margin: 2rem auto;
-		padding: 0 1rem;
-	}
-
 	.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
 	/* Le titre garde sa largeur : ce sont les boutons qui passent à la ligne, pas le nom
 	   du morceau qui se replie mot par mot. */
@@ -580,7 +574,7 @@
 	.key {
 		font-size: 0.85rem;
 		font-weight: 400;
-		background: var(--color-abandoned-bg);
+		background: var(--color-chip-bg);
 		color: var(--color-text-secondary);
 		padding: 0.15rem 0.45rem;
 		border-radius: var(--radius-sm);
@@ -620,16 +614,8 @@
 
 	.song-fix-hint { margin: 0; font-size: var(--text-xs); color: var(--color-text-muted); }
 
-	.link-btn {
-		background: none;
-		border: none;
-		padding: 0;
-		font: inherit;
-		font-size: var(--text-xs);
-		color: var(--color-accent);
-		cursor: pointer;
-		text-decoration: underline;
-	}
+	/* Les actions de correction du morceau restent à la taille des métadonnées. */
+	.btn-link { font-size: var(--text-xs); }
 
 	.change-song { margin-top: 0.3rem; font-size: var(--text-xs); }
 
@@ -687,7 +673,7 @@
 	.view-tab {
 		background: none;
 		border: 1px solid var(--color-border-light);
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		padding: 0.25rem 0.8rem;
 		font: inherit;
 		font-size: var(--text-sm);
@@ -721,7 +707,6 @@
 
 	/* ─── Responsive ───────────────────── */
 	@media (max-width: 640px) {
-		main { margin: 1rem auto; padding: 0 0.75rem; }
 
 		.header-actions > * { flex: 1 1 auto; }
 		/* Réduits à leur icône ou à un mot, ils ne s'étirent pas : ce sont les boutons de

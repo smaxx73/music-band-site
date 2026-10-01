@@ -318,7 +318,7 @@
 	.sort-toggle {
 		display: inline-flex;
 		border: 1px solid var(--color-border-light);
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		overflow: hidden;
 	}
 
@@ -430,7 +430,7 @@
 	.anchor-pill {
 		background: none;
 		border: 1px solid var(--color-border-light);
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		padding: 0.2rem 0.6rem;
 		font: inherit;
 		font-size: var(--text-xs);
@@ -450,6 +450,6 @@
 
 	/* Au doigt, une cible de 34 px se rate : le bouton d'envoi grandit. */
 	@media (max-width: 640px) {
-		.send { width: 40px; height: 40px; font-size: 1rem; }
+		.send { width: 40px; height: 40px; font-size: var(--text-base); }
 	}
 </style>

@@ -279,7 +279,6 @@
 	}
 </script>
 
-
 <svelte:head>
 	<title>{setlist.name}</title>
 </svelte:head>
@@ -303,7 +302,7 @@
 	{/if}
 {/snippet}
 
-<main>
+<main class="page">
 	<nav class="breadcrumb">
 		<a href="/setlists">Setlists</a> / <span>{setlist.name}</span>
 	</nav>
@@ -452,8 +451,6 @@
 </main>
 
 <style>
-	main { max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
-
 	.setlist-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
 	h1 { font-size: 1.4rem; margin: 0 0 0.3rem; }
 	.desc { font-size: var(--text-sm); color: #666; margin: 0 0 0.3rem; }
@@ -492,7 +489,6 @@
 	.song-option-meta { color: var(--color-text-muted); font-size: var(--text-xs); white-space: nowrap; }
 
 	@media (max-width: 640px) {
-		main { margin: 1rem auto; padding: 0 0.75rem; }
 		h1 { font-size: 1.2rem; }
 		.setlist-header { align-items: stretch; flex-direction: column; }
 		/* Le bouton d'ajout prend sa propre ligne plutôt que de serrer le titre. */

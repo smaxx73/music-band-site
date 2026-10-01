@@ -10,10 +10,15 @@
 		type GroupLinkField
 	} from '$lib/types'
 	import Icon from '$lib/components/Icon.svelte'
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
+	import { createSubmitConfirm } from '$lib/confirm-submit.svelte'
+	import { groupRoleChangeRequest, removeMemberRequest } from '$lib/group-roles'
 	import GroupPlaces from '$lib/components/GroupPlaces.svelte'
 	import type { GroupPlace } from '$lib/places'
 
 	let { data, form }: { data: PageData; form: ActionData } = $props()
+
+	const ask = createSubmitConfirm()
 
 	const ROLE_LABELS: Record<string, string> = {
 		user: 'Utilisateur',
@@ -69,26 +74,13 @@
 		return formatDateOnly(d, { day: 'numeric', month: 'long', year: 'numeric' })
 	}
 
-	function confirmGroupRoleChange(event: Event, memberName: string, currentRole: string) {
-		const select = event.currentTarget as HTMLSelectElement
-		const nextRole = select.value
-		const message = nextRole === 'admin'
-			? `Accorder le rôle d’admin du groupe à ${memberName} ?`
-			: `Retirer le rôle d’admin du groupe à ${memberName} ?`
-
-		if (!confirm(message)) {
-			select.value = currentRole
-			return
-		}
-		select.form?.requestSubmit()
-	}
 </script>
 
 <svelte:head>
 	<title>{data.group ? data.group.name : 'Mon groupe'}</title>
 </svelte:head>
 
-<main>
+<main class="page">
 	<nav class="breadcrumb">
 		<a href="/">Tableau de bord</a> /
 		<span>Mon groupe</span>
@@ -105,9 +97,9 @@
 				use:enhance={() => ({ update }) => { editingName = false; return update() }}
 				class="rename-form"
 			>
-				<input name="name" type="text" bind:value={newName} class="input-title" required />
-				<button type="submit" class="btn-primary">Enregistrer</button>
-				<button type="button" class="btn-ghost" onclick={() => (editingName = false)}>Annuler</button>
+				<input name="name" type="text" bind:value={newName} class="form-input input-title" aria-label="Nom du groupe" required />
+				<button type="submit" class="btn btn-primary">Enregistrer</button>
+				<button type="button" class="btn btn-secondary" onclick={() => (editingName = false)}>Annuler</button>
 			</form>
 		{:else}
 			<h1 class="group-title">
@@ -121,7 +113,7 @@
 				{data.group.name}
 				{#if data.canManage}
 					<button
-						class="btn-edit"
+						class="btn btn-ghost btn-sm"
 						title="Renommer le groupe"
 						onclick={() => { newName = data.group.name as string; editingName = true }}
 					><Icon name="pencil" size="0.85rem" label="Renommer le groupe" /></button>
@@ -129,12 +121,12 @@
 			</h1>
 		{/if}
 		{#if form?.action === 'rename' && form?.error}
-			<p class="error">{form.error}</p>
+			<p class="message-error">{form.error}</p>
 		{/if}
 
 		<!-- Informations -->
 		<section class="section">
-			<h2>Informations</h2>
+			<h2 class="section-title">Informations</h2>
 			<dl class="info-list">
 				<dt>Créé le</dt>
 				<dd>{formatCreatedAt(data.group.created_at)}</dd>
@@ -183,7 +175,7 @@
 
 		<!-- Membres -->
 		<section class="section">
-			<h2>Membres ({data.members.length})</h2>
+			<h2 class="section-title">Membres ({data.members.length})</h2>
 
 			{#if data.members.length === 0}
 				<p class="empty">Aucun membre.</p>
@@ -205,13 +197,19 @@
 									<td data-label="Groupe">
 										{#if data.canAssignAdmin}
 											<!-- Seul le superadmin peut attribuer ou retirer le rôle d'admin de groupe. -->
-											<form method="POST" action="?/updateRole" use:enhance>
+											<form
+												method="POST"
+												action="?/updateRole"
+												use:enhance={({ formElement, cancel }) => {
+													ask.intercept(formElement, cancel, groupRoleChangeRequest(formElement, m.display_name, m.group_role))
+												}}
+											>
 												<input type="hidden" name="user_id" value={m.id} />
 												<select
 													name="role"
-													class="role-select"
+													class="form-input role-select"
 													aria-label="Rôle de {m.display_name} dans le groupe"
-													onchange={(e) => confirmGroupRoleChange(e, m.display_name, m.group_role)}
+													onchange={(e) => e.currentTarget.form?.requestSubmit()}
 												>
 													<option value="member" selected={m.group_role === 'member'}>Membre</option>
 													<option value="admin" selected={m.group_role === 'admin'}>Admin</option>
@@ -238,16 +236,14 @@
 												<form
 													method="POST"
 													action="?/removeMember"
-													use:enhance={() => {
+													use:enhance={({ formElement, cancel }) => {
+														if (ask.intercept(formElement, cancel, removeMemberRequest(m.display_name))) return
 														busyMemberId = m.id
 														return ({ update }) => { busyMemberId = null; return update() }
 													}}
-													onsubmit={(e) => {
-														if (!confirm(`Retirer ${m.display_name} du groupe ?`)) e.preventDefault()
-													}}
 												>
 													<input type="hidden" name="user_id" value={m.id} />
-													<button type="submit" class="btn-remove" disabled={busyMemberId === m.id}>
+													<button type="submit" class="btn btn-danger btn-sm" disabled={busyMemberId === m.id}>
 														{busyMemberId === m.id ? '…' : 'Retirer'}
 													</button>
 												</form>
@@ -262,14 +258,14 @@
 			{/if}
 
 			{#if form?.error && (form?.action === 'removeMember' || form?.action === 'updateRole')}
-				<p class="error">{form.error}</p>
+				<p class="message-error">{form.error}</p>
 			{/if}
 		</section>
 
 		<!-- Lieux proposés à la saisie du lieu d'une session : visibles de tous les membres,
 		     gérés par l'admin du groupe. -->
 		<section class="section">
-			<h2>Lieux ({data.places.length})</h2>
+			<h2 class="section-title">Lieux ({data.places.length})</h2>
 			<GroupPlaces
 				places={data.places as GroupPlace[]}
 				canManage={data.canManage}
@@ -283,29 +279,29 @@
 			<!-- Ajout par pseudo exact : un admin de groupe n'a pas à voir l'annuaire
 			     des comptes des autres groupes de la plateforme. -->
 			<section class="section">
-				<h2>Ajouter un membre</h2>
+				<h2 class="section-title">Ajouter un membre</h2>
 				<form method="POST" action="?/addMember" use:enhance class="add-form">
 					<input
 						name="nickname"
 						type="text"
-						class="input"
+						class="form-input"
 						placeholder="Pseudo du membre"
 						aria-label="Pseudo du membre à ajouter"
 						autocomplete="off"
 						required
 					/>
-					<button type="submit" class="btn-primary">Ajouter</button>
+					<button type="submit" class="btn btn-primary">Ajouter</button>
 				</form>
-				<p class="hint">Le membre est ajouté avec le rôle « Membre ».</p>
+				<p class="form-hint">Le membre est ajouté avec le rôle « Membre ».</p>
 				{#if form?.action === 'addMember' && form?.error}
-					<p class="error">{form.error}</p>
+					<p class="message-error">{form.error}</p>
 				{:else if form?.action === 'addMember' && form?.added}
-					<p class="success">{form.added} a rejoint le groupe.</p>
+					<p class="message-ok">{form.added} a rejoint le groupe.</p>
 				{/if}
 			</section>
 
 			<section class="section">
-				<h2>Logo</h2>
+				<h2 class="section-title">Logo</h2>
 				<div class="logo-editor">
 					{#if data.group.logo_version}
 						<img
@@ -337,33 +333,39 @@
 								onchange={checkLogoSize}
 								required
 							/>
-							<button type="submit" class="btn-primary" disabled={uploadingLogo}>
+							<button type="submit" class="btn btn-primary" disabled={uploadingLogo}>
 								{uploadingLogo ? 'Envoi…' : data.group.logo_version ? 'Remplacer' : 'Envoyer'}
 							</button>
 						</form>
-						<p class="hint">PNG, JPEG, WebP ou GIF, 2 Mo maximum. Une image carrée rend le mieux.</p>
+						<p class="form-hint">PNG, JPEG, WebP ou GIF, 2 Mo maximum. Une image carrée rend le mieux.</p>
 
 						{#if data.group.logo_version}
 							<form
 								method="POST"
 								action="?/removeLogo"
-								use:enhance
-								onsubmit={(e) => { if (!confirm('Retirer le logo du groupe ?')) e.preventDefault() }}
+								use:enhance={({ formElement, cancel }) => {
+									ask.intercept(formElement, cancel, {
+										level: 'warning',
+										title: 'Retirer le logo ?',
+										message: "Le groupe n'aura plus de logo, ni dans la barre du haut ni dans l'aperçu des liens d'écoute. Un nouveau pourra être envoyé.",
+										confirmLabel: 'Retirer le logo'
+									})
+								}}
 							>
-								<button type="submit" class="btn-remove">Retirer le logo</button>
+								<button type="submit" class="btn btn-danger btn-sm">Retirer le logo</button>
 							</form>
 						{/if}
 					</div>
 				</div>
 				{#if logoError}
-					<p class="error">{logoError}</p>
+					<p class="message-error">{logoError}</p>
 				{:else if (form?.action === 'uploadLogo' || form?.action === 'removeLogo') && form?.error}
-					<p class="error">{form.error}</p>
+					<p class="message-error">{form.error}</p>
 				{/if}
 			</section>
 
 			<section class="section">
-				<h2>Réseaux</h2>
+				<h2 class="section-title">Réseaux</h2>
 				<form
 					method="POST"
 					action="?/updateLinks"
@@ -377,71 +379,43 @@
 							name={field}
 							type="text"
 							inputmode="url"
-							class="input"
+							class="form-input"
 							placeholder={LINK_PLACEHOLDERS[field]}
 							value={linkValue(field)}
 							autocomplete="off"
 						/>
 					{/each}
 					<div class="links-submit">
-						<button type="submit" class="btn-primary">Enregistrer</button>
+						<button type="submit" class="btn btn-primary">Enregistrer</button>
 					</div>
 				</form>
-				<p class="hint">Laisser un champ vide retire le lien.</p>
+				<p class="form-hint">Laisser un champ vide retire le lien.</p>
 				{#if form?.action === 'updateLinks' && form?.error}
-					<p class="error">{form.error}</p>
+					<p class="message-error">{form.error}</p>
 				{:else if form?.action === 'updateLinks' && form && 'saved' in form}
-					<p class="success">Liens enregistrés.</p>
+					<p class="message-ok">Liens enregistrés.</p>
 				{/if}
 			</section>
 		{/if}
 	{/if}
+
+	<ConfirmDialog
+		open={ask.pending !== null}
+		level={ask.pending?.level}
+		title={ask.pending?.title ?? ''}
+		message={ask.pending?.message ?? ''}
+		confirmLabel={ask.pending?.confirmLabel}
+		onConfirm={ask.confirm}
+		onCancel={ask.dismiss}
+	/>
 </main>
 
 <style>
-	main {
-		max-width: 700px;
-		margin: 2rem auto;
-		padding: 0 1rem;
-	}
+	h1 { font-size: var(--text-xl); margin: 0 0 2rem; }
 
-	.breadcrumb {
-		font-size: 0.85rem;
-		color: #888;
-		margin-bottom: 1.25rem;
-	}
-	.breadcrumb a { color: inherit; text-decoration: none; }
-	.breadcrumb a:hover { text-decoration: underline; }
+	.section > .message-error,
+	.section > .message-ok { margin-top: 0.5rem; }
 
-	h1 { font-size: var(--text-xl); margin-bottom: 2rem; }
-
-	h2 {
-		font-size: 1rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		color: #888;
-		margin: 0 0 1rem;
-		padding-bottom: 0.4rem;
-		border-bottom: 1px solid #ebebeb;
-	}
-
-	.section { margin-bottom: 2.5rem; }
-
-	.info-list {
-		display: grid;
-		grid-template-columns: auto 1fr;
-		gap: 0.6rem 1.5rem;
-		margin: 0 0 1rem;
-	}
-
-	.info-list dt {
-		font-weight: 600;
-		color: #666;
-		font-size: 0.85rem;
-	}
-
-	.info-list dd { margin: 0; }
 	.info-list .muted { color: var(--color-text-secondary); font-size: var(--text-sm); }
 
 	.group-title {
@@ -451,28 +425,32 @@
 		flex-wrap: wrap;
 	}
 
-	.group-logo {
-		width: 56px;
-		height: 56px;
+	/* Fond blanc : un logo à fond transparent s'y lit comme dans l'aperçu d'un lien. */
+	.group-logo,
+	.logo-preview {
 		border-radius: 50%;
 		object-fit: cover;
-		border: 1px solid #e5e5e5;
+		border: 1px solid var(--color-border-light);
 		background: #fff;
 		flex-shrink: 0;
 	}
+
+	.group-logo { width: 56px; height: 56px; }
+	.logo-preview { width: 96px; height: 96px; }
 
 	.links { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 
 	.social-link {
 		display: inline-block;
 		padding: 0.15rem 0.6rem;
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		font-size: 0.8rem;
 		font-weight: 600;
 		text-decoration: none;
 		border: 1px solid currentColor;
 	}
 	.social-link:hover { text-decoration: underline; }
+	/* Couleurs des marques elles-mêmes : c'est à elles qu'on reconnaît le réseau. */
 	.social-youtube_url { color: #c4302b; }
 	.social-facebook_url { color: #1877f2; }
 	.social-instagram_url { color: #c13584; }
@@ -484,22 +462,12 @@
 		flex-wrap: wrap;
 	}
 
-	.logo-preview {
-		width: 96px;
-		height: 96px;
-		border-radius: 50%;
-		object-fit: cover;
-		border: 1px solid #e5e5e5;
-		background: #fff;
-		flex-shrink: 0;
-	}
-
 	.logo-empty {
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		color: #aaa;
-		font-size: 0.75rem;
+		color: var(--color-text-muted);
+		font-size: var(--text-xs);
 		border-style: dashed;
 	}
 
@@ -510,7 +478,7 @@
 		flex-direction: column;
 		gap: 0.6rem;
 	}
-	.logo-actions .hint { margin: 0; }
+	.logo-actions .form-hint { margin: 0; }
 
 	.input-file {
 		flex: 1 1 12rem;
@@ -524,7 +492,7 @@
 		gap: 0.5rem 1rem;
 		align-items: center;
 	}
-	.links-form label { font-weight: 600; color: #666; font-size: 0.85rem; }
+	.links-form label { font-weight: 600; color: var(--color-text-secondary); font-size: 0.85rem; }
 	.links-submit { grid-column: 2; }
 
 	@media (max-width: 480px) {
@@ -532,49 +500,10 @@
 		.links-submit { grid-column: 1; }
 	}
 
-	.admin-link { font-size: 0.875rem; }
+	.admin-link { font-size: var(--text-sm); }
 	.admin-link a { color: inherit; }
 
 	.name { font-weight: 600; }
-
-	.badge {
-		display: inline-block;
-		padding: 0.15rem 0.5rem;
-		border-radius: 3px;
-		font-size: 0.75rem;
-		font-weight: 600;
-	}
-
-	.badge-superadmin { background: #fef3c7; color: #92400e; }
-	.badge-admin { background: #e8f0fe; color: #1a56db; }
-	.badge-user { background: #f0f0f0; color: #555; }
-	.badge-group-admin { background: #e8f0fe; color: #1a56db; }
-	.badge-group-member { background: #f0f0f0; color: #555; }
-
-	.error {
-		color: #b91c1c;
-		font-size: 0.85rem;
-		margin: 0.5rem 0 0;
-	}
-
-	.success {
-		color: #15803d;
-		font-size: 0.85rem;
-		margin: 0.5rem 0 0;
-	}
-
-	.hint { color: #888; font-size: 0.8rem; margin: 0.5rem 0 0; }
-
-	.btn-edit {
-		background: none;
-		border: none;
-		cursor: pointer;
-		font-size: 0.9rem;
-		padding: 0.1rem 0.3rem;
-		color: #aaa;
-		border-radius: 3px;
-	}
-	.btn-edit:hover { color: #555; background: #f0f0f0; }
 
 	.rename-form {
 		display: flex;
@@ -585,65 +514,16 @@
 	}
 
 	.input-title {
-		font-size: 1.3rem;
-		font-weight: 700;
-		padding: 0.3rem 0.5rem;
-		border: 1px solid #ccc;
-		border-radius: 4px;
 		flex: 1 1 12rem;
 		min-width: 0;
+		font-size: 1.3rem;
+		font-weight: 700;
 	}
 
 	.add-form { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+	.add-form .form-input { flex: 1 1 12rem; min-width: 0; }
 
-	.input {
-		padding: 0.4rem 0.6rem;
-		border: 1px solid #ccc;
-		border-radius: 4px;
-		font-size: 0.9rem;
-		flex: 1 1 12rem;
-		min-width: 0;
-	}
-
-	.role-select {
-		padding: 0.2rem 0.4rem;
-		border: 1px solid #ddd;
-		border-radius: 4px;
-		font-size: 0.8rem;
-		background: #fff;
-	}
-
-	.btn-primary {
-		padding: 0.4rem 0.9rem;
-		border: none;
-		border-radius: 4px;
-		background: #1a1a1a;
-		color: #fff;
-		font-size: 0.85rem;
-		cursor: pointer;
-	}
-	.btn-primary:hover { background: #333; }
-
-	.btn-ghost {
-		padding: 0.4rem 0.9rem;
-		border: 1px solid #ddd;
-		border-radius: 4px;
-		background: #fff;
-		font-size: 0.85rem;
-		cursor: pointer;
-	}
-
-	.btn-remove {
-		padding: 0.2rem 0.6rem;
-		border: 1px solid #f0d0d0;
-		border-radius: 4px;
-		background: #fff;
-		color: #b91c1c;
-		font-size: 0.78rem;
-		cursor: pointer;
-	}
-	.btn-remove:hover:not(:disabled) { background: #fef2f2; }
-	.btn-remove:disabled { opacity: 0.5; cursor: default; }
+	.role-select { padding: 0.2rem 0.4rem; font-size: 0.8rem; }
 
 	.actions { text-align: right; }
 
@@ -656,6 +536,4 @@
 		/* Le sélecteur de rôle vit dans un <form> : en ligne, il reste sur la ligne du libellé. */
 		td[data-label] form { display: inline-flex; vertical-align: middle; }
 	}
-
-	.empty { color: #aaa; font-style: italic; font-size: 0.9rem; }
 </style>

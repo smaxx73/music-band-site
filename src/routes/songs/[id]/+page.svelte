@@ -91,7 +91,7 @@
 	<title>{song.title} — Historique</title>
 </svelte:head>
 
-<main>
+<main class="page page-wide">
 	<nav class="breadcrumb">
 		<a href="/songs">Morceaux</a> /
 		<span>{song.title}</span>
@@ -167,12 +167,6 @@
 </main>
 
 <style>
-	main {
-		max-width: 760px;
-		margin: 2rem auto;
-		padding: 0 1rem;
-	}
-
 	/* Pastilles glissées dans le libellé de l'en-tête : elles gardent leur propre casse. */
 	.song-status { letter-spacing: 0; text-transform: none; }
 
@@ -181,7 +175,7 @@
 		font-weight: 600;
 		letter-spacing: 0;
 		text-transform: none;
-		background: var(--color-abandoned-bg);
+		background: var(--color-chip-bg);
 		color: var(--color-text-secondary);
 		padding: 0.15rem 0.45rem;
 		border-radius: var(--radius-sm);
@@ -203,12 +197,9 @@
 
 	.upload-action:hover { opacity: 0.88; }
 
-
-
 	/* Les prises se replient toutes seules (voir RecordingRow) : il ne reste ici que
 	   ce qui entoure la liste. */
 	@media (max-width: 640px) {
-		main { margin: 1rem auto; padding: 0 0.75rem; }
 
 		/* La modale du sélecteur est en `position: fixed` : elle reste hors de ce flux. */
 		.footer-actions { flex-direction: column; align-items: stretch; }

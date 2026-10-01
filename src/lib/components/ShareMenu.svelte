@@ -169,7 +169,7 @@
 		align-items: center;
 		gap: 0.15rem;
 		padding: 0 0.35rem;
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		background: var(--color-accent-light);
 		color: var(--color-accent);
 		font-size: var(--text-xs);

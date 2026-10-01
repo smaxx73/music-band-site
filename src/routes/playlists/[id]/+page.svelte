@@ -177,7 +177,7 @@
 	<title>{playlist.name}</title>
 </svelte:head>
 
-<main>
+<main class="page page-wide">
 	<nav class="breadcrumb">
 		<a href="/playlists">Playlists</a> / <span>{playlist.name}</span>
 	</nav>
@@ -280,8 +280,6 @@
 </main>
 
 <style>
-	main { max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
-
 	.desc { font-size: var(--text-sm); color: var(--color-text-secondary); margin: 0; }
 	.empty-state { text-align: center; padding: 2rem 0; }
 	.empty-state .empty { margin-top: 0; }
@@ -333,7 +331,6 @@
 
 	/* ─── Responsive ───────────────────── */
 	@media (max-width: 640px) {
-		main { margin: 1rem auto; padding: 0 0.75rem; }
 
 		.now-playing { padding: 0.65rem 0.75rem; }
 		.recording-options button { align-items: flex-start; flex-direction: column; gap: 0.2rem; }

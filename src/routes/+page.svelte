@@ -547,7 +547,7 @@
 	}
 
 	.link-more {
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		color: var(--color-text-muted);
 		text-decoration: none;
 	}
@@ -557,7 +557,7 @@
 	.feed-link { display: inline-block; margin-top: 0.5rem; }
 
 	.activity-filter {
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		color: var(--color-text-muted);
 		background: var(--color-bg);
 		border: 1px solid var(--color-border-light);

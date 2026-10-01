@@ -37,7 +37,7 @@
 	<title>Playlists</title>
 </svelte:head>
 
-<main>
+<main class="page page-narrow">
 	<div class="header">
 		<h1>Playlists</h1>
 		<button class="btn btn-primary" onclick={() => (showForm = !showForm)}>
@@ -80,8 +80,6 @@
 </main>
 
 <style>
-	main { max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
-
 	.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
 	h1 { font-size: var(--text-xl); margin: 0; }
 

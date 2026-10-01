@@ -3,8 +3,13 @@
 	import { enhance } from '$app/forms'
 	import { formatBytes } from '$lib/types'
 	import Icon from '$lib/components/Icon.svelte'
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
+	import { createSubmitConfirm } from '$lib/confirm-submit.svelte'
+	import { groupRoleChangeRequest, removeMemberRequest } from '$lib/group-roles'
 
 	let { data, form }: { data: PageData; form: ActionData } = $props()
+
+	const ask = createSubmitConfirm()
 
 	// La suppression n'est armée que lorsque le nom saisi correspond exactement.
 	// Le serveur revérifie : c'est ici un garde-fou d'attention, pas de sécurité.
@@ -44,27 +49,13 @@
 	const nonMembers = $derived(
 		(data.allUsers as unknown as { id: number; nickname: string; display_name: string }[]).filter((u) => !memberIds.has(u.id))
 	)
-
-	function confirmGroupRoleChange(event: Event, memberName: string, currentRole: string) {
-		const select = event.currentTarget as HTMLSelectElement
-		const nextRole = select.value
-		const message = nextRole === 'admin'
-			? `Accorder le rôle d’admin du groupe à ${memberName} ?`
-			: `Retirer le rôle d’admin du groupe à ${memberName} ?`
-
-		if (!confirm(message)) {
-			select.value = currentRole
-			return
-		}
-		select.form?.requestSubmit()
-	}
 </script>
 
 <svelte:head>
 	<title>{data.group.name} — Groupe</title>
 </svelte:head>
 
-<main>
+<main class="page page-wide">
 	<nav class="breadcrumb">
 		<a href="/admin">Administration</a> /
 		<a href="/admin/groups">Groupes</a> /
@@ -83,20 +74,20 @@
 				}}
 				class="rename-form"
 			>
-				<input name="name" type="text" bind:value={newName} class="input-title" required />
-				<button type="submit" class="btn-primary" disabled={saving}>Enregistrer</button>
-				<button type="button" class="btn-ghost" onclick={() => { editingName = false; newName = data.group.name }}>
+				<input name="name" type="text" bind:value={newName} class="form-input input-title" aria-label="Nom du groupe" required />
+				<button type="submit" class="btn btn-primary" disabled={saving}>Enregistrer</button>
+				<button type="button" class="btn btn-secondary" onclick={() => { editingName = false; newName = data.group.name }}>
 					Annuler
 				</button>
 			</form>
 			{#if form?.action === 'rename' && form?.error}
-				<p class="error">{form.error}</p>
+				<p class="message-error">{form.error}</p>
 			{/if}
 		{:else}
 			<h1>
 				{data.group.name}
 				<button
-					class="btn-edit"
+					class="btn btn-ghost btn-sm"
 					onclick={() => { newName = data.group.name as string; editingName = true }}
 					title="Renommer"
 				><Icon name="pencil" size="0.85rem" label="Renommer le groupe" /></button>
@@ -106,7 +97,7 @@
 
 	<!-- Membres -->
 	<section class="section">
-		<h2>Membres ({(data.members as unknown[]).length})</h2>
+		<h2 class="section-title">Membres ({(data.members as unknown[]).length})</h2>
 
 		{#if (data.members as unknown[]).length === 0}
 			<p class="empty">Aucun membre.</p>
@@ -128,20 +119,26 @@
 								<td data-label="Groupe">
 									<!-- Attribuer ou retirer le rôle d'admin de groupe est réservé au superadmin. -->
 									{#if data.canAssignAdmin}
-										<form method="POST" action="?/updateRole" use:enhance>
+										<form
+											method="POST"
+											action="?/updateRole"
+											use:enhance={({ formElement, cancel }) => {
+												ask.intercept(formElement, cancel, groupRoleChangeRequest(formElement, m.display_name, m.group_role))
+											}}
+										>
 											<input type="hidden" name="user_id" value={m.id} />
 											<select
 												name="role"
-												class="role-select"
+												class="form-input role-select"
 												aria-label="Rôle de {m.display_name} dans le groupe"
-												onchange={(e) => confirmGroupRoleChange(e, m.display_name, m.group_role)}
+												onchange={(e) => e.currentTarget.form?.requestSubmit()}
 											>
 												<option value="member" selected={m.group_role === 'member'}>Membre</option>
 												<option value="admin" selected={m.group_role === 'admin'}>Admin</option>
 											</select>
 										</form>
 									{:else}
-										<span class="muted">{m.group_role === 'admin' ? 'Admin' : 'Membre'}</span>
+										<span class="badge badge-group-{m.group_role}">{m.group_role === 'admin' ? 'Admin' : 'Membre'}</span>
 									{/if}
 								</td>
 								<td class="muted" data-label="Global">{m.global_role}</td>
@@ -150,18 +147,16 @@
 									<form
 										method="POST"
 										action="?/removeMember"
-										use:enhance={() => {
+										use:enhance={({ formElement, cancel }) => {
+											if (ask.intercept(formElement, cancel, removeMemberRequest(m.display_name))) return
 											removingId = m.id
 											return ({ update }) => { removingId = null; update() }
-										}}
-										onsubmit={(e) => {
-											if (!confirm(`Retirer ${m.display_name} du groupe ?`)) e.preventDefault()
 										}}
 									>
 										<input type="hidden" name="user_id" value={m.id} />
 										<button
 											type="submit"
-											class="btn-delete"
+											class="btn btn-danger btn-sm"
 											disabled={removingId === m.id}
 										>
 											{removingId === m.id ? '…' : 'Retirer'}
@@ -177,29 +172,29 @@
 		{/if}
 
 		{#if form?.error && (form?.action === 'removeMember' || form?.action === 'updateRole')}
-			<p class="error">{form.error}</p>
+			<p class="message-error">{form.error}</p>
 		{/if}
 	</section>
 
 	<!-- Ajouter un membre -->
 	{#if nonMembers.length > 0}
 		<section class="section">
-			<h2>Ajouter un membre</h2>
+			<h2 class="section-title">Ajouter un membre</h2>
 			<form method="POST" action="?/addMember" use:enhance class="add-form">
-				<select name="user_id" class="input" required>
+				<select name="user_id" class="form-input user-select" aria-label="Utilisateur à ajouter" required>
 					<option value="">— Choisir un utilisateur —</option>
 					{#each nonMembers as u}
 							<option value={u.id}>{u.display_name} ({u.nickname})</option>
 					{/each}
 				</select>
-				<select name="role" class="input-sm" aria-label="Rôle dans le groupe">
+				<select name="role" class="form-input" aria-label="Rôle dans le groupe">
 					<option value="member">Membre</option>
 					{#if data.canAssignAdmin}<option value="admin">Admin</option>{/if}
 				</select>
-				<button type="submit" class="btn-primary">Ajouter</button>
+				<button type="submit" class="btn btn-primary">Ajouter</button>
 			</form>
 			{#if form?.action === 'addMember' && form?.error}
-				<p class="error">{form.error}</p>
+				<p class="message-error">{form.error}</p>
 			{/if}
 		</section>
 	{/if}
@@ -208,7 +203,7 @@
 		<!-- Zone dangereuse : superadmin uniquement. Isolée en bas de page pour qu'aucune
 		     action destructrice ne voisine avec la gestion courante des membres. -->
 		<section class="danger-zone">
-			<h2>Zone dangereuse</h2>
+			<h2 class="section-title">Zone dangereuse</h2>
 
 			<p class="danger-intro">
 				Supprimer <strong>{data.group.name}</strong> détruit définitivement tout son contenu,
@@ -233,7 +228,7 @@
 					<div class="step-actions">
 						<a
 							href="/api/groups/{data.group.id}/export"
-							class="btn-secondary"
+							class="btn btn-secondary"
 							download
 							onclick={() => (backupStarted = true)}
 						>
@@ -241,7 +236,7 @@
 						</a>
 						<a
 							href="/api/admin/backup"
-							class="btn-secondary"
+							class="btn btn-secondary"
 							download
 							onclick={() => (backupStarted = true)}
 						>
@@ -278,7 +273,7 @@
 						id="confirmation"
 						name="confirmation"
 						type="text"
-						class="input"
+						class="form-input"
 						bind:value={confirmation}
 						autocomplete="off"
 						placeholder={data.group.name}
@@ -286,7 +281,7 @@
 					/>
 					<button
 						type="submit"
-						class="btn-danger"
+						class="btn btn-danger btn-solid"
 						disabled={!confirmed || !backupStarted || deletingGroup}
 					>
 						{deletingGroup ? 'Suppression…' : 'Supprimer définitivement'}
@@ -295,191 +290,96 @@
 			</form>
 
 			{#if form?.action === 'deleteGroup' && form?.error}
-				<p class="error">{form.error}</p>
+				<p class="message-error">{form.error}</p>
 			{/if}
 		</section>
 	{/if}
+
+	<ConfirmDialog
+		open={ask.pending !== null}
+		level={ask.pending?.level}
+		title={ask.pending?.title ?? ''}
+		message={ask.pending?.message ?? ''}
+		confirmLabel={ask.pending?.confirmLabel}
+		onConfirm={ask.confirm}
+		onCancel={ask.dismiss}
+	/>
 </main>
 
 <style>
-	main {
-		max-width: 820px;
-		margin: 2rem auto;
-		padding: 0 1rem;
-	}
-
-	.breadcrumb {
-		font-size: 0.85rem;
-		color: #888;
-		margin-bottom: 1.25rem;
-	}
-	.breadcrumb a { color: inherit; text-decoration: none; }
-	.breadcrumb a:hover { text-decoration: underline; }
-
 	.group-header { margin-bottom: 2rem; }
 
 	h1 {
-		font-size: 1.5rem;
+		font-size: var(--text-xl);
 		margin: 0;
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
 	}
 
-	.btn-edit {
-		background: none;
-		border: none;
-		cursor: pointer;
-		font-size: 0.9rem;
-		padding: 0.1rem 0.3rem;
-		color: #aaa;
-		border-radius: 3px;
-	}
-	.btn-edit:hover { color: #555; background: #f0f0f0; }
+	.section > .message-error { margin-top: 0.5rem; }
 
 	.rename-form {
 		display: flex;
 		gap: 0.5rem;
 		align-items: center;
+		flex-wrap: wrap;
 	}
 
 	.input-title {
+		flex: 1 1 15rem;
+		min-width: 0;
 		font-size: 1.3rem;
 		font-weight: 700;
-		padding: 0.2rem 0.5rem;
-		border: 1px solid #ccc;
-		border-radius: 4px;
-		min-width: 240px;
-	}
-
-	.section { margin-bottom: 2.5rem; }
-
-	h2 {
-		font-size: 1rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		color: #888;
-		margin: 0 0 1rem;
-		padding-bottom: 0.4rem;
-		border-bottom: 1px solid #ebebeb;
 	}
 
 	.name { font-weight: 600; }
-	.muted { color: #888; font-size: 0.82rem; }
+	.muted { color: var(--color-text-muted); font-size: 0.82rem; }
 
-	.role-select {
-		font-size: 0.82rem;
-		border: 1px solid #ddd;
-		border-radius: 3px;
-		padding: 0.15rem 0.4rem;
-		background: white;
-	}
-
-	.btn-primary {
-		padding: 0.45rem 1rem;
-		background: #1a1a1a;
-		color: #fff;
-		border: none;
-		border-radius: 4px;
-		font-size: 0.875rem;
-		cursor: pointer;
-	}
-	.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-
-	.btn-ghost {
-		padding: 0.45rem 0.75rem;
-		background: none;
-		border: 1px solid #ccc;
-		border-radius: 4px;
-		font-size: 0.875rem;
-		cursor: pointer;
-		color: #555;
-	}
-
-	.btn-delete {
-		padding: 0.2rem 0.55rem;
-		border: 1px solid #f0c0c0;
-		border-radius: 3px;
-		background: #fff5f5;
-		color: #c0392b;
-		font-size: 0.78rem;
-		cursor: pointer;
-	}
-	.btn-delete:hover:not(:disabled) { background: #ffe0e0; }
-	.btn-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+	.role-select { padding: 0.2rem 0.4rem; font-size: 0.8rem; }
 
 	.add-form {
 		display: flex;
 		gap: 0.75rem;
 		align-items: center;
+		flex-wrap: wrap;
 	}
 
-	.input {
-		padding: 0.45rem 0.75rem;
-		border: 1px solid #ccc;
-		border-radius: 4px;
-		font-size: 0.875rem;
-		min-width: 200px;
-	}
-
-	.input-sm {
-		padding: 0.45rem 0.6rem;
-		border: 1px solid #ccc;
-		border-radius: 4px;
-		font-size: 0.875rem;
-	}
-
-	.empty { color: #aaa; font-style: italic; font-size: 0.9rem; }
-	.error { color: #c0392b; font-size: 0.85rem; margin-top: 0.4rem; }
+	.user-select { flex: 1 1 14rem; min-width: 0; }
 
 	.danger-zone {
 		margin-top: 3rem;
-		border: 1px solid #f0c9c9;
-		border-radius: 6px;
+		border: 1px solid var(--color-danger-border);
+		border-radius: var(--radius-lg);
 		padding: 1.25rem;
-		background: #fffafa;
+		background: var(--color-danger-bg);
 	}
 
-	.danger-zone h2 {
+	.danger-zone .section-title {
 		margin: 0 0 0.75rem;
 		font-size: 0.95rem;
-		font-weight: 700;
-		color: #b91c1c;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
+		color: var(--color-error);
+		border-bottom: none;
+		padding-bottom: 0;
 	}
 
-	.danger-intro { margin: 0 0 1rem; font-size: 0.875rem; line-height: 1.5; }
+	.danger-intro { margin: 0 0 1rem; font-size: var(--text-sm); line-height: 1.5; }
 
 	.impact {
 		margin: 0 0 1.25rem;
 		padding-left: 1.1rem;
 		font-size: 0.85rem;
 		line-height: 1.7;
-		color: #555;
+		color: var(--color-text-secondary);
 	}
 
-	.impact-value { font-weight: 700; color: #1a1a1a; }
+	.impact-value { font-weight: 700; color: var(--color-text); }
 
 	.danger-form { display: flex; flex-direction: column; gap: 0.4rem; }
-	.danger-form label { font-size: 0.82rem; color: #555; }
+	.danger-form label { font-size: 0.82rem; color: var(--color-text-secondary); }
 
 	.danger-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
-	.danger-row .input { flex: 1 1 14rem; min-width: 0; }
-
-	.btn-danger {
-		padding: 0.45rem 1rem;
-		border: none;
-		border-radius: 4px;
-		background: #b91c1c;
-		color: #fff;
-		font-size: 0.85rem;
-		font-weight: 600;
-		cursor: pointer;
-	}
-	.btn-danger:hover:not(:disabled) { background: #991b1b; }
-	.btn-danger:disabled { background: #e5b4b4; cursor: not-allowed; }
+	.danger-row .form-input { flex: 1 1 14rem; min-width: 0; }
 
 	.steps {
 		margin: 0 0 1.25rem;
@@ -491,8 +391,8 @@
 	.steps li { margin-bottom: 1rem; }
 	.steps li.disabled { opacity: 0.55; }
 
-	.step-note { margin: 0.35rem 0 0; color: #666; font-size: 0.82rem; }
-	.step-note code { background: #f3f0f0; padding: 0.05rem 0.25rem; border-radius: 3px; }
+	.step-note { margin: 0.35rem 0 0; color: var(--color-text-secondary); font-size: 0.82rem; }
+	.step-note code { background: var(--color-bg-muted); padding: 0.05rem 0.25rem; border-radius: var(--radius-sm); }
 
 	.step-actions {
 		display: flex;
@@ -501,12 +401,8 @@
 		margin-top: 0.6rem;
 	}
 
-	.danger-form .input:disabled { background: #f5f2f2; cursor: not-allowed; }
-
 	/* Sous 640 px le tableau devient une pile de cartes (voir app.css). */
 	@media (max-width: 640px) {
-		main { margin: 1rem auto; padding: 0 0.75rem; }
-
 		td.name { flex: 1 1 100%; font-size: var(--text-base); }
 		td.actions-cell { margin-left: auto; }
 

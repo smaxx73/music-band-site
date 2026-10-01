@@ -636,7 +636,7 @@
 		display: inline-flex;
 		align-items: center;
 		justify-content: center;
-		background: var(--color-abandoned-bg);
+		background: var(--color-chip-bg);
 		color: #444;
 		border: 1px solid transparent;
 		border-radius: 10px;

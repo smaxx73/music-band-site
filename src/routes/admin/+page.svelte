@@ -2,7 +2,8 @@
 	import type { PageData } from './$types'
 	import { onMount, untrack } from 'svelte'
 	import { formatDateOnly } from '$lib/date'
-	import { isSuperadmin } from '$lib/types'
+	import { formatBytes, isSuperadmin } from '$lib/types'
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
 
 	let { data }: { data: PageData } = $props()
 
@@ -24,6 +25,7 @@
 
 	let deletingId = $state<number | null>(null)
 	let deleteError = $state<string | null>(null)
+	let pendingDelete = $state<{ id: number; label: string } | null>(null)
 
 	onMount(async () => {
 		try {
@@ -41,21 +43,15 @@
 		})
 	}
 
-	function formatBytes(b: number) {
-		if (b === 0) return '0 o'
-		const units = ['o', 'Ko', 'Mo', 'Go']
-		const i = Math.floor(Math.log(b) / Math.log(1024))
-		return `${(b / Math.pow(1024, i)).toFixed(1)} ${units[i]}`
-	}
-
 	function diskPercent(used: number, total: number) {
 		if (!total) return 0
 		return Math.round((used / total) * 100)
 	}
 
-	async function deleteRecording(id: number, label: string) {
-		if (!confirm(`Supprimer "${label}" ? Cette action est irréversible.`)) return
-
+	async function deleteRecording() {
+		if (!pendingDelete) return
+		const { id } = pendingDelete
+		pendingDelete = null
 		deletingId = id
 		deleteError = null
 		try {
@@ -78,7 +74,7 @@
 	<title>Administration</title>
 </svelte:head>
 
-<main>
+<main class="page page-wide">
 	<nav class="breadcrumb">
 		<a href="/">Tableau de bord</a> /
 		<span>Administration</span>
@@ -88,15 +84,15 @@
 
 	<!-- Actions rapides -->
 	<section class="section">
-		<h2>Actions</h2>
+		<h2 class="section-title">Actions</h2>
 		<div class="actions-row">
-			<a href="/admin/groups" class="btn-secondary">Gérer les groupes</a>
-			<a href="/admin/users" class="btn-secondary">Gérer les utilisateurs</a>
-			<a href="/admin/settings" class="btn-secondary">Paramètres</a>
+			<a href="/admin/groups" class="btn btn-secondary">Gérer les groupes</a>
+			<a href="/admin/users" class="btn btn-secondary">Gérer les utilisateurs</a>
+			<a href="/admin/settings" class="btn btn-secondary">Paramètres</a>
 			{#if isSuperadmin(data.user?.role)}
-				<a href="/admin/partition" class="btn-secondary">Feuilles de répétition</a>
+				<a href="/admin/partition" class="btn btn-secondary">Feuilles de répétition</a>
 			{/if}
-			<a href="/api/admin/backup" class="btn-secondary" download>
+			<a href="/api/admin/backup" class="btn btn-secondary" download>
 				Télécharger la sauvegarde SQL
 			</a>
 		</div>
@@ -104,12 +100,12 @@
 
 	<!-- Statistiques -->
 	<section class="section">
-		<h2>Statistiques</h2>
+		<h2 class="section-title">Statistiques</h2>
 
 		{#if statsError}
-			<p class="error">{statsError}</p>
+			<p class="message-error">{statsError}</p>
 		{:else if !stats}
-			<p class="loading">Chargement…</p>
+			<p class="empty">Chargement…</p>
 		{:else}
 			<div class="stats-grid">
 				<div class="stat-card">
@@ -158,10 +154,10 @@
 
 	<!-- 10 dernières prises -->
 	<section class="section">
-		<h2>10 dernières prises</h2>
+		<h2 class="section-title">10 dernières prises</h2>
 
 		{#if deleteError}
-			<p class="error">{deleteError}</p>
+			<p class="message-error">{deleteError}</p>
 		{/if}
 
 		{#if recentRecordings.length === 0}
@@ -189,8 +185,8 @@
 								<td class="muted" data-label="Par">{r.uploaded_by}</td>
 								<td class="actions-cell">
 									<button
-										class="btn-delete"
-										onclick={() => deleteRecording(r.id, `${r.song_title} — Prise ${r.take}`)}
+										class="btn btn-danger btn-sm"
+										onclick={() => (pendingDelete = { id: r.id, label: `${r.song_title}, prise ${r.take}` })}
 										disabled={deletingId === r.id}
 									>
 										{deletingId === r.id ? '…' : 'Supprimer'}
@@ -203,56 +199,24 @@
 			</div>
 		{/if}
 	</section>
+
+	<ConfirmDialog
+		open={pendingDelete !== null}
+		level="danger"
+		title="Supprimer cette prise ?"
+		message={pendingDelete
+			? `« ${pendingDelete.label} » sera supprimée avec son fichier audio, ses commentaires et sa place dans les playlists. Cette action est irréversible.`
+			: ''}
+		confirmLabel="Supprimer la prise"
+		onConfirm={deleteRecording}
+		onCancel={() => (pendingDelete = null)}
+	/>
 </main>
 
 <style>
-	main {
-		max-width: 820px;
-		margin: 2rem auto;
-		padding: 0 1rem;
-		font-family: sans-serif;
-	}
+	h1 { font-size: var(--text-xl); margin: 0 0 1.75rem; }
 
-	.breadcrumb {
-		font-size: 0.85rem;
-		color: #888;
-		margin-bottom: 1.25rem;
-	}
-
-	.breadcrumb a { color: inherit; text-decoration: none; }
-	.breadcrumb a:hover { text-decoration: underline; }
-
-	h1 { font-size: 1.5rem; margin: 0 0 1.75rem; }
-
-	.section { margin-bottom: 2.5rem; }
-
-	h2 {
-		font-size: 1rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		color: #888;
-		margin: 0 0 1rem;
-		padding-bottom: 0.4rem;
-		border-bottom: 1px solid #ebebeb;
-	}
-
-	/* Actions */
 	.actions-row { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-
-	.btn-secondary {
-		display: inline-block;
-		padding: 0.5rem 1rem;
-		border: 1px solid #ccc;
-		border-radius: 4px;
-		text-decoration: none;
-		font-size: 0.875rem;
-		color: inherit;
-		cursor: pointer;
-		background: white;
-	}
-
-	.btn-secondary:hover { background: #f4f4f4; }
 
 	/* Stats */
 	.stats-grid {
@@ -263,9 +227,9 @@
 	}
 
 	.stat-card {
-		background: #f8f8f8;
-		border: 1px solid #ebebeb;
-		border-radius: 6px;
+		background: var(--color-bg-subtle);
+		border: 1px solid var(--color-border-light);
+		border-radius: var(--radius-lg);
 		padding: 0.85rem 1rem;
 		display: flex;
 		flex-direction: column;
@@ -273,13 +237,12 @@
 	}
 
 	.stat-value {
-		font-size: 1.5rem;
+		font-size: var(--text-xl);
 		font-weight: 700;
-		color: #1a1a1a;
 		line-height: 1;
 	}
 
-	.stat-label { font-size: 0.78rem; color: #888; }
+	.stat-label { font-size: 0.78rem; color: var(--color-text-muted); }
 
 	/* Barre disque */
 	.disk-block { margin-top: 0.5rem; }
@@ -288,56 +251,37 @@
 		display: flex;
 		justify-content: space-between;
 		font-size: 0.8rem;
-		color: #666;
+		color: var(--color-text-secondary);
 		margin-bottom: 0.35rem;
 	}
 
 	.disk-bar {
 		height: 8px;
-		background: #ebebeb;
-		border-radius: 4px;
+		background: var(--color-bg-muted);
+		border-radius: var(--radius-md);
 		overflow: hidden;
 	}
 
 	.disk-fill {
 		height: 100%;
-		background: #1a1a1a;
-		border-radius: 4px;
+		background: var(--color-ink);
+		border-radius: var(--radius-md);
 		transition: width 0.4s;
 	}
 
-	.disk-fill.disk-warn { background: #E65022; }
+	.disk-fill.disk-warn { background: var(--color-accent); }
 
 	/* Table */
 	td a { color: inherit; text-decoration: none; font-weight: 600; }
 	td a:hover { text-decoration: underline; }
 
-	.muted { color: #888; font-size: 0.82rem; }
-
-	.btn-delete {
-		padding: 0.2rem 0.55rem;
-		border: 1px solid #f0c0c0;
-		border-radius: 3px;
-		background: #fff5f5;
-		color: #c0392b;
-		font-size: 0.78rem;
-		cursor: pointer;
-	}
-
-	.btn-delete:hover:not(:disabled) { background: #ffe0e0; }
-	.btn-delete:disabled { opacity: 0.5; cursor: not-allowed; }
+	.muted { color: var(--color-text-muted); font-size: 0.82rem; }
 
 	/* Sous 640 px le tableau devient une pile de cartes (voir app.css). */
 	@media (max-width: 640px) {
-		main { margin: 1rem auto; padding: 0 0.75rem; }
-
 		.disk-label { flex-wrap: wrap; gap: 0.2rem; }
 
 		td.song-cell { flex: 1 1 100%; font-size: var(--text-base); font-weight: 600; }
 		td.actions-cell { margin-left: auto; }
 	}
-
-	.loading { color: #aaa; font-style: italic; font-size: 0.9rem; }
-	.empty { color: #aaa; font-style: italic; font-size: 0.9rem; }
-	.error { color: #c0392b; font-size: 0.875rem; }
 </style>

@@ -2,8 +2,12 @@
 	import type { PageData, ActionData } from './$types'
 	import { enhance } from '$app/forms'
 	import { isSuperadmin } from '$lib/types'
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
+	import { createSubmitConfirm } from '$lib/confirm-submit.svelte'
 
 	let { data, form }: { data: PageData; form: ActionData } = $props()
+
+	const ask = createSubmitConfirm()
 
 	type User = {
 		id: number
@@ -39,7 +43,7 @@
 	<title>Gestion des utilisateurs — Admin</title>
 </svelte:head>
 
-<main>
+<main class="page page-wide">
 	<nav class="breadcrumb">
 		<a href="/">Tableau de bord</a> /
 		<a href="/admin">Administration</a> /
@@ -50,7 +54,7 @@
 
 	<!-- Formulaire de création -->
 	<section class="section">
-		<h2>Ajouter un utilisateur</h2>
+		<h2 class="section-title">Ajouter un utilisateur</h2>
 
 		{#if form?.action === 'create' && form.error}
 			<p class="message-error">{form.error}</p>
@@ -95,7 +99,7 @@
 
 	<!-- Liste des utilisateurs -->
 	<section class="section">
-		<h2>Utilisateurs ({users.length})</h2>
+		<h2 class="section-title">Utilisateurs ({users.length})</h2>
 
 		{#if form?.action === 'delete' && form.error}
 			<p class="message-error">{form.error}</p>
@@ -228,18 +232,22 @@
 									</td>
 									<td class="actions-cell">
 										{#if canManage(user.role)}
-											<button class="btn btn-sm" onclick={() => (editingId = user.id)}>
+											<button class="btn btn-secondary btn-sm" onclick={() => (editingId = user.id)}>
 												Modifier
 											</button>
-											<button class="btn btn-sm" onclick={() => (resetId = user.id)}>
+											<button class="btn btn-secondary btn-sm" onclick={() => (resetId = user.id)}>
 												Mot de passe
 											</button>
 											<form
 												method="POST"
 												action="?/delete"
-												use:enhance
-												onsubmit={(e) => {
-													if (!confirm(`Supprimer "${user.nickname}" ?`)) e.preventDefault()
+												use:enhance={({ formElement, cancel }) => {
+													ask.intercept(formElement, cancel, {
+														level: 'danger',
+														title: 'Supprimer ce compte ?',
+														message: `Le compte « ${user.nickname} » sera supprimé avec son espace perso, fichiers compris, et les publications qui en montraient les enregistrements. Ses sessions, prises et commentaires restent dans les groupes, sans compte rattaché. Pour seulement couper l'accès, passez-le en « Inactif ». Cette action est irréversible.`,
+														confirmLabel: 'Supprimer le compte'
+													})
 												}}
 											>
 												<input type="hidden" name="id" value={user.id} />
@@ -257,38 +265,22 @@
 			</div>
 		{/if}
 	</section>
+
+	<ConfirmDialog
+		open={ask.pending !== null}
+		level={ask.pending?.level}
+		title={ask.pending?.title ?? ''}
+		message={ask.pending?.message ?? ''}
+		confirmLabel={ask.pending?.confirmLabel}
+		onConfirm={ask.confirm}
+		onCancel={ask.dismiss}
+	/>
 </main>
 
 <style>
-	main {
-		max-width: 820px;
-		margin: 2rem auto;
-		padding: 0 1rem;
-	}
+	h1 { font-size: var(--text-xl); margin: 0 0 2rem; }
 
-	.breadcrumb {
-		font-size: 0.85rem;
-		color: #888;
-		margin-bottom: 1.25rem;
-	}
-
-	.breadcrumb a { color: inherit; text-decoration: none; }
-	.breadcrumb a:hover { text-decoration: underline; }
-
-	h1 { font-size: var(--text-xl); margin-bottom: 2rem; }
-
-	h2 {
-		font-size: 1rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		color: #888;
-		margin: 0 0 1rem;
-		padding-bottom: 0.4rem;
-		border-bottom: 1px solid #ebebeb;
-	}
-
-	.section { margin-bottom: 2.5rem; }
+	.section .message-error { margin: 0 0 0.5rem; }
 
 	.fields {
 		display: grid;
@@ -308,7 +300,7 @@
 	.name { font-weight: 600; }
 
 	.editing-row td {
-		background: #fffbe6;
+		background: var(--color-bg-subtle);
 		padding: 1rem 0.75rem;
 	}
 
@@ -323,30 +315,14 @@
 
 	.actions-cell form { margin: 0; }
 
-	.badge {
-		display: inline-block;
-		padding: 0.15rem 0.5rem;
-		border-radius: 3px;
-		font-size: 0.75rem;
-		font-weight: 600;
-	}
+	.badge-status-active { background: var(--color-success-bg); color: var(--color-success-text); }
+	.badge-status-inactive { background: var(--color-red-light); color: var(--color-red); }
 
-	.badge-admin { background: #e8f0fe; color: #1a56db; }
-	.badge-superadmin { background: #fef3c7; color: #92400e; }
-	.badge-user { background: #f0f0f0; color: #555; }
-	.badge-status-active { background: #d1fae5; color: #065f46; }
-	.badge-status-inactive { background: #fee2e2; color: #991b1b; }
-
-	.muted-note { color: #aaa; font-style: italic; font-size: 0.8rem; }
-
-	.empty { color: #aaa; font-style: italic; font-size: 0.9rem; }
-	.message-error { color: #c0392b; font-size: 0.875rem; margin: 0 0 0.5rem; }
+	.muted-note { color: var(--color-text-muted); font-style: italic; font-size: 0.8rem; }
 
 	/* Sous 640 px le tableau devient une pile de cartes (voir app.css) : les trois
 	   champs du formulaire d'édition passent aussi en colonne. */
 	@media (max-width: 640px) {
-		main { margin: 1rem auto; padding: 0 0.75rem; }
-
 		.fields { grid-template-columns: 1fr; }
 
 		td.name { flex: 1 1 100%; font-size: var(--text-base); }

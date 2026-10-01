@@ -89,7 +89,7 @@
 	.key {
 		font-size: var(--text-xs);
 		font-weight: 600;
-		background: var(--color-abandoned-bg);
+		background: var(--color-chip-bg);
 		color: var(--color-text-secondary);
 		padding: 0.15rem 0.45rem;
 		border-radius: var(--radius-sm);

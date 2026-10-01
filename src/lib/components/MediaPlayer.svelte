@@ -70,7 +70,7 @@
 	.view-tabs { display: flex; gap: 0.25rem; margin-bottom: 0.6rem; }
 	.view-tab {
 		display: inline-flex; align-items: center; gap: 0.35rem;
-		padding: 0.3rem 0.7rem; border: 1px solid var(--color-border-light); border-radius: 999px;
+		padding: 0.3rem 0.7rem; border: 1px solid var(--color-border-light); border-radius: var(--radius-pill);
 		background: var(--color-bg); color: var(--color-text-secondary); font: inherit; font-size: var(--text-sm); cursor: pointer;
 	}
 	.view-tab.active { border-color: var(--color-primary); color: var(--color-text); font-weight: 600; }

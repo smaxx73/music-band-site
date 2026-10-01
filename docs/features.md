@@ -1167,7 +1167,8 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 - Clic sur un jour → panneau détail : liste des événements du jour + formulaire d'ajout
 - `?date=YYYY-MM-DD` ouvre le mois de ce jour avec son panneau déplié et amené à l'écran
   (liens du tableau de bord) ; il l'emporte sur `?month=`
-- Badges colorés : rouge = indisponible, bleu = répétition, vert = concert, violet = studio, gris = autre
+- Badges colorés : rouge = indisponible, orange = répétition, vert = concert, violet = studio, gris = autre
+  (mêmes teintes que le visuel d'une session, `SessionCover.svelte`)
 - Droits : seul l'auteur peut modifier ou supprimer son indisponibilité ; les événements de groupe sont modifiables/supprimables par les membres du groupe actif
 - `author` = nom de l'utilisateur connecté
 

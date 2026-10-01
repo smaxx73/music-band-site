@@ -210,6 +210,6 @@
 	@media (max-width: 640px) {
 		/* Le glisser-déposer n'existe pas au doigt : la poignée ne promet rien ici. */
 		.drag-handle { display: none; }
-		.move-btn, .remove-btn { font-size: 1rem; padding: 0.4rem 0.45rem; }
+		.move-btn, .remove-btn { font-size: var(--text-base); padding: 0.4rem 0.45rem; }
 	}
 </style>

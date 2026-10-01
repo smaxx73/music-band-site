@@ -131,7 +131,7 @@
 		flex-shrink: 0;
 		border-radius: var(--radius-xl);
 		overflow: hidden;
-		box-shadow: 0 2px 10px rgba(44, 43, 40, 0.16);
+		box-shadow: var(--shadow-popover);
 	}
 
 	.mh-id {

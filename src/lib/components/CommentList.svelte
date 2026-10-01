@@ -615,7 +615,7 @@
 		background: transparent;
 		border: none;
 		border-radius: var(--radius-md);
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		font-weight: 600;
 		color: var(--color-text-secondary);
 		cursor: pointer;

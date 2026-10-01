@@ -295,7 +295,7 @@
 	.pills { display: flex; flex-wrap: wrap; gap: 0.3rem; }
 	.pill {
 		padding: 0.1rem 0.55rem;
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		background: var(--color-bg-subtle);
 		font-size: var(--text-xs);
 	}

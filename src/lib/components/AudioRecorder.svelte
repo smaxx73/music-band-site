@@ -948,7 +948,7 @@
 	.meter-fill.clip { background: var(--color-error); }
 
 	.meter-legend {
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		color: var(--color-text-muted);
 		margin: -0.4rem 0 0;
 	}
@@ -1035,7 +1035,7 @@
 	.trim-shade { position: absolute; top: 0; bottom: 0; background: rgba(0, 0, 0, 0.48); pointer-events: none; }
 	.trim-shade.left { left: 0; }
 	.trim-shade.right { right: 0; }
-	.trim-handle { position: absolute; z-index: 1; top: 0; bottom: 0; width: 24px; transform: translateX(-50%); border: 0; border-left: 3px solid var(--color-accent); border-right: 3px solid var(--color-accent); border-radius: 4px; background: rgba(255, 255, 255, 0.22); cursor: ew-resize; touch-action: none; }
+	.trim-handle { position: absolute; z-index: 1; top: 0; bottom: 0; width: 24px; transform: translateX(-50%); border: 0; border-left: 3px solid var(--color-accent); border-right: 3px solid var(--color-accent); border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.22); cursor: ew-resize; touch-action: none; }
 	.trim-handle:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 2px; }
 	.trim-times { display: flex; justify-content: space-between; gap: 0.5rem; font-size: var(--text-xs); font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
 	.trim-times strong { color: var(--color-text); }

@@ -136,6 +136,12 @@ Une action `danger` doit nommer ce qui sera perdu et ses conséquences (par exem
 commentaires supprimés en cascade). Elle conserve en plus les contrôles d'autorisation côté API :
 la confirmation est une protection d'interface, jamais une règle de sécurité.
 
+Sur un formulaire `use:enhance`, un `onsubmit` qui appelle `preventDefault()` **n'arrête
+rien** : le gestionnaire de SvelteKit envoie quand même. La confirmation passe par
+`createSubmitConfirm` (`src/lib/confirm-submit.svelte.ts`), appelé en tête de la fonction
+`enhance` : il annule l'envoi par `cancel()`, pose la question, et relance le formulaire
+sur « oui ».
+
 ## Base de données
 - SQL brut via `postgres.js` — pas de Prisma, pas de Drizzle
 - Toutes les requêtes passent par `src/lib/server/db.ts`
@@ -170,6 +176,24 @@ la confirmation est une protection d'interface, jamais une règle de sécurité.
   taillées, et un **proxy** léger qui porte l'analyse et la préécoute. On travaille sur le
   proxy, on rend depuis l'original — jamais l'inverse
 - Les doublons sont détectés par `recordings.file_hash` avant conversion
+
+## Styles partagés
+
+Pas de framework CSS : les tokens et les classes communes vivent dans `src/app.css`. Une page
+n'écrit dans son `<style>` que ce qui lui est propre.
+
+- **Couleurs, tailles, rayons, ombres** : toujours un token (`var(--color-…)`, `--text-…`,
+  `--radius-…`, `--shadow-popover` / `--shadow-modal`), jamais une valeur en dur. Un besoin
+  nouveau (une teinte d'avertissement, un rouge de danger) devient un token, pas un hexadécimal
+- **Colonne de page** : `<main class="page">` (720 px), `page-narrow` (640 px, formulaire ou
+  liste simple) ou `page-wide` (900 px, en-tête média, tableau, agenda). Marges et repli
+  mobile sont portés par la classe — ne pas redéfinir `main` dans la page
+- **Boutons** : `.btn` + une variante (`btn-primary`, `btn-secondary`, `btn-ghost`,
+  `btn-danger`) + une taille (`btn-sm`, `btn-lg`, `btn-icon`). Une action dans une phrase
+  est un `.btn-link` (orange), `.btn-link-muted` quand elle renonce (« Retirer »).
+  Pas de `.btn-delete` / `.remove-btn` local
+- **Focus clavier** : l'anneau orange est global (`:focus-visible`). Un composant ne le
+  retire que pour en dessiner un équivalent
 
 ## Tableaux et mobile
 

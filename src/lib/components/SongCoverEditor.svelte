@@ -159,7 +159,7 @@
 
 	.preview {
 		border-radius: var(--radius-lg);
-		box-shadow: 0 2px 10px rgba(44, 43, 40, 0.16);
+		box-shadow: var(--shadow-popover);
 	}
 
 	.hint { margin: 0; font-size: var(--text-sm); color: var(--color-text-muted); }

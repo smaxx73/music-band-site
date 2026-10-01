@@ -2,6 +2,7 @@
 	import type { PageData } from './$types'
 	import { formatDateOnly } from '$lib/date'
 	import SessionEditor from '$lib/components/SessionEditor.svelte'
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
 	import RecordingRow from '$lib/components/RecordingRow.svelte'
 	import SongCover from '$lib/components/SongCover.svelte'
 	import PlayAllButton from '$lib/components/PlayAllButton.svelte'
@@ -180,34 +181,58 @@
 
 	let editMode = $state(false)
 	let deletingRecordingId = $state<number | null>(null)
+	let deleting = $state(false)
+	let deleteError = $state<string | null>(null)
 
-	async function deleteRecording(id: number, songTitle: string, take: number) {
-		if (!confirm(`Supprimer la prise ${take} de « ${songTitle} » ? Cette action est irréversible.`)) return
+	// Une seule confirmation pour les deux suppressions de la page.
+	let pendingDelete = $state<
+		| { kind: 'recording'; id: number; songTitle: string; take: number }
+		| { kind: 'session' }
+		| null
+	>(null)
 
+	const deleteDialog = $derived.by(() => {
+		if (pendingDelete?.kind === 'recording') {
+			return {
+				title: 'Supprimer cette prise ?',
+				message: `La prise ${pendingDelete.take} de « ${pendingDelete.songTitle} » sera supprimée avec son fichier audio, ses commentaires et sa place dans les playlists. Les autres prises du morceau gardent leur numéro. Cette action est irréversible.`,
+				confirmLabel: 'Supprimer la prise'
+			}
+		}
+		return {
+			title: 'Supprimer cette session ?',
+			message: takeCount > 0
+				? `La session sera supprimée avec ses ${takeCount} prise${takeCount > 1 ? 's' : ''}, leurs fichiers audio et leurs commentaires. Les morceaux restent au référentiel. Cette action est irréversible.`
+				: 'La session sera supprimée, avec son événement d’agenda. Cette action est irréversible.',
+			confirmLabel: 'Supprimer la session'
+		}
+	})
+
+	function confirmDelete() {
+		const target = pendingDelete
+		pendingDelete = null
+		if (target?.kind === 'recording') deleteRecording(target.id)
+		else if (target?.kind === 'session') deleteSession()
+	}
+
+	async function deleteRecording(id: number) {
 		deletingRecordingId = id
+		deleteError = null
 		try {
 			const res = await fetch(`/api/recordings/${id}`, { method: 'DELETE' })
 			const json = await res.json()
-			if (!res.ok) { alert(json.error ?? 'Erreur.'); return }
+			if (!res.ok) { deleteError = json.error ?? 'Erreur.'; return }
 			groups = groups
 				.map((g) => ({ ...g, recordings: g.recordings.filter((r) => r.id !== id) }))
 				.filter((g) => g.recordings.length > 0)
 		} catch {
-			alert('Erreur réseau.')
+			deleteError = 'Erreur réseau.'
 		} finally {
 			deletingRecordingId = null
 		}
 	}
 
-	let deleting = $state(false)
-	let deleteError = $state<string | null>(null)
-
 	async function deleteSession() {
-		const msg = takeCount > 0
-			? `Supprimer cette session et ses ${takeCount} prise(s) ? Cette action est irréversible.`
-			: 'Supprimer cette session ? Cette action est irréversible.'
-		if (!confirm(msg)) return
-
 		deleting = true
 		deleteError = null
 		try {
@@ -227,7 +252,7 @@
 	<title>{session.title ?? formatDate(session.date)}</title>
 </svelte:head>
 
-<main>
+<main class="page page-wide">
 	<div class="breadcrumb-row">
 		<nav class="breadcrumb">
 			<a href="/sessions">Sessions</a> /
@@ -326,7 +351,7 @@
 							canDelete={canDeleteRecording(r)}
 							deleting={deletingRecordingId === r.id}
 							onQualityChange={(status) => applyQuality(r.id, status)}
-							onDelete={() => deleteRecording(r.id, group.song.title, r.take)}
+							onDelete={() => (pendingDelete = { kind: 'recording', id: r.id, songTitle: group.song.title, take: r.take })}
 						/>
 					{/each}
 				</div>
@@ -340,7 +365,7 @@
 			{editMode ? 'Terminer' : 'Modifier les prises'}
 		</button>
 		{#if canDeleteSession}
-		<button class="btn btn-danger" onclick={deleteSession} disabled={deleting}>
+		<button class="btn btn-danger" onclick={() => (pendingDelete = { kind: 'session' })} disabled={deleting}>
 			{deleting ? 'Suppression…' : 'Supprimer la session'}
 		</button>
 		{/if}
@@ -348,16 +373,21 @@
 	{#if deleteError}
 		<p class="message-error" style="margin-top: 0.5rem;">{deleteError}</p>
 	{/if}
+
+	<ConfirmDialog
+		open={pendingDelete !== null}
+		level="danger"
+		title={deleteDialog.title}
+		message={deleteDialog.message}
+		confirmLabel={deleteDialog.confirmLabel}
+		onConfirm={confirmDelete}
+		onCancel={() => (pendingDelete = null)}
+	/>
 </main>
 
 <style>
 	/* Les prises ne sont plus un tableau à faire tenir : chaque ligne se replie seule.
 	   La largeur est donc celle d'un texte confortable, pas celle de huit colonnes. */
-	main {
-		max-width: 900px;
-		margin: 2rem auto;
-		padding: 0 1rem;
-	}
 
 	.breadcrumb-row {
 		display: flex;
@@ -400,7 +430,7 @@
 		gap: 0.35rem;
 		background: var(--color-bg-subtle);
 		border: 1px solid var(--color-border-light);
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		padding: 0.25rem 0.65rem;
 		font-size: var(--text-xs);
 		font-family: inherit;
@@ -474,7 +504,6 @@
 	/* Les prises se replient toutes seules (voir RecordingRow) : il ne reste ici que
 	   ce qui entoure la liste. */
 	@media (max-width: 640px) {
-		main { margin: 1rem auto; padding: 0 0.75rem; }
 
 		.breadcrumb-row {
 			flex-direction: column;

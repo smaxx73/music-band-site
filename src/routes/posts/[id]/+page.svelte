@@ -158,7 +158,7 @@
 	<title>{title}</title>
 </svelte:head>
 
-<main>
+<main class="page">
 	<nav class="breadcrumb">
 		<a href="/">Tableau de bord</a> / <span>{kindLabel}</span>
 	</nav>
@@ -293,8 +293,6 @@
 </main>
 
 <style>
-	main { max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
-
 	.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1rem; }
 	.header-text { min-width: 0; }
 	.type-badge {
@@ -327,7 +325,6 @@
 	.comments { margin-top: var(--space-5); padding-top: var(--space-5); border-top: 1px solid var(--color-border-light); }
 
 	@media (max-width: 640px) {
-		main { margin: 1rem auto; padding: 0 0.75rem; }
 		.header { flex-direction: column; align-items: stretch; }
 	}
 </style>

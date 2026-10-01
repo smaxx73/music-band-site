@@ -176,7 +176,7 @@
 		<p class="catalog-picked">
 			{#if picked.cover_url}<img src={picked.cover_url} alt="" referrerpolicy="no-referrer" />{/if}
 			<span>Pochette de l'album importée à l'enregistrement.</span>
-			<button type="button" class="link-btn" onclick={() => (picked = null)}>Ne pas l'importer</button>
+			<button type="button" class="btn-link btn-link-muted" onclick={() => (picked = null)}>Ne pas l'importer</button>
 		</p>
 	{/if}
 </div>
@@ -288,13 +288,4 @@
 		border-radius: var(--radius-sm);
 	}
 
-	.link-btn {
-		background: none;
-		border: none;
-		padding: 0;
-		color: var(--color-text-secondary);
-		font: inherit;
-		text-decoration: underline;
-		cursor: pointer;
-	}
 </style>

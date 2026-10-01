@@ -160,7 +160,7 @@
 	.drag-handle {
 		color: #ccc;
 		cursor: grab;
-		font-size: 1rem;
+		font-size: var(--text-base);
 		user-select: none;
 	}
 

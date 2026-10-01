@@ -196,7 +196,7 @@
 	<title>Enregistrer</title>
 </svelte:head>
 
-<main>
+<main class="page page-narrow">
 	<div class="page-header">
 		<h1>Enregistrer</h1>
 		<a href="/upload" class="btn btn-ghost btn-sm back-link">Envoyer un fichier</a>
@@ -350,7 +350,7 @@
 
 			<button
 				type="submit"
-				class="btn btn-primary submit-btn"
+				class="btn btn-primary btn-lg submit-btn"
 				disabled={uploading ||
 					(destination === 'group' && (!selectedSession || (!multiTake && !selectedSong)))}
 			>
@@ -369,12 +369,6 @@
 </main>
 
 <style>
-	main {
-		max-width: 580px;
-		margin: 2rem auto;
-		padding: 0 1rem;
-	}
-
 	.page-header {
 		display: flex;
 		align-items: center;
@@ -462,9 +456,5 @@
 		transition: width 0.2s;
 	}
 
-	.submit-btn {
-		font-size: var(--text-base);
-		padding: 0.65rem 1.5rem;
-		align-self: flex-start;
-	}
+	.submit-btn { align-self: flex-start; }
 </style>

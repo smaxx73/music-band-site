@@ -311,7 +311,7 @@
 		border: none;
 		border-radius: var(--radius-md);
 		color: #fff;
-		font-size: 1rem;
+		font-size: var(--text-base);
 		line-height: 1;
 		cursor: pointer;
 		flex-shrink: 0;
@@ -354,7 +354,7 @@
 		align-items: center;
 		gap: 0.5rem;
 		font-weight: 700;
-		font-size: 1rem;
+		font-size: var(--text-base);
 		color: #fff;
 		text-decoration: none;
 		white-space: nowrap;
@@ -565,7 +565,7 @@
 		min-width: 0;
 		color: inherit;
 		text-decoration: none;
-		border-radius: 6px;
+		border-radius: var(--radius-lg);
 	}
 
 	.sidebar-user:hover,
@@ -582,7 +582,7 @@
 		justify-content: center;
 		background: transparent;
 		border: none;
-		border-radius: 6px;
+		border-radius: var(--radius-lg);
 		color: var(--color-mid);
 		font-size: 0.85rem;
 		cursor: pointer;
@@ -610,7 +610,7 @@
 	}
 
 	.sidebar-username {
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		color: var(--color-mid);
 		white-space: nowrap;
 		overflow: hidden;
@@ -653,12 +653,12 @@
 
 	/* ─── No-group banner ────────────────────────── */
 	.no-group-banner {
-		background: #fff8e1;
-		border-bottom: 1px solid #ffe082;
+		background: var(--color-warning-bg);
+		border-bottom: 1px solid var(--color-warning-border);
 		padding: 0.5rem 1rem;
 		font-size: 0.82rem;
 		text-align: center;
-		color: #6d4c00;
+		color: var(--color-warning-text);
 	}
 
 	.no-group-banner a {

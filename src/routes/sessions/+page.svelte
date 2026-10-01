@@ -190,7 +190,7 @@
 	<title>Sessions</title>
 </svelte:head>
 
-<main>
+<main class="page">
 	<div class="page-header">
 		<h1>Sessions</h1>
 		<button class="btn btn-primary" onclick={openCreateModal}>+ Nouvelle session</button>
@@ -323,12 +323,6 @@
 {/if}
 
 <style>
-	main {
-		max-width: 680px;
-		margin: 2rem auto;
-		padding: 0 1rem;
-	}
-
 	.page-header {
 		display: flex;
 		align-items: center;
@@ -367,7 +361,6 @@
 	textarea.form-input { resize: vertical; }
 
 	@media (max-width: 640px) {
-		main { margin: 1rem auto; }
 
 		.page-header {
 			flex-direction: column;
@@ -391,7 +384,7 @@
 		gap: 0.3rem;
 		background: var(--color-bg-subtle);
 		border: 1px solid var(--color-border-light);
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		padding: 0.25rem 0.7rem;
 		font-size: var(--text-xs);
 		font-family: inherit;
@@ -452,7 +445,7 @@
 	}
 
 	.session-card:hover {
-		box-shadow: 0 2px 10px rgba(44, 43, 40, 0.16);
+		box-shadow: var(--shadow-popover);
 	}
 
 	.session-card:focus-visible {

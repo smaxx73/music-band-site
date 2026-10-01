@@ -312,7 +312,7 @@
 	.type-option {
 		display: inline-flex; align-items: center; gap: 0.35rem;
 		padding: 0.35rem 0.7rem; border: 1px solid var(--color-border-input);
-		border-radius: 999px; font-size: var(--text-sm); cursor: pointer;
+		border-radius: var(--radius-pill); font-size: var(--text-sm); cursor: pointer;
 	}
 	.type-option.active { border-color: var(--color-primary); background: var(--color-bg-muted); font-weight: 600; }
 	/* Le rond natif doublerait la pastille, qui dit déjà ce qui est choisi. */

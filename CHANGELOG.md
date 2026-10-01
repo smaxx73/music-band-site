@@ -28,6 +28,13 @@ fichiers MusicXML/MXL originaux. La troisième ajoute le jeton chiffré des lien
   un nouveau à chaque partage. Le jeton est gardé chiffré par une clé dérivée
   d'`AUTH_SECRET`, jamais en clair. Les liens créés avant la migration fonctionnent
   toujours, mais ne se recopient pas. **Migration `042_share_link_token_sealed.sql`**
+- Correction : « Annuler » dans une confirmation n'empêchait pas l'action quand il s'agissait de
+  retirer un membre ou le logo du groupe, supprimer un compte ou un morceau. Toutes les
+  confirmations passent désormais par la fenêtre de l'application et disent ce qui sera
+  perdu
+- Interface harmonisée : police système, anneau de focus clavier commun, trois largeurs
+  de page (marges mobiles comprises partout), et pages de groupe, de profil et
+  d'administration remises sur les boutons, champs et couleurs du reste de l'application
 
 ## [1.2.1] — 2026-09-29
 

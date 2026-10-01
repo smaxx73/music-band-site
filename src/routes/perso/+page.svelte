@@ -164,7 +164,7 @@
 	<title>Mon espace perso</title>
 </svelte:head>
 
-<main>
+<main class="page">
 	<div class="page-header">
 		<div>
 			<h1>Mon espace perso</h1>
@@ -333,8 +333,6 @@
 </main>
 
 <style>
-	main { max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
-
 	.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
 	h1 { font-size: var(--text-xl); margin: 0 0 0.2rem; }
 	.lede { margin: 0; font-size: var(--text-sm); color: var(--color-text-secondary); }
@@ -345,7 +343,7 @@
 	.source-tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 	.source-tabs button {
 		display: inline-flex; align-items: center; gap: 0.35rem;
-		padding: 0.35rem 0.75rem; border: 1px solid var(--color-border-input); border-radius: 999px;
+		padding: 0.35rem 0.75rem; border: 1px solid var(--color-border-input); border-radius: var(--radius-pill);
 		background: var(--color-bg); color: inherit; font: inherit; font-size: var(--text-sm); cursor: pointer;
 	}
 	.source-tabs button.active { border-color: var(--color-primary); background: var(--color-bg-muted); font-weight: 600; }
@@ -375,12 +373,11 @@
 
 	.pub-chip {
 		display: inline-flex; align-items: center; gap: 0.25rem; font-size: var(--text-xs);
-		padding: 0.1rem 0.5rem; border-radius: 999px; background: var(--color-green-light);
+		padding: 0.1rem 0.5rem; border-radius: var(--radius-pill); background: var(--color-green-light);
 		color: var(--color-success-text); text-decoration: none;
 	}
 
 	@media (max-width: 640px) {
-		main { margin: 1rem auto; padding: 0 0.75rem; }
 		.page-header { flex-direction: column; align-items: stretch; }
 		.card { flex-direction: column; align-items: stretch; }
 	}

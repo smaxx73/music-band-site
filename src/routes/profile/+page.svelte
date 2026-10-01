@@ -39,7 +39,7 @@
 	<title>Mon profil</title>
 </svelte:head>
 
-<main>
+<main class="page page-narrow">
 	<nav class="breadcrumb">
 		<a href="/">Tableau de bord</a> /
 		<span>Mon profil</span>
@@ -50,11 +50,11 @@
 	<!-- Informations -->
 	<section class="section">
 		<div class="section-header">
-			<h2>Informations</h2>
+			<h2 class="section-title">Informations</h2>
 			{#if !editingProfile}
 				<button
 					type="button"
-					class="btn-icon"
+					class="btn btn-ghost btn-sm btn-icon"
 					onclick={() => (editingProfile = true)}
 					aria-label="Modifier les informations"
 					title="Modifier les informations"
@@ -119,7 +119,7 @@
 						<option value="first_name_last_initial" selected={data.user?.display_name_format === 'first_name_last_initial'}>Prénom + initiale du nom</option>
 						<option value="first_name_last_name" selected={data.user?.display_name_format === 'first_name_last_name'}>Prénom + nom</option>
 					</select>
-					<span class="field-hint">Si les informations nécessaires ne sont pas renseignées, le pseudo reste affiché.</span>
+					<span class="form-hint">Si les informations nécessaires ne sont pas renseignées, le pseudo reste affiché.</span>
 				</label>
 				<div class="form-actions">
 					<button type="submit" class="btn btn-primary">Enregistrer les informations</button>
@@ -164,7 +164,7 @@
 
 	<!-- Mot de passe -->
 	<section class="section">
-		<h2>Mot de passe</h2>
+		<h2 class="section-title">Mot de passe</h2>
 
 		{#if !changingPassword}
 			<button class="btn btn-secondary" onclick={() => (changingPassword = true)}>
@@ -236,77 +236,28 @@
 </main>
 
 <style>
-	main {
-		max-width: 640px;
-		margin: 2rem auto;
-		padding: 0 1rem;
-	}
+	h1 { font-size: var(--text-xl); margin: 0 0 2rem; }
 
-	.breadcrumb {
-		font-size: 0.85rem;
-		color: #888;
-		margin-bottom: 1.25rem;
-	}
-	.breadcrumb a { color: inherit; text-decoration: none; }
-	.breadcrumb a:hover { text-decoration: underline; }
-
-	h1 { font-size: var(--text-xl); margin-bottom: 2rem; }
-
-	h2 {
-		font-size: 1rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		color: #888;
-		margin: 0 0 1rem;
-		padding-bottom: 0.4rem;
-		border-bottom: 1px solid #ebebeb;
-	}
-
-	.section { margin-bottom: 2.5rem; }
-
+	/* Titre de section et son action sur une même ligne, sous un seul filet. */
 	.section-header {
 		display: flex;
 		align-items: center;
 		justify-content: space-between;
 		gap: 0.5rem;
-		border-bottom: 1px solid #ebebeb;
+		border-bottom: 1px solid var(--color-border-light);
 		padding-bottom: 0.4rem;
 		margin: 0 0 1rem;
 	}
-	.section-header h2 {
+	.section-header .section-title {
 		margin: 0;
 		padding-bottom: 0;
 		border-bottom: none;
 	}
 
-	.btn-icon {
-		background: none;
-		border: none;
-		cursor: pointer;
-		font-size: 1rem;
-		line-height: 1;
-		padding: 0.2rem 0.35rem;
-		border-radius: 4px;
-	}
-	.btn-icon:hover { background: #f0f0f0; }
+	.section .message-error,
+	.section .message-success { margin: 0 0 0.75rem; }
 
-	.info-list {
-		display: grid;
-		grid-template-columns: auto 1fr;
-		gap: 0.6rem 1.5rem;
-		margin: 0;
-	}
-
-	.info-list dt {
-		font-weight: 600;
-		color: #666;
-		font-size: 0.85rem;
-	}
-
-	.info-list dd {
-		margin: 0;
-	}
+	.info-list { margin: 0; }
 
 	.group-list {
 		list-style: none;
@@ -314,19 +265,7 @@
 		padding: 0;
 	}
 
-	.muted { color: #999; font-size: 0.85rem; }
-
-	.badge {
-		display: inline-block;
-		padding: 0.15rem 0.5rem;
-		border-radius: 3px;
-		font-size: 0.75rem;
-		font-weight: 600;
-	}
-
-	.badge-superadmin { background: #fef3c7; color: #92400e; }
-	.badge-admin { background: #e8f0fe; color: #1a56db; }
-	.badge-user { background: #f0f0f0; color: #555; }
+	.muted { color: var(--color-text-muted); font-size: 0.85rem; }
 
 	.password-form {
 		display: flex;
@@ -344,15 +283,12 @@
 	}
 
 	.account-info { margin-top: 1rem; }
-	.field-hint { display: block; color: #777; font-size: 0.8rem; margin-top: 0.35rem; }
+	.form-label .form-hint { display: block; margin-top: 0.35rem; font-weight: 400; }
 
-	.required { color: var(--color-error, #c0392b); }
+	.required { color: var(--color-error); }
 
 	.form-actions {
 		display: flex;
 		gap: 0.5rem;
 	}
-
-	.message-error { color: #c0392b; font-size: 0.875rem; margin: 0 0 0.75rem; }
-	.message-success { color: #166534; background: #dcfce7; border-radius: 4px; padding: 0.4rem 0.75rem; font-size: 0.875rem; margin: 0 0 0.75rem; }
 </style>

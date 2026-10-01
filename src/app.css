@@ -38,8 +38,17 @@
   --color-abandoned-bg:     var(--color-red-light);
   --color-abandoned-text:   var(--color-red);
 
+  /* Pastille neutre (tonalité, compteurs) : sa propre couleur, pour qu'elle ne bouge
+     pas le jour où l'on change celle du statut « abandonné », qu'elle partageait. */
+  --color-chip-bg:          var(--color-red-light);
+
   /* Feedback */
   --color-error:          var(--color-red);
+  --color-danger-bg:      #fef2f2;
+  --color-danger-border:  #e5bebe;
+  --color-warning-bg:     #fff3cd;
+  --color-warning-border: #ffe082;
+  --color-warning-text:   #7c5a00;
   --color-success-bg:     var(--color-green-light);
   --color-success-border: #B8DFC8;
   --color-success-text:   #3D7A50;
@@ -59,11 +68,17 @@
   --text-lg:   1.1rem;
   --text-xl:   1.5rem;
 
+  /* Police système : un « sans-serif » nu change de famille d'un OS à l'autre
+     (DejaVu, Arial, Helvetica), sans rien de plus à télécharger ici. */
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+
   /* Formes */
   --radius-sm: 3px;
   --radius-md: 4px;
   --radius-lg: 6px;
   --radius-xl: 8px;
+  --radius-pill: 999px;
+  --shadow-popover: 0 2px 10px rgba(44, 43, 40, 0.16);
   --shadow-modal: 0 8px 30px rgba(0, 0, 0, 0.15);
   --disabled-opacity: 0.45;
 
@@ -71,6 +86,12 @@
      640px — un peu plus haute que le header, pour des cibles confortables au pouce.
      Partagée avec le mini-lecteur pour empiler les deux sans se chevaucher. */
   --footer-actions-h: 48px;
+
+  /* Largeur de colonne d'une page (.page) : 640 formulaire ou liste simple, 720 par
+     défaut, 900 pour les en-têtes média, les tableaux, l'agenda et la découpe. */
+  --page-narrow: 640px;
+  --page-medium: 720px;
+  --page-wide:   900px;
 }
 
 /* ─── Base ───────────────────────────────────────────── */
@@ -81,10 +102,43 @@
 }
 
 body {
-  font-family: sans-serif;
+  font-family: var(--font-sans);
   margin: 0;
   color: var(--color-text);
   background: var(--color-bg);
+}
+
+/* Un seul anneau de focus clavier, à la couleur de l'accent, plutôt que celui du
+   navigateur qui change d'une plateforme à l'autre. Un composant qui dessine le sien
+   (pseudo-élément, liseré) le remplace par une règle plus précise. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Un champ a déjà son cadre : l'anneau s'y colle au lieu de flotter à côté. */
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline-offset: 0;
+}
+
+/* ─── Page ───────────────────────────────────────────── */
+/* La colonne de contenu de toute page : centrée, une largeur parmi trois. */
+.page {
+  max-width: var(--page-medium);
+  margin: 2rem auto;
+  padding: 0 1rem;
+}
+
+.page-narrow { max-width: var(--page-narrow); }
+.page-wide   { max-width: var(--page-wide); }
+
+@media (max-width: 640px) {
+  .page {
+    margin: 1rem auto;
+    padding: 0 0.75rem;
+  }
 }
 
 /* ─── Boutons ────────────────────────────────────────── */
@@ -134,11 +188,24 @@ body {
 
 .btn-danger {
   color: var(--color-error);
-  border-color: #e5bebe;
+  border-color: var(--color-danger-border);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: #fef2f2;
+  background: var(--color-danger-bg);
+}
+
+/* Plein : réservé au geste irréversible qu'arme une zone dangereuse, une fois les
+   garde-fous franchis. Partout ailleurs, la confirmation porte le poids. */
+.btn-danger.btn-solid {
+  background: var(--color-error);
+  border-color: var(--color-error);
+  color: #fff;
+}
+
+.btn-danger.btn-solid:hover:not(:disabled) {
+  background: var(--color-error);
+  filter: brightness(0.9);
 }
 
 .btn-ghost {
@@ -154,6 +221,33 @@ body {
 .btn-sm {
   padding: 0.25rem 0.6rem;
   font-size: 0.8rem;
+}
+
+/* Action principale d'un formulaire d'envoi (dépôt, enregistrement). */
+.btn-lg {
+  padding: 0.65rem 1.5rem;
+  font-size: var(--text-base);
+}
+
+/* Action dans une phrase : un lien souligné, mais un vrai bouton. Orange quand elle
+   invite (« Réinitialiser »), estompée quand elle renonce (« Retirer »). */
+.btn-link {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--color-accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.btn-link-muted { color: var(--color-text-secondary); }
+
+.btn-link:hover:not(:disabled) { color: var(--color-text); }
+
+.btn-link:disabled {
+  opacity: var(--disabled-opacity);
+  cursor: not-allowed;
 }
 
 /* Bouton réduit à son icône. Un seul jeu de traits pour toutes : même grille de 24,
@@ -220,18 +314,37 @@ body {
 }
 
 .badge-abandonne {
-  background: var(--color-red-light);
-  color: var(--color-red);
+  background: var(--color-abandoned-bg);
+  color: var(--color-abandoned-text);
+}
+
+/* Rôles : global (users.role) et dans un groupe (user_groups.role) — même teinte pour
+   « admin » sur les deux axes, le libellé dit lequel. */
+.badge-superadmin {
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+}
+
+.badge-admin,
+.badge-group-admin {
+  background: var(--color-blue-light);
+  color: var(--color-progress-text);
+}
+
+.badge-user,
+.badge-group-member {
+  background: var(--color-bg-muted);
+  color: var(--color-text-secondary);
 }
 
 /* Qualités prise */
 .badge-quality-a-revoir {
-  background: #fff3cd;
-  color: #7c5a00;
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
 }
 
 .badge-quality-moyen {
-  background: var(--color-blue-light);
+  background: var(--color-progress-bg);
   color: var(--color-progress-text);
 }
 
@@ -281,6 +394,48 @@ body {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
+}
+
+/* Indication sous un champ ou une section. */
+.form-hint {
+  margin: 0.5rem 0 0;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+}
+
+/* ─── Sections de réglages ───────────────────────────── */
+/* Pages de réglages (groupe, profil, administration) : des sections empilées sous un
+   titre en petites capitales, et des paires libellé / valeur. */
+.section {
+  margin-bottom: 2.5rem;
+}
+
+.section-title {
+  margin: 0 0 1rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--color-border-light);
+  font-size: var(--text-base);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.info-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.6rem 1.5rem;
+  margin: 0 0 1rem;
+}
+
+.info-list dt {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.info-list dd {
+  margin: 0;
 }
 
 /* ─── Tableaux ───────────────────────────────────────── */
@@ -492,6 +647,13 @@ body {
   margin: 0;
 }
 
+/* Confirmation en ligne, pendant de .message-error : « Liens enregistrés. » */
+.message-ok {
+  color: var(--color-success-text);
+  font-size: var(--text-sm);
+  margin: 0;
+}
+
 .message-success {
   background: var(--color-success-bg);
   color: var(--color-success-text);
@@ -619,12 +781,6 @@ body {
 }
 
 .player-play:hover:not(:disabled) { transform: scale(1.05); filter: brightness(1.05); }
-
-.player-ctrl:focus-visible,
-.player-play:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-}
 
 .player-ctrl:disabled,
 .player-play:disabled {

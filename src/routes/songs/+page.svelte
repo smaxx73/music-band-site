@@ -3,6 +3,8 @@
 	import type { Song } from '$lib/types'
 	import { enhance } from '$app/forms'
 	import Modal from '$lib/components/Modal.svelte'
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
+	import { createSubmitConfirm } from '$lib/confirm-submit.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import AddToSetlistButton from '$lib/components/AddToSetlistButton.svelte'
 	import MediaHeader from '$lib/components/MediaHeader.svelte'
@@ -13,6 +15,8 @@
 	import { isPlaceholderSongTitle } from '$lib/songs'
 
 	let { data, form }: { data: PageData; form: ActionData } = $props()
+
+	const ask = createSubmitConfirm()
 
 	// La liste se lit par défaut ; le tableau (édition sur place, suppression) est le
 	// mode édition, pour qu'on parcoure le référentiel sans une rangée de boutons par ligne.
@@ -281,7 +285,7 @@
 	</div>
 {/snippet}
 
-<main>
+<main class="page page-wide">
 	<MediaHeader title="Morceaux" stats={allSongs.length > 0 ? headerStats : null}>
 		{#snippet kicker()}Référentiel{/snippet}
 		{#snippet cover()}
@@ -367,14 +371,14 @@
 			{#if isFiltered && visibleSongs.length > 0}
 				<p class="result-count">
 					{visibleSongs.length} morceau{visibleSongs.length > 1 ? 'x' : ''} sur {allSongs.length}
-					· <button class="link-btn" onclick={resetFilters}>Réinitialiser</button>
+					· <button class="btn-link" onclick={resetFilters}>Réinitialiser</button>
 				</p>
 			{/if}
 
 			{#if visibleSongs.length === 0}
 				<p class="empty">
 					Aucun morceau ne correspond.
-					<button class="link-btn" onclick={resetFilters}>Réinitialiser les filtres</button>
+					<button class="btn-link" onclick={resetFilters}>Réinitialiser les filtres</button>
 				</p>
 			{:else if !editMode}
 			<div class="song-list">
@@ -489,9 +493,13 @@
 											<form
 												method="POST"
 												action="?/delete"
-												use:enhance
-												onsubmit={(e) => {
-													if (!confirm(`Supprimer "${song.title}" ?`)) e.preventDefault()
+												use:enhance={({ formElement, cancel }) => {
+													ask.intercept(formElement, cancel, {
+														level: 'danger',
+														title: 'Supprimer ce morceau ?',
+														message: `« ${song.title} » sera retiré du référentiel, avec ses paroles, ses notes, sa pochette, sa feuille de répétition et sa place dans les setlists. Cette action est irréversible.`,
+														confirmLabel: 'Supprimer le morceau'
+													})
 												}}
 											>
 												<input type="hidden" name="id" value={song.id} />
@@ -516,6 +524,16 @@
 			<p class="message-error">{form.error}</p>
 		{/if}
 	</section>
+
+	<ConfirmDialog
+		open={ask.pending !== null}
+		level={ask.pending?.level}
+		title={ask.pending?.title ?? ''}
+		message={ask.pending?.message ?? ''}
+		confirmLabel={ask.pending?.confirmLabel}
+		onConfirm={ask.confirm}
+		onCancel={ask.dismiss}
+	/>
 </main>
 
 <!-- Modale d'ajout -->
@@ -556,12 +574,6 @@
 {/if}
 
 <style>
-	main {
-		max-width: 900px;
-		margin: 2rem auto;
-		padding: 0 1rem;
-	}
-
 	.sort-field {
 		display: inline-flex;
 		align-items: center;
@@ -611,7 +623,7 @@
 		gap: 0.3rem;
 		background: var(--color-bg-subtle);
 		border: 1px solid var(--color-border-light);
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		padding: 0.25rem 0.7rem;
 		font-size: var(--text-xs);
 		font-family: inherit;
@@ -640,7 +652,7 @@
 		margin-left: 0.35rem;
 		padding: 0.05rem 0.4rem;
 		border: 1px dashed var(--color-border);
-		border-radius: 999px;
+		border-radius: var(--radius-pill);
 		font-size: var(--text-xs);
 		color: var(--color-text-muted);
 		white-space: nowrap;
@@ -656,16 +668,6 @@
 	}
 
 	.th-sort:hover { text-decoration: underline; }
-
-	.link-btn {
-		background: none;
-		border: none;
-		padding: 0;
-		font: inherit;
-		color: var(--color-accent);
-		cursor: pointer;
-		text-decoration: underline;
-	}
 
 	section {
 		margin-bottom: 3rem;
@@ -761,7 +763,7 @@
 
 	.original-artist {
 		display: block;
-		font-size: 0.75rem;
+		font-size: var(--text-xs);
 		font-weight: 400;
 		color: var(--color-text-muted);
 		font-style: italic;
@@ -787,11 +789,10 @@
 	.actions-cell form { margin: 0; }
 
 	.empty { color: #aaa; font-style: italic; font-size: 0.9rem; }
-	.message-error { color: #c0392b; font-size: 0.875rem; margin: 0 0 0.5rem; }
+	.message-error { color: #c0392b; font-size: var(--text-sm); margin: 0 0 0.5rem; }
 
 	/* ─── Responsive ───────────────────── */
 	@media (max-width: 640px) {
-		main { margin: 1rem auto; padding: 0 0.75rem; }
 
 		/* Recherche et tri partagent la première rangée ; les pastilles tiennent sur une
 		   ligne qui défile au doigt plutôt que de s'empiler sur deux ou trois. */

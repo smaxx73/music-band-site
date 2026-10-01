@@ -90,7 +90,7 @@
 	<title>Fil d'actualité</title>
 </svelte:head>
 
-<main>
+<main class="page page-narrow">
 	<div class="header">
 		<h1>Fil d'actualité</h1>
 		<button class="btn btn-primary btn-sm" onclick={() => (publishOpen = true)}>+ Publier</button>
@@ -129,8 +129,6 @@
 </main>
 
 <style>
-	main { max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
-
 	.header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
 	h1 { font-size: var(--text-xl); margin: 0; }
 
@@ -146,7 +144,6 @@
 	.end { margin-top: var(--space-5); }
 
 	@media (max-width: 640px) {
-		main { margin: 1rem auto; padding: 0 0.75rem; }
 		.feed { gap: var(--space-3); }
 	}
 </style>

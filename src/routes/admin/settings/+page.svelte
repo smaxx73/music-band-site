@@ -37,7 +37,7 @@
 	<title>Paramètres — Admin</title>
 </svelte:head>
 
-<main>
+<main class="page page-narrow">
 	<nav class="breadcrumb">
 		<a href="/">Tableau de bord</a> /
 		<a href="/admin">Administration</a> /
@@ -47,8 +47,8 @@
 	<h1>Paramètres</h1>
 
 	<section class="section">
-		<h2>Formats d'import autorisés</h2>
-		<p class="hint">Seuls les formats activés seront acceptés lors de l'upload.</p>
+		<h2 class="section-title">Formats d'import autorisés</h2>
+		<p class="form-hint intro">Seuls les formats activés seront acceptés lors de l'upload.</p>
 
 		{#if globalError}
 			<p class="message-error">{globalError}</p>
@@ -56,7 +56,7 @@
 
 		<div class="formats-list">
 			{#each formats as format (format.id)}
-				<label class="format-row" class:disabled={submitting === format.id}>
+				<div class="format-row" class:disabled={submitting === format.id}>
 					<div class="format-info">
 						<span class="format-label">{format.label}</span>
 						<span class="format-mimes">{format.mime_types.join(', ')}</span>
@@ -65,54 +65,25 @@
 						type="button"
 						class="toggle"
 						class:on={format.enabled}
+						aria-pressed={format.enabled}
 						disabled={submitting === format.id}
 						onclick={() => toggle(format)}
 						aria-label="{format.enabled ? 'Désactiver' : 'Activer'} {format.label}"
 					>
 						{format.enabled ? 'Activé' : 'Désactivé'}
 					</button>
-				</label>
+				</div>
 			{/each}
 		</div>
 	</section>
 </main>
 
 <style>
-	main {
-		max-width: 640px;
-		margin: 2rem auto;
-		padding: 0 1rem;
-	}
+	h1 { font-size: var(--text-xl); margin: 0 0 2rem; }
 
-	.breadcrumb {
-		font-size: 0.85rem;
-		color: #888;
-		margin-bottom: 1.25rem;
-	}
-
-	.breadcrumb a { color: inherit; text-decoration: none; }
-	.breadcrumb a:hover { text-decoration: underline; }
-
-	h1 { font-size: var(--text-xl); margin-bottom: 2rem; }
-
-	h2 {
-		font-size: 1rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		color: #888;
-		margin: 0 0 0.5rem;
-		padding-bottom: 0.4rem;
-		border-bottom: 1px solid #ebebeb;
-	}
-
-	.hint {
-		font-size: 0.85rem;
-		color: #999;
-		margin: 0 0 1.25rem;
-	}
-
-	.section { margin-bottom: 2.5rem; }
+	.section-title { margin-bottom: 0.5rem; }
+	.intro { margin: 0 0 1.25rem; }
+	.section .message-error { margin-bottom: 0.75rem; }
 
 	.formats-list {
 		display: flex;
@@ -125,9 +96,9 @@
 		align-items: center;
 		justify-content: space-between;
 		padding: 0.75rem 1rem;
-		border: 1px solid #e8e8e8;
-		border-radius: 6px;
-		background: #fafafa;
+		border: 1px solid var(--color-border-light);
+		border-radius: var(--radius-lg);
+		background: var(--color-bg-subtle);
 		gap: 1rem;
 		transition: opacity 0.15s;
 	}
@@ -147,8 +118,8 @@
 	}
 
 	.format-mimes {
-		font-size: 0.75rem;
-		color: #aaa;
+		font-size: var(--text-xs);
+		color: var(--color-text-muted);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -157,28 +128,22 @@
 	.toggle {
 		flex-shrink: 0;
 		padding: 0.3rem 0.85rem;
-		border-radius: 20px;
+		border-radius: var(--radius-pill);
 		border: none;
+		font-family: inherit;
 		font-size: 0.8rem;
 		font-weight: 600;
 		cursor: pointer;
-		transition: background 0.15s, color 0.15s;
-		background: #e0e0e0;
-		color: #666;
+		transition: filter 0.15s;
+		background: var(--color-bg-muted);
+		color: var(--color-text-secondary);
 	}
 
 	.toggle.on {
-		background: #d1fae5;
-		color: #065f46;
+		background: var(--color-success-bg);
+		color: var(--color-success-text);
 	}
 
-	.toggle:hover:not(:disabled).on { background: #a7f3d0; }
-	.toggle:hover:not(:disabled):not(.on) { background: #d0d0d0; }
+	.toggle:hover:not(:disabled) { filter: brightness(0.95); }
 	.toggle:disabled { cursor: not-allowed; }
-
-	.message-error {
-		color: #c0392b;
-		font-size: 0.875rem;
-		margin-bottom: 0.75rem;
-	}
 </style>

@@ -18,7 +18,7 @@
 	<title>Gestion des groupes</title>
 </svelte:head>
 
-<main>
+<main class="page page-wide">
 	<nav class="breadcrumb">
 		<a href="/admin">Administration</a> / <span>Groupes</span>
 	</nav>
@@ -27,7 +27,7 @@
 
 	<!-- Création -->
 	<section class="section">
-		<h2>Nouveau groupe</h2>
+		<h2 class="section-title">Nouveau groupe</h2>
 		<form
 			method="POST"
 			action="?/create"
@@ -42,22 +42,23 @@
 					type="text"
 					placeholder="Nom du groupe"
 					bind:value={newName}
+					aria-label="Nom du groupe"
 					required
-					class="input"
+					class="form-input"
 				/>
-				<button type="submit" class="btn-primary" disabled={creating || !newName.trim()}>
+				<button type="submit" class="btn btn-primary" disabled={creating || !newName.trim()}>
 					{creating ? 'Création…' : 'Créer'}
 				</button>
 			</div>
 			{#if hasActionError('create')}
-				<p class="error">{form?.error}</p>
+				<p class="message-error">{form?.error}</p>
 			{/if}
 		</form>
 	</section>
 
 	<!-- Liste -->
 	<section class="section">
-		<h2>Groupes existants</h2>
+		<h2 class="section-title">Groupes existants</h2>
 
 		{#if data.groups.length === 0}
 			<p class="empty">Aucun groupe.</p>
@@ -83,7 +84,7 @@
 								<td class="actions-cell">
 									<!-- La suppression vit dans la zone dangereuse de la fiche du groupe :
 									     elle exige l'impact chiffré et la saisie du nom. -->
-									<a href="/admin/groups/{g.id}" class="btn-secondary">Gérer</a>
+									<a href="/admin/groups/{g.id}" class="btn btn-secondary btn-sm">Gérer</a>
 								</td>
 							</tr>
 						{/each}
@@ -95,92 +96,33 @@
 </main>
 
 <style>
-	main {
-		max-width: 820px;
-		margin: 2rem auto;
-		padding: 0 1rem;
-	}
-
-	.breadcrumb {
-		font-size: 0.85rem;
-		color: #888;
-		margin-bottom: 1.25rem;
-	}
-	.breadcrumb a { color: inherit; text-decoration: none; }
-	.breadcrumb a:hover { text-decoration: underline; }
-
-	h1 { font-size: 1.5rem; margin: 0 0 1.75rem; }
-
-	.section { margin-bottom: 2.5rem; }
-
-	h2 {
-		font-size: 1rem;
-		font-weight: 700;
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		color: #888;
-		margin: 0 0 1rem;
-		padding-bottom: 0.4rem;
-		border-bottom: 1px solid #ebebeb;
-	}
+	h1 { font-size: var(--text-xl); margin: 0 0 1.75rem; }
 
 	.form-row {
 		display: flex;
 		gap: 0.75rem;
 		align-items: center;
+		flex-wrap: wrap;
 	}
 
-	.input {
-		flex: 1;
-		max-width: 320px;
-		padding: 0.45rem 0.75rem;
-		border: 1px solid #ccc;
-		border-radius: 4px;
-		font-size: 0.875rem;
-	}
+	.form-row .form-input { flex: 1 1 12rem; max-width: 320px; }
 
-	.btn-primary {
-		padding: 0.45rem 1rem;
-		background: #1a1a1a;
-		color: #fff;
-		border: none;
-		border-radius: 4px;
-		font-size: 0.875rem;
-		cursor: pointer;
-	}
-	.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
-
-	.btn-secondary {
-		display: inline-block;
-		padding: 0.25rem 0.65rem;
-		border: 1px solid #ccc;
-		border-radius: 4px;
-		text-decoration: none;
-		font-size: 0.82rem;
-		color: inherit;
-		cursor: pointer;
-		background: white;
-	}
-	.btn-secondary:hover { background: #f4f4f4; }
+	form > .message-error { margin-top: 0.5rem; }
 
 	td a { color: inherit; text-decoration: none; font-weight: 600; }
 	td a:hover { text-decoration: underline; }
 
-	.muted { color: #888; font-size: 0.82rem; }
+	.muted { color: var(--color-text-muted); font-size: 0.82rem; }
 
 	.actions-cell {
 		display: flex;
 		gap: 0.5rem;
 		align-items: center;
 	}
+
 	/* Sous 640 px le tableau devient une pile de cartes (voir app.css). */
 	@media (max-width: 640px) {
-		main { margin: 1rem auto; padding: 0 0.75rem; }
-
 		td.name { flex: 1 1 100%; font-size: var(--text-base); }
 		td.actions-cell { flex: 1 1 100%; margin-top: 0.35rem; }
 	}
-
-	.empty { color: #aaa; font-style: italic; font-size: 0.9rem; }
-	.error { color: #c0392b; font-size: 0.85rem; margin-top: 0.4rem; }
 </style>

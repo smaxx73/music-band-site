@@ -3,6 +3,7 @@
 	import { tick } from 'svelte'
 	import { goto, invalidateAll } from '$app/navigation'
 	import Icon from '$lib/components/Icon.svelte'
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
 	import LocationInput from '$lib/components/LocationInput.svelte'
 	import { findPlace, locationDetails, type Coords, type GroupPlace } from '$lib/places'
 
@@ -212,13 +213,21 @@
 		}
 	}
 
-	async function deleteEvent(event: CalendarEventRow) {
-		const label = event.title || TYPE_LABELS[event.type]
-		const sessionWarning = event.session_id
-			? ' La session associée sera conservée, mais ne figurera plus dans l’agenda.'
-			: ''
-		if (!confirm(`Supprimer « ${label} » du ${fmtDate(event.date)} ?${sessionWarning}`)) return
+	let pendingDelete = $state<CalendarEventRow | null>(null)
 
+	const deleteMessage = $derived.by(() => {
+		if (!pendingDelete) return ''
+		const label = pendingDelete.title || TYPE_LABELS[pendingDelete.type]
+		const sessionWarning = pendingDelete.session_id
+			? ' La session associée est conservée, mais ne figurera plus dans l’agenda.'
+			: ''
+		return `« ${label} » du ${fmtDate(pendingDelete.date)} sera retiré de l’agenda.${sessionWarning}`
+	})
+
+	async function deleteEvent() {
+		const event = pendingDelete
+		pendingDelete = null
+		if (!event) return
 		const res = await fetch(`/api/agenda/${event.id}`, { method: 'DELETE' })
 		if (res.ok) await invalidateAll()
 	}
@@ -267,7 +276,7 @@
 	<title>Agenda</title>
 </svelte:head>
 
-<main>
+<main class="page page-wide">
 	<div class="header">
 		<button class="btn btn-ghost nav-arrow" onclick={prevMonth}>←</button>
 		<h1 class="month-title">{monthLabel}</h1>
@@ -373,7 +382,7 @@
 								</div>
 								<button
 									class="btn btn-ghost btn-sm delete-btn"
-									onclick={() => deleteEvent(event)}
+									onclick={() => (pendingDelete = event)}
 									title="Supprimer"
 									aria-label="Supprimer l’événement"
 								>
@@ -403,7 +412,7 @@
 								{#if canDelete(event)}
 									<button
 										class="btn btn-ghost btn-sm delete-btn"
-										onclick={() => deleteEvent(event)}
+										onclick={() => (pendingDelete = event)}
 										title="Supprimer"
 										aria-label="Supprimer l’événement"
 									>
@@ -484,15 +493,19 @@
 			</div>
 		</div>
 	{/if}
+
+	<ConfirmDialog
+		open={pendingDelete !== null}
+		level="danger"
+		title={pendingDelete?.type === 'indisponibilite' ? 'Supprimer cette indisponibilité ?' : 'Supprimer cet événement ?'}
+		message={deleteMessage}
+		confirmLabel="Supprimer"
+		onConfirm={deleteEvent}
+		onCancel={() => (pendingDelete = null)}
+	/>
 </main>
 
 <style>
-	main {
-		max-width: 960px;
-		margin: 2rem auto;
-		padding: 0 1rem;
-	}
-
 	.header {
 		display: flex;
 		align-items: center;
@@ -614,7 +627,7 @@
 	.event-badge {
 		font-size: 0.68rem;
 		padding: 1px 4px;
-		border-radius: 3px;
+		border-radius: var(--radius-sm);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;

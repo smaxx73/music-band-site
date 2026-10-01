@@ -1,63 +1,74 @@
 # BandStash
 
-Application web privée pour partager et archiver les enregistrements de répétitions d'un groupe de musique. Accès restreint par compte individuel — deux rôles : **admin** (gestion des morceaux et des utilisateurs) et **utilisateur** (accès complet au contenu).
+Application web privée pour préparer les répétitions, archiver les prises et faire
+circuler les idées d'un groupe de musique. Chaque personne possède son compte et peut
+appartenir à plusieurs groupes ; tout le contenu collectif est rattaché au groupe actif.
 
 ## Fonctionnalités
 
-### Enregistrements
+### Capturer, importer et découper une répétition
 
-- **Upload** de fichiers audio (jusqu'à 200 Mo) avec conversion automatique en MP3 128 kbps via ffmpeg et suppression des silences en début/fin
-- Détection des doublons par empreinte SHA-256 avant conversion
-- **Numérotation automatique des prises** globale par morceau (Prise 1, 2, 3…)
-- **Lecteur audio** avec visualisation de la forme d'onde (WaveSurfer.js), contrôles ⏮ ▶/⏸ ⏭ +10s et réglage du volume
-- **Qualité par prise** : À revoir / Moyen / Bon / Référence ou libellé court personnalisé — se règle uniquement dans le détail d'une session
+- Dépôt de fichiers audio jusqu'à 200 Mo, conversion en MP3 128 kbps, retrait des silences en tête et en fin, et détection des doublons par empreinte SHA-256
+- Enregistrement direct depuis le navigateur (micro ou interface audio), avec choix de l'entrée, vumètre, pause/reprise, Wake Lock et copie de secours locale en cas d'échec de l'envoi
+- Ajout d'une prise à une session et à un morceau, avec numérotation automatique par morceau (Prise 1, 2, 3…)
+- Ajout d'une vidéo YouTube comme prise, avec ou sans piste audio associée
+- **Découpe automatique d'une répétition sur les blancs** : le fichier est analysé et présenté en segments. Les seuils de silence, durée minimale et marge sont réglables ; chaque segment peut être écouté, écarté, associé à un morceau, ajusté, coupé ou fusionné avant validation
+- La découpe analyse une copie légère, puis taille les extraits dans l'original. Les prises créées sont encodées une seule fois ; l'original est conservé sept jours pour reprendre ou refaire une découpe sans le renvoyer
+- Création d'un morceau directement au moment du classement, y compris avec le titre provisoire « À nommer »
 
 ### Sessions
 
-- Création de sessions avec type (répétition, concert, studio, autre), titre optionnel, date, lieu, membres présents et notes
-- Vue session : prises groupées par morceau, qualité et notes éditables inline ; l'historique d'un morceau est en lecture seule
-- Ajout de prises à une session passée
-- Mode édition pour supprimer des prises ; leur numéro global par morceau est conservé
-- Suppression d'une session avec suppression des fichiers audio associés
+- Création de répétitions, concerts, séances studio ou autres sessions avec date, titre, lieu, participants et notes
+- Création rapide d'une session lors d'un import ou d'un enregistrement ; un événement d'agenda lié est créé automatiquement
+- Vue album d'une session : prises groupées par morceau, écoute enchaînée, qualité libre par prise et ajout de prises a posteriori
+- Photo de bandeau de session recadrée automatiquement, avec voile réglable
+- Lieux enregistrés au niveau du groupe ou adresses ponctuelles, avec recherche dans la Base Adresse Nationale et lien vers la carte
 
 ### Morceaux
 
-- Référentiel de morceaux avec titre, compositeur, tonalité et statut (En apprentissage / Proposition de travail / Au répertoire / Abandonné)
-- Historique complet d'un morceau : toutes ses prises toutes sessions confondues, triées par date décroissante
-- Liste des morceaux avec nombre de prises disponibles
-- Feuille de répétition partagée par morceau : blocs ChordPro et mini-partitions, import MusicXML/MXL, sauvegarde en base, accès aux originaux et impression PDF
+- Référentiel par groupe : titre, compositeur, tonalité, artiste original, année, durée, paroles, notes et statut (en apprentissage, proposition de travail, au répertoire ou abandonné)
+- Historique de toutes les prises d'un morceau et écoute enchaînée de son évolution
+- Pochettes générées ou importées ; recherche d'une reprise dans Deezer pour préremplir ses informations et importer la pochette
+- Feuille de répétition par morceau : blocs ChordPro et mini-partitions, import MusicXML/MXL, conservation des originaux et impression PDF
 
-### Commentaires
+### Écoute et échanges
 
-- Commentaires globaux ou ancrés à un timestamp précis sur la waveform
-- Marqueurs cliquables sur la waveform → seek + scroll vers le commentaire
+- Lecteur audio avec forme d'onde, navigation, saut de 10 secondes, volume et mini-lecteur persistant pendant la navigation
+- Commentaires généraux ou ancrés sur un instant précis, marqueurs cliquables sur la forme d'onde, édition par leur auteur et réactions 👍/👎
+- Mentions de membres, notifications d'activité et liens YouTube jouables directement dans les commentaires
+- Notes libres et évaluation de la qualité de chaque prise
+- Liens de partage internes et liens d'écoute publics à jeton pour les prises audio
 
 ### Playlists
 
-- Création de playlists de prises spécifiques
-- Lecture en continu avec enchaînement automatique
-- Réorganisation par drag & drop
-- Ajout d'une prise à une playlist depuis le lecteur
+- Playlists de prises précises, lecture continue et réorganisation par glisser-déposer
+- Ajout d'une prise depuis son lecteur, une session ou la page d'un morceau
+- Affichage des paroles et notes du morceau en cours d'écoute
+
+### Setlists
+
+- Programmes de répétition ou de concert composés de morceaux, à distinguer des playlists qui regroupent des prises
+- Ordre modifiable au glisser-déposer ou avec des flèches sur mobile, durée totale estimée et commentaires dédiés
 
 ### Agenda partagé
 
-- Vue mensuelle avec navigation mois par mois
-- Trois types d'événements : **Indisponibilité** (personnelle), **Répétition**, **Concert**
-- Les événements peuvent avoir un lieu et des notes
-- Les répétitions et concerts appartiennent au groupe actif et peuvent être liés à une session existante
-- Les indisponibilités sont personnelles : elles suivent l'utilisateur et restent visibles par les membres de ses groupes
-- Modification / suppression : chacun ne peut modifier ou supprimer que sa propre indisponibilité ; répétitions et concerts sont modifiables et supprimables par les membres du groupe
+- Vue mensuelle des répétitions, concerts et indisponibilités
+- Événements avec lieu et notes ; répétitions et concerts liés à une session si besoin
+- Indisponibilités personnelles, visibles par les membres des groupes concernés
 
-### Tableau de bord
+### Espace personnel et fil du groupe
 
-- 5 dernières sessions avec résumé des morceaux travaillés
-- Playlists triées par dernière modification
+- Espace personnel pour conserver des idées, fichiers, captations directes et vidéos YouTube hors d'un groupe ; il peut lui aussi découper automatiquement un long enregistrement sur les blancs
+- Publication d'un enregistrement personnel, d'une vidéo ou d'une suggestion de morceau dans un ou plusieurs groupes, sans dupliquer le fichier
+- Classement ultérieur d'un enregistrement personnel dans une session, où il devient une prise
+- Fil d'actualité du groupe pour les publications, sessions, prises, playlists et setlists, complété par un tableau de bord récapitulatif
 
-### Administration (rôle admin uniquement)
+### Groupes, droits et administration
 
-- Gestion des morceaux (`/admin/songs`) : ajout, modification, statut, suppression
-- Gestion des utilisateurs (`/admin/users`) : création, modification du rôle, réinitialisation du mot de passe, désactivation, suppression
-- Statistiques et 10 dernières prises avec suppression
+- Groupes multiples avec changement de groupe actif, page de profil du groupe, logo, liens sociaux, membres et lieux partagés
+- Rôles de membre et d'administrateur de groupe ; administrateurs globaux et superadministrateurs pour la gestion des comptes et des groupes
+- Administration : utilisateurs, groupes, paramètres, statistiques, dernières prises et sauvegarde SQL téléchargeable
+- Accès protégé aux fichiers audio : ils sont toujours servis par l'application après vérification de la session et des droits d'accès
 
 ---
 

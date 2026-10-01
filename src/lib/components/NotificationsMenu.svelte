@@ -276,7 +276,7 @@
 		min-width: 15px;
 		height: 15px;
 		padding: 0 3px;
-		border-radius: 8px;
+		border-radius: var(--radius-xl);
 		background: var(--color-accent);
 		color: #fff;
 		font-size: 0.6rem;

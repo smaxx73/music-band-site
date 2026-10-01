@@ -11,6 +11,7 @@
 		type SplitParams
 	} from '$lib/types'
 	import Icon from '$lib/components/Icon.svelte'
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
 	import SongSelect from '$lib/components/SongSelect.svelte'
 	import { createSong, placeholderSongTitle, sortedWithSong } from '$lib/songs'
 
@@ -356,8 +357,10 @@
 		}
 	}
 
+	let confirmAbandonOpen = $state(false)
+
 	async function abandon() {
-		if (!confirm('Abandonner cet import ? Le fichier envoyé sera supprimé.')) return
+		confirmAbandonOpen = false
 		stopPreview()
 		await fetch(`/api/imports/${data.audioImport.id}`, { method: 'DELETE' })
 		await goto(backUrl)
@@ -388,7 +391,7 @@
 	<title>Découper l'enregistrement</title>
 </svelte:head>
 
-<main>
+<main class="page page-wide">
 	<div class="page-header">
 		<h1>Découper l'enregistrement</h1>
 		<a href={backUrl} class="btn btn-ghost btn-sm back-link">{personal ? '← Mon espace perso' : '← Upload'}</a>
@@ -661,7 +664,7 @@
 	</fieldset>
 
 	<div class="actions">
-		<button type="button" class="btn btn-ghost" onclick={abandon} disabled={creating}>
+		<button type="button" class="btn btn-ghost" onclick={() => (confirmAbandonOpen = true)} disabled={creating}>
 			Abandonner l'import
 		</button>
 		<button
@@ -690,13 +693,20 @@
 			</button>
 		</div>
 	{/if}
+
+	<ConfirmDialog
+		open={confirmAbandonOpen}
+		level="danger"
+		title="Abandonner l'import ?"
+		message="Le fichier envoyé et la découpe en cours seront supprimés du serveur. Les prises ou enregistrements déjà créés depuis cet import sont conservés. Pour recommencer, il faudra renvoyer le fichier."
+		confirmLabel="Abandonner l'import"
+		onConfirm={abandon}
+		onCancel={() => (confirmAbandonOpen = false)}
+	/>
 </main>
 
 <style>
 	main {
-		max-width: 780px;
-		margin: 2rem auto;
-		padding: 0 1rem;
 		display: flex;
 		flex-direction: column;
 		gap: 1.25rem;
@@ -723,7 +733,6 @@
 		font-weight: 400;
 		margin: 0;
 	}
-
 
 	fieldset {
 		border: 1px solid var(--color-border);

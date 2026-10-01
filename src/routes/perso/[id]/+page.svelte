@@ -125,7 +125,7 @@
 	<title>{recording.title} — Mon espace perso</title>
 </svelte:head>
 
-<main>
+<main class="page">
 	<nav class="breadcrumb">
 		<a href="/perso">Mon espace perso</a> / <span>{recording.title}</span>
 	</nav>
@@ -263,8 +263,6 @@
 </main>
 
 <style>
-	main { max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
-
 	.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
 	/* Le titre garde sa largeur : ce sont les boutons qui passent à la ligne. */
 	.header-text { flex: 1 0 14rem; min-width: 0; }
@@ -273,7 +271,7 @@
 	.notes { display: flex; gap: 0.35rem; font-size: var(--text-sm); color: var(--color-text-secondary); margin: 0.5rem 0 0; white-space: pre-line; }
 	.header-actions { display: flex; align-items: center; gap: 0.4rem; flex: 0 1 auto; min-width: 0; flex-wrap: wrap; justify-content: flex-end; }
 	.share-count {
-		padding: 0 0.35rem; border-radius: 999px;
+		padding: 0 0.35rem; border-radius: var(--radius-pill);
 		background: var(--color-accent-light); color: var(--color-accent);
 		font-size: var(--text-xs); font-weight: 600; line-height: 1.2rem;
 	}
@@ -299,12 +297,8 @@
 	.publications ul { list-style: none; padding: 0; margin: 0 0 0.5rem; display: flex; flex-wrap: wrap; gap: 0.4rem; }
 	.publications li a {
 		display: inline-flex; align-items: center; gap: 0.3rem; font-size: var(--text-sm);
-		padding: 0.2rem 0.65rem; border-radius: 999px; background: var(--color-green-light);
+		padding: 0.2rem 0.65rem; border-radius: var(--radius-pill); background: var(--color-green-light);
 		color: var(--color-success-text); text-decoration: none;
 	}
 	.hint { font-size: var(--text-xs); color: var(--color-text-muted); margin: 0; }
-
-	@media (max-width: 640px) {
-		main { margin: 1rem auto; padding: 0 0.75rem; }
-	}
 </style>

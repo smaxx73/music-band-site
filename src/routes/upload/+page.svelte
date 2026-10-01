@@ -195,7 +195,7 @@
 	<title>Uploader une prise</title>
 </svelte:head>
 
-<main>
+<main class="page page-narrow">
 	<div class="page-header">
 		<h1>Uploader une prise</h1>
 		<a href="/sessions" class="btn btn-ghost btn-sm back-link" onclick={(e) => { if (history.length > 1) { e.preventDefault(); history.back() } }}>← Retour</a>
@@ -347,7 +347,7 @@
 			{#if file}
 				<p class="hint">
 					{file.name} — {(file.size / 1024 / 1024).toFixed(1)} Mo
-					<button type="button" class="link-btn" onclick={() => (file = null)} disabled={uploading}>Retirer</button>
+					<button type="button" class="btn-link btn-link-muted link-remove" onclick={() => (file = null)} disabled={uploading}>Retirer</button>
 				</p>
 			{/if}
 			<p class="hint">
@@ -402,7 +402,7 @@
 
 		<button
 			type="submit"
-			class="btn btn-primary submit-btn"
+			class="btn btn-primary btn-lg submit-btn"
 			disabled={uploading || !sourceReady || !selectedSession || (!isSplit && !selectedSong)}
 		>
 			{#if uploading}
@@ -422,12 +422,6 @@
 </main>
 
 <style>
-	main {
-		max-width: 580px;
-		margin: 2rem auto;
-		padding: 0 1rem;
-	}
-
 	.page-header {
 		display: flex;
 		align-items: center;
@@ -523,25 +517,12 @@
 
 	.audio-track { margin-top: 0.9rem; }
 
-	.link-btn {
-		background: none;
-		border: none;
-		padding: 0;
-		margin-left: 0.4rem;
-		font: inherit;
-		color: var(--color-text-muted);
-		text-decoration: underline;
-		cursor: pointer;
-	}
+	.link-remove { margin-left: 0.4rem; }
 
 	.hint.block {
 		display: block;
 		margin-top: 0.15rem;
 	}
 
-	.submit-btn {
-		font-size: var(--text-base);
-		padding: 0.65rem 1.5rem;
-		align-self: flex-start;
-	}
+	.submit-btn { align-self: flex-start; }
 </style>
