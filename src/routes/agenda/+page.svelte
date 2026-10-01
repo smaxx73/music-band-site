@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { SESSION_TYPES, sessionTypeLabel, type SessionType } from '$lib/types'
 	import type { PageData } from './$types'
 	import { tick } from 'svelte'
 	import { goto, invalidateAll } from '$app/navigation'
@@ -12,7 +13,7 @@
 	type CalendarEventRow = {
 		id: number
 		date: string
-		type: 'indisponibilite' | 'repetition' | 'concert' | 'studio' | 'autre'
+		type: 'indisponibilite' | SessionType
 		author: string
 		user_id: number | null
 		title: string | null
@@ -129,7 +130,7 @@
 
 	// Form state
 	let selectedDay: number | null = $state(null)
-	let formType: 'indisponibilite' | 'repetition' | 'concert' | 'studio' | 'autre' =
+	let formType: 'indisponibilite' | SessionType =
 		$state('indisponibilite')
 	let formTitle = $state('')
 	let formNotes = $state('')
@@ -310,19 +311,19 @@
 							{#if event.session_id}
 								<a
 									href="/sessions/{event.session_id}"
-									class="event-badge event-{event.type}"
+									class="event-badge session-type-{event.type}"
 									title="Voir la session"
 								>
 									{event.title || TYPE_LABELS[event.type]}
 								</a>
 							{:else}
-								<div class="event-badge event-{event.type}">
+								<div class="event-badge session-type-{event.type}">
 									{event.title || TYPE_LABELS[event.type]}
 								</div>
 							{/if}
 						{/each}
 						{#each unavailsForDay(day) as event}
-							<div class="event-badge event-indisponibilite">
+							<div class="event-badge session-type-indisponibilite">
 								<Icon name="close" class="unavail-cross" size="0.7rem" />{event.author}
 							</div>
 						{/each}
@@ -351,7 +352,7 @@
 						<span class="panel-section-label">Événements du groupe</span>
 						{#each dayGroupEvents as event}
 							<div class="panel-event">
-								<span class="event-badge event-{event.type} panel-event-type">
+								<span class="event-badge session-type-{event.type} panel-event-type">
 									{TYPE_LABELS[event.type]}
 								</span>
 								<div class="panel-event-body">
@@ -399,7 +400,7 @@
 						<span class="panel-section-label">Indisponibilités</span>
 						{#each dayUnavails as event}
 							<div class="panel-event">
-								<span class="event-badge event-indisponibilite panel-event-type">Indispo</span>
+								<span class="event-badge session-type-indisponibilite panel-event-type">Indispo</span>
 								<div class="panel-event-body">
 									<span class="panel-event-name">{event.author}</span>
 									{#if event.location}
@@ -435,10 +436,9 @@
 				<div class="form-row">
 					<select class="form-input" bind:value={formType}>
 						<option value="indisponibilite">Indisponible (personnel)</option>
-						<option value="repetition">Répétition</option>
-						<option value="concert">Concert</option>
-						<option value="studio">Studio</option>
-						<option value="autre">Autre</option>
+						{#each SESSION_TYPES as value}
+							<option {value}>{sessionTypeLabel(value)}</option>
+						{/each}
 					</select>
 				</div>
 
@@ -633,7 +633,9 @@
 		text-overflow: ellipsis;
 		max-width: 100%;
 		display: block;
-		color: inherit;
+		/* Couleurs du type (`.session-type-*`, src/app.css), communes à toute l'application. */
+		background: var(--type-bg);
+		color: var(--type-text);
 		text-decoration: none;
 	}
 
@@ -641,36 +643,10 @@
 		text-decoration: underline;
 	}
 
-	.event-indisponibilite {
-		background: #fecdd3;
-		color: #be123c;
-	}
-
 	/* Rendue par Icon.svelte : le style scopé ne l'atteint qu'avec `:global`. */
 	:global(.unavail-cross) {
 		margin-right: 2px;
 		opacity: 0.8;
-	}
-
-	.event-repetition {
-		background: var(--color-learning-bg);
-		color: var(--color-learning-text);
-	}
-
-	.event-concert {
-		background: var(--color-repertoire-bg);
-		color: var(--color-repertoire-text);
-	}
-
-	/* Mêmes couleurs que les badges de type sur /sessions */
-	.event-studio {
-		background: #f3e8ff;
-		color: #7c3aed;
-	}
-
-	.event-autre {
-		background: var(--color-bg-subtle);
-		color: var(--color-text-secondary);
 	}
 
 	/* Day panel */

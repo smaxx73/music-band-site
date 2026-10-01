@@ -29,6 +29,8 @@ src/
 │   │   └── notifications.ts # écriture (fan-out) et lecture des notifications
 	│   └── components/
 	│       ├── ConfirmDialog.svelte   # confirmation réutilisable, selon le niveau de risque
+│       ├── Menu.svelte            # menu déroulant (bouton + panneau) : partage, ⋮ d'une prise,
+│       │                          #   cloche des notifications
 │       ├── AudioPlayer.svelte     # lecteur WaveSurfer.js
 │       ├── AudioRecorder.svelte   # enregistrement en direct depuis le navigateur (micro, interface)
 │       ├── YouTubePlayer.svelte   # lecteur de la vidéo YouTube d'une prise (API IFrame, chargée à la demande)
@@ -194,6 +196,11 @@ n'écrit dans son `<style>` que ce qui lui est propre.
   Pas de `.btn-delete` / `.remove-btn` local
 - **Focus clavier** : l'anneau orange est global (`:focus-visible`). Un composant ne le
   retire que pour en dessiner un équivalent
+- **Menu déroulant** : `Menu.svelte`, jamais un panneau et ses écouteurs (clic à côté,
+  Échap) réécrits à la main. Ses entrées portent `.menu-item`
+- **Type de session** : ses couleurs viennent de `.session-type-{type}`, qui expose
+  `--type-bg`, `--type-text`, `--type-from`, `--type-to` ; la liste et les libellés de
+  `SESSION_TYPES` et `sessionTypeLabel` (`src/lib/types.ts`)
 
 ## Tableaux et mobile
 

@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { formatDateOnly, toDateOnly } from '$lib/date'
-
-	type SessionType = 'repetition' | 'concert' | 'studio' | 'autre'
+	import type { SessionType } from '$lib/types'
 
 	// Une session n'a pas de pochette : son visuel est un feuillet d'éphéméride, teinté
 	// comme son type l'est partout ailleurs (badges, agenda). Il remplit son conteneur.
@@ -19,7 +18,7 @@
 	)
 </script>
 
-<span class="session-cover type-{type}" role="img" aria-label={fullDate}>
+<span class="session-cover session-type-{type}" role="img" aria-label={fullDate}>
 	<span class="month">{month}{#if showYear}&nbsp;{year}{/if}</span>
 	<span class="day">{day}</span>
 	<span class="weekday">{weekday}</span>
@@ -37,15 +36,9 @@
 		color: #fff;
 		line-height: 1;
 		user-select: none;
-		background: linear-gradient(135deg, var(--from), var(--to));
+		/* Couleurs du type (`.session-type-*`, src/app.css), assombries pour porter du blanc. */
+		background: linear-gradient(135deg, var(--type-from), var(--type-to));
 	}
-
-	/* Mêmes familles de couleur que `.type-badge` et l'agenda, assombries pour porter
-	   du blanc. */
-	.type-repetition { --from: #E25E36; --to: #A93A1A; }
-	.type-concert    { --from: #5A9E6F; --to: #2F6B42; }
-	.type-studio     { --from: #8B5CF6; --to: #5B21B6; }
-	.type-autre      { --from: #8C857A; --to: #5A554D; }
 
 	.month,
 	.weekday {

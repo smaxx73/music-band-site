@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { tick } from 'svelte'
 	import Icon from '$lib/components/Icon.svelte'
+	import Menu from '$lib/components/Menu.svelte'
 	import { formatTimecode } from '$lib/youtube'
 	import { copyText, groupRecordingLink, publicLinksLabel } from '$lib/share-client'
 
@@ -38,48 +38,17 @@
 	} = $props()
 
 	let open = $state(false)
-	let root = $state<HTMLElement | null>(null)
-	let button = $state<HTMLButtonElement | null>(null)
-	let panel = $state<HTMLElement | null>(null)
-	let alignLeft = $state(false)
 	let copied = $state(false)
 	let failedUrl = $state<string | null>(null)
 	let closeTimer: ReturnType<typeof setTimeout> | undefined
 
-	// Les écouteurs ne vivent que le temps de l'ouverture : une session affiche des
-	// dizaines de prises, chacune avec son menu.
+	// Chaque ouverture repart d'un menu neuf, sans la confirmation de la copie précédente.
 	$effect(() => {
-		if (!open) return
-
-		const closeOnOutside = (e: MouseEvent) => {
-			if (root && !root.contains(e.target as Node)) close()
-		}
-		const closeOnEscape = (e: KeyboardEvent) => {
-			if (e.key !== 'Escape') return
-			close()
-			button?.focus()
-		}
-
-		document.addEventListener('click', closeOnOutside)
-		document.addEventListener('keydown', closeOnEscape)
-		return () => {
-			document.removeEventListener('click', closeOnOutside)
-			document.removeEventListener('keydown', closeOnEscape)
-		}
-	})
-
-	async function toggle() {
-		if (open) { close(); return }
+		if (open) return
+		clearTimeout(closeTimer)
 		copied = false
 		failedUrl = null
-		alignLeft = false
-		open = true
-		await tick()
-		// Calé à droite du bouton par défaut ; un bouton au bord gauche (en-tête replié sur
-		// téléphone) ferait sortir le panneau de l'écran.
-		if (panel && panel.getBoundingClientRect().left < 8) alignLeft = true
-		panel?.scrollIntoView({ block: 'nearest' })
-	}
+	})
 
 	function close() {
 		clearTimeout(closeTimer)
@@ -104,66 +73,59 @@
 	}
 </script>
 
-<div class="share-menu {className}" bind:this={root}>
-	<button
-		class={buttonClass}
-		class:btn-icon={!label}
-		bind:this={button}
-		onclick={toggle}
-		aria-haspopup="menu"
-		aria-expanded={open}
-		title="Partager la prise"
-		aria-label={showCount && shareCount > 0 ? `Partager — ${publicLinksLabel(shareCount)}` : 'Partager'}
-	>
-		<Icon name="link" />
-		{#if label}<span class="btn-label">{label}</span>{/if}
-		{#if showCount && shareCount > 0}
-			<span class="share-badge" aria-hidden="true"><Icon name="globe" size="0.75rem" />{shareCount}</span>
-		{/if}
-	</button>
+<Menu bind:open class={className} --menu-min-width="15rem">
+	{#snippet trigger(menu)}
+		<button
+			{...menu}
+			class={buttonClass}
+			class:btn-icon={!label}
+			title="Partager la prise"
+			aria-label={showCount && shareCount > 0 ? `Partager — ${publicLinksLabel(shareCount)}` : 'Partager'}
+		>
+			<Icon name="link" />
+			{#if label}<span class="btn-label">{label}</span>{/if}
+			{#if showCount && shareCount > 0}
+				<span class="share-badge" aria-hidden="true"><Icon name="globe" size="0.75rem" />{shareCount}</span>
+			{/if}
+		</button>
+	{/snippet}
 
-	{#if open}
-		<div class="share-panel" class:align-left={alignLeft} role="menu" bind:this={panel}>
-			<button class="share-item" role="menuitem" onclick={copyGroupLink}>
-				<Icon name={copied ? 'check' : 'link'} />
-				<span class="share-item-text">
-					<span class="share-item-title">{copied ? 'Lien copié' : 'Copier le lien pour le groupe'}</span>
-					<span class="share-item-hint">
-						Membres du groupe{#if time !== null}&nbsp;· à {formatTimecode(time)}{/if}
-					</span>
-				</span>
-			</button>
-			{#if failedUrl}
-				<div class="share-fallback">
-					<span>Copie impossible, sélectionne le lien :</span>
-					<input
-						class="form-input"
-						type="text"
-						readonly
-						value={failedUrl}
-						aria-label="Lien pour le groupe"
-						onfocus={(e) => e.currentTarget.select()}
-					/>
-				</div>
-			{/if}
-			{#if canSharePublic}
-				<button class="share-item" role="menuitem" onclick={openPublic}>
-					<Icon name="globe" />
-					<span class="share-item-text">
-						<span class="share-item-title">Lien d'écoute public…</span>
-						<span class="share-item-hint">
-							{shareCount > 0 ? publicLinksLabel(shareCount) : 'Sans compte, à durée limitée'}
-						</span>
-					</span>
-				</button>
-			{/if}
+	<button class="menu-item" role="menuitem" onclick={copyGroupLink}>
+		<Icon name={copied ? 'check' : 'link'} />
+		<span class="menu-item-text">
+			<span class="menu-item-title">{copied ? 'Lien copié' : 'Copier le lien pour le groupe'}</span>
+			<span class="menu-item-hint">
+				Membres du groupe{#if time !== null}&nbsp;· à {formatTimecode(time)}{/if}
+			</span>
+		</span>
+	</button>
+	{#if failedUrl}
+		<div class="share-fallback">
+			<span>Copie impossible, sélectionne le lien :</span>
+			<input
+				class="form-input"
+				type="text"
+				readonly
+				value={failedUrl}
+				aria-label="Lien pour le groupe"
+				onfocus={(e) => e.currentTarget.select()}
+			/>
 		</div>
 	{/if}
-</div>
+	{#if canSharePublic}
+		<button class="menu-item" role="menuitem" onclick={openPublic}>
+			<Icon name="globe" />
+			<span class="menu-item-text">
+				<span class="menu-item-title">Lien d'écoute public…</span>
+				<span class="menu-item-hint">
+					{shareCount > 0 ? publicLinksLabel(shareCount) : 'Sans compte, à durée limitée'}
+				</span>
+			</span>
+		</button>
+	{/if}
+</Menu>
 
 <style>
-	.share-menu { position: relative; display: inline-flex; }
-
 	.share-badge {
 		display: inline-flex;
 		align-items: center;
@@ -177,50 +139,6 @@
 		line-height: 1.2rem;
 	}
 
-	.share-panel {
-		position: absolute;
-		top: calc(100% + 6px);
-		right: 0;
-		z-index: 40;
-		width: max-content;
-		min-width: 15rem;
-		max-width: min(20rem, calc(100vw - 1.5rem));
-		display: flex;
-		flex-direction: column;
-		padding: 0.25rem;
-		background: var(--color-bg);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-modal);
-		text-align: left;
-	}
-
-	.share-panel.align-left { right: auto; left: 0; }
-
-	.share-item {
-		display: flex;
-		align-items: flex-start;
-		gap: 0.6rem;
-		width: 100%;
-		padding: 0.5rem 0.6rem;
-		background: none;
-		border: none;
-		border-radius: var(--radius-sm);
-		font: inherit;
-		color: var(--color-text);
-		text-align: left;
-		cursor: pointer;
-	}
-
-	.share-item:hover,
-	.share-item:focus-visible { background: var(--color-bg-subtle); }
-
-	.share-item :global(svg) { flex-shrink: 0; margin-top: 0.15rem; color: var(--color-text-secondary); }
-
-	.share-item-text { display: flex; flex-direction: column; gap: 0.05rem; min-width: 0; }
-	.share-item-title { font-size: var(--text-sm); font-weight: 600; }
-	.share-item-hint { font-size: var(--text-xs); color: var(--color-text-muted); }
-
 	.share-fallback {
 		display: flex;
 		flex-direction: column;
@@ -231,8 +149,4 @@
 	}
 
 	.share-fallback input { min-width: 0; font-size: var(--text-xs); }
-
-	@media (max-width: 640px) {
-		.share-item { min-height: 44px; }
-	}
 </style>

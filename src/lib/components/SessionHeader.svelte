@@ -6,22 +6,7 @@
 	import MediaHeader from '$lib/components/MediaHeader.svelte'
 	import SessionCover from '$lib/components/SessionCover.svelte'
 	import Icon from '$lib/components/Icon.svelte'
-
-	type SessionType = 'repetition' | 'concert' | 'studio' | 'autre'
-
-	const typeHues: Record<SessionType, number | null> = {
-		repetition: 14,
-		concert: 138,
-		studio: 262,
-		autre: null
-	}
-
-	const typeLabels: Record<SessionType, string> = {
-		repetition: 'Répétition',
-		concert: 'Concert',
-		studio: 'Studio',
-		autre: 'Autre'
-	}
+	import { SESSION_TYPE_HUES, sessionTypeLabel, type SessionType } from '$lib/types'
 
 	let {
 		date,
@@ -58,14 +43,14 @@
 <MediaHeader
 	title={title ?? formatDateOnly(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
 	{stats}
-	hue={typeHues[type]}
+	hue={SESSION_TYPE_HUES[type]}
 	photo={photoUrl}
 	photoVeil={veil}
 	{actions}
 	{headingLevel}
 >
 	{#snippet kicker()}
-		<span class="type-badge type-{type}">{typeLabels[type]}</span>
+		<span class="type-badge session-type-{type}">{sessionTypeLabel(type)}</span>
 	{/snippet}
 	{#snippet cover()}
 		<SessionCover {date} {type} />
@@ -102,10 +87,7 @@
 		white-space: nowrap;
 	}
 
-	.type-badge.type-repetition { background: var(--color-accent-light); color: var(--color-accent); }
-	.type-badge.type-concert    { background: var(--color-green-light); color: var(--color-green); }
-	.type-badge.type-studio     { background: #f3e8ff; color: #7c3aed; }
-	.type-badge.type-autre      { background: var(--color-bg-subtle); color: var(--color-text-secondary); }
+	.type-badge { background: var(--type-bg); color: var(--type-text); }
 
 	.meta {
 		font-size: 0.9rem;

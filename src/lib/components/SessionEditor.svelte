@@ -10,8 +10,7 @@
 	import { SESSION_PHOTO_VEIL, sessionPhotoUrl, type SessionPhoto } from '$lib/session-photo'
 	import { invalidateAll } from '$app/navigation'
 	import type { Snippet } from 'svelte'
-
-	type SessionType = 'repetition' | 'concert' | 'studio' | 'autre'
+	import { SESSION_TYPES, sessionTypeLabel, type SessionType } from '$lib/types'
 
 	type SessionData = {
 		id: number
@@ -250,10 +249,9 @@
 				<label class="form-label">
 					Type
 					<select class="form-input" bind:value={editType} disabled={busy}>
-						<option value="repetition">Répétition</option>
-						<option value="concert">Concert</option>
-						<option value="studio">Studio</option>
-						<option value="autre">Autre</option>
+						{#each SESSION_TYPES as value}
+							<option {value}>{sessionTypeLabel(value)}</option>
+						{/each}
 					</select>
 				</label>
 				<label class="form-label">

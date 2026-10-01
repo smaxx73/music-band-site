@@ -35,6 +35,9 @@ fichiers MusicXML/MXL originaux. La troisième ajoute le jeton chiffré des lien
 - Interface harmonisée : police système, anneau de focus clavier commun, trois largeurs
   de page (marges mobiles comprises partout), et pages de groupe, de profil et
   d'administration remises sur les boutons, champs et couleurs du reste de l'application
+- Menus (partage, ⋮ d'une prise, notifications) : même comportement partout, Échap rend
+  le focus au bouton. Couleurs des types de session unifiées entre badges, agenda,
+  tableau de bord et feuillet ; les indisponibilités prennent le rouge de la palette
 
 ## [1.2.1] — 2026-09-29
 

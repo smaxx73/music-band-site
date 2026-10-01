@@ -42,6 +42,28 @@
      pas le jour où l'on change celle du statut « abandonné », qu'elle partageait. */
   --color-chip-bg:          var(--color-red-light);
 
+  /* Types de session et d'événement d'agenda : une famille de couleur par type,
+     reprise par les badges, l'agenda, le feuillet d'une session (dégradé foncé, qui
+     porte du blanc) et son bandeau (SESSION_TYPE_HUES, src/lib/types.ts). */
+  --type-repetition-bg:       var(--color-accent-light);
+  --type-repetition-text:     var(--color-learning-text);
+  --type-repetition-from:     var(--color-accent);
+  --type-repetition-to:       #A93A1A;
+  --type-concert-bg:          var(--color-green-light);
+  --type-concert-text:        var(--color-repertoire-text);
+  --type-concert-from:        var(--color-green);
+  --type-concert-to:          #2F6B42;
+  --type-studio-bg:           var(--color-purple-light);
+  --type-studio-text:         var(--color-purple);
+  --type-studio-from:         #8B5CF6;
+  --type-studio-to:           #5B21B6;
+  --type-autre-bg:            var(--color-bg-muted);
+  --type-autre-text:          var(--color-text-secondary);
+  --type-autre-from:          #8C857A;
+  --type-autre-to:            #5A554D;
+  --type-indisponibilite-bg:  var(--color-red-light);
+  --type-indisponibilite-text: var(--color-red);
+
   /* Feedback */
   --color-error:          var(--color-red);
   --color-danger-bg:      #fef2f2;
@@ -337,6 +359,42 @@ textarea:focus-visible {
   color: var(--color-text-secondary);
 }
 
+/* Type de session ou d'événement : `.session-type-{type}` expose ses couleurs en
+   `--type-bg`, `--type-text`, `--type-from`, `--type-to`, que chaque composant emploie
+   à sa façon (badge, case d'agenda, feuillet). */
+.session-type-repetition {
+  --type-bg: var(--type-repetition-bg);
+  --type-text: var(--type-repetition-text);
+  --type-from: var(--type-repetition-from);
+  --type-to: var(--type-repetition-to);
+}
+
+.session-type-concert {
+  --type-bg: var(--type-concert-bg);
+  --type-text: var(--type-concert-text);
+  --type-from: var(--type-concert-from);
+  --type-to: var(--type-concert-to);
+}
+
+.session-type-studio {
+  --type-bg: var(--type-studio-bg);
+  --type-text: var(--type-studio-text);
+  --type-from: var(--type-studio-from);
+  --type-to: var(--type-studio-to);
+}
+
+.session-type-autre {
+  --type-bg: var(--type-autre-bg);
+  --type-text: var(--type-autre-text);
+  --type-from: var(--type-autre-from);
+  --type-to: var(--type-autre-to);
+}
+
+.session-type-indisponibilite {
+  --type-bg: var(--type-indisponibilite-bg);
+  --type-text: var(--type-indisponibilite-text);
+}
+
 /* Qualités prise */
 .badge-quality-a-revoir {
   background: var(--color-warning-bg);
@@ -605,6 +663,69 @@ textarea:focus-visible {
   gap: 0.5rem;
   padding: 0.75rem 1.25rem 1rem;
   border-top: 1px solid var(--color-border-light);
+}
+
+/* ─── Entrées de menu (Menu.svelte) ──────────────────── */
+/* Globales : les entrées sont écrites par le composant qui ouvre le menu, pas par le
+   menu lui-même. Une ligne, ou un titre et une précision dessous (`.menu-item-text`). */
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: none;
+  font: inherit;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  text-align: left;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.menu-item:hover,
+.menu-item:focus-visible {
+  background: var(--color-bg-subtle);
+}
+
+.menu-item svg {
+  flex-shrink: 0;
+  color: var(--color-text-secondary);
+}
+
+.menu-item:has(.menu-item-text) {
+  align-items: flex-start;
+}
+
+.menu-item:has(.menu-item-text) svg {
+  margin-top: 0.15rem;
+}
+
+.menu-item-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.05rem;
+  min-width: 0;
+  white-space: normal;
+}
+
+.menu-item-title {
+  font-weight: 600;
+}
+
+.menu-item-hint {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* Au doigt, une entrée se touche : la cible prime sur la compacité. */
+@media (max-width: 640px) {
+  .menu-item {
+    min-height: 44px;
+  }
 }
 
 /* ─── Fil d'Ariane ───────────────────────────────────── */

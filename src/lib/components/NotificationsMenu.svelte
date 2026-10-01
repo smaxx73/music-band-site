@@ -7,6 +7,7 @@
 		type NotificationFeed
 	} from '$lib/types'
 	import Icon from '$lib/components/Icon.svelte'
+	import Menu from '$lib/components/Menu.svelte'
 
 	let { groupId, initialUnread = 0 }: { groupId: number; initialUnread?: number } = $props()
 
@@ -15,7 +16,6 @@
 	let items = $state<ActivityNotification[]>([])
 	let loading = $state(false)
 	let loadError = $state<string | null>(null)
-	let root = $state<HTMLDivElement | null>(null)
 
 	// Le serveur recompte la pastille à chaque navigation et fait foi. `localUnread`
 	// ne porte que les actions faites depuis le menu — marquages, sondage — pour
@@ -155,91 +155,91 @@
 	}
 </script>
 
-<svelte:window
-	onkeydown={(e) => { if (e.key === 'Escape') open = false }}
-	onclick={(e) => {
-		if (open && root && !root.contains(e.target as Node)) open = false
-	}}
-/>
-
-<div class="notif" bind:this={root}>
-	<button
-		class="notif-bell"
-		class:has-unread={unread > 0}
-		onclick={toggle}
-		aria-expanded={open}
-		aria-haspopup="menu"
-		title={unread > 0 ? `${unread} notification${unread > 1 ? 's' : ''} non lue${unread > 1 ? 's' : ''}` : 'Notifications'}
-		aria-label="Notifications"
+<div class="notif">
+	<Menu
+		bind:open
+		role="dialog"
+		label="Notifications"
+		scrollIntoView={false}
+		--menu-z="110"
+		--menu-width="340px"
+		--menu-max-width="calc(100vw - 1.4rem)"
+		--menu-padding="0"
 	>
-		<Icon name="bell" size="1.05rem" />
-		{#if unread > 0}
-			<span class="notif-badge">{unread > 9 ? '9+' : unread}</span>
-		{/if}
-	</button>
-
-	{#if open}
-		<div class="notif-panel" role="menu">
-			<div class="notif-head">
-				<strong>Notifications</strong>
-				<button
-					class="notif-mark-all"
-					onclick={markAllRead}
-					disabled={unread === 0}
-				>Tout marquer comme lu</button>
-			</div>
-
-			<div class="notif-filters">
-				<button class:active={unreadOnly} onclick={() => switchFilter(true)}>
-					Non lues{unread > 0 ? ` (${unread})` : ''}
-				</button>
-				<button class:active={!unreadOnly} onclick={() => switchFilter(false)}>Toutes</button>
-			</div>
-
-			<div class="notif-list">
-				{#if loading}
-					<p class="notif-msg">Chargement…</p>
-				{:else if loadError}
-					<p class="notif-msg error">{loadError}</p>
-				{:else if items.length === 0}
-					<p class="notif-msg">
-						{unreadOnly ? 'Aucune notification non lue.' : 'Aucune notification.'}
-					</p>
-				{:else}
-					{#each items as item (item.id)}
-						<div class="notif-item" class:unread={!item.read_at}>
-							<a
-								class="notif-link"
-								href={item.link}
-								onclick={(e) => openNotification(e, item)}
-							>
-								<Icon name={notificationIcon(item.type)} class="notif-icon" size="1rem" />
-								<span class="notif-text">
-									<span class="notif-action">
-										{item.actor_name} {notificationLabel(item.type)}
-									</span>
-									{#if item.subject}<span class="notif-subject">{item.subject}</span>{/if}
-									{#if item.excerpt}<span class="notif-excerpt">{item.excerpt}</span>{/if}
-									<span class="notif-time">{relativeTime(item.created_at)}</span>
-								</span>
-							</a>
-							<button
-								class="notif-dot"
-								onclick={() => setRead(item, !item.read_at)}
-								title={item.read_at ? 'Marquer comme non lue' : 'Marquer comme lue'}
-								aria-label={item.read_at ? 'Marquer comme non lue' : 'Marquer comme lue'}
-							>{item.read_at ? '○' : '●'}</button>
-						</div>
-					{/each}
+		{#snippet trigger(menu)}
+			<button
+				{...menu}
+				onclick={toggle}
+				class="notif-bell"
+				class:has-unread={unread > 0}
+				title={unread > 0 ? `${unread} notification${unread > 1 ? 's' : ''} non lue${unread > 1 ? 's' : ''}` : 'Notifications'}
+				aria-label="Notifications"
+			>
+				<Icon name="bell" size="1.05rem" />
+				{#if unread > 0}
+					<span class="notif-badge">{unread > 9 ? '9+' : unread}</span>
 				{/if}
-			</div>
+			</button>
+		{/snippet}
+
+		<div class="notif-head">
+			<strong>Notifications</strong>
+			<button
+				class="notif-mark-all"
+				onclick={markAllRead}
+				disabled={unread === 0}
+			>Tout marquer comme lu</button>
 		</div>
-	{/if}
+
+		<div class="notif-filters">
+			<button class:active={unreadOnly} onclick={() => switchFilter(true)}>
+				Non lues{unread > 0 ? ` (${unread})` : ''}
+			</button>
+			<button class:active={!unreadOnly} onclick={() => switchFilter(false)}>Toutes</button>
+		</div>
+
+		<div class="notif-list">
+			{#if loading}
+				<p class="notif-msg">Chargement…</p>
+			{:else if loadError}
+				<p class="notif-msg error">{loadError}</p>
+			{:else if items.length === 0}
+				<p class="notif-msg">
+					{unreadOnly ? 'Aucune notification non lue.' : 'Aucune notification.'}
+				</p>
+			{:else}
+				{#each items as item (item.id)}
+					<div class="notif-item" class:unread={!item.read_at}>
+						<a
+							class="notif-link"
+							href={item.link}
+							onclick={(e) => openNotification(e, item)}
+						>
+							<Icon name={notificationIcon(item.type)} class="notif-icon" size="1rem" />
+							<span class="notif-text">
+								<span class="notif-action">
+									{item.actor_name} {notificationLabel(item.type)}
+								</span>
+								{#if item.subject}<span class="notif-subject">{item.subject}</span>{/if}
+								{#if item.excerpt}<span class="notif-excerpt">{item.excerpt}</span>{/if}
+								<span class="notif-time">{relativeTime(item.created_at)}</span>
+							</span>
+						</a>
+						<button
+							class="notif-dot"
+							onclick={() => setRead(item, !item.read_at)}
+							title={item.read_at ? 'Marquer comme non lue' : 'Marquer comme lue'}
+							aria-label={item.read_at ? 'Marquer comme non lue' : 'Marquer comme lue'}
+						>{item.read_at ? '○' : '●'}</button>
+					</div>
+				{/each}
+			{/if}
+		</div>
+	</Menu>
 </div>
 
 <style>
 	.notif {
-		position: relative;
 		flex-shrink: 0;
 	}
 
@@ -283,20 +283,6 @@
 		font-weight: 700;
 		line-height: 15px;
 		text-align: center;
-	}
-
-	.notif-panel {
-		position: absolute;
-		top: calc(100% + 6px);
-		right: 0;
-		z-index: 110;
-		width: 340px;
-		max-width: calc(100vw - 1.4rem);
-		background: var(--color-bg);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-modal);
-		overflow: hidden;
 	}
 
 	.notif-head {
@@ -460,7 +446,8 @@
 			height: 1.4rem;
 		}
 
-		.notif-panel {
+		/* Le panneau appartient à Menu.svelte : on l'atteint depuis la portée de la cloche. */
+		.notif :global(.menu-panel) {
 			position: fixed;
 			top: auto;
 			bottom: calc(var(--footer-actions-h) + 6px);

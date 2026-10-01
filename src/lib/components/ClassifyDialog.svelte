@@ -6,7 +6,7 @@
 	import { formatDateOnly } from '$lib/date'
 	import { createSession } from '$lib/upload-client'
 	import { sortedWithSong } from '$lib/songs'
-	import { sessionTypeLabel } from '$lib/types'
+	import { SESSION_TYPES, sessionTypeLabel } from '$lib/types'
 
 	/**
 	 * Classer un enregistrement perso dans une session du groupe actif : le carnet sert
@@ -181,10 +181,9 @@
 						<label class="form-label">
 							Type
 							<select class="form-input" bind:value={newType} disabled={saving}>
-								<option value="repetition">Répétition</option>
-								<option value="concert">Concert</option>
-								<option value="studio">Studio</option>
-								<option value="autre">Autre</option>
+								{#each SESSION_TYPES as value}
+									<option {value}>{sessionTypeLabel(value)}</option>
+								{/each}
 							</select>
 						</label>
 						<label class="form-label wide">

@@ -86,20 +86,6 @@
 		indisponibilite: 'Indisponibilité',
 	}
 
-	// Mêmes couleurs que les badges de type sur /agenda, pour reconnaître le type d'un coup d'œil.
-	const eventBadgeBg: Record<string, string> = {
-		repetition: 'var(--color-learning-bg)',
-		concert: 'var(--color-repertoire-bg)',
-		studio: '#f3e8ff',
-		autre: 'var(--color-bg-subtle)',
-	}
-	const eventBadgeText: Record<string, string> = {
-		repetition: 'var(--color-learning-text)',
-		concert: 'var(--color-repertoire-text)',
-		studio: '#7c3aed',
-		autre: 'var(--color-text-secondary)',
-	}
-
 	// Ouvre l'agenda sur le jour de l'événement, panneau du jour déplié.
 	function agendaDayUrl(d: string | Date) {
 		return `/agenda?date=${toDateOnly(d)}`
@@ -330,8 +316,7 @@
 							{:else}
 								<li>
 									<div
-										class="session-card session-card-event"
-										style="--badge-bg: {eventBadgeBg[item.eventType] ?? 'var(--color-bg-subtle)'}; --badge-text: {eventBadgeText[item.eventType] ?? 'var(--color-text-secondary)'}"
+										class="session-card session-card-event session-type-{item.eventType}"
 									>
 										<a href={agendaDayUrl(item.date)} class="event-info-link">
 											<div class="session-card-top">
@@ -648,9 +633,11 @@
 		color: var(--color-green);
 	}
 
+	/* Mêmes couleurs que l'agenda (`.session-type-*`, src/app.css), pour reconnaître le
+	   type d'un coup d'œil. */
 	.item-badge-event {
-		background: var(--badge-bg);
-		color: var(--badge-text);
+		background: var(--type-bg, var(--color-bg-subtle));
+		color: var(--type-text, var(--color-text-secondary));
 	}
 
 	.session-card-event {

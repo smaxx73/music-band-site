@@ -6,7 +6,7 @@
 	import SongSelect from '$lib/components/SongSelect.svelte'
 	import LocationInput from '$lib/components/LocationInput.svelte'
 	import type { Coords } from '$lib/places'
-	import type { AudioTrim } from '$lib/types'
+	import { SESSION_TYPES, sessionTypeLabel, type AudioTrim } from '$lib/types'
 	import { sortedWithSong } from '$lib/songs'
 	import { clearTakes } from '$lib/recording-store'
 	import { createSession, DuplicateError, sendAudioFile, splitUrl, trimFields, type DuplicateInfo } from '$lib/upload-client'
@@ -27,13 +27,6 @@
 
 	// Au-delà, c'est une répétition captée d'un bloc plutôt qu'un morceau isolé.
 	const SPLIT_BY_DEFAULT_ABOVE_S = 10 * 60
-
-	const SESSION_TYPES: Record<string, string> = {
-		repetition: 'Répétition',
-		concert: 'Concert',
-		studio: 'Studio',
-		autre: 'Autre'
-	}
 
 	/** Date du jour dans le fuseau de l'appareil : c'est « aujourd'hui » pour qui enregistre. */
 	function localToday(): string {
@@ -95,7 +88,7 @@
 
 	function sessionLabel(s: SessionRow): string {
 		const date = formatDateOnly(s.date, { day: '2-digit', month: 'short', year: 'numeric' })
-		const detail = s.title || s.location || SESSION_TYPES[s.type] || ''
+		const detail = s.title || s.location || sessionTypeLabel(s.type)
 		return detail ? `${date} — ${detail}` : date
 	}
 
@@ -298,8 +291,8 @@
 					<label class="form-label">
 						Type
 						<select class="form-input" bind:value={newType} disabled={uploading}>
-							{#each Object.entries(SESSION_TYPES) as [value, label]}
-								<option {value}>{label}</option>
+							{#each SESSION_TYPES as value}
+								<option {value}>{sessionTypeLabel(value)}</option>
 							{/each}
 						</select>
 					</label>

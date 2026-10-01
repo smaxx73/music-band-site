@@ -477,6 +477,21 @@ export function notificationIcon(type: NotificationType): IconName {
 	}
 }
 
+/** Types d'une session (`sessions.type`), dans l'ordre des sélecteurs. */
+export const SESSION_TYPES = ['repetition', 'concert', 'studio', 'autre'] as const
+export type SessionType = (typeof SESSION_TYPES)[number]
+
+/**
+ * Teinte du bandeau d'une session (`MediaHeader`, prop `hue`), de la même famille que
+ * les couleurs `--type-*` de src/app.css. « Autre » garde le bandeau neutre.
+ */
+export const SESSION_TYPE_HUES: Record<SessionType, number | null> = {
+	repetition: 14,
+	concert: 138,
+	studio: 262,
+	autre: null
+}
+
 // Libellé des types de session, partagés avec l'agenda (`calendar_events.type`).
 export function sessionTypeLabel(type: string): string {
 	const labels: Record<string, string> = {

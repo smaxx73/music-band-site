@@ -8,12 +8,11 @@
 	import LocationInput from '$lib/components/LocationInput.svelte'
 	import SessionHeader from '$lib/components/SessionHeader.svelte'
 	import { SESSION_PHOTO_VEIL, sessionPhotoUrl } from '$lib/session-photo'
-	import { formatDurationLong } from '$lib/types'
+	import { SESSION_TYPES, formatDurationLong, sessionTypeLabel, type SessionType } from '$lib/types'
 	import type { Coords } from '$lib/places'
 
 	let { data }: { data: PageData } = $props()
 
-	type SessionType = 'repetition' | 'concert' | 'studio' | 'autre'
 
 	type SessionRow = {
 		id: number
@@ -27,13 +26,6 @@
 		total_duration_s: number
 		photo_version: number | null
 		photo_veil: number | null
-	}
-
-	const typeLabels: Record<string, string> = {
-		repetition: 'Répétition',
-		concert: 'Concert',
-		studio: 'Studio',
-		autre: 'Autre',
 	}
 
 	const sessions = $derived(data.sessions as unknown as SessionRow[])
@@ -110,7 +102,7 @@
 			? params.get('date')!
 			: toDateOnly(new Date())
 		const typeParam = params.get('type')
-		newType = (['repetition', 'concert', 'studio', 'autre'] as const).includes(typeParam as SessionType)
+		newType = SESSION_TYPES.includes(typeParam as SessionType)
 			? (typeParam as SessionType)
 			: 'repetition'
 		newTitle = params.get('title') ?? ''
@@ -209,13 +201,13 @@
 				class:active={typeFilter === 'all'}
 				onclick={() => (typeFilter = 'all')}
 			>Toutes <span class="pill-count">{typeCounts.all}</span></button>
-			{#each Object.entries(typeLabels) as [value, label]}
+			{#each SESSION_TYPES as value}
 				{#if typeCounts[value]}
 					<button
 						class="filter-pill"
 						class:active={typeFilter === value}
 						onclick={() => (typeFilter = value)}
-					>{label} <span class="pill-count">{typeCounts[value]}</span></button>
+					>{sessionTypeLabel(value)} <span class="pill-count">{typeCounts[value]}</span></button>
 				{/if}
 			{/each}
 		</div>
@@ -269,10 +261,9 @@
 						<label class="form-label">
 							Type
 							<select class="form-input" bind:value={newType} disabled={creating}>
-								<option value="repetition">Répétition</option>
-								<option value="concert">Concert</option>
-								<option value="studio">Studio</option>
-								<option value="autre">Autre</option>
+								{#each SESSION_TYPES as value}
+									<option {value}>{sessionTypeLabel(value)}</option>
+								{/each}
 							</select>
 						</label>
 						<label class="form-label">

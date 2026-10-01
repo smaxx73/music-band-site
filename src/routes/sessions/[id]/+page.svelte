@@ -8,7 +8,7 @@
 	import PlayAllButton from '$lib/components/PlayAllButton.svelte'
 	import type { PlayerTrack } from '$lib/player.svelte'
 	import { canDeleteGroupContent, canSharePublicly, formatDurationLong } from '$lib/types'
-	import type { RecordingListItem } from '$lib/types'
+	import type { RecordingListItem, SessionType } from '$lib/types'
 	import { invalidateAll } from '$app/navigation'
 
 	let { data }: { data: PageData } = $props()
@@ -23,7 +23,7 @@
 	type Group = { song: Song; recordings: SessionRecording[] }
 
 	type SessionData = {
-		id: number; date: string; type: 'repetition' | 'concert' | 'studio' | 'autre'; title: string | null
+		id: number; date: string; type: SessionType; title: string | null
 		location: string | null; location_lat: number | null; location_lon: number | null
 		notes: string | null; members: string[]
 		created_by_user_id: number | null
@@ -110,7 +110,7 @@
 
 	async function saveSession(patch: {
 		date: string
-		type: 'repetition' | 'concert' | 'studio' | 'autre'
+		type: SessionType
 		title: string | null
 		location: string | null
 		location_coords: { lat: number; lon: number } | null

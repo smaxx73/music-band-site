@@ -5,6 +5,7 @@
 	import ShareLinkDialog from '$lib/components/ShareLinkDialog.svelte'
 	import ShareMenu from '$lib/components/ShareMenu.svelte'
 	import Icon from '$lib/components/Icon.svelte'
+	import Menu from '$lib/components/Menu.svelte'
 	import TrackLead from '$lib/components/TrackLead.svelte'
 	import TrackRow from '$lib/components/TrackRow.svelte'
 	import { qualityClass } from '$lib/quality'
@@ -122,37 +123,6 @@
 	// entrée sur les prises vécues vaudrait moins que le bouton qu'il remplace.
 	let menuOpen = $state(false)
 	let playlistOpen = $state(false)
-	let menuRoot = $state<HTMLElement | null>(null)
-	let menuButton = $state<HTMLButtonElement | null>(null)
-	let menuPanel = $state<HTMLElement | null>(null)
-
-	// Les écouteurs ne vivent que le temps de l'ouverture : une session affiche des
-	// dizaines de prises, et autant de `<svelte:window>` permanents pour un menu fermé.
-	$effect(() => {
-		if (!menuOpen) return
-
-		const closeOnOutside = (e: MouseEvent) => {
-			if (menuRoot && !menuRoot.contains(e.target as Node)) menuOpen = false
-		}
-		const closeOnEscape = (e: KeyboardEvent) => {
-			if (e.key !== 'Escape') return
-			menuOpen = false
-			menuButton?.focus()
-		}
-
-		document.addEventListener('click', closeOnOutside)
-		document.addEventListener('keydown', closeOnEscape)
-		return () => {
-			document.removeEventListener('click', closeOnOutside)
-			document.removeEventListener('keydown', closeOnEscape)
-		}
-	})
-
-	// La dernière prise d'une liste ouvre son menu près du bas de la zone défilante :
-	// on l'amène à l'écran plutôt que de laisser l'utilisateur deviner qu'il doit défiler.
-	$effect(() => {
-		if (menuOpen && menuPanel) menuPanel.scrollIntoView({ block: 'nearest' })
-	})
 
 	function openPlaylist() {
 		menuOpen = false
@@ -440,58 +410,55 @@
 			</button>
 		{/if}
 
-		<div class="row-menu" bind:this={menuRoot}>
-			<button
-				class="btn btn-ghost btn-sm btn-icon row-menu-button"
-				bind:this={menuButton}
-				onclick={() => (menuOpen = !menuOpen)}
-				aria-expanded={menuOpen}
-				aria-haspopup="menu"
-				title="Autres actions"
-				aria-label="Autres actions sur la prise {recording.take}"
-			>
-				<Icon name="more" />
-			</button>
-
-			{#if menuOpen}
-				<div class="row-menu-panel" role="menu" bind:this={menuPanel}>
-					{#if recording.file_path}
-						<!-- Sans piste audio, « Voir » mène déjà à la page de la prise. -->
-						<a href="/recording/{recording.id}" class="btn btn-ghost row-menu-item" role="menuitem">
-							Ouvrir le lecteur complet
-						</a>
-						<button class="btn btn-ghost row-menu-item" role="menuitem" onclick={openPlaylist}>
-							Ajouter à une playlist
-						</button>
-					{/if}
-					<a href="/recording/{recording.id}#notes" class="btn btn-ghost row-menu-item" role="menuitem">
-						{recording.notes ? 'Modifier la note' : 'Ajouter une note'}
-					</a>
-					<a href="/recording/{recording.id}#commenter" class="btn btn-ghost row-menu-item" role="menuitem">
-						Ajouter un commentaire
-					</a>
-					<button class="btn btn-ghost row-menu-item" role="menuitem" onclick={copyGroupLinkFromMenu}>
-						{#if menuLinkCopied}<Icon name="check" /> Lien copié
-						{:else}Copier le lien pour le groupe{#if shareTime !== null}&nbsp;({formatTimecode(shareTime)}){/if}
-						{/if}
+		<div class="row-menu">
+			<Menu bind:open={menuOpen}>
+				{#snippet trigger(menu)}
+					<button
+						{...menu}
+						class="btn btn-ghost btn-sm btn-icon row-menu-button"
+						title="Autres actions"
+						aria-label="Autres actions sur la prise {recording.take}"
+					>
+						<Icon name="more" />
 					</button>
-					{#if menuFailedUrl}
-						<input
-							class="form-input row-menu-url"
-							type="text"
-							readonly
-							value={menuFailedUrl}
-							aria-label="Lien pour le groupe, à copier"
-							onfocus={(e) => e.currentTarget.select()}
-						/>
+				{/snippet}
+
+				{#if recording.file_path}
+					<!-- Sans piste audio, « Voir » mène déjà à la page de la prise. -->
+					<a href="/recording/{recording.id}" class="menu-item" role="menuitem">
+						Ouvrir le lecteur complet
+					</a>
+					<button class="menu-item" role="menuitem" onclick={openPlaylist}>
+						Ajouter à une playlist
+					</button>
+				{/if}
+				<a href="/recording/{recording.id}#notes" class="menu-item" role="menuitem">
+					{recording.notes ? 'Modifier la note' : 'Ajouter une note'}
+				</a>
+				<a href="/recording/{recording.id}#commenter" class="menu-item" role="menuitem">
+					Ajouter un commentaire
+				</a>
+				<button class="menu-item" role="menuitem" onclick={copyGroupLinkFromMenu}>
+					{#if menuLinkCopied}<Icon name="check" /> Lien copié
+					{:else}Copier le lien pour le groupe{#if shareTime !== null}&nbsp;({formatTimecode(shareTime)}){/if}
 					{/if}
-					{#if canSharePublic}
-						<button class="btn btn-ghost row-menu-item" role="menuitem" onclick={openPublicShare}>
-							Lien d'écoute public…
-						</button>
-					{/if}
-				</div>
-			{/if}
+				</button>
+				{#if menuFailedUrl}
+					<input
+						class="form-input row-menu-url"
+						type="text"
+						readonly
+						value={menuFailedUrl}
+						aria-label="Lien pour le groupe, à copier"
+						onfocus={(e) => e.currentTarget.select()}
+					/>
+				{/if}
+				{#if canSharePublic}
+					<button class="menu-item" role="menuitem" onclick={openPublicShare}>
+						Lien d'écoute public…
+					</button>
+				{/if}
+			</Menu>
 		</div>
 	</div>
 {/snippet}
@@ -676,7 +643,6 @@
 	   et posé au bord de la carte plutôt qu'aligné avec les boutons. La marge négative
 	   reprend une partie du retrait de la carte — la cible, elle, ne bouge pas. */
 	.row-menu {
-		position: relative;
 		display: none;
 		margin-left: 0.15rem;
 		margin-right: -0.4rem;
@@ -692,33 +658,6 @@
 		color: var(--color-text);
 	}
 
-	.row-menu-panel {
-		position: absolute;
-		top: calc(100% + 6px);
-		right: 0;
-		z-index: 40;
-		min-width: 14rem;
-		display: flex;
-		flex-direction: column;
-		padding: 0.25rem;
-		background: var(--color-bg);
-		border: 1px solid var(--color-border);
-		border-radius: var(--radius-lg);
-		box-shadow: var(--shadow-modal);
-	}
-
-	/* La classe voyage jusqu'au bouton playlist par `buttonClass` : elle traverse une
-	   frontière de composant, que la portée de Svelte ne suit pas. */
-	:global(.row-menu-item) {
-		width: 100%;
-		justify-content: flex-start;
-		gap: 0.5rem;
-		border-color: transparent;
-		border-radius: var(--radius-sm);
-		font-size: var(--text-sm);
-		white-space: nowrap;
-	}
-
 	.row-menu-url { margin: 0.1rem 0.25rem 0.3rem; width: auto; min-width: 0; font-size: var(--text-xs); }
 
 	@media (max-width: 640px) {
@@ -729,9 +668,6 @@
 
 		.chip { font-size: var(--text-sm); }
 		.btn-mini { font-size: 0.9rem; }
-
-		/* Une entrée de menu se touche : la cible prime sur la compacité. */
-		:global(.row-menu-item) { min-height: 44px; }
 
 		/* `.row-wide-only` voyage jusqu'au bouton playlist par `buttonClass`, hors de la
 		   portée de Svelte — d'où `:global`. Le passer sous `.row-actions` lui donne la
