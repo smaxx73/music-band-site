@@ -384,7 +384,7 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		font-size: 0.85rem;
+		font-size: var(--text-sm);
 		color: var(--color-text-muted);
 		background: rgba(245, 243, 238, 0.75);
 	}
@@ -393,7 +393,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.4rem;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 	}
 
 	.volume-toggle {

@@ -266,7 +266,7 @@
 	.header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
 	/* Le titre garde sa largeur : ce sont les boutons qui passent à la ligne. */
 	.header-text { flex: 1 0 14rem; min-width: 0; }
-	h1 { font-size: 1.4rem; margin: 0 0 0.3rem; overflow-wrap: anywhere; }
+	h1 { font-size: var(--text-xl); margin: 0 0 0.3rem; overflow-wrap: anywhere; }
 	.meta { display: flex; align-items: center; gap: 0.3rem; font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 0.15rem; }
 	.notes { display: flex; gap: 0.35rem; font-size: var(--text-sm); color: var(--color-text-secondary); margin: 0.5rem 0 0; white-space: pre-line; }
 	.header-actions { display: flex; align-items: center; gap: 0.4rem; flex: 0 1 auto; min-width: 0; flex-wrap: wrap; justify-content: flex-end; }

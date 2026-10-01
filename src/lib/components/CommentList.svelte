@@ -533,7 +533,7 @@
 		align-items: center;
 		gap: 0.6rem;
 		margin-bottom: 0.35rem;
-		font-size: 0.85rem;
+		font-size: var(--text-sm);
 	}
 
 	.timestamp-link,
@@ -543,7 +543,7 @@
 		color: #c2410c;
 		border-radius: var(--radius-md);
 		padding: 0.1rem 0.4rem;
-		font-size: 0.78rem;
+		font-size: var(--text-xs);
 		font-weight: 600;
 	}
 
@@ -552,12 +552,12 @@
 
 	.comment-date {
 		color: var(--color-text-muted);
-		font-size: 0.78rem;
+		font-size: var(--text-xs);
 		margin-left: auto;
 	}
 
 	.comment-content {
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 		margin: 0;
 		white-space: pre-wrap;
 		color: var(--color-text);
@@ -595,7 +595,7 @@
 		border: 1px solid var(--color-border-light);
 		border-radius: 20px;
 		padding: 0.05rem 0.45rem;
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		line-height: 1.5;
 		cursor: pointer;
 	}
@@ -700,7 +700,7 @@
 		width: 100%;
 		box-sizing: border-box;
 		font: inherit;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 		resize: vertical;
 	}
 

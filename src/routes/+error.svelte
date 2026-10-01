@@ -86,13 +86,13 @@
 	}
 
 	h1 {
-		font-size: 1.4rem;
+		font-size: var(--text-xl);
 		margin: 0 0 0.75rem;
 		color: var(--color-text);
 	}
 
 	.message {
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 		color: var(--color-text-muted);
 		margin: 0 0 1.5rem;
 	}

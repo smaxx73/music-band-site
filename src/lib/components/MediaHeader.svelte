@@ -244,7 +244,7 @@
 		.mh-stats { align-self: start; margin-top: 0.1rem; font-size: var(--text-xs); }
 		.mh-body { margin-top: 0.55rem; }
 		.mh-actions { justify-self: end; margin-top: 0.4rem; }
-		:is(h1, h2) { font-size: 1.2rem; }
+		:is(h1, h2) { font-size: var(--text-lg); }
 	}
 
 	@media (max-width: 640px) {

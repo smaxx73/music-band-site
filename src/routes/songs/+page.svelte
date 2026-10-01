@@ -641,7 +641,7 @@
 	}
 
 	.pill-count {
-		font-size: 0.65rem;
+		font-size: var(--text-2xs);
 		font-weight: 700;
 		opacity: 0.65;
 	}
@@ -756,7 +756,7 @@
 
 	.year-tag {
 		margin-left: 0.35rem;
-		font-size: 0.7rem;
+		font-size: var(--text-2xs);
 		font-weight: 400;
 		color: var(--color-text-muted);
 	}
@@ -788,7 +788,7 @@
 
 	.actions-cell form { margin: 0; }
 
-	.empty { color: #aaa; font-style: italic; font-size: 0.9rem; }
+	.empty { color: #aaa; font-style: italic; font-size: var(--text-sm); }
 	.message-error { color: #c0392b; font-size: var(--text-sm); margin: 0 0 0.5rem; }
 
 	/* ─── Responsive ───────────────────── */

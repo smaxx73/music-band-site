@@ -558,7 +558,7 @@
 	}
 
 	h1 {
-		font-size: 1.4rem;
+		font-size: var(--text-xl);
 		margin: 0 0 0.3rem;
 		display: flex;
 		align-items: center;
@@ -572,7 +572,7 @@
 	.song-link:hover { text-decoration: underline; }
 
 	.key {
-		font-size: 0.85rem;
+		font-size: var(--text-sm);
 		font-weight: 400;
 		background: var(--color-chip-bg);
 		color: var(--color-text-secondary);
@@ -580,7 +580,7 @@
 		border-radius: var(--radius-sm);
 	}
 
-	.meta { font-size: 0.85rem; color: #666; }
+	.meta { font-size: var(--text-sm); color: #666; }
 
 	.file-meta { margin-top: 0.15rem; font-size: var(--text-xs); overflow-wrap: anywhere; }
 	.file-meta.fallback { color: var(--color-text-muted); font-style: italic; }
@@ -715,7 +715,7 @@
 		.header-actions > :global(.share-menu-slot) { flex: 0 0 auto; }
 		.header-actions > :global(.share-menu-slot .btn) { min-height: 2.5rem; }
 
-		h1 { font-size: 1.2rem; flex-wrap: wrap; }
+		h1 { font-size: var(--text-lg); flex-wrap: wrap; }
 
 		.player-card { padding: 0.85rem 0.8rem; }
 

@@ -303,7 +303,7 @@
 	}
 
 	.np-label {
-		font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+		font-size: var(--text-2xs); font-weight: 700; text-transform: uppercase;
 		background: var(--color-accent); color: #fff; padding: 0.1rem 0.4rem; border-radius: var(--radius-sm);
 	}
 

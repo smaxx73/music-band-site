@@ -83,11 +83,20 @@
   --space-5: 1.25rem;
   --space-8: 2rem;
 
-  /* Typographie */
+  /* Typographie — sept paliers, pas de valeur entre deux. La hiérarchie fine passe par
+     la couleur (--color-text-secondary, --color-text-muted) et la graisse, pas par un
+     demi-pixel : 12, 13 et 14 px côte à côte se lisent comme du désordre.
+       2xs  11 px  compteurs de pastille, badges d'agenda, petites capitales denses
+       xs   12 px  badges, indications, dates, métadonnées secondaires
+       sm   14 px  interface courante : boutons, champs, navigation, commentaires
+       base 16 px  texte de lecture, titres de piste et de carte
+       lg   18 px  titres de modale et de section, titre de page au téléphone
+       xl   24 px  titre de page */
+  --text-2xs:  0.6875rem;
   --text-xs:   0.75rem;
   --text-sm:   0.875rem;
   --text-base: 1rem;
-  --text-lg:   1.1rem;
+  --text-lg:   1.125rem;
   --text-xl:   1.5rem;
 
   /* Police système : un « sans-serif » nu change de famille d'un OS à l'autre
@@ -242,7 +251,7 @@ textarea:focus-visible {
 
 .btn-sm {
   padding: 0.25rem 0.6rem;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
 }
 
 /* Action principale d'un formulaire d'envoi (dépôt, enregistrement). */
@@ -457,7 +466,7 @@ textarea:focus-visible {
 /* Indication sous un champ ou une section. */
 .form-hint {
   margin: 0.5rem 0 0;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
 
@@ -487,7 +496,7 @@ textarea:focus-visible {
 }
 
 .info-list dt {
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--color-text-secondary);
 }
@@ -742,7 +751,7 @@ textarea:focus-visible {
   gap: 0.35em;
   min-width: 0;
   white-space: nowrap;
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   color: var(--color-text-muted);
   margin-bottom: 1.25rem;
 }
@@ -781,7 +790,7 @@ textarea:focus-visible {
   border: 1px solid var(--color-success-border);
   border-radius: var(--radius-lg);
   padding: 0.75rem var(--space-4);
-  font-size: 0.9rem;
+  font-size: var(--text-sm);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -798,7 +807,7 @@ textarea:focus-visible {
   border: 1px solid var(--color-blue);
   border-radius: var(--radius-lg);
   padding: 0.6rem var(--space-4);
-  font-size: 0.85rem;
+  font-size: var(--text-sm);
   margin: 0 0 0.75rem;
 }
 
@@ -875,7 +884,7 @@ textarea:focus-visible {
   background: none;
   color: var(--color-text-secondary);
   font-family: inherit;
-  font-size: 0.8rem;
+  font-size: var(--text-xs);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   cursor: pointer;

@@ -68,7 +68,7 @@
 	.optional {
 		font-weight: 400;
 		color: var(--color-text-muted);
-		font-size: 0.78rem;
+		font-size: var(--text-xs);
 	}
 
 	.kind {

@@ -111,7 +111,7 @@
 	}
 
 	.hint {
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		font-weight: 400;
 		color: var(--color-text-muted);
 		margin: 0;

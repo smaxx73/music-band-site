@@ -463,7 +463,7 @@
 
 	legend {
 		font-weight: 700;
-		font-size: 0.85rem;
+		font-size: var(--text-sm);
 		text-transform: uppercase;
 		color: var(--color-text-secondary);
 		padding: 0 0.25rem;
@@ -476,12 +476,12 @@
 		margin-top: 0.75rem;
 	}
 
-	.hint { font-weight: 400; color: #aaa; font-size: 0.78rem; }
+	.hint { font-weight: 400; color: #aaa; font-size: var(--text-xs); }
 
 	.required { color: var(--color-error); }
 
 	.hint {
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		color: #666;
 		margin: 0.4rem 0 0;
 	}

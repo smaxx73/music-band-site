@@ -910,7 +910,7 @@
 	.recorder > .btn { align-self: flex-start; display: inline-flex; align-items: center; gap: 0.4rem; }
 
 	.hint {
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		color: var(--color-text-muted);
 		margin: 0;
 	}

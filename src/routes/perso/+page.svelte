@@ -338,7 +338,7 @@
 	.lede { margin: 0; font-size: var(--text-sm); color: var(--color-text-secondary); }
 	.list-header { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
 	.usage { font-size: var(--text-sm); color: var(--color-text-secondary); }
-	h2 { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; color: var(--color-text-secondary); margin: 0; }
+	h2 { font-size: var(--text-sm); font-weight: 700; text-transform: uppercase; color: var(--color-text-secondary); margin: 0; }
 
 	.source-tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 	.source-tabs button {

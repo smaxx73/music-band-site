@@ -372,7 +372,7 @@
 	h1 { font-size: var(--text-xl); margin: 0; }
 
 	h2 {
-		font-size: 0.85rem;
+		font-size: var(--text-sm);
 		font-weight: 700;
 		text-transform: uppercase;
 		color: var(--color-text-secondary);
@@ -427,7 +427,7 @@
 	.check-label input { margin-top: 0.15rem; }
 
 	.hint {
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		font-weight: 400;
 		color: var(--color-text-muted);
 		margin: 0;

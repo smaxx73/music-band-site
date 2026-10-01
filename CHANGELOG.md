@@ -38,6 +38,9 @@ fichiers MusicXML/MXL originaux. La troisième ajoute le jeton chiffré des lien
 - Menus (partage, ⋮ d'une prise, notifications) : même comportement partout, Échap rend
   le focus au bouton. Couleurs des types de session unifiées entre badges, agenda,
   tableau de bord et feuillet ; les indisponibilités prennent le rouge de la palette
+- Tailles de texte ramenées à sept paliers (11 à 24 px) : tous les titres de page à la
+  même taille, tableau de bord compris, et plus de tailles intermédiaires d'un écran à
+  l'autre
 
 ## [1.2.1] — 2026-09-29
 

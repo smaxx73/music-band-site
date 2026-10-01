@@ -346,7 +346,7 @@
 	.hint {
 		font-weight: 400;
 		color: #aaa;
-		font-size: 0.78rem;
+		font-size: var(--text-xs);
 	}
 
 	.form-actions {

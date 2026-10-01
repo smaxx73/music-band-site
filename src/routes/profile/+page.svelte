@@ -265,7 +265,7 @@
 		padding: 0;
 	}
 
-	.muted { color: var(--color-text-muted); font-size: 0.85rem; }
+	.muted { color: var(--color-text-muted); font-size: var(--text-sm); }
 
 	.password-form {
 		display: flex;

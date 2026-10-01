@@ -447,7 +447,7 @@
 
 	.song-toc-count {
 		font-weight: 700;
-		font-size: 0.65rem;
+		font-size: var(--text-2xs);
 		color: var(--color-text-muted);
 	}
 
@@ -479,7 +479,7 @@
 		color: var(--color-text-muted);
 	}
 
-	h2 { font-size: 1.25rem; line-height: 1.2; margin: 0; overflow-wrap: anywhere; }
+	h2 { font-size: var(--text-lg); line-height: 1.2; margin: 0; overflow-wrap: anywhere; }
 	h2 a { color: var(--color-primary); text-decoration: none; }
 	h2 a:hover { text-decoration: underline; }
 

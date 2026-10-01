@@ -444,7 +444,7 @@
 		display: inline-block;
 		padding: 0.15rem 0.6rem;
 		border-radius: var(--radius-pill);
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		font-weight: 600;
 		text-decoration: none;
 		border: 1px solid currentColor;
@@ -483,7 +483,7 @@
 	.input-file {
 		flex: 1 1 12rem;
 		min-width: 0;
-		font-size: 0.85rem;
+		font-size: var(--text-sm);
 	}
 
 	.links-form {
@@ -492,7 +492,7 @@
 		gap: 0.5rem 1rem;
 		align-items: center;
 	}
-	.links-form label { font-weight: 600; color: var(--color-text-secondary); font-size: 0.85rem; }
+	.links-form label { font-weight: 600; color: var(--color-text-secondary); font-size: var(--text-sm); }
 	.links-submit { grid-column: 2; }
 
 	@media (max-width: 480px) {
@@ -516,14 +516,14 @@
 	.input-title {
 		flex: 1 1 12rem;
 		min-width: 0;
-		font-size: 1.3rem;
+		font-size: var(--text-xl);
 		font-weight: 700;
 	}
 
 	.add-form { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 	.add-form .form-input { flex: 1 1 12rem; min-width: 0; }
 
-	.role-select { padding: 0.2rem 0.4rem; font-size: 0.8rem; }
+	.role-select { padding: 0.2rem 0.4rem; font-size: var(--text-xs); }
 
 	.actions { text-align: right; }
 

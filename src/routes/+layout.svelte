@@ -368,7 +368,7 @@
 		line-height: 1.1;
 	}
 	.brand-version {
-		font-size: 0.65rem;
+		font-size: var(--text-2xs);
 		font-weight: 400;
 		letter-spacing: 0;
 		color: rgba(255,255,255,0.45);
@@ -384,7 +384,7 @@
 	.top-spacer { flex: 1; }
 
 	.group-select {
-		font-size: 0.78rem;
+		font-size: var(--text-sm);
 		color: var(--color-mid);
 		border: 1px solid rgba(255,255,255,0.15);
 		border-radius: var(--radius-md);
@@ -397,7 +397,7 @@
 	}
 
 	.group-chip {
-		font-size: 0.78rem;
+		font-size: var(--text-sm);
 		color: var(--color-mid);
 		white-space: nowrap;
 		flex-shrink: 0;
@@ -421,7 +421,7 @@
 	.group-info-link {
 		color: var(--color-mid);
 		text-decoration: none;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 		flex-shrink: 0;
 	}
 	.group-info-link:hover { color: #fff; }
@@ -472,7 +472,7 @@
 		gap: 8px;
 		padding: 7px 10px;
 		border-radius: var(--radius-md);
-		font-size: 0.82rem;
+		font-size: var(--text-sm);
 		color: var(--color-mid);
 		text-decoration: none;
 		transition: background 0.1s, color 0.1s;
@@ -489,7 +489,7 @@
 	}
 
 	.sidebar-link--admin {
-		font-size: 0.76rem;
+		font-size: var(--text-sm);
 	}
 
 	/* L'icône est rendue par Icon.svelte : le style scopé ne l'atteint qu'en passant
@@ -517,7 +517,7 @@
 		color: #fff;
 		border-radius: var(--radius-md);
 		text-decoration: none;
-		font-size: 0.82rem;
+		font-size: var(--text-sm);
 		font-weight: 600;
 		text-align: center;
 		transition: opacity 0.1s;
@@ -584,7 +584,7 @@
 		border: none;
 		border-radius: var(--radius-lg);
 		color: var(--color-mid);
-		font-size: 0.85rem;
+		font-size: var(--text-sm);
 		cursor: pointer;
 		transition: background 0.1s, color 0.1s;
 	}
@@ -625,7 +625,7 @@
 		background: var(--color-bg-subtle);
 		border-bottom: 1px solid var(--color-border);
 		padding: 0.5rem 1rem;
-		font-size: 0.82rem;
+		font-size: var(--text-sm);
 		text-align: center;
 		color: var(--color-text-muted);
 	}
@@ -656,7 +656,7 @@
 		background: var(--color-warning-bg);
 		border-bottom: 1px solid var(--color-warning-border);
 		padding: 0.5rem 1rem;
-		font-size: 0.82rem;
+		font-size: var(--text-sm);
 		text-align: center;
 		color: var(--color-warning-text);
 	}

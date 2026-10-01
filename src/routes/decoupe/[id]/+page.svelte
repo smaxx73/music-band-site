@@ -743,7 +743,7 @@
 
 	legend {
 		font-weight: 700;
-		font-size: 0.85rem;
+		font-size: var(--text-sm);
 		text-transform: uppercase;
 		color: var(--color-text-secondary);
 		padding: 0 0.25rem;
@@ -798,7 +798,7 @@
 		position: absolute;
 		top: 2px;
 		left: 3px;
-		font-size: 0.65rem;
+		font-size: var(--text-2xs);
 		color: var(--color-text-secondary);
 	}
 

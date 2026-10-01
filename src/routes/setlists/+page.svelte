@@ -108,7 +108,7 @@
 	}
 	.card:hover { border-color: #bbb; }
 
-	.name { font-weight: 700; font-size: 0.95rem; }
-	.desc { font-size: 0.82rem; color: #666; margin-top: 0.15rem; }
-	.meta { font-size: 0.78rem; color: #aaa; margin-top: 0.3rem; }
+	.name { font-weight: 700; font-size: var(--text-base); }
+	.desc { font-size: var(--text-sm); color: #666; margin-top: 0.15rem; }
+	.meta { font-size: var(--text-xs); color: #aaa; margin-top: 0.3rem; }
 </style>

@@ -318,7 +318,7 @@
 	.badge-status-active { background: var(--color-success-bg); color: var(--color-success-text); }
 	.badge-status-inactive { background: var(--color-red-light); color: var(--color-red); }
 
-	.muted-note { color: var(--color-text-muted); font-style: italic; font-size: 0.8rem; }
+	.muted-note { color: var(--color-text-muted); font-style: italic; font-size: var(--text-xs); }
 
 	/* Sous 640 px le tableau devient une pile de cartes (voir app.css) : les trois
 	   champs du formulaire d'édition passent aussi en colonne. */

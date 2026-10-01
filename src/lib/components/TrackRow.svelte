@@ -129,7 +129,7 @@
 		white-space: nowrap;
 	}
 
-	.track-title { font-weight: 600; font-size: 0.95rem; }
+	.track-title { font-weight: 600; font-size: var(--text-base); }
 	.current .track-title { color: var(--color-accent); }
 
 	.track-meta {

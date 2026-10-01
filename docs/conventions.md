@@ -187,6 +187,10 @@ n'écrit dans son `<style>` que ce qui lui est propre.
 - **Couleurs, tailles, rayons, ombres** : toujours un token (`var(--color-…)`, `--text-…`,
   `--radius-…`, `--shadow-popover` / `--shadow-modal`), jamais une valeur en dur. Un besoin
   nouveau (une teinte d'avertissement, un rouge de danger) devient un token, pas un hexadécimal
+- **Tailles de police** : sept paliers, `--text-2xs` (11 px) à `--text-xl` (24 px), avec
+  leur rôle en tête de `src/app.css`. Pas de taille entre deux paliers : la nuance passe
+  par la couleur et la graisse. Une taille en dur ne règle qu'un glyphe (×, ▶, initiale
+  d'avatar), jamais du texte
 - **Colonne de page** : `<main class="page">` (720 px), `page-narrow` (640 px, formulaire ou
   liste simple) ou `page-wide` (900 px, en-tête média, tableau, agenda). Marges et repli
   mobile sont portés par la classe — ne pas redéfinir `main` dans la page

@@ -344,7 +344,7 @@
 	.hint {
 		font-weight: 400;
 		color: #aaa;
-		font-size: 0.78rem;
+		font-size: var(--text-xs);
 	}
 
 	.message-success { margin-bottom: 1rem; }
@@ -393,7 +393,7 @@
 	}
 
 	.pill-count {
-		font-size: 0.65rem;
+		font-size: var(--text-2xs);
 		font-weight: 700;
 		opacity: 0.65;
 	}

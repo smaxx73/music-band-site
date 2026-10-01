@@ -625,7 +625,7 @@
 	}
 
 	.event-badge {
-		font-size: 0.68rem;
+		font-size: var(--text-2xs);
 		padding: 1px 4px;
 		border-radius: var(--radius-sm);
 		white-space: nowrap;

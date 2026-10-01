@@ -90,7 +90,7 @@
 	.type-badge { background: var(--type-bg); color: var(--type-text); }
 
 	.meta {
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 		color: var(--color-text-secondary);
 		margin: 0;
 		overflow-wrap: anywhere;

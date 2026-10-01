@@ -242,7 +242,7 @@
 		line-height: 1;
 	}
 
-	.stat-label { font-size: 0.78rem; color: var(--color-text-muted); }
+	.stat-label { font-size: var(--text-xs); color: var(--color-text-muted); }
 
 	/* Barre disque */
 	.disk-block { margin-top: 0.5rem; }
@@ -250,7 +250,7 @@
 	.disk-label {
 		display: flex;
 		justify-content: space-between;
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		color: var(--color-text-secondary);
 		margin-bottom: 0.35rem;
 	}
@@ -275,7 +275,7 @@
 	td a { color: inherit; text-decoration: none; font-weight: 600; }
 	td a:hover { text-decoration: underline; }
 
-	.muted { color: var(--color-text-muted); font-size: 0.82rem; }
+	.muted { color: var(--color-text-muted); font-size: var(--text-sm); }
 
 	/* Sous 640 px le tableau devient une pile de cartes (voir app.css). */
 	@media (max-width: 640px) {

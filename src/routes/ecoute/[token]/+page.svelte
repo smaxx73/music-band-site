@@ -102,7 +102,7 @@
 	}
 
 	h1 {
-		font-size: 1.4rem;
+		font-size: var(--text-xl);
 		margin: 0 0 0.25rem;
 		overflow-wrap: anywhere;
 	}

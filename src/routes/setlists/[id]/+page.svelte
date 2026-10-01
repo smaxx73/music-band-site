@@ -452,7 +452,7 @@
 
 <style>
 	.setlist-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
-	h1 { font-size: 1.4rem; margin: 0 0 0.3rem; }
+	h1 { font-size: var(--text-xl); margin: 0 0 0.3rem; }
 	.desc { font-size: var(--text-sm); color: #666; margin: 0 0 0.3rem; }
 	.meta { font-size: var(--text-xs); color: var(--color-text-muted); margin: 0; }
 	.hint { font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 0.6rem; }
@@ -489,7 +489,7 @@
 	.song-option-meta { color: var(--color-text-muted); font-size: var(--text-xs); white-space: nowrap; }
 
 	@media (max-width: 640px) {
-		h1 { font-size: 1.2rem; }
+		h1 { font-size: var(--text-lg); }
 		.setlist-header { align-items: stretch; flex-direction: column; }
 		/* Le bouton d'ajout prend sa propre ligne plutôt que de serrer le titre. */
 		.add-btn { margin-left: 0; width: 100%; }

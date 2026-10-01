@@ -329,14 +329,14 @@
 	.input-title {
 		flex: 1 1 15rem;
 		min-width: 0;
-		font-size: 1.3rem;
+		font-size: var(--text-xl);
 		font-weight: 700;
 	}
 
 	.name { font-weight: 600; }
-	.muted { color: var(--color-text-muted); font-size: 0.82rem; }
+	.muted { color: var(--color-text-muted); font-size: var(--text-sm); }
 
-	.role-select { padding: 0.2rem 0.4rem; font-size: 0.8rem; }
+	.role-select { padding: 0.2rem 0.4rem; font-size: var(--text-xs); }
 
 	.add-form {
 		display: flex;
@@ -357,7 +357,7 @@
 
 	.danger-zone .section-title {
 		margin: 0 0 0.75rem;
-		font-size: 0.95rem;
+		font-size: var(--text-base);
 		color: var(--color-error);
 		border-bottom: none;
 		padding-bottom: 0;
@@ -368,7 +368,7 @@
 	.impact {
 		margin: 0 0 1.25rem;
 		padding-left: 1.1rem;
-		font-size: 0.85rem;
+		font-size: var(--text-sm);
 		line-height: 1.7;
 		color: var(--color-text-secondary);
 	}
@@ -376,7 +376,7 @@
 	.impact-value { font-weight: 700; color: var(--color-text); }
 
 	.danger-form { display: flex; flex-direction: column; gap: 0.4rem; }
-	.danger-form label { font-size: 0.82rem; color: var(--color-text-secondary); }
+	.danger-form label { font-size: var(--text-sm); color: var(--color-text-secondary); }
 
 	.danger-row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 	.danger-row .form-input { flex: 1 1 14rem; min-width: 0; }
@@ -384,14 +384,14 @@
 	.steps {
 		margin: 0 0 1.25rem;
 		padding-left: 1.2rem;
-		font-size: 0.85rem;
+		font-size: var(--text-sm);
 		line-height: 1.5;
 	}
 
 	.steps li { margin-bottom: 1rem; }
 	.steps li.disabled { opacity: 0.55; }
 
-	.step-note { margin: 0.35rem 0 0; color: var(--color-text-secondary); font-size: 0.82rem; }
+	.step-note { margin: 0.35rem 0 0; color: var(--color-text-secondary); font-size: var(--text-sm); }
 	.step-note code { background: var(--color-bg-muted); padding: 0.05rem 0.25rem; border-radius: var(--radius-sm); }
 
 	.step-actions {

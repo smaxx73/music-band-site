@@ -413,7 +413,7 @@
 
 	.notif-time {
 		margin-top: 2px;
-		font-size: 0.68rem;
+		font-size: var(--text-2xs);
 		color: var(--color-text-muted);
 	}
 

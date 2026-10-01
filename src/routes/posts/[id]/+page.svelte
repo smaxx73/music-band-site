@@ -299,7 +299,7 @@
 		display: inline-block; font-size: var(--text-xs); font-weight: 600; text-transform: uppercase;
 		letter-spacing: 0.03em; color: var(--color-text-secondary); margin-bottom: 0.2rem;
 	}
-	h1 { font-size: 1.4rem; margin: 0 0 0.2rem; overflow-wrap: anywhere; }
+	h1 { font-size: var(--text-xl); margin: 0 0 0.2rem; overflow-wrap: anywhere; }
 	.artist { margin: 0 0 0.2rem; color: var(--color-text-secondary); }
 	.meta { font-size: var(--text-xs); color: var(--color-text-muted); margin: 0; }
 	.header-actions { display: flex; gap: 0.4rem; flex-shrink: 0; flex-wrap: wrap; }

@@ -114,7 +114,7 @@
 
 	.format-label {
 		font-weight: 600;
-		font-size: 0.9rem;
+		font-size: var(--text-sm);
 	}
 
 	.format-mimes {
@@ -131,7 +131,7 @@
 		border-radius: var(--radius-pill);
 		border: none;
 		font-family: inherit;
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		font-weight: 600;
 		cursor: pointer;
 		transition: filter 0.15s;

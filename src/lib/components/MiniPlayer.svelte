@@ -166,7 +166,7 @@
 	.mini-close {
 		width: 26px;
 		height: 26px;
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 	}
 
 	.mini-next {
@@ -189,7 +189,7 @@
 		display: flex;
 		align-items: baseline;
 		gap: 0.4rem;
-		font-size: 0.78rem;
+		font-size: var(--text-sm);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -214,7 +214,7 @@
 	}
 
 	.mini-time {
-		font-size: 0.68rem;
+		font-size: var(--text-2xs);
 		color: var(--color-mid);
 		font-variant-numeric: tabular-nums;
 		flex-shrink: 0;

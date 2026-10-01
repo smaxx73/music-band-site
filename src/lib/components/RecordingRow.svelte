@@ -563,7 +563,7 @@
 	.quality-input {
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-sm);
-		font-size: 0.72rem;
+		font-size: var(--text-xs);
 		font-weight: 700;
 		font-family: inherit;
 		padding: 0.18rem 0.45rem;
@@ -580,7 +580,7 @@
 		color: #fff;
 		border: none;
 		border-radius: var(--radius-sm);
-		font-size: 0.78rem;
+		font-size: var(--text-xs);
 		font-family: inherit;
 		cursor: pointer;
 	}
@@ -593,7 +593,7 @@
 
 	.btn-mini:disabled { opacity: var(--disabled-opacity); cursor: not-allowed; }
 
-	.row-error { font-size: 0.72rem; color: var(--color-error); }
+	.row-error { font-size: var(--text-xs); color: var(--color-error); }
 
 	/* Note et commentaires partagent la même grammaire : une pastille ne paraît que
 	   s'il y a quelque chose à lire, et elle le déplie sur place. Écrire le premier
@@ -667,7 +667,7 @@
 		.row-actions :global(.btn) { min-height: 44px; }
 
 		.chip { font-size: var(--text-sm); }
-		.btn-mini { font-size: 0.9rem; }
+		.btn-mini { font-size: var(--text-sm); }
 
 		/* `.row-wide-only` voyage jusqu'au bouton playlist par `buttonClass`, hors de la
 		   portée de Svelte — d'où `:global`. Le passer sous `.row-actions` lui donne la

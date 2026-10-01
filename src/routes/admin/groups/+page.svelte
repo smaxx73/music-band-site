@@ -112,7 +112,7 @@
 	td a { color: inherit; text-decoration: none; font-weight: 600; }
 	td a:hover { text-decoration: underline; }
 
-	.muted { color: var(--color-text-muted); font-size: 0.82rem; }
+	.muted { color: var(--color-text-muted); font-size: var(--text-sm); }
 
 	.actions-cell {
 		display: flex;

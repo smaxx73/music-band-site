@@ -204,7 +204,7 @@
 		border: none;
 		color: #ccc;
 		cursor: pointer;
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		padding: 0.2rem 0.3rem;
 		border-radius: var(--radius-sm);
 		line-height: 1;

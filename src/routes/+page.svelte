@@ -464,7 +464,7 @@
 	.dash-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
 
 	h1 {
-		font-size: 1.2rem;
+		font-size: var(--text-xl);
 		margin: 0;
 		font-weight: 700;
 	}
@@ -498,14 +498,14 @@
 	}
 
 	.stat-num {
-		font-size: 1.6rem;
+		font-size: var(--text-xl);
 		font-weight: 700;
 		color: var(--color-accent);
 		line-height: 1;
 	}
 
 	.stat-label {
-		font-size: 0.72rem;
+		font-size: var(--text-2xs);
 		color: var(--color-text-muted);
 		text-transform: uppercase;
 		letter-spacing: 0.04em;
@@ -523,7 +523,7 @@
 	}
 
 	h2 {
-		font-size: 0.72rem;
+		font-size: var(--text-2xs);
 		margin: 0;
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
@@ -621,7 +621,7 @@
 	}
 
 	.item-badge {
-		font-size: 0.65rem;
+		font-size: var(--text-2xs);
 		font-weight: 600;
 		padding: 1px 7px;
 		border-radius: 20px;
@@ -653,7 +653,7 @@
 	.event-create-btn {
 		display: inline-block;
 		margin-top: 0.5rem;
-		font-size: 0.76rem;
+		font-size: var(--text-xs);
 		font-weight: 600;
 		color: var(--color-accent);
 		text-decoration: none;
@@ -672,13 +672,13 @@
 
 	.session-date {
 		font-weight: 700;
-		font-size: 0.88rem;
+		font-size: var(--text-sm);
 		text-transform: capitalize;
 		color: var(--color-text);
 	}
 
 	.session-loc {
-		font-size: 0.78rem;
+		font-size: var(--text-xs);
 		color: var(--color-text-muted);
 	}
 
@@ -689,7 +689,7 @@
 	}
 
 	.song-pill {
-		font-size: 0.72rem;
+		font-size: var(--text-2xs);
 		background: var(--color-accent-light);
 		color: var(--color-learning-text);
 		border-radius: 20px;
@@ -698,14 +698,14 @@
 	}
 
 	.session-count {
-		font-size: 0.78rem;
+		font-size: var(--text-xs);
 		color: var(--color-text-muted);
 	}
 
 	/* ─── Next event ───────────────────── */
 	.unavail-line {
 		margin: 0.5rem 0 0;
-		font-size: 0.8rem;
+		font-size: var(--text-xs);
 		color: var(--color-text-secondary);
 	}
 
@@ -765,13 +765,13 @@
 	a.timeline-body:hover .timeline-label { color: var(--color-accent); }
 
 	.timeline-label {
-		font-size: 0.82rem;
+		font-size: var(--text-sm);
 		font-weight: 700;
 		color: var(--color-text);
 	}
 
 	.timeline-detail {
-		font-size: 0.76rem;
+		font-size: var(--text-xs);
 		color: var(--color-text-muted);
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -779,7 +779,7 @@
 	}
 
 	.timeline-date {
-		font-size: 0.7rem;
+		font-size: var(--text-2xs);
 		color: var(--color-border);
 	}
 
@@ -809,13 +809,13 @@
 	.playlist-card:hover { border-color: var(--color-accent); }
 
 	.playlist-name {
-		font-size: 0.82rem;
+		font-size: var(--text-sm);
 		font-weight: 600;
 		color: var(--color-text);
 	}
 
 	.playlist-meta {
-		font-size: 0.73rem;
+		font-size: var(--text-xs);
 		color: var(--color-text-muted);
 		white-space: nowrap;
 	}

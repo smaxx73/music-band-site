@@ -181,9 +181,9 @@
 		border-radius: var(--radius-sm);
 	}
 
-	.composer { font-size: 0.9rem; color: var(--color-text-secondary); margin: 0; }
+	.composer { font-size: var(--text-sm); color: var(--color-text-secondary); margin: 0; }
 	.composer .year { color: var(--color-text-muted); }
-	.ref-duration { font-size: 0.85rem; color: var(--color-text-muted); margin: 0; }
+	.ref-duration { font-size: var(--text-sm); color: var(--color-text-muted); margin: 0; }
 
 	.footer-actions { margin-top: 2rem; display: flex; flex-wrap: wrap; gap: 0.6rem; }
 

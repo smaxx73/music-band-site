@@ -178,14 +178,14 @@
 	.optional {
 		font-weight: 400;
 		color: var(--color-text-muted);
-		font-size: 0.78rem;
+		font-size: var(--text-xs);
 	}
 
 	/* Intertitre porté par la première suggestion de chaque groupe. */
 	.choice-heading {
 		display: block;
 		margin: -0.1rem 0 0.3rem;
-		font-size: 0.68rem;
+		font-size: var(--text-2xs);
 		font-weight: 700;
 		letter-spacing: 0.05em;
 		text-transform: uppercase;
