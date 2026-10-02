@@ -697,11 +697,10 @@
 		margin-bottom: 2rem;
 	}
 
-	/* Collé en haut de la colonne qui défile (`.app-content` sur ordinateur, la page
-	   elle-même sous la barre du haut sur mobile). */
+	/* Collé sous la barre du haut, elle-même collée en haut de la fenêtre. */
 	.player-card.sticky {
 		position: sticky;
-		top: 0;
+		top: var(--top-bar-h);
 		z-index: 5;
 	}
 
@@ -718,8 +717,5 @@
 		h1 { font-size: var(--text-lg); flex-wrap: wrap; }
 
 		.player-card { padding: 0.85rem 0.8rem; }
-
-		/* La barre du haut y est elle-même collée : on se pose dessous, pas dessus. */
-		.player-card.sticky { top: 44px; }
 	}
 </style>

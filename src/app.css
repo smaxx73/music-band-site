@@ -124,6 +124,14 @@
      Partagée avec le mini-lecteur pour empiler les deux sans se chevaucher. */
   --footer-actions-h: 48px;
 
+  /* Barre du haut, collée en haut de la fenêtre : tout ce qui se colle ou se vise par
+     ancre se pose dessous. */
+  --top-bar-h: 44px;
+
+  /* Hauteur du mini-lecteur, mesurée et posée sur le body par MiniPlayer.svelte quand il
+     est affiché : la sidebar et la fin du contenu s'arrêtent au-dessus. */
+  --mini-player-h: 0px;
+
   /* Largeur de colonne d'une page (.page) : 640 formulaire ou liste simple, 720 par
      défaut, 900 pour les en-têtes média, les tableaux, l'agenda et la découpe. */
   --page-narrow: 640px;
@@ -944,16 +952,32 @@ html, body {
   height: 100%;
 }
 
-.app-shell {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
+/* C'est la fenêtre qui défile, pas une colonne interne : SvelteKit ne remet en haut et ne
+   restaure au retour arrière que le défilement de la fenêtre. Barre du haut, sidebar et
+   mini-lecteur se collent à l'écran au lieu de cadrer une zone qui défilerait seule. */
+html:has(.app-shell) {
+  scroll-padding-top: var(--top-bar-h);
+  /* Réserve la place de la barre de défilement : la masquer sous une modale ne doit
+     pas décaler la page. */
+  scrollbar-gutter: stable;
+}
+
+/* Une modale ouverte fige la page derrière elle. */
+html:has(.modal-backdrop) {
   overflow: hidden;
 }
 
+.app-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
 .app-top-bar {
+  position: sticky;
+  top: 0;
   flex-shrink: 0;
-  height: 44px;
+  height: var(--top-bar-h);
   background: var(--color-ink);
   display: flex;
   align-items: center;
@@ -965,10 +989,13 @@ html, body {
 .app-body {
   flex: 1;
   display: flex;
-  overflow: hidden;
 }
 
 .app-sidebar {
+  position: sticky;
+  top: var(--top-bar-h);
+  align-self: flex-start;
+  height: calc(100vh - var(--top-bar-h) - var(--mini-player-h));
   width: 188px;
   flex-shrink: 0;
   background: var(--color-ink);
@@ -982,7 +1009,6 @@ html, body {
 
 .app-content {
   flex: 1;
-  overflow-y: auto;
   background: var(--color-bg);
   min-width: 0;
 }
@@ -992,6 +1018,5 @@ html, body {
    on dégage la fin du contenu d'autant. Le mini-lecteur, quand présent, s'empile
    au-dessus d'elle (voir MiniPlayer.svelte) et prend une marge supplémentaire. */
 @media (max-width: 640px) {
-  .app-content { padding-bottom: var(--footer-actions-h); }
-  body.has-mini-player .app-content { padding-bottom: calc(var(--footer-actions-h) + 64px); }
+  .app-content { padding-bottom: calc(var(--footer-actions-h) + var(--mini-player-h)); }
 }

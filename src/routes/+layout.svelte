@@ -61,6 +61,27 @@
 		return page.url.pathname === prefix || page.url.pathname.startsWith(prefix + '/')
 	}
 
+	// « page » sur la page même, « true » dans sa section (une session sous Sessions).
+	function ariaCurrent(prefix: string): 'page' | 'true' | undefined {
+		if (page.url.pathname === prefix) return 'page'
+		return isActive(prefix) ? 'true' : undefined
+	}
+
+	let menuToggle = $state<HTMLButtonElement | null>(null)
+
+	// Fermé sans naviguer (Échap, fond) : le focus revient au bouton qui l'a ouvert,
+	// au lieu de rester sur un lien devenu invisible.
+	function closeMenu() {
+		menuOpen = false
+		menuToggle?.focus()
+	}
+
+	// Ouvert : le focus entre dans le tiroir, là où le clavier doit poursuivre.
+	$effect(() => {
+		if (!menuOpen) return
+		document.querySelector<HTMLAnchorElement>('#app-nav a')?.focus()
+	})
+
 	async function switchGroup(e: Event) {
 		const select = e.currentTarget as HTMLSelectElement
 		const groupId = Number(select.value)
@@ -121,7 +142,7 @@
 </svelte:head>
 
 <svelte:window
-	onkeydown={(e) => { if (e.key === 'Escape') menuOpen = false }}
+	onkeydown={(e) => { if (e.key === 'Escape' && menuOpen) closeMenu() }}
 	onresize={() => { if (window.innerWidth > 640) menuOpen = false }}
 />
 
@@ -130,10 +151,12 @@
 		<!-- Top bar -->
 		<header class="app-top-bar">
 			<button
+				bind:this={menuToggle}
 				class="menu-toggle"
 				onclick={() => (menuOpen = !menuOpen)}
 				aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
 				aria-expanded={menuOpen}
+				aria-controls="app-nav"
 			>
 				<Icon name={menuOpen ? 'close' : 'menu'} size="1.15rem" />
 			</button>
@@ -175,6 +198,7 @@
 					href="/record"
 					class="top-record"
 					class:active={isActive('/record')}
+					aria-current={ariaCurrent('/record')}
 					title="Enregistrer maintenant"
 					aria-label="Enregistrer maintenant"
 				><Icon name="mic" size="1rem" /></a>
@@ -192,6 +216,7 @@
 					href="/profile"
 					class="user-avatar"
 					class:active={isActive('/profile')}
+					aria-current={ariaCurrent('/profile')}
 					title="{data.user.display_name} — mon profil"
 				>{userInitials}</a>
 			</div>
@@ -202,16 +227,16 @@
 				<button
 					class="nav-backdrop"
 					aria-label="Fermer le menu"
-					onclick={() => (menuOpen = false)}
+					onclick={closeMenu}
 				></button>
 			{/if}
 
 			<!-- Sidebar (tiroir sur mobile) -->
-			<nav class="app-sidebar" class:open={menuOpen}>
+			<nav id="app-nav" class="app-sidebar" class:open={menuOpen} aria-label="Navigation principale">
 				<ul class="sidebar-nav">
 					{#each navItems as item}
 						<li>
-							<a href={item.href} class="sidebar-link" class:active={isActive(item.href)}>
+							<a href={item.href} class="sidebar-link" class:active={isActive(item.href)} aria-current={ariaCurrent(item.href)}>
 								<Icon name={item.icon} class="nav-icon" size="0.95rem" />
 								{item.label}
 							</a>
@@ -220,7 +245,7 @@
 					{#if isAdmin(data.user?.role)}
 						<li class="sidebar-sep"></li>
 						<li>
-							<a href="/admin" class="sidebar-link sidebar-link--admin" class:active={isActive('/admin')}>
+							<a href="/admin" class="sidebar-link sidebar-link--admin" class:active={isActive('/admin')} aria-current={ariaCurrent('/admin')}>
 								<Icon name="settings" class="nav-icon" size="0.95rem" />
 								Admin
 							</a>
@@ -230,13 +255,13 @@
 
 				<div class="sidebar-spacer"></div>
 
-				<a href="/upload" class="sidebar-upload" class:active={isActive('/upload')}>
+				<a href="/upload" class="sidebar-upload" class:active={isActive('/upload')} aria-current={ariaCurrent('/upload')}>
 					<Icon name="plus" size="0.95rem" />
 					Uploader
 				</a>
 
 				<div class="sidebar-account">
-					<a href="/profile" class="sidebar-user" class:active={isActive('/profile')}>
+					<a href="/profile" class="sidebar-user" class:active={isActive('/profile')} aria-current={ariaCurrent('/profile')}>
 						<div class="sidebar-avatar">{userInitials}</div>
 						<span class="sidebar-username">{data.user.display_name}</span>
 					</a>
@@ -253,8 +278,8 @@
 				</div>
 			</nav>
 
-			<!-- Page content -->
-			<div class="app-content">
+			<!-- Page content : hors d'atteinte du clavier tant que le tiroir le recouvre -->
+			<div class="app-content" inert={menuOpen}>
 				{#if groupSwitchError}
 					<div class="group-switch-banner" role="alert">{groupSwitchError}</div>
 				{/if}
@@ -674,15 +699,7 @@
 		.top-upload,
 		.top-record { display: flex; }
 
-		.app-shell {
-			height: auto;
-			min-height: 100vh;
-			overflow: visible;
-		}
-
 		.app-top-bar {
-			position: sticky;
-			top: 0;
 			padding: 0 0.7rem;
 			gap: 0.6rem;
 		}
@@ -729,39 +746,39 @@
 			height: 1.05rem;
 		}
 
-		.app-body {
-			flex-direction: column;
-			overflow: visible;
-		}
+		.app-body { flex-direction: column; }
 
 		/* Hors écran par défaut, glisse à l'ouverture du menu. S'arrête au-dessus de la
 		   barre d'actions (et du mini-lecteur) : sinon le bas du tiroir — compte, liens
-		   légaux, version — passe dessous, hors d'atteinte même en défilant. */
+		   légaux, version — passe dessous, hors d'atteinte même en défilant.
+		   Fermé, il est aussi masqué (`visibility`) : déplacé seulement, ses liens
+		   resteraient atteignables au clavier et lus par les lecteurs d'écran. Le masquage
+		   attend la fin du glissement pour ne pas couper l'animation. */
 		.app-sidebar {
 			position: fixed;
-			top: 44px;
-			bottom: var(--footer-actions-h);
+			top: var(--top-bar-h);
+			bottom: calc(var(--footer-actions-h) + var(--mini-player-h));
 			left: 0;
+			height: auto;
 			width: 218px;
 			z-index: 90;
 			transform: translateX(-100%);
-			transition: transform 0.18s ease-out;
+			visibility: hidden;
+			transition: transform 0.18s ease-out, visibility 0s linear 0.18s;
 			border-right: 1px solid rgba(255,255,255,0.08);
-		}
-
-		:global(body.has-mini-player) .app-sidebar {
-			bottom: calc(var(--footer-actions-h) + 64px);
 		}
 
 		.app-sidebar.open {
 			transform: none;
+			visibility: visible;
+			transition: transform 0.18s ease-out;
 			box-shadow: 4px 0 20px rgba(0,0,0,0.3);
 		}
 
 		.nav-backdrop {
 			display: block;
 			position: fixed;
-			inset: 44px 0 0;
+			inset: var(--top-bar-h) 0 0;
 			z-index: 80;
 			background: rgba(0,0,0,0.45);
 			border: none;
@@ -771,7 +788,6 @@
 
 		.sidebar-link { padding: 10px 10px; }
 
-		.app-content { overflow-y: visible; }
 	}
 
 	@media (max-width: 400px) {

@@ -22,12 +22,13 @@
 	const total = $derived(validDuration(player.duration) || validDuration(player.track?.durationS))
 	const progress = $derived(total > 0 ? Math.max(0, Math.min(100, (player.currentTime / total) * 100)) : 0)
 
-	// Sur mobile la barre est en position fixe : le bas du contenu passerait dessous.
-	// Même approche que le tiroir de navigation, qui pose déjà un style sur le body.
+	// La sidebar et, sur mobile où la barre est fixe, la fin du contenu s'arrêtent
+	// au-dessus d'elle : sa hauteur réelle est publiée sur le body (`--mini-player-h`).
+	let barHeight = $state(0)
 	$effect(() => {
-		if (!visible) return
-		document.body.classList.add('has-mini-player')
-		return () => document.body.classList.remove('has-mini-player')
+		if (!visible || barHeight === 0) return
+		document.body.style.setProperty('--mini-player-h', `${barHeight}px`)
+		return () => document.body.style.removeProperty('--mini-player-h')
 	})
 
 	function formatTime(s: number) {
@@ -71,7 +72,7 @@
 {#if visible && player.track}
 	<!-- Comme la mini-barre d'une plateforme d'écoute : la pochette du morceau, ce qui
 	     joue, puis les commandes. -->
-	<div class="mini-player">
+	<div class="mini-player" bind:offsetHeight={barHeight}>
 		<a href="/recording/{player.track.recordingId}" class="mini-cover" tabindex="-1" aria-hidden="true">
 			<SongCover songId={player.track.songId} title={player.track.songTitle} size={38} />
 		</a>
@@ -121,7 +122,11 @@
 {/if}
 
 <style>
+	/* Collée au bas de la fenêtre, qui défile : dernière du shell, elle ne recouvre
+	   jamais la fin du contenu. */
 	.mini-player {
+		position: sticky;
+		bottom: 0;
 		flex-shrink: 0;
 		display: flex;
 		align-items: center;
@@ -253,8 +258,7 @@
 		background: #fff;
 	}
 
-	/* Le shell ne scrolle plus : la barre est fixée au bas de l'écran, juste
-	   au-dessus de la barre d'actions (enregistrement/upload/notifications). */
+	/* Fixée juste au-dessus de la barre d'actions (enregistrement/upload/notifications). */
 	@media (max-width: 640px) {
 		.mini-player {
 			position: fixed;
