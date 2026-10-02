@@ -324,7 +324,7 @@
 
 	.notes {
 		font-size: var(--text-sm);
-		color: #444;
+		color: var(--color-text);
 		background: var(--color-bg-subtle);
 		border-left: 3px solid var(--color-border-light);
 		padding: 0.5rem 0.75rem;
@@ -345,7 +345,7 @@
 
 	.hint {
 		font-weight: 400;
-		color: #aaa;
+		color: var(--color-text-muted);
 		font-size: var(--text-xs);
 	}
 

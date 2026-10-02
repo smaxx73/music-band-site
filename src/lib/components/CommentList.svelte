@@ -466,7 +466,7 @@
 
 <style>
 	:global(.comment.highlight) {
-		background: #fffbe6 !important;
+		background: var(--color-highlight) !important;
 		transition: background 0s;
 	}
 
@@ -538,9 +538,9 @@
 
 	.timestamp-link,
 	.timestamp-badge {
-		background: #fff7ed;
-		border: 1px solid #fed7aa;
-		color: #c2410c;
+		background: var(--color-accent-light);
+		border: 1px solid var(--color-accent-light);
+		color: var(--color-accent-dark);
 		border-radius: var(--radius-md);
 		padding: 0.1rem 0.4rem;
 		font-size: var(--text-xs);
@@ -548,7 +548,7 @@
 	}
 
 	.timestamp-link { cursor: pointer; }
-	.timestamp-link:hover { background: #ffedd5; }
+	.timestamp-link:hover { border-color: var(--color-accent); }
 
 	.comment-date {
 		color: var(--color-text-muted);

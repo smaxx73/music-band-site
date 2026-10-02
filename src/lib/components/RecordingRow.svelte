@@ -604,7 +604,7 @@
 		align-items: center;
 		justify-content: center;
 		background: var(--color-chip-bg);
-		color: #444;
+		color: var(--color-text);
 		border: 1px solid transparent;
 		border-radius: 10px;
 		padding: 0.15rem 0.5rem;

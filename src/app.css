@@ -6,6 +6,7 @@
   --color-mid:          #9B9489;
   --color-accent:       #E25E36;
   --color-accent-light: #F9E3DC;
+  --color-accent-dark:  #C04520;  /* orange lisible sur fond clair (texte, repères) */
   --color-green:        #5A9E6F;
   --color-green-light:  #D8EFE0;
   --color-blue:         #4A7DB5;
@@ -30,7 +31,7 @@
 
   /* Statuts — palette chaude */
   --color-learning-bg:      var(--color-accent-light);
-  --color-learning-text:    #C04520;
+  --color-learning-text:    var(--color-accent-dark);
   --color-repertoire-bg:    var(--color-green-light);
   --color-repertoire-text:  #3D7A50;
   --color-progress-bg:      var(--color-blue-light);
@@ -74,6 +75,7 @@
   --color-success-bg:     var(--color-green-light);
   --color-success-border: #B8DFC8;
   --color-success-text:   #3D7A50;
+  --color-highlight:      #fffbe6;  /* élément visé par un lien, un instant mis en évidence */
 
   /* Espacement */
   --space-1: 0.25rem;

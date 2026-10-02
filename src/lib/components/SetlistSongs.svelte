@@ -154,7 +154,7 @@
 	.on-tray .item { background: var(--color-bg); }
 	.on-tray .item:hover { background: var(--color-bg-muted); }
 
-	.drag-handle { color: #ccc; cursor: grab; user-select: none; }
+	.drag-handle { color: var(--color-border); cursor: grab; user-select: none; }
 	.drag-handle:active { cursor: grabbing; }
 
 	.pos {
@@ -187,7 +187,7 @@
 
 	.duration { font-size: var(--text-xs); color: var(--color-text-secondary); flex-shrink: 0; }
 	/* Une durée inconnue se voit sans se lire comme un zéro. */
-	.duration.unknown { color: #ccc; }
+	.duration.unknown { color: var(--color-border); }
 
 	.move { display: flex; gap: 0.1rem; flex-shrink: 0; }
 
@@ -204,7 +204,7 @@
 
 	.move-btn:hover:not(:disabled) { color: var(--color-accent); background: var(--color-bg-subtle); }
 	.move-btn:disabled { opacity: var(--disabled-opacity); cursor: default; }
-	.remove-btn:hover:not(:disabled) { color: var(--color-error); background: #fef2f2; }
+	.remove-btn:hover:not(:disabled) { color: var(--color-error); background: var(--color-danger-bg); }
 	.remove-btn:disabled { opacity: var(--disabled-opacity); cursor: wait; }
 
 	@media (max-width: 640px) {

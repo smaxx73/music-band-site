@@ -476,13 +476,13 @@
 		margin-top: 0.75rem;
 	}
 
-	.hint { font-weight: 400; color: #aaa; font-size: var(--text-xs); }
+	.hint { font-weight: 400; color: var(--color-text-muted); font-size: var(--text-xs); }
 
 	.required { color: var(--color-error); }
 
 	.hint {
 		font-size: var(--text-xs);
-		color: #666;
+		color: var(--color-text-secondary);
 		margin: 0.4rem 0 0;
 	}
 

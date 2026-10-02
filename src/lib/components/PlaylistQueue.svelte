@@ -136,7 +136,7 @@
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
-		border: 1px solid #f0f0f0;
+		border: 1px solid var(--color-border-light);
 		border-radius: var(--radius-lg);
 		padding: 0.5rem 0.75rem;
 		transition: background 0.1s, border-color 0.1s;
@@ -144,8 +144,9 @@
 	}
 
 	.item.active {
-		background: #f0f7ff;
-		border-color: #bfdbfe;
+		/* Même « en cours » que les pistes en lecture (TrackRow). */
+		background: color-mix(in srgb, var(--color-accent-light) 55%, var(--color-bg));
+		border-color: var(--color-accent-light);
 	}
 
 	.item.drag-over {
@@ -158,7 +159,7 @@
 	}
 
 	.drag-handle {
-		color: #ccc;
+		color: var(--color-border);
 		cursor: grab;
 		font-size: var(--text-base);
 		user-select: none;
@@ -181,7 +182,7 @@
 
 	.item-pos {
 		font-size: var(--text-xs);
-		color: #bbb;
+		color: var(--color-text-muted);
 		width: 1.5rem;
 		text-align: right;
 		flex-shrink: 0;
@@ -196,13 +197,13 @@
 	}
 
 	.item-title { font-weight: 600; font-size: var(--text-sm); }
-	.item-meta { font-size: var(--text-xs); color: #999; }
+	.item-meta { font-size: var(--text-xs); color: var(--color-text-muted); }
 	.item-note { font-size: var(--text-xs); color: var(--color-text-muted); font-style: italic; }
 
 	.remove-btn {
 		background: none;
 		border: none;
-		color: #ccc;
+		color: var(--color-border);
 		cursor: pointer;
 		font-size: var(--text-xs);
 		padding: 0.2rem 0.3rem;
@@ -212,6 +213,6 @@
 
 	.remove-btn:hover {
 		color: var(--color-error);
-		background: #fef2f2;
+		background: var(--color-danger-bg);
 	}
 </style>

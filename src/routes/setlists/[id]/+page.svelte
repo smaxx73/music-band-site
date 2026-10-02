@@ -453,7 +453,7 @@
 <style>
 	.setlist-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
 	h1 { font-size: var(--text-xl); margin: 0 0 0.3rem; }
-	.desc { font-size: var(--text-sm); color: #666; margin: 0 0 0.3rem; }
+	.desc { font-size: var(--text-sm); color: var(--color-text-secondary); margin: 0 0 0.3rem; }
 	.meta { font-size: var(--text-xs); color: var(--color-text-muted); margin: 0; }
 	.hint { font-size: var(--text-xs); color: var(--color-text-muted); margin: 0 0 0.6rem; }
 

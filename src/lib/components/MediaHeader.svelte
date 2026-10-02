@@ -82,7 +82,7 @@
 	   une session celle de son type. Tons assez clairs pour garder le texte sombre.
 	   Large : le texte, centré sur la hauteur du visuel, entre lui et les commandes. */
 	.media-header {
-		--mh-bg: linear-gradient(135deg, #EEE9DF, #E1D9C9);
+		--mh-bg: linear-gradient(135deg, var(--color-bg-muted), #E1D9C9);
 		--mh-ink-soft: #57524B;
 		display: grid;
 		grid-template-columns: 104px minmax(0, 1fr) auto;

@@ -740,14 +740,7 @@
 
 	.required { color: var(--color-error); }
 
-	.message-success {
-		color: var(--color-repertoire-text, #166534);
-		background: var(--color-repertoire-bg, #dcfce7);
-		border-radius: var(--radius-md);
-		padding: 0.4rem 0.75rem;
-		font-size: var(--text-sm);
-		margin: 0 0 1.5rem;
-	}
+	.message-success { margin: 0 0 1.5rem; }
 
 	td.center { text-align: center; }
 	td.title { font-weight: 600; }
@@ -772,7 +765,7 @@
 	tr.abandoned td { opacity: 0.5; }
 
 	.editing-row td {
-		background: #fffbe6;
+		background: var(--color-bg-subtle);
 		padding: 1rem 0.75rem;
 	}
 
@@ -788,8 +781,8 @@
 
 	.actions-cell form { margin: 0; }
 
-	.empty { color: #aaa; font-style: italic; font-size: var(--text-sm); }
-	.message-error { color: #c0392b; font-size: var(--text-sm); margin: 0 0 0.5rem; }
+	.empty { font-size: var(--text-sm); }
+	.message-error { margin: 0 0 0.5rem; }
 
 	/* ─── Responsive ───────────────────── */
 	@media (max-width: 640px) {

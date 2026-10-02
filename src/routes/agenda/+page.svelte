@@ -588,7 +588,7 @@
 
 	.day-selected,
 	.day-selected:hover {
-		background: #f0f4ff;
+		background: var(--color-bg-muted);
 	}
 
 	.day-today .day-number {

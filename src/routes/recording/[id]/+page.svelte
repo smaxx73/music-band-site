@@ -580,7 +580,7 @@
 		border-radius: var(--radius-sm);
 	}
 
-	.meta { font-size: var(--text-sm); color: #666; }
+	.meta { font-size: var(--text-sm); color: var(--color-text-secondary); }
 
 	.file-meta { margin-top: 0.15rem; font-size: var(--text-xs); overflow-wrap: anywhere; }
 	.file-meta.fallback { color: var(--color-text-muted); font-style: italic; }

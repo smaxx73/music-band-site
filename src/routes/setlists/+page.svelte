@@ -106,9 +106,9 @@
 		display: block; border: 1px solid var(--color-border-light); border-radius: var(--radius-lg);
 		padding: 0.9rem 1rem; text-decoration: none; color: inherit; transition: border-color 0.15s;
 	}
-	.card:hover { border-color: #bbb; }
+	.card:hover { border-color: var(--color-border); }
 
 	.name { font-weight: 700; font-size: var(--text-base); }
-	.desc { font-size: var(--text-sm); color: #666; margin-top: 0.15rem; }
-	.meta { font-size: var(--text-xs); color: #aaa; margin-top: 0.3rem; }
+	.desc { font-size: var(--text-sm); color: var(--color-text-secondary); margin-top: 0.15rem; }
+	.meta { font-size: var(--text-xs); color: var(--color-text-muted); margin-top: 0.3rem; }
 </style>

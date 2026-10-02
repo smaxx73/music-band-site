@@ -343,7 +343,7 @@
 
 	.hint {
 		font-weight: 400;
-		color: #aaa;
+		color: var(--color-text-muted);
 		font-size: var(--text-xs);
 	}
 
