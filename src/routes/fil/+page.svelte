@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types'
-	import { onMount } from 'svelte'
+	import { untrack } from 'svelte'
 	import { invalidateAll, replaceState } from '$app/navigation'
 	import { page } from '$app/state'
 	import FeedItem from '$lib/components/FeedItem.svelte'
@@ -19,14 +19,18 @@
 	// Sur place : on publie là où la publication va apparaître, sans passer par l'espace perso.
 	let publishOpen = $state(false)
 
-	// `/fil?publier` : le « + Publier » du tableau de bord arrive ici, formulaire ouvert.
-	onMount(() => {
+	// `/fil?publier` : « Publier » du menu Ajouter et du tableau de bord arrive ici,
+	// formulaire ouvert. Suivi sur l'URL, pas au montage : le menu y mène aussi depuis
+	// le fil lui-même, sans remonter la page.
+	$effect(() => {
 		if (!page.url.searchParams.has('publier')) return
-		publishOpen = true
-		// Retiré de l'URL : un rechargement ne doit pas rouvrir le formulaire.
-		const url = new URL(page.url)
-		url.searchParams.delete('publier')
-		replaceState(url, page.state)
+		untrack(() => {
+			publishOpen = true
+			// Retiré de l'URL : un rechargement ne doit pas rouvrir le formulaire.
+			const url = new URL(page.url)
+			url.searchParams.delete('publier')
+			replaceState(url, page.state)
+		})
 	})
 
 	async function onPublished() {

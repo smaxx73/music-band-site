@@ -53,6 +53,8 @@ src/
 │       ├── IconCover.svelte       # visuel fixe d'une page qui rassemble des morceaux (référentiel, playlist)
 │       ├── RecordingComments.svelte # commentaires d'une prise chargés à la demande (hors lecteur)
 │       ├── NotificationsMenu.svelte # cloche + menu des notifications (barre du haut)
+│       ├── GroupSwitcher.svelte   # groupe actif (logo, nom) et changement de groupe
+│       ├── AddMenu.svelte         # « + Ajouter » : enregistrer, envoyer, session, publier
 │       ├── PlaylistQueue.svelte   # mode édition d'une playlist : ordre (glisser), retrait
 │       ├── PlaylistTrackRow.svelte # une piste de playlist, en lecture
 │       ├── SongListRow.svelte     # un morceau du référentiel, en lecture (/songs)
@@ -220,8 +222,8 @@ sa vue de lecture est une liste, `SongListRow.svelte`), `/admin/users`,
 `/admin/groups`, `/playlists`.
 
 Attention à la largeur réellement disponible : la colonne de contenu vaut la fenêtre **moins
-les 188 px de la sidebar**. Un tableau confortable à 640 px de bascule ne l'est pas à 900 px
-de fenêtre.
+les 188 px de la sidebar** à partir de 1024 px, moins les 76 px du rail entre 641 et 1023 px.
+Un tableau confortable à 640 px de bascule ne l'est pas forcément à 1024 px de fenêtre.
 
 - Tout tableau porte `class="data-table"` (styles dans `src/app.css`) — ne jamais redéfinir
   `table` / `th` / `td` dans le `<style>` d'une page

@@ -249,7 +249,7 @@
 				<div class="dash-actions">
 					<a href="/agenda" class="btn btn-secondary btn-sm"><Icon name="agenda" size="0.85rem" /> Agenda</a>
 					<a href="/fil?publier" class="btn btn-secondary btn-sm">+ Publier</a>
-					<a href="/sessions" class="btn btn-primary btn-sm">+ Session</a>
+					<a href="/sessions?nouvelle" class="btn btn-primary btn-sm">+ Session</a>
 				</div>
 			</div>
 

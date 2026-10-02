@@ -160,7 +160,7 @@
 
 <main class="page">
 	<nav class="breadcrumb">
-		<a href="/">Tableau de bord</a> / <span>{kindLabel}</span>
+		<a href="/fil">Fil d'actualité</a> / <span>{kindLabel}</span>
 	</nav>
 
 	<div class="header">

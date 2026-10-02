@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { SESSION_TYPES, sessionTypeLabel } from '$lib/types'
 	import type { PageData } from './$types'
-	import { goto } from '$app/navigation'
+	import { afterNavigate, goto } from '$app/navigation'
+	import { backLinkFrom, type BackLink } from '$lib/back-link'
 	import { formatDateOnly, localDateOnly, sessionOfDay } from '$lib/date'
 	import SongDetails from '$lib/components/SongDetails.svelte'
 	import LocationInput from '$lib/components/LocationInput.svelte'
@@ -31,6 +32,18 @@
 	const selectedSongData = $derived(songs.find((song) => String(song.id) === selectedSong) ?? null)
 	const requestedSessionId = $derived(data.selectedSessionId)
 	const requestedSongId = $derived(data.selectedSongId)
+
+	// Venu d'ailleurs dans l'application, on y revient ; ouvert directement avec une
+	// session choisie, on rejoint cette session.
+	let back = $state<BackLink>({ href: '/', label: 'Tableau de bord', fromHistory: false })
+	afterNavigate(({ from }) => {
+		back = backLinkFrom(
+			from?.url,
+			requestedSessionId
+				? { href: `/sessions/${requestedSessionId}`, label: 'Session' }
+				: { href: '/', label: 'Tableau de bord' }
+		)
+	})
 
 	// L'identifiant est validé dans le load serveur. On le garde aussi synchronisé
 	// lorsqu'une navigation client change seulement la query string de /upload.
@@ -215,9 +228,12 @@
 </svelte:head>
 
 <main class="page page-narrow">
+	<nav class="breadcrumb">
+		<a href={back.href} onclick={(e) => { if (back.fromHistory) { e.preventDefault(); history.back() } }}>{back.label}</a> /
+		<span>Uploader une prise</span>
+	</nav>
 	<div class="page-header">
 		<h1>Uploader une prise</h1>
-		<a href="/sessions" class="btn btn-ghost btn-sm back-link" onclick={(e) => { if (history.length > 1) { e.preventDefault(); history.back() } }}>← Retour</a>
 	</div>
 
 	<a href="/record" class="record-link">
@@ -446,7 +462,6 @@
 		margin: 0;
 	}
 
-	.back-link { color: var(--color-text-muted); }
 
 	.record-link {
 		display: flex;

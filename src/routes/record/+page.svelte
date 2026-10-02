@@ -1,6 +1,8 @@
 <script lang="ts">
 	import type { PageData } from './$types'
-	import { goto } from '$app/navigation'
+	import { afterNavigate, goto } from '$app/navigation'
+	import { backLinkFrom, type BackLink } from '$lib/back-link'
+	import Icon from '$lib/components/Icon.svelte'
 	import { formatDateOnly, localDateOnly, sessionOfDay } from '$lib/date'
 	import AudioRecorder from '$lib/components/AudioRecorder.svelte'
 	import SongSelect from '$lib/components/SongSelect.svelte'
@@ -17,6 +19,11 @@
 	 * l'enregistrement terminé — la copie de secours couvre ce délai.
 	 */
 	let { data }: { data: PageData } = $props()
+
+	let back = $state<BackLink>({ href: '/', label: 'Tableau de bord', fromHistory: false })
+	afterNavigate(({ from }) => {
+		back = backLinkFrom(from?.url, { href: '/', label: 'Tableau de bord' })
+	})
 
 	type SessionRow = { id: number; date: string | Date; type: string; title: string | null; location: string | null }
 	type SongRow = { id: number; title: string }
@@ -185,10 +192,17 @@
 </svelte:head>
 
 <main class="page page-narrow">
+	<nav class="breadcrumb">
+		<a href={back.href} onclick={(e) => { if (back.fromHistory) { e.preventDefault(); history.back() } }}>{back.label}</a> /
+		<span>Enregistrer</span>
+	</nav>
 	<div class="page-header">
 		<h1>Enregistrer</h1>
-		<a href="/upload" class="btn btn-ghost btn-sm back-link">Envoyer un fichier</a>
 	</div>
+
+	<a href="/upload" class="upload-link">
+		<Icon name="upload" /> Un fichier déjà prêt ? <strong>Envoyer un fichier</strong>
+	</a>
 
 	<section class="panel">
 		<AudioRecorder
@@ -374,7 +388,18 @@
 		margin: 0;
 	}
 
-	.back-link { color: var(--color-text-muted); }
+	.upload-link {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.45rem;
+		margin: -0.75rem 0 1.25rem;
+		font-size: var(--text-sm);
+		color: var(--color-text-secondary);
+		text-decoration: none;
+	}
+
+	.upload-link strong { color: var(--color-accent); }
+	.upload-link:hover strong { text-decoration: underline; }
 
 	.panel {
 		border: 1px solid var(--color-border);

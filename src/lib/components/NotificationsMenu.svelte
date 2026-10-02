@@ -431,29 +431,32 @@
 
 	.notif-dot:hover { opacity: 1; }
 
-	/* La cloche vit dans la barre d'actions du bas sur mobile (voir +layout.svelte) :
-	   le panneau s'ouvre vers le haut, juste au-dessus. */
+	/* Au téléphone, la cloche reste dans la barre du haut, avec une cible au pouce ; le
+	   panneau descend sur toute la largeur, juste sous la barre. */
 	@media (max-width: 640px) {
 		.notif-bell {
-			width: 32px;
-			height: 32px;
+			width: 44px;
+			height: 44px;
 		}
 
-		/* Sans rond ni contour autour, la cloche paraît plus petite que 🎙 et + à taille
-		   égale : son icône occupe donc presque tout le bouton. */
 		.notif-bell :global(svg) {
-			width: 1.4rem;
-			height: 1.4rem;
+			width: 1.35rem;
+			height: 1.35rem;
+		}
+
+		/* Sur un bouton de 44 px, la pastille se recale contre l'icône. */
+		.notif-badge {
+			top: 7px;
+			right: 6px;
 		}
 
 		/* Le panneau appartient à Menu.svelte : on l'atteint depuis la portée de la cloche. */
 		.notif :global(.menu-panel) {
 			position: fixed;
-			top: auto;
-			bottom: calc(var(--footer-actions-h) + 6px);
+			top: calc(var(--top-bar-h) + 4px);
 			right: 0.4rem;
-			width: auto;
 			left: 0.4rem;
+			width: auto;
 		}
 	}
 </style>

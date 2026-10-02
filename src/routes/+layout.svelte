@@ -2,11 +2,12 @@
 	import '../app.css'
 	import type { LayoutData } from './$types'
 	import { page } from '$app/state'
-	import { afterNavigate } from '$app/navigation'
 	import { onMount } from 'svelte'
-	import { groupLogoUrl, isAdmin } from '$lib/types'
+	import { isAdmin } from '$lib/types'
 	import MiniPlayer from '$lib/components/MiniPlayer.svelte'
 	import NotificationsMenu from '$lib/components/NotificationsMenu.svelte'
+	import GroupSwitcher from '$lib/components/GroupSwitcher.svelte'
+	import AddMenu from '$lib/components/AddMenu.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import LegalLinks from '$lib/components/LegalLinks.svelte'
 	import { APP_VERSION } from '$lib/version'
@@ -16,15 +17,13 @@
 
 	// Fermeture locale ; une nouvelle annonce du serveur réaffiche le bandeau.
 	let groupSwitchNotice = $derived(data.group_switched_to)
-	let groupSwitchError = $state<string | null>(null)
-	let switchingGroup = $state(false)
 
 	// Le cookie du groupe est commun aux onglets. Au retour dans cet onglet, on
 	// recharge l'ensemble de la page si un autre onglet l'a changé.
 	onMount(() => {
 		let checking = false
 		async function checkActiveGroup() {
-			if (!data.user || switchingGroup || checking || document.visibilityState !== 'visible') return
+			if (!data.user || checking || document.visibilityState !== 'visible') return
 			checking = true
 			try {
 				const response = await fetch('/api/groups/switch', { cache: 'no-store' })
@@ -45,68 +44,15 @@
 		}
 	})
 
-	// Menu mobile : tiroir latéral, refermé dès qu'on navigue
-	let menuOpen = $state(false)
-	afterNavigate(() => { menuOpen = false })
-
-	// Tiroir ouvert : on bloque le défilement du fond
-	$effect(() => {
-		if (!menuOpen) return
-		document.body.style.overflow = 'hidden'
-		return () => { document.body.style.overflow = '' }
-	})
-
 	function isActive(prefix: string) {
 		if (prefix === '/') return page.url.pathname === '/'
 		return page.url.pathname === prefix || page.url.pathname.startsWith(prefix + '/')
 	}
 
 	// « page » sur la page même, « true » dans sa section (une session sous Sessions).
-	function ariaCurrent(prefix: string): 'page' | 'true' | undefined {
+	function ariaCurrent(prefix: string, section = [prefix]): 'page' | 'true' | undefined {
 		if (page.url.pathname === prefix) return 'page'
-		return isActive(prefix) ? 'true' : undefined
-	}
-
-	let menuToggle = $state<HTMLButtonElement | null>(null)
-
-	// Fermé sans naviguer (Échap, fond) : le focus revient au bouton qui l'a ouvert,
-	// au lieu de rester sur un lien devenu invisible.
-	function closeMenu() {
-		menuOpen = false
-		menuToggle?.focus()
-	}
-
-	// Ouvert : le focus entre dans le tiroir, là où le clavier doit poursuivre.
-	$effect(() => {
-		if (!menuOpen) return
-		document.querySelector<HTMLAnchorElement>('#app-nav a')?.focus()
-	})
-
-	async function switchGroup(e: Event) {
-		const select = e.currentTarget as HTMLSelectElement
-		const groupId = Number(select.value)
-		if (switchingGroup || groupId === data.user?.current_group_id) return
-		// Le contenu visible appartient encore à l'ancien groupe jusqu'au rechargement.
-		select.value = String(data.user?.current_group_id ?? '')
-		switchingGroup = true
-		groupSwitchError = null
-		try {
-			const response = await fetch('/api/groups/switch', {
-				method: 'POST',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ group_id: groupId })
-			})
-			if (!response.ok) {
-				const body = await response.json().catch(() => ({}))
-				throw new Error(body.error ?? 'Le changement de groupe a échoué.')
-			}
-			// Une navigation complète recharge le layout et la page sous le même cookie.
-			location.assign('/')
-		} catch (error) {
-			select.value = String(data.user?.current_group_id ?? '')
-			groupSwitchError = error instanceof Error ? error.message : 'Le changement de groupe a échoué.'
-			switchingGroup = false
-		}
+		return section.some(isActive) ? 'true' : undefined
 	}
 
 	const currentGroup = $derived(
@@ -122,17 +68,39 @@
 			.toUpperCase() ?? ''
 	)
 
-	const navItems: { href: string; label: string; icon: IconName }[] = [
-		{ href: '/', label: 'Tableau de bord', icon: 'home' },
-		{ href: '/fil', label: "Fil d'actualité", icon: 'feed' },
-		{ href: '/sessions', label: 'Sessions', icon: 'calendar' },
-		{ href: '/songs', label: 'Morceaux', icon: 'music' },
-		{ href: '/playlists', label: 'Playlists', icon: 'playlist' },
-		{ href: '/setlists', label: 'Setlists', icon: 'list' },
-		{ href: '/agenda', label: 'Agenda', icon: 'agenda' },
-		{ href: '/group', label: 'Mon groupe', icon: 'users' },
-		// Hors groupe : l'espace perso suit l'utilisateur quel que soit le groupe actif.
-		{ href: '/perso', label: 'Mon espace perso', icon: 'user' },
+	type NavItem = { href: string; label: string; short: string; icon: IconName }
+
+	// Barre latérale (ordinateur) et rail (tablette) : `short` est le libellé du rail,
+	// trop étroit pour « Tableau de bord ».
+	const groupNav: NavItem[] = [
+		{ href: '/', label: 'Tableau de bord', short: 'Accueil', icon: 'home' },
+		{ href: '/fil', label: "Fil d'actualité", short: 'Fil', icon: 'feed' },
+		{ href: '/sessions', label: 'Sessions', short: 'Sessions', icon: 'calendar' },
+		{ href: '/agenda', label: 'Agenda', short: 'Agenda', icon: 'agenda' },
+		{ href: '/songs', label: 'Morceaux', short: 'Morceaux', icon: 'music' },
+		{ href: '/playlists', label: 'Playlists', short: 'Playlists', icon: 'playlist' },
+		{ href: '/setlists', label: 'Setlists', short: 'Setlists', icon: 'list' },
+	]
+	// Hors groupe : l'espace perso suit l'utilisateur quel que soit le groupe actif.
+	const meNav: NavItem[] = [
+		{ href: '/perso', label: 'Mon espace perso', short: 'Perso', icon: 'user' },
+	]
+
+	// Barre d'onglets (téléphone) : ce qu'on ouvre en répétition, le reste sous « Plus ».
+	// Chaque onglet s'allume aussi sur les pages qu'il contient (une prise est sous Sessions).
+	type Tab = { href: string; label: string; icon: IconName; section: string[] }
+	const tabsBefore: Tab[] = [
+		{ href: '/', label: 'Accueil', icon: 'home', section: ['/'] },
+		{ href: '/sessions', label: 'Sessions', icon: 'calendar', section: ['/sessions', '/recording'] },
+	]
+	const tabsAfter: Tab[] = [
+		{ href: '/songs', label: 'Morceaux', icon: 'music', section: ['/songs'] },
+		{
+			href: '/plus',
+			label: 'Plus',
+			icon: 'grid',
+			section: ['/plus', '/fil', '/agenda', '/playlists', '/setlists', '/perso', '/posts', '/group', '/profile', '/admin'],
+		},
 	]
 </script>
 
@@ -141,26 +109,27 @@
 	<meta name="application-name" content="BandStash" />
 </svelte:head>
 
-<svelte:window
-	onkeydown={(e) => { if (e.key === 'Escape' && menuOpen) closeMenu() }}
-	onresize={() => { if (window.innerWidth > 640) menuOpen = false }}
-/>
+{#snippet navLink(item: NavItem)}
+	<li>
+		<a href={item.href} class="sidebar-link" class:active={isActive(item.href)} aria-current={ariaCurrent(item.href)}>
+			<Icon name={item.icon} class="nav-icon" size="1rem" />
+			<span class="nav-label">{item.label}</span>
+			<span class="nav-short" aria-hidden="true">{item.short}</span>
+		</a>
+	</li>
+{/snippet}
+
+{#snippet tab(item: Tab)}
+	<a href={item.href} class="tab" aria-current={ariaCurrent(item.href, item.section)}>
+		<span class="tab-pill"><Icon name={item.icon} size="1.35rem" /></span>
+		{item.label}
+	</a>
+{/snippet}
 
 {#if data.user}
 	<div class="app-shell">
-		<!-- Top bar -->
 		<header class="app-top-bar">
-			<button
-				bind:this={menuToggle}
-				class="menu-toggle"
-				onclick={() => (menuOpen = !menuOpen)}
-				aria-label={menuOpen ? 'Fermer le menu' : 'Ouvrir le menu'}
-				aria-expanded={menuOpen}
-				aria-controls="app-nav"
-			>
-				<Icon name={menuOpen ? 'close' : 'menu'} size="1.15rem" />
-			</button>
-			<a href="/accueil" class="brand" aria-label="BandStash — accueil">
+			<a href="/" class="brand" class:brand-always={!currentGroup} aria-label="BandStash — tableau de bord">
 				<img src="/brand/bandstash-mark-simple.svg" alt="" class="brand-mark" />
 				<!-- Version en service : c'est elle qu'on cite pour signaler un souci. -->
 				<span class="brand-text">
@@ -168,121 +137,88 @@
 					<span class="brand-version">v{APP_VERSION}</span>
 				</span>
 			</a>
-			<div class="top-spacer"></div>
-			{#if currentGroup?.logo_version}
-				<a href="/group" class="group-logo-link" title="Infos du groupe">
-					<img
-						src={groupLogoUrl(currentGroup.id, currentGroup.logo_version)}
-						alt="Logo de {currentGroup.name}"
-						class="group-logo"
-					/>
-				</a>
-			{/if}
-			{#if data.user.groups.length > 1}
-				<select class="group-select" onchange={switchGroup} disabled={switchingGroup} aria-busy={switchingGroup} aria-label="Groupe actif">
-					{#each data.user.groups as g}
-						<option value={g.id} selected={g.id === data.user.current_group_id}>{g.name}</option>
-					{/each}
-				</select>
-				<a href="/group" class="group-info-link" title="Infos du groupe">ⓘ</a>
-			{:else if currentGroup}
-				<a href="/group" class="group-chip">{currentGroup.name}</a>
-			{/if}
-			<!-- Sur mobile, ce bloc quitte le header pour devenir une barre d'actions fixée
-			     en bas : le header seul n'a pas la place pour logo + groupe + ces boutons
-			     sans déborder. Le profil n'y figure pas, le menu y mène. -->
-			<div class="top-actions">
-				<a href="/upload" class="top-upload" title="Uploader une prise" aria-label="Uploader une prise">+</a>
-				<!-- Raccourci mobile : c'est au téléphone qu'on lance un enregistrement en répétition. -->
-				<a
-					href="/record"
-					class="top-record"
-					class:active={isActive('/record')}
-					aria-current={ariaCurrent('/record')}
-					title="Enregistrer maintenant"
-					aria-label="Enregistrer maintenant"
-				><Icon name="mic" size="1rem" /></a>
-				{#if data.user.current_group_id}
-					<!-- Recréé à chaque bascule de groupe : liste, pastille locale et requêtes en
-					     vol appartiennent au groupe précédent et ne doivent pas lui survivre. -->
-					{#key data.user.current_group_id}
-						<NotificationsMenu
-							groupId={data.user.current_group_id}
-							initialUnread={data.unread_notifications ?? 0}
-						/>
-					{/key}
-				{/if}
-				<a
-					href="/profile"
-					class="user-avatar"
-					class:active={isActive('/profile')}
-					aria-current={ariaCurrent('/profile')}
-					title="{data.user.display_name} — mon profil"
-				>{userInitials}</a>
+			<!-- Au téléphone, la barre latérale n'existe plus : le groupe actif prend la
+			     place du logo, à gauche de la barre du haut. -->
+			<div class="bar-group">
+				<GroupSwitcher groups={data.user.groups} currentGroupId={data.user.current_group_id} variant="bar" />
 			</div>
+			<div class="top-spacer"></div>
+			{#if data.user.current_group_id}
+				<!-- Recréé à chaque bascule de groupe : liste, pastille locale et requêtes en
+				     vol appartiennent au groupe précédent et ne doivent pas lui survivre. -->
+				{#key data.user.current_group_id}
+					<NotificationsMenu
+						groupId={data.user.current_group_id}
+						initialUnread={data.unread_notifications ?? 0}
+					/>
+				{/key}
+			{/if}
+			<a
+				href="/profile"
+				class="user-avatar"
+				class:active={isActive('/profile')}
+				aria-current={ariaCurrent('/profile')}
+				title="{data.user.display_name} — mon profil"
+			>{userInitials}</a>
 		</header>
 
 		<div class="app-body">
-			{#if menuOpen}
-				<button
-					class="nav-backdrop"
-					aria-label="Fermer le menu"
-					onclick={closeMenu}
-				></button>
-			{/if}
-
-			<!-- Sidebar (tiroir sur mobile) -->
-			<nav id="app-nav" class="app-sidebar" class:open={menuOpen} aria-label="Navigation principale">
-				<ul class="sidebar-nav">
-					{#each navItems as item}
-						<li>
-							<a href={item.href} class="sidebar-link" class:active={isActive(item.href)} aria-current={ariaCurrent(item.href)}>
-								<Icon name={item.icon} class="nav-icon" size="0.95rem" />
-								{item.label}
-							</a>
-						</li>
-					{/each}
-					{#if isAdmin(data.user?.role)}
-						<li class="sidebar-sep"></li>
-						<li>
-							<a href="/admin" class="sidebar-link sidebar-link--admin" class:active={isActive('/admin')} aria-current={ariaCurrent('/admin')}>
-								<Icon name="settings" class="nav-icon" size="0.95rem" />
-								Admin
-							</a>
-						</li>
-					{/if}
-				</ul>
-
-				<div class="sidebar-spacer"></div>
-
-				<a href="/upload" class="sidebar-upload" class:active={isActive('/upload')} aria-current={ariaCurrent('/upload')}>
-					<Icon name="plus" size="0.95rem" />
-					Uploader
-				</a>
-
-				<div class="sidebar-account">
-					<a href="/profile" class="sidebar-user" class:active={isActive('/profile')} aria-current={ariaCurrent('/profile')}>
-						<div class="sidebar-avatar">{userInitials}</div>
-						<span class="sidebar-username">{data.user.display_name}</span>
-					</a>
-					<form method="POST" action="/logout">
-						<button type="submit" class="sidebar-logout" title="Se déconnecter">
-							<Icon name="power" size="0.95rem" label="Se déconnecter" />
-						</button>
-					</form>
+			<!-- Ordinateur : barre latérale complète. Tablette : rail d'icônes. Téléphone :
+			     masquée, remplacée par la barre d'onglets du bas. -->
+			<nav class="app-sidebar" aria-label="Navigation principale">
+				<div class="sidebar-group">
+					<GroupSwitcher groups={data.user.groups} currentGroupId={data.user.current_group_id} variant="sidebar" />
+				</div>
+				<div class="sidebar-add">
+					<AddMenu variant="sidebar" hasGroup={!!data.user.current_group_id} />
 				</div>
 
-				<div class="sidebar-legal">
-					<LegalLinks compact />
-					<p class="sidebar-version">BandStash · v{APP_VERSION}</p>
+				<!-- Seule cette partie défile : le groupe et « Ajouter », au-dessus, ouvrent des
+				     menus qui débordent sur la page, et un conteneur qui défile les couperait. -->
+				<div class="sidebar-scroll">
+					<p class="sidebar-section" id="nav-group">Groupe</p>
+					<ul class="sidebar-nav" aria-labelledby="nav-group">
+						{#each groupNav as item (item.href)}{@render navLink(item)}{/each}
+					</ul>
+					<p class="sidebar-section" id="nav-me">Moi</p>
+					<ul class="sidebar-nav" aria-labelledby="nav-me">
+						{#each meNav as item (item.href)}{@render navLink(item)}{/each}
+					</ul>
+
+					<div class="sidebar-spacer"></div>
+
+					<!-- Le rail n'a pas la place du compte ni des liens légaux : ils sont sous « Plus ». -->
+					<ul class="sidebar-nav rail-only">
+						{@render navLink({ href: '/plus', label: 'Plus', short: 'Plus', icon: 'grid' })}
+					</ul>
+
+					<div class="full-only">
+						{#if isAdmin(data.user?.role)}
+							<ul class="sidebar-nav">
+								{@render navLink({ href: '/admin', label: 'Admin', short: 'Admin', icon: 'settings' })}
+							</ul>
+						{/if}
+
+						<div class="sidebar-account">
+							<a href="/profile" class="sidebar-user" class:active={isActive('/profile')} aria-current={ariaCurrent('/profile')}>
+								<div class="sidebar-avatar">{userInitials}</div>
+								<span class="sidebar-username">{data.user.display_name}</span>
+							</a>
+							<form method="POST" action="/logout">
+								<button type="submit" class="sidebar-logout" title="Se déconnecter">
+									<Icon name="power" size="0.95rem" label="Se déconnecter" />
+								</button>
+							</form>
+						</div>
+
+						<div class="sidebar-legal">
+							<LegalLinks compact />
+						</div>
+					</div>
 				</div>
 			</nav>
 
-			<!-- Page content : hors d'atteinte du clavier tant que le tiroir le recouvre -->
-			<div class="app-content" inert={menuOpen}>
-				{#if groupSwitchError}
-					<div class="group-switch-banner" role="alert">{groupSwitchError}</div>
-				{/if}
+			<div class="app-content">
 				{#if groupSwitchNotice}
 					<!-- Un lien reçu visait un autre groupe : la bascule a déjà eu lieu, mais
 					     elle vaut pour tous les onglets — la taire serait plus déroutant. -->
@@ -313,67 +249,26 @@
 		</div>
 
 		<MiniPlayer />
+
+		<nav class="tab-bar" aria-label="Navigation principale">
+			{#each tabsBefore as item (item.href)}{@render tab(item)}{/each}
+			<div class="tab-add">
+				<AddMenu variant="tab" hasGroup={!!data.user.current_group_id} />
+			</div>
+			{#each tabsAfter as item (item.href)}{@render tab(item)}{/each}
+		</nav>
 	</div>
 {:else}
 	{@render children()}
 {/if}
 
 <style>
-	/* ─── Top bar ────────────────────────────────── */
-	/* Bouton menu et raccourci upload : mobile uniquement */
-	.menu-toggle,
-	.top-upload,
-	.top-record,
-	.nav-backdrop { display: none; }
+	/* Trois mises en page, réglées ici seules :
+	   - ordinateur (≥ 1024 px) : barre latérale complète, en sections ;
+	   - tablette (641–1023 px) : rail d'icônes à court libellé, qui rend la largeur au contenu ;
+	   - téléphone (≤ 640 px) : barre d'onglets en bas, groupe actif dans la barre du haut. */
 
-	.menu-toggle {
-		width: 32px;
-		height: 32px;
-		align-items: center;
-		justify-content: center;
-		margin-left: -6px;
-		background: transparent;
-		border: none;
-		border-radius: var(--radius-md);
-		color: #fff;
-		font-size: var(--text-base);
-		line-height: 1;
-		cursor: pointer;
-		flex-shrink: 0;
-	}
-
-	.menu-toggle:hover { background: rgba(255,255,255,0.1); }
-
-	.top-upload {
-		width: 30px;
-		height: 30px;
-		align-items: center;
-		justify-content: center;
-		border-radius: 50%;
-		background: var(--color-accent);
-		color: #fff;
-		font-size: 1.1rem;
-		font-weight: 600;
-		line-height: 1;
-		text-decoration: none;
-		flex-shrink: 0;
-	}
-
-	/* Contour seul : l'upload reste l'action principale de la barre. */
-	.top-record {
-		width: 30px;
-		height: 30px;
-		align-items: center;
-		justify-content: center;
-		border-radius: 50%;
-		border: 1.5px solid var(--color-accent);
-		color: var(--color-accent);
-		text-decoration: none;
-		flex-shrink: 0;
-	}
-
-	.top-record.active { background: rgba(224, 123, 58, 0.18); }
-
+	/* ─── Barre du haut ──────────────────────────── */
 	.brand {
 		display: inline-flex;
 		align-items: center;
@@ -406,50 +301,9 @@
 		flex-shrink: 0;
 	}
 
+	.bar-group { display: none; min-width: 0; }
+
 	.top-spacer { flex: 1; }
-
-	.group-select {
-		font-size: var(--text-sm);
-		color: var(--color-mid);
-		border: 1px solid rgba(255,255,255,0.15);
-		border-radius: var(--radius-md);
-		padding: 0.2rem 0.5rem;
-		background: rgba(255,255,255,0.07);
-		cursor: pointer;
-		max-width: 150px;
-		flex-shrink: 0;
-		color-scheme: dark;
-	}
-
-	.group-chip {
-		font-size: var(--text-sm);
-		color: var(--color-mid);
-		white-space: nowrap;
-		flex-shrink: 0;
-		max-width: 150px;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		text-decoration: none;
-	}
-	.group-chip:hover { text-decoration: underline; }
-
-	.group-logo-link { display: flex; flex-shrink: 0; }
-
-	.group-logo {
-		width: 26px;
-		height: 26px;
-		border-radius: 50%;
-		object-fit: cover;
-		background: #fff;
-	}
-
-	.group-info-link {
-		color: var(--color-mid);
-		text-decoration: none;
-		font-size: var(--text-sm);
-		flex-shrink: 0;
-	}
-	.group-info-link:hover { color: #fff; }
 
 	.user-avatar {
 		width: 30px;
@@ -474,14 +328,34 @@
 		box-shadow: 0 0 0 2px rgba(224, 123, 58, 0.35);
 	}
 
-	.top-actions {
-		display: flex;
-		align-items: center;
-		gap: 0.9rem;
-		flex-shrink: 0;
+	/* ─── Barre latérale ─────────────────────────── */
+	/* Au-dessus du contenu, que ses menus recouvrent. */
+	.app-sidebar {
+		overflow: visible;
+		z-index: 20;
 	}
 
-	/* ─── Sidebar ────────────────────────────────── */
+	.sidebar-scroll {
+		flex: 1;
+		min-height: 0;
+		display: flex;
+		flex-direction: column;
+		overflow-y: auto;
+		width: 100%;
+	}
+
+	.sidebar-group { margin-bottom: 10px; }
+	.sidebar-add { margin-bottom: 6px; }
+
+	.sidebar-section {
+		margin: 12px 10px 4px;
+		font-size: var(--text-2xs);
+		font-weight: 700;
+		letter-spacing: 0.08em;
+		text-transform: uppercase;
+		color: var(--color-mid);
+	}
+
 	.sidebar-nav {
 		list-style: none;
 		margin: 0;
@@ -513,67 +387,29 @@
 		color: #fff;
 	}
 
-	.sidebar-link--admin {
-		font-size: var(--text-sm);
-	}
-
 	/* L'icône est rendue par Icon.svelte : le style scopé ne l'atteint qu'en passant
 	   par `:global`, gardé sous `.sidebar-link` pour ne pas devenir une règle globale. */
 	.sidebar-link :global(.nav-icon) {
 		opacity: 0.85;
+		flex-shrink: 0;
 	}
 
-	.sidebar-sep {
-		height: 1px;
-		background: rgba(255,255,255,0.08);
-		margin: 6px 4px;
-	}
+	.nav-short,
+	.rail-only { display: none; }
 
 	.sidebar-spacer { flex: 1; }
-
-	.sidebar-upload {
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		gap: 6px;
-		margin: 0 0 10px;
-		padding: 7px 10px;
-		background: var(--color-accent);
-		color: #fff;
-		border-radius: var(--radius-md);
-		text-decoration: none;
-		font-size: var(--text-sm);
-		font-weight: 600;
-		text-align: center;
-		transition: opacity 0.1s;
-	}
-
-	.sidebar-upload:hover {
-		opacity: 0.88;
-	}
-
-	.sidebar-upload.active {
-		opacity: 0.75;
-	}
 
 	.sidebar-account {
 		display: flex;
 		align-items: center;
 		gap: 4px;
+		margin-top: 6px;
 		border-top: 1px solid rgba(255,255,255,0.08);
 	}
 
 	.sidebar-legal {
 		padding: 0.25rem 12px 0.5rem;
 		color: rgba(255,255,255,0.45);
-	}
-
-	.sidebar-version {
-		display: none;
-		margin: 0.5rem 0 0;
-		font-size: var(--text-xs);
-		color: rgba(255,255,255,0.65);
-		font-variant-numeric: tabular-nums;
 	}
 
 	.sidebar-account form {
@@ -642,6 +478,9 @@
 		text-overflow: ellipsis;
 	}
 
+	/* ─── Barre d'onglets (téléphone) ────────────── */
+	.tab-bar { display: none; }
+
 	/* ─── Bascule de groupe sur lien entrant ─────── */
 	.group-switch-banner {
 		display: flex;
@@ -691,108 +530,130 @@
 		font-weight: 600;
 	}
 
-	/* ─── Mobile : la sidebar devient un tiroir latéral ─ */
-	@media (max-width: 640px) {
-		.sidebar-version { display: block; }
-
-		.menu-toggle,
-		.top-upload,
-		.top-record { display: flex; }
-
-		.app-top-bar {
-			padding: 0 0.7rem;
-			gap: 0.6rem;
+	/* ─── Tablette : la barre latérale devient un rail ─ */
+	@media (min-width: 641px) and (max-width: 1023px) {
+		.app-sidebar {
+			width: 76px;
+			align-items: center;
+			padding: 10px 6px;
 		}
 
-		.group-select,
-		.group-chip { max-width: 110px; }
+		.sidebar-section,
+		.full-only { display: none; }
 
-		/* Upload et notifications quittent le header pour une barre d'actions fixée en
-		   bas — le header ne garde que le menu, le logo et le groupe actif.
-		   Réordonné visuellement : enregistrement et upload, notifications à droite
-		   (l'ordre du DOM, lui, reste celui du header desktop). */
-		.top-actions {
+		/* Le libellé complet reste le nom du lien pour les lecteurs d'écran ; à l'œil,
+		   c'est le court qui s'affiche sous l'icône. */
+		.nav-label {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+			white-space: nowrap;
+		}
+
+		.rail-only,
+		.nav-short { display: flex; }
+
+		.sidebar-nav { width: 100%; }
+
+		.sidebar-link {
+			flex-direction: column;
+			gap: 3px;
+			padding: 6px 0;
+			font-size: var(--text-2xs);
+			text-align: center;
+		}
+
+		.sidebar-link.active {
+			background: rgba(226, 94, 54, 0.22);
+			color: #fff;
+			font-weight: 600;
+		}
+
+		.sidebar-link.active :global(.nav-icon) { color: var(--color-accent); opacity: 1; }
+
+		/* Le groupe se réduit à sa pastille, l'ajout à son « + ». Leur nom reste dans
+		   l'`aria-label` du bouton. */
+		.sidebar-group :global(.gs-text),
+		.sidebar-group :global(.gs-chevron),
+		.sidebar-add :global(.add-label) { display: none; }
+
+		.sidebar-group :global(.gs-trigger) {
+			justify-content: center;
+			padding: 4px;
+			border: none;
+			background: transparent;
+		}
+
+		.sidebar-group :global(.gs-trigger .gs-badge) {
+			width: 40px;
+			height: 40px;
+			box-shadow: 0 0 0 2px var(--color-accent);
+		}
+
+		.sidebar-add { width: 100%; display: flex; justify-content: center; }
+		.sidebar-add :global(.add-trigger-sidebar) { width: 48px; min-height: 40px; }
+	}
+
+	/* ─── Téléphone : barre d'onglets en bas ─────── */
+	@media (max-width: 640px) {
+		.app-top-bar {
+			padding: 0 0.4rem 0 0.6rem;
+			gap: 0.4rem;
+		}
+
+		.brand:not(.brand-always),
+		.user-avatar,
+		.app-sidebar { display: none; }
+
+		.bar-group { display: flex; }
+
+		.app-body { flex-direction: column; }
+
+		.tab-bar {
 			position: fixed;
 			left: 0;
 			right: 0;
 			bottom: 0;
 			z-index: 96;
 			height: var(--footer-actions-h);
-			padding: 0 1.2rem;
+			display: grid;
+			grid-template-columns: repeat(5, minmax(0, 1fr));
+			align-items: center;
+			padding: 0 0.25rem;
 			background: var(--color-ink);
 			border-top: 1px solid rgba(255,255,255,0.08);
-			justify-content: space-around;
-			gap: 0;
 		}
 
-		/* Le profil sert rarement, et le tiroir du menu y mène déjà : sa place dans la
-		   barre du bas ne vaut pas la cible tactile qu'elle prend aux trois autres. */
-		.top-actions .user-avatar { display: none; }
-		.top-actions .top-record { order: 2; }
-		.top-actions .top-upload { order: 3; }
-		.top-actions :global(.notif) { order: 4; }
-
-		/* Un léger cran au-dessus des 30px du header : au-delà, les boutons écrasaient
-		   la barre sans rien gagner au pouce. */
-		.top-upload,
-		.top-record {
-			width: 32px;
-			height: 32px;
+		.tab {
+			display: flex;
+			flex-direction: column;
+			align-items: center;
+			gap: 2px;
+			min-height: 48px;
+			justify-content: center;
+			color: var(--color-mid);
+			font-size: var(--text-2xs);
+			font-weight: 500;
+			text-decoration: none;
 		}
 
-		.top-upload { font-size: 1.2rem; }
-		.top-record :global(svg) {
-			width: 1.05rem;
-			height: 1.05rem;
+		.tab-pill {
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			width: 52px;
+			height: 28px;
+			border-radius: var(--radius-pill);
 		}
 
-		.app-body { flex-direction: column; }
-
-		/* Hors écran par défaut, glisse à l'ouverture du menu. S'arrête au-dessus de la
-		   barre d'actions (et du mini-lecteur) : sinon le bas du tiroir — compte, liens
-		   légaux, version — passe dessous, hors d'atteinte même en défilant.
-		   Fermé, il est aussi masqué (`visibility`) : déplacé seulement, ses liens
-		   resteraient atteignables au clavier et lus par les lecteurs d'écran. Le masquage
-		   attend la fin du glissement pour ne pas couper l'animation. */
-		.app-sidebar {
-			position: fixed;
-			top: var(--top-bar-h);
-			bottom: calc(var(--footer-actions-h) + var(--mini-player-h));
-			left: 0;
-			height: auto;
-			width: 218px;
-			z-index: 90;
-			transform: translateX(-100%);
-			visibility: hidden;
-			transition: transform 0.18s ease-out, visibility 0s linear 0.18s;
-			border-right: 1px solid rgba(255,255,255,0.08);
+		.tab[aria-current] { color: #fff; font-weight: 600; }
+		.tab[aria-current] .tab-pill {
+			background: rgba(226, 94, 54, 0.28);
+			color: var(--color-accent);
 		}
 
-		.app-sidebar.open {
-			transform: none;
-			visibility: visible;
-			transition: transform 0.18s ease-out;
-			box-shadow: 4px 0 20px rgba(0,0,0,0.3);
-		}
-
-		.nav-backdrop {
-			display: block;
-			position: fixed;
-			inset: var(--top-bar-h) 0 0;
-			z-index: 80;
-			background: rgba(0,0,0,0.45);
-			border: none;
-			padding: 0;
-			cursor: default;
-		}
-
-		.sidebar-link { padding: 10px 10px; }
-
+		.tab-add { display: flex; justify-content: center; }
 	}
-
-	@media (max-width: 400px) {
-		.brand { gap: 0; }
-		.brand-text { display: none; }
-	}
-
 </style>

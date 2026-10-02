@@ -119,10 +119,9 @@
   --shadow-modal: 0 8px 30px rgba(0, 0, 0, 0.15);
   --disabled-opacity: 0.45;
 
-  /* Barre d'actions mobile (enregistrement/upload/notifications), fixée en bas sous
-     640px — un peu plus haute que le header, pour des cibles confortables au pouce.
+  /* Barre d'onglets du téléphone, fixée en bas sous 640px (valeur posée plus bas).
      Partagée avec le mini-lecteur pour empiler les deux sans se chevaucher. */
-  --footer-actions-h: 48px;
+  --footer-actions-h: 0px;
 
   /* Barre du haut, collée en haut de la fenêtre : tout ce qui se colle ou se vise par
      ancre se pose dessous. */
@@ -137,6 +136,14 @@
   --page-narrow: 640px;
   --page-medium: 720px;
   --page-wide:   900px;
+}
+
+/* Au téléphone, barre du haut et barre d'onglets prennent la hauteur d'une cible au pouce. */
+@media (max-width: 640px) {
+  :root {
+    --top-bar-h: 52px;
+    --footer-actions-h: 60px;
+  }
 }
 
 /* ─── Base ───────────────────────────────────────────── */
@@ -783,6 +790,27 @@ textarea:focus-visible {
 
 .breadcrumb a:hover {
   text-decoration: underline;
+}
+
+/* Au téléphone, le fil se réduit à la page parente (« ‹ Sessions ») : tronqué, le
+   chemin complet ne disait plus rien. Les « / » sont des nœuds texte, éteints par la
+   taille de police nulle ; le parent est le dernier lien, la page courante un <span>. */
+@media (max-width: 640px) {
+  .breadcrumb {
+    font-size: 0;
+    gap: 0;
+  }
+
+  .breadcrumb > * { display: none; }
+
+  .breadcrumb > a:last-of-type {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    font-size: var(--text-sm);
+  }
+
+  .breadcrumb > a:last-of-type::before { content: '‹\00a0'; }
 }
 
 /* ─── Messages ───────────────────────────────────────── */

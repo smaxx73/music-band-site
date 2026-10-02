@@ -392,9 +392,12 @@
 </svelte:head>
 
 <main class="page page-wide">
+	<nav class="breadcrumb">
+		<a href={backUrl}>{personal ? 'Mon espace perso' : 'Uploader une prise'}</a> /
+		<span>Découpe de {data.audioImport.file_name}</span>
+	</nav>
 	<div class="page-header">
 		<h1>Découper l'enregistrement</h1>
-		<a href={backUrl} class="btn btn-ghost btn-sm back-link">{personal ? '← Mon espace perso' : '← Upload'}</a>
 	</div>
 
 	<p class="source">
@@ -723,7 +726,6 @@
 		margin: 0;
 	}
 
-	.back-link { color: var(--color-text-muted); }
 
 	.source { margin: -0.75rem 0 0; font-size: var(--text-sm); }
 

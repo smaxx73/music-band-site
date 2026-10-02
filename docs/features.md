@@ -151,9 +151,9 @@ au milieu de la salle, ou l'interface audio branchée au PC.
   le fichier accepté par le serveur. Indisponible en navigation privée, et l'écran le dit
 - Quitter la page pendant l'enregistrement demande confirmation ; le formulaire de
   classement n'apparaît qu'une fois l'enregistrement terminé
-- Sous 640 px, la barre d'actions du bas porte un raccourci 🎙 vers `/record`, avant
-  l'upload : c'est au téléphone, en répétition, qu'on lance un enregistrement. Le profil,
-  lui, n'y figure pas — il sert rarement et le tiroir du menu y mène déjà
+- « Enregistrer » est la première entrée du menu **+ Ajouter** (voir « Navigation ») :
+  c'est au téléphone, en répétition, qu'on lance un enregistrement — et sur ordinateur,
+  interface audio branchée
 
 ## Découpe automatique d'un enregistrement (`/decoupe/[id]`)
 
@@ -646,6 +646,45 @@ public de Deezer (API sans clé) les connaît.
 - Le nom du fichier déposé figure sous la ligne de métadonnées de la prise, la note
   de la prise juste en dessous
 
+## Navigation
+
+Trois mises en page, toutes dans `src/routes/+layout.svelte` :
+
+| Largeur | Navigation |
+|---|---|
+| ≥ 1024 px (ordinateur) | barre latérale complète, en sections « Groupe » et « Moi » |
+| 641–1023 px (tablette) | **rail** d'icônes à court libellé (76 px) ; compte, admin et pages légales sous « Plus » |
+| ≤ 640 px (téléphone) | **barre d'onglets** en bas : Accueil · Sessions · **+** · Morceaux · Plus |
+
+- **Groupe actif** (`GroupSwitcher.svelte`) : en tête de la barre latérale (pastille seule
+  dans le rail), à gauche de la barre du haut au téléphone. Logo et nom ; avec plusieurs
+  groupes, un menu pour changer de groupe et « Infos du groupe » (`/group`). Avec un seul,
+  c'est un lien vers `/group` — d'où l'absence d'entrée « Mon groupe » dans la navigation
+- **Changer de groupe garde la section** (`pathAfterSwitch`, `src/lib/group-switch.ts`) : une
+  liste se recharge pour le nouveau groupe, une page de détail — qui appartient à l'ancien —
+  ramène à la liste de sa section (`/songs/7` → `/songs`), une page hors groupe (espace perso,
+  profil, admin) reste telle quelle. Avant, on revenait toujours au tableau de bord
+- **+ Ajouter** (`AddMenu.svelte`) rassemble les créations : Enregistrer (`/record`), Envoyer
+  un fichier (`/upload`), Nouvelle session (`/sessions?nouvelle`, modale ouverte), Publier
+  dans le groupe (`/fil?publier`). Bouton plein sous le groupe sur ordinateur, « + » dans le
+  rail, rond central de la barre d'onglets au téléphone, où le panneau monte du bas. Sans
+  groupe actif, ne restent qu'Enregistrer et le dépôt dans l'espace perso
+- **Plus** (`/plus`) : ce que la barre d'onglets et le rail ne portent pas — changement de
+  groupe, Fil, Agenda, Playlists, Setlists, espace perso, profil, admin, déconnexion, pages
+  légales et version. L'onglet s'allume aussi sur chacune de ces pages
+- Un onglet s'allume sur les pages qu'il contient : une prise est sous « Sessions ». Le lien
+  actif porte `aria-current` (`page` sur la page même, `true` dans sa section)
+- La cloche des notifications reste dans la barre du haut à toutes les largeurs ; le
+  logo BandStash mène au tableau de bord
+- **Fil d'Ariane** : un seul chemin par page (une prise : « Sessions / date / Morceau ·
+  Prise n », le morceau se rejoint par le titre de l'en-tête). Au téléphone, il se réduit à
+  la page parente, « ‹ Sessions » (`.breadcrumb`, `src/app.css`) : tronqué, le chemin
+  complet ne disait plus rien
+- Les pages de passage (`/upload`, `/record`) nomment la page d'où l'on vient
+  (« Session », « Morceaux »…, `src/lib/back-link.ts`) et y reviennent par l'historique,
+  position de défilement comprise. Ouvertes directement : la session demandée, sinon le
+  tableau de bord
+
 ## Partager un lien vers du contenu
 
 Toutes les pages de contenu sont des permaliens (`/recording/12`, `/sessions/4`, `/songs/7`,
@@ -1125,10 +1164,11 @@ lisent et se discutent sur place — là où « Activité récente » du tableau
 que signaler, en lignes qui mènent ailleurs. Les deux coexistent : le tableau de bord
 reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 
-- Entrée dans la barre latérale, juste sous le tableau de bord
+- Entrée dans la barre latérale, juste sous le tableau de bord ; sous « Plus » au téléphone
 - **« + Publier » ouvre le formulaire sur place** — voir « Publications ». La nouvelle
   publication arrive en tête du fil, sans changer de page. `/fil?publier` l'ouvre d'emblée
-  (c'est la cible du « + Publier » du tableau de bord)
+  (c'est la cible du « + Publier » du tableau de bord et de « Publier dans le groupe »
+  du menu + Ajouter, y compris depuis le fil lui-même)
 - **Ce qui y figure**, à sa création : publications, sessions, prises, setlists,
   playlists. Pas les commentaires : ils se lisent **sous** ce qu'ils discutent
 - **Strictement chronologique.** Un commentaire ne fait pas remonter sa cible : le flux
@@ -1362,7 +1402,8 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 
 - **Publiques** (`PUBLIC_PATHS`, `src/routes/+layout.server.ts`) : la LCEN exige des mentions
   « directement et facilement accessibles », y compris à qui n'a pas de compte
-- Liées depuis l'accueil public, `/login` et le bas de la barre latérale (`LegalLinks.svelte`)
+- Liées depuis l'accueil public, `/login`, le bas de la barre latérale et la page « Plus »
+  (`LegalLinks.svelte`)
 - Éditeur, hébergeur et contact vivent dans `src/lib/legal.ts`, seul endroit à modifier.
   Un champ encore inconnu vaut `TO_COMPLETE` et s'affiche tel quel plutôt que d'être inventé
 - La politique de confidentialité décrit ce que fait **réellement** l'application : toute

@@ -155,6 +155,8 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
 /record             enregistrement en direct (micro, interface audio), classé après coup
 /decoupe/[id]       découpe automatique d'un enregistrement long sur les blancs
 /profile            infos du compte connecté + changement de mot de passe
+/plus               ce que la barre d'onglets (téléphone) et le rail (tablette) ne portent pas :
+                    changement de groupe, sections secondaires, compte, pages légales
 /group              infos + membres du groupe actif (consultation pour tout membre,
                     gestion des membres, du nom, du logo et des liens pour l'admin du groupe)
 /admin/users        gestion des comptes
@@ -173,6 +175,10 @@ Les pages de contenu sont des permaliens destinés à être partagés entre memb
 destination survit à la connexion (`?redirectTo=`) et un lien vers un autre de ses groupes
 bascule le groupe actif au lieu de répondre « introuvable ». Voir « Partager un lien vers du
 contenu » dans docs/features.md.
+
+La navigation change avec la largeur — barre latérale (ordinateur), rail d'icônes
+(tablette), barre d'onglets et page « Plus » (téléphone) —, toutes les créations passent
+par « + Ajouter ». Voir « Navigation » dans docs/features.md.
 
 Les notifications d'activité n'ont pas de route : elles vivent dans la cloche de la barre
 du haut, alimentée par `src/lib/server/notifications.ts`. Voir « Notifications d'activité »

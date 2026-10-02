@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData, Snapshot } from './$types'
 	import { invalidateAll, goto } from '$app/navigation'
-	import { tick } from 'svelte'
+	import { tick, untrack } from 'svelte'
 	import { page } from '$app/state'
 	import { formatDateOnly, localDateOnly, toDateOnly } from '$lib/date'
 	import { searchKey, searchTerms } from '$lib/search'
@@ -190,6 +190,14 @@
 		createSuccess = null
 		showCreateModal = true
 	}
+
+	// `/sessions?nouvelle` : « Nouvelle session » du menu Ajouter et du tableau de bord
+	// arrive ici, modale ouverte — y compris depuis /sessions même, d'où le suivi de l'URL.
+	$effect(() => {
+		if (!page.url.searchParams.has('nouvelle')) return
+		untrack(openCreateModal)
+		goto('/sessions', { replaceState: true, noScroll: true, keepFocus: true })
+	})
 
 	// Arrivée depuis « Créer la session » sur un événement d'agenda (dashboard ou /agenda) :
 	// la modale s'ouvre pré-remplie, et la création liera l'événement au lieu d'en dupliquer un.
