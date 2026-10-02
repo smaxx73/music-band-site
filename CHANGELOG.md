@@ -48,6 +48,9 @@ fichiers MusicXML/MXL originaux. La troisième ajoute le jeton chiffré des lien
   sessions « Autre » passent du beige à un gris clair
 - Lisibilité : le gris des indications et des dates, l'orange des liens d'action et le
   rouge des erreurs et du statut « Abandonné » atteignent le contraste minimal de 4,5:1
+- Palette : le violet du type « Studio » et du statut « Proposition de travail » devient
+  un prune, les pastilles de tonalité et de commentaires passent du rose au gris, et les
+  fonds d'alerte rejoignent les tons chauds de l'application
 
 ## [1.2.1] — 2026-09-29
 

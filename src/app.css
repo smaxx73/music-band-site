@@ -11,8 +11,8 @@
   --color-green-light:  #D8EFE0;
   --color-blue:         #4A7DB5;
   --color-blue-light:   #D5E6F5;
-  --color-purple:       #7C3AED;
-  --color-purple-light: #EDE9FE;
+  --color-purple:       #7E4688;  /* prune : un violet de la famille chaude */
+  --color-purple-light: #F3E9F1;
   --color-red:          #C05050;
   --color-red-light:    #F5DADA;
   --color-red-dark:     #AC3E3E;  /* rouge lisible en texte, sur fond clair comme sur rouge pâle */
@@ -42,9 +42,9 @@
   --color-abandoned-bg:     var(--color-red-light);
   --color-abandoned-text:   var(--color-red-dark);
 
-  /* Pastille neutre (tonalité, compteurs) : sa propre couleur, pour qu'elle ne bouge
-     pas le jour où l'on change celle du statut « abandonné », qu'elle partageait. */
-  --color-chip-bg:          var(--color-red-light);
+  /* Pastille neutre (tonalité, compteurs) : un gris, pour ne pas se lire comme une
+     alerte. Token à part, pour se régler sans toucher aux survols. */
+  --color-chip-bg:          var(--color-bg-muted);
 
   /* Types de session et d'événement d'agenda : une famille de couleur par type,
      reprise par les badges, l'agenda, le feuillet d'une session (dégradé foncé, qui
@@ -59,8 +59,8 @@
   --type-concert-to:          #2F6B42;
   --type-studio-bg:           var(--color-purple-light);
   --type-studio-text:         var(--color-purple);
-  --type-studio-from:         #8B5CF6;
-  --type-studio-to:           #5B21B6;
+  --type-studio-from:         #9A5A9F;
+  --type-studio-to:           #5E2E66;
   --type-autre-bg:            var(--color-bg-muted);
   --type-autre-text:          var(--color-text-secondary);
   --type-autre-from:          #8C857A;
@@ -70,15 +70,16 @@
 
   /* Feedback */
   --color-error:          var(--color-red-dark);
-  --color-danger-bg:      #fef2f2;
-  --color-danger-border:  #e5bebe;
-  --color-warning-bg:     #fff3cd;
-  --color-warning-border: #ffe082;
-  --color-warning-text:   #7c5a00;
+  /* Retours recalés sur la famille chaude : un rose tiré du rouge, un jaune ocre. */
+  --color-danger-bg:      #FBEDEA;
+  --color-danger-border:  #E5C1BA;
+  --color-warning-bg:     #F8ECCF;
+  --color-warning-border: #E9D49A;
+  --color-warning-text:   #7C5A00;
   --color-success-bg:     var(--color-green-light);
   --color-success-border: #B8DFC8;
   --color-success-text:   #3D7A50;
-  --color-highlight:      #fffbe6;  /* élément visé par un lien, un instant mis en évidence */
+  --color-highlight:      #FCF4DA;  /* élément visé par un lien, un instant mis en évidence */
 
   /* Espacement */
   --space-1: 0.25rem;

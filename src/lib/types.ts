@@ -488,7 +488,7 @@ export type SessionType = (typeof SESSION_TYPES)[number]
 export const SESSION_TYPE_HUES: Record<SessionType, number | null> = {
 	repetition: 14,
 	concert: 138,
-	studio: 262,
+	studio: 291,
 	autre: null
 }
 
