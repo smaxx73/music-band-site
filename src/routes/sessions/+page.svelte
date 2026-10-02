@@ -3,7 +3,7 @@
 	import { invalidateAll, goto } from '$app/navigation'
 	import { tick, untrack } from 'svelte'
 	import { page } from '$app/state'
-	import { formatDateOnly, localDateOnly, toDateOnly } from '$lib/date'
+	import { formatDateOnly, localDateOnly, relativeDayLabel, toDateOnly } from '$lib/date'
 	import { searchKey, searchTerms } from '$lib/search'
 	import Icon from '$lib/components/Icon.svelte'
 	import Modal from '$lib/components/Modal.svelte'
@@ -48,14 +48,7 @@
 
 	/** « Aujourd'hui », « Demain », « Dans 5 jours », « Dans 3 semaines ». */
 	function untilLabel(date: string): string {
-		const days = Math.round(
-			(Date.parse(`${toDateOnly(date)}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000
-		)
-		if (days <= 0) return "Aujourd'hui"
-		if (days === 1) return 'Demain'
-		if (days < 14) return `Dans ${days} jours`
-		if (days < 60) return `Dans ${Math.round(days / 7)} semaines`
-		return `Dans ${Math.round(days / 30)} mois`
+		return toDateOnly(date) <= today ? "Aujourd'hui" : relativeDayLabel(date, today)
 	}
 
 	// ─── Recherche dans les sessions passées (côté client : la liste complète est chargée) ───

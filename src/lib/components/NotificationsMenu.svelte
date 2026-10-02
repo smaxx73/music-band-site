@@ -7,6 +7,7 @@
 		type NotificationFeed
 	} from '$lib/types'
 	import Icon from '$lib/components/Icon.svelte'
+	import { daysFromToday } from '$lib/date'
 	import Menu from '$lib/components/Menu.svelte'
 
 	let { groupId, initialUnread = 0 }: { groupId: number; initialUnread?: number } = $props()
@@ -148,9 +149,12 @@
 		const minutes = Math.round((Date.now() - date.getTime()) / 60_000)
 		if (minutes < 1) return "à l'instant"
 		if (minutes < 60) return `il y a ${minutes} min`
-		if (minutes < 24 * 60) return `il y a ${Math.floor(minutes / 60)} h`
-		if (minutes < 48 * 60) return 'hier'
-		if (minutes < 7 * 24 * 60) return `il y a ${Math.floor(minutes / (24 * 60))} j`
+		// Au-delà de l'heure, on compte en jours civils : « hier » veut dire la veille au
+		// calendrier, pas « entre 24 et 48 h » — 22 h l'avant-veille n'est pas « hier » à 1 h.
+		const days = -daysFromToday(date)
+		if (days <= 0) return `il y a ${Math.floor(minutes / 60)} h`
+		if (days === 1) return 'hier'
+		if (days < 7) return `il y a ${days} j`
 		return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
 	}
 </script>

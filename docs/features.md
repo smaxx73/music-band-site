@@ -1231,8 +1231,8 @@ Chacune porte un **message** facultatif (« écoutez le pont, j'ai changé les a
 
 - Une notification `post` pour tous les membres sauf l'auteur, à la publication ; les
   commentaires d'une publication notifient `comment` / `mention` comme ailleurs
-- Le fil du tableau de bord reprend les publications (filtre « Publications ») et les
-  commentaires qu'elles reçoivent
+- L'activité récente du tableau de bord reprend les publications et les commentaires
+  qu'elles reçoivent
 
 ## Fil d'actualité (`/fil`)
 
@@ -1243,8 +1243,8 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 
 - Entrée dans la barre latérale, juste sous le tableau de bord. Au téléphone, il n'a pas
   d'onglet : trois chemins le rendent visible de partout — la première entrée de « Plus »,
-  « Tout le fil → » à côté du titre « Activité récente » du tableau de bord (sur une
-  colonne, où la section arrive sous les sessions), et le pied du menu des notifications
+  « Tout le fil → » à côté du titre « Activité récente » du tableau de bord, et le pied
+  du menu des notifications
 - **« + Publier » ouvre le formulaire sur place** — voir « Publications ». La nouvelle
   publication arrive en tête du fil, sans changer de page. `/fil?publier` l'ouvre d'emblée
   (c'est la cible du « + Publier » du tableau de bord et de « Publier dans le groupe »
@@ -1465,39 +1465,46 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 
 ## Tableau de bord (`/`)
 
+Il répond à ce qui attend le membre, pas à ce qui s'est passé — c'est le rôle du fil et de
+la cloche. Dans l'ordre où on ouvre l'application : réécouter la dernière répétition, voir
+la prochaine date, puis seulement l'activité.
+
 - En-tête : le salut seul. Créer une session ou publier passe par « + Ajouter » de la
-  navigation (voir « Navigation »), l'agenda par la section « À venir » ; trois boutons de
-  plus ne faisaient que les répéter
-- Colonne gauche, section **« À venir »** : sessions et événements d'agenda des prochains
-  jours, puis les prochaines indisponibilités des membres. Toujours affichée, même vide
-  (« Rien de prévu », avec « Ajouter une date », qui ouvre l'agenda sur le jour même,
-  formulaire déplié — « Agenda → » mène déjà au calendrier) : c'est l'entrée vers l'agenda.
-  Un événement ou une indisponibilité mène à `/agenda?date=…`, panneau du jour ouvert
-- Colonne gauche : 3 dernières sessions (date, morceaux travaillés en résumé) ; s'il en existe
-  d'autres, la 3ᵉ s'estompe en fondu vers le bas pour signaler la suite derrière « Toutes → »
-- Colonne droite : flux d'actualité (**sessions créées**, **prises ajoutées**, playlists
-  créées ou modifiées, **setlists créées**, **publications** et **derniers commentaires**),
-  trié par horodatage de création/dépôt/modification décroissant. La date prévue d'une
-  session ne détermine pas sa place dans le flux, et les sessions futures y figurent aussi.
-  Chaque entrée renvoie vers la page concernée, puis viennent les playlists triées par date
-  de modification (ou de création si elles n'ont jamais été modifiées)
-- Les prises sont regroupées par membre, session et jour, comme dans `/fil` ; un nouveau
-  dépôt fait remonter la série
-- Huit dernières entrées affichées, y compris après filtrage par type : chaque source
-  charge au moins huit entrées
-- Actualisation toutes les 60 secondes tant que l'onglet est visible, et dès qu'on y
-  revient ; le filtre sélectionné est conservé
+  navigation (voir « Navigation ») ; des boutons ici ne feraient que le répéter. Plus de
+  compteurs (sessions, prises, playlists) : un total n'appelle aucune action
+- **« À réécouter »**, en tête : la dernière session passée ou du jour qui a au moins une
+  piste audio. Son feuillet (`SessionCover`), son type et son ancienneté (« Hier »,
+  « Il y a 5 jours »), son titre, morceaux, prises et durée, et le **▶ rond qui enchaîne
+  toute la session** dans le mini-lecteur (`PlayAllButton`), dans l'ordre de sa page. Puis
+  ses morceaux — 6 au plus, « et N autres » au-delà — avec le nombre de prises et de
+  commentaires ; chacun mène à sa section dans la session (`#song-<id>`). Une session sans
+  prise ou vidéo seule n'a rien à jouer : c'est la précédente qui s'affiche
+- **« À venir »** : la **prochaine date** en carte, teintée comme son type — le temps qui
+  reste (« Dans 3 jours »), le titre, la date, le lieu, et **les absents ce jour-là** :
+  une indisponibilité compte sur la carte de la répétition qu'elle touche, pas sur une
+  ligne à part. Un événement d'agenda sans session est en pointillé, avec « Créer la
+  session → ». Les deux dates suivantes en lignes, avec le nombre d'absents. Les autres
+  indisponibilités à venir restent en une ligne. La session affichée dans « À réécouter »
+  n'y figure pas, même datée du jour. Toujours affichée, même vide (« Rien de prévu », avec
+  « Ajouter une date », qui ouvre l'agenda sur le jour même, formulaire déplié — « Agenda → »
+  mène déjà au calendrier). Une date mène à sa session, ou à `/agenda?date=…`
+- **« À toi »**, seulement s'il y a quelque chose : un enregistrement resté dans la copie
+  de secours de ce navigateur (→ `/record`), des découpes en attente (→ `/upload`, ou
+  `/perso` sans groupe actif), des morceaux « À nommer » (→ `/songs?filtre=a_nommer`). Pas
+  les mentions : la cloche les signale déjà, et les marque lues à l'ouverture
+- **« Activité récente »** : les **3** dernières entrées, « Tout le fil → » à côté du titre.
+  Sessions créées, prises ajoutées (regroupées par membre, session et jour, comme dans
+  `/fil`), playlists créées ou modifiées, setlists créées, publications et commentaires,
+  triés par horodatage de création, de dépôt ou de modification — pas par date prévue.
+  Sans filtre : trois lignes n'en demandent pas, le fil montre le reste
 - Un commentaire y mène là où il a été écrit : la prise, la setlist ou la publication. La
-  requête part de `comments` et rejoint les trois cibles — c'est la cible qui dit à quel groupe il appartient
-- Une setlist y figure à sa **création** : elle annonce ce que le groupe prépare. Sa
-  modification, elle, n'apprend rien de plus au reste du groupe
-- Le filtre du flux propose « Toutes / Sessions / Prises / Playlists / Setlists / Publications /
-  Commentaires »
-- Une **publication** y figure à sa création, et ses commentaires y mènent à `/posts/[id]` —
-  voir « Publications »
-- « Tout le fil d'actualité → » sous le flux mène à `/fil`, qui montre tout, en entier —
-  voir « Fil d'actualité ». Quand la page passe sur une colonne (≤ 700 px), « Tout le fil → »
-  s'ajoute à côté du filtre : le lien du bas arrive alors après les sessions et huit entrées
+  requête part de `comments` et rejoint les trois cibles — c'est la cible qui dit à quel
+  groupe il appartient
+- **« En préparation »** : les 3 dernières setlists créées et les 3 dernières playlists
+  modifiées, avec leur nombre de morceaux ou de prises
+- Sur ordinateur, « À réécouter » et « À venir » à gauche ; « À toi », l'activité et
+  « En préparation » dans la colonne de droite. Sur une colonne (≤ 700 px), dans cet ordre
+- Actualisation toutes les 60 secondes tant que l'onglet est visible, et dès qu'on y revient
 
 ## Pages légales (`/mentions-legales`, `/confidentialite`)
 

@@ -140,7 +140,8 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
 
 ## Navigation
 ```
-/                   tableau de bord (3 dernières sessions + playlists)
+/                   tableau de bord : dernière session à réécouter, prochaines dates,
+                    ce qui attend le membre, 3 lignes d'activité
 /fil                fil d'actualité complet du groupe actif, par pages
 /sessions           liste des sessions + création
 /sessions/[id]      détail session → morceaux groupés → prises

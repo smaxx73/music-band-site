@@ -2,30 +2,41 @@
 	import type { PageData } from './$types'
 	import { onMount } from 'svelte'
 	import { invalidateAll } from '$app/navigation'
-	import { formatDateOnly, localDateOnly, toDateOnly } from '$lib/date'
+	import { formatDateOnly, localDateOnly, nearDayLabel, relativeDayLabel, toDateOnly } from '$lib/date'
 	import PublicLanding from '$lib/components/PublicLanding.svelte'
 	import Icon from '$lib/components/Icon.svelte'
+	import SessionCover from '$lib/components/SessionCover.svelte'
+	import PlayAllButton from '$lib/components/PlayAllButton.svelte'
 	import type { IconName } from '$lib/icons'
-	import { postKindLabel, postTitle, type PostView } from '$lib/types'
+	import type { PlayerTrack } from '$lib/player.svelte'
+	import { findPendingTake } from '$lib/recording-store'
+	import {
+		formatDurationLong,
+		postKindLabel,
+		postTitle,
+		sessionTypeLabel,
+		type PostView,
+		type SessionType,
+	} from '$lib/types'
 
 	let { data }: { data: PageData } = $props()
 
-	type SessionRow = {
-		id: number; date: string; location: string | null
-		members: string[]; song_count: number; song_titles: string[]
+	type LastSession = { id: number; date: string; type: SessionType; title: string | null; location: string | null }
+	type LastTrack = {
+		id: number; take: number; duration_s: number | null; song_id: number; song_title: string; comment_count: number
 	}
-	type UpcomingItem =
-		| { kind: 'session'; id: number; date: string; location: string | null; title: null; song_count: number; song_titles: string[] }
-		| { kind: 'event'; id: number; date: string; location: string | null; title: string | null; eventType: string }
+	type UpcomingItem = {
+		kind: 'session' | 'event'; id: number; date: string; type: string
+		title: string | null; location: string | null; absents: string[]
+	}
+	type Unavailability = { id: number; date: string; author: string }
 	type PlaylistRow = { id: number; name: string; item_count: number; updated_at: string | null; created_at: string }
+	type SetlistRow = { id: number; name: string; created_at: string; created_by: string; item_count: number }
 	type RecentSession = { id: number; date: string; title: string | null; location: string | null; created_at: string }
 	type RecentRecordings = {
 		session_id: number; session_date: string; session_title: string | null; author: string
 		recording_count: number; created_at: string; song_titles: string[]
 	}
-	type Stats = { session_count: number; recording_count: number; playlist_count: number }
-	type Unavailability = { id: number; date: string; author: string }
-	type SetlistRow = { id: number; name: string; created_at: string; created_by: string }
 	// Un commentaire porte sur une prise, une setlist OU une publication : une seule paire est remplie.
 	type RecentComment = {
 		id: number; author: string; content: string; created_at: string
@@ -34,22 +45,30 @@
 		post_id: number | null; post_title: string | null
 	}
 
-	const upcomingItems = $derived(data.upcomingItems as unknown as UpcomingItem[])
-	const sessions = $derived(data.sessions as unknown as SessionRow[])
-	// La colonne de sessions reste classée par date de répétition.
-	const RECENT_SESSIONS_SHOWN = 3
-	const playlists = $derived(data.playlists as unknown as PlaylistRow[])
+	const lastSession = $derived((data.lastSession ?? null) as LastSession | null)
+	const lastTracks = $derived((data.lastTracks ?? []) as unknown as LastTrack[])
+	const upcomingItems = $derived((data.upcomingItems ?? []) as unknown as UpcomingItem[])
+	const otherUnavailabilities = $derived((data.otherUnavailabilities ?? []) as unknown as Unavailability[])
+	const playlists = $derived((data.playlists ?? []) as unknown as PlaylistRow[])
 	const setlists = $derived((data.setlists ?? []) as unknown as SetlistRow[])
 	const posts = $derived((data.posts ?? []) as unknown as PostView[])
-	const stats = $derived(data.stats as Stats | null)
-	const unavailabilities = $derived((data.unavailabilities ?? []) as unknown as Unavailability[])
 	const recentComments = $derived((data.recentComments ?? []) as unknown as RecentComment[])
-
 	const recentSessions = $derived((data.recentSessions ?? []) as unknown as RecentSession[])
 	const recentRecordings = $derived((data.recentRecordings ?? []) as unknown as RecentRecordings[])
+	const placeholderSongCount = $derived(data.placeholderSongCount ?? 0)
+	const pendingImportCount = $derived(data.pendingImportCount ?? 0)
+	const hasGroup = $derived(!!data.user?.current_group_id)
+
+	// Un enregistrement resté dans la copie de secours n'existe que dans ce navigateur :
+	// c'est le seul « à toi » que le serveur ne peut pas connaître.
+	let pendingTake = $state(false)
 
 	// Le tableau de bord reste à jour lorsqu’on le laisse ouvert ou qu’on y revient.
 	onMount(() => {
+		findPendingTake()
+			.then((take) => { pendingTake = take !== null })
+			.catch(() => { /* Pas de stockage local (navigation privée) : rien à reprendre. */ })
+
 		let refreshing = false
 		async function refresh() {
 			if (!data.user || document.visibilityState !== 'visible' || refreshing) return
@@ -68,7 +87,7 @@
 		}
 	})
 
-	const firstName = $derived((data as any).user?.display_name?.split(' ')[0] ?? 'vous')
+	const firstName = $derived(data.user?.display_name?.split(' ')[0] ?? 'vous')
 
 	function formatDate(d: string | Date) {
 		return formatDateOnly(d, { weekday: 'short', day: 'numeric', month: 'short' })
@@ -78,29 +97,110 @@
 		return new Date(toDateOnly(d) || d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })
 	}
 
-	const eventTypeLabel: Record<string, string> = {
-		repetition: 'Répétition',
-		concert: 'Concert',
-		studio: 'Studio',
-		autre: 'Événement',
-		indisponibilite: 'Indisponibilité',
+	// Aujourd'hui, demain, hier : dits en toutes lettres partout sur la page.
+	function dayLabel(d: string, format: (d: string) => string) {
+		return nearDayLabel(d) ?? format(d)
 	}
+
+	// Un horodatage de création se lit au jour de l'appareil, pas à celui de Greenwich :
+	// une prise déposée à 23 h reste « aujourd'hui ».
+	function activityDate(at: string | Date) {
+		const day = localDateOnly(new Date(at))
+		return nearDayLabel(day) ?? formatShortDate(day)
+	}
+
+	function plural(n: number, one: string, many = `${one}s`) {
+		return `${n} ${n > 1 ? many : one}`
+	}
+
+	// ─── À réécouter : la dernière session, morceau par morceau ───
+
+	// Même ordre que la page de la session (titre, puis numéro de prise) : le ▶ enchaîne
+	// ce que la liste montre.
+	const lastTrackList = $derived<PlayerTrack[]>(
+		lastSession
+			? lastTracks.map((t) => ({
+				recordingId: t.id,
+				songId: t.song_id,
+				songTitle: t.song_title,
+				take: t.take,
+				sessionDate: lastSession.date,
+				durationS: t.duration_s,
+			}))
+			: []
+	)
+
+	type SongSummary = { id: number; title: string; takes: number; comments: number }
+	const lastSongs = $derived.by(() => {
+		const songs = new Map<number, SongSummary>()
+		for (const t of lastTracks) {
+			const song = songs.get(t.song_id) ?? { id: t.song_id, title: t.song_title, takes: 0, comments: 0 }
+			song.takes += 1
+			song.comments += t.comment_count
+			songs.set(t.song_id, song)
+		}
+		return [...songs.values()]
+	})
+	const SONGS_SHOWN = 6
+
+	const lastStats = $derived.by(() => {
+		const duration = lastTracks.reduce((n, t) => n + (t.duration_s ?? 0), 0)
+		return [
+			plural(lastSongs.length, 'morceau', 'morceaux'),
+			plural(lastTracks.length, 'prise'),
+			duration > 0 ? formatDurationLong(duration) : null,
+		].filter(Boolean).join(' · ')
+	})
+
+	// ─── À venir ───
 
 	// Ouvre l'agenda sur le jour de l'événement, panneau du jour déplié.
 	function agendaDayUrl(d: string | Date) {
 		return `/agenda?date=${toDateOnly(d)}`
 	}
 
-	function sessionCreateUrl(item: Extract<UpcomingItem, { kind: 'event' }>) {
+	function upcomingHref(item: UpcomingItem) {
+		return item.kind === 'session' ? `/sessions/${item.id}` : agendaDayUrl(item.date)
+	}
+
+	function sessionCreateUrl(item: UpcomingItem) {
 		const params = new URLSearchParams({
 			link_event_id: String(item.id),
 			date: toDateOnly(item.date),
-			type: item.eventType,
+			type: item.type,
 		})
 		if (item.title) params.set('title', item.title)
 		if (item.location) params.set('location', item.location)
 		return `/sessions?${params.toString()}`
 	}
+
+	const nextItem = $derived(upcomingItems[0] ?? null)
+	const laterItems = $derived(upcomingItems.slice(1))
+
+	// ─── À toi : ce qui attend l'utilisateur lui-même ───
+
+	type Todo = { href: string; icon: IconName; label: string }
+	const todos = $derived.by(() => {
+		const list: Todo[] = []
+		if (pendingTake) list.push({ href: '/record', icon: 'mic', label: 'Un enregistrement n’a pas été envoyé' })
+		if (pendingImportCount > 0) {
+			list.push({
+				href: hasGroup ? '/upload' : '/perso',
+				icon: 'scissors',
+				label: pendingImportCount > 1 ? `${pendingImportCount} découpes en attente` : 'Une découpe en attente',
+			})
+		}
+		if (placeholderSongCount > 0) {
+			list.push({
+				href: '/songs?filtre=a_nommer',
+				icon: 'music',
+				label: placeholderSongCount > 1 ? `${placeholderSongCount} morceaux à nommer` : 'Un morceau à nommer',
+			})
+		}
+		return list
+	})
+
+	// ─── Activité : un aperçu, le fil montre le reste ───
 
 	function truncate(text: string, max = 70) {
 		const clean = text.replace(/\s+/g, ' ').trim()
@@ -111,7 +211,7 @@
 	type ActivityKind = 'session' | 'recordings' | 'playlist' | 'setlist' | 'post' | 'comment'
 	type ActivityItem = {
 		kind: ActivityKind; ts: number; date: string; label: string; detail: string
-		color: string; href?: string
+		color: string; href: string
 	}
 	const ACTIVITY_ICON: Record<ActivityKind, IconName> = {
 		session: 'calendar',
@@ -121,17 +221,18 @@
 		post: 'send',
 		comment: 'comment'
 	}
+	const ACTIVITY_SHOWN = 3
 
-	const allActivity = $derived((): ActivityItem[] => {
+	const activity = $derived.by((): ActivityItem[] => {
 		const items: ActivityItem[] = []
 
 		for (const s of recentSessions) {
 			items.push({
 				kind: 'session',
 				ts: new Date(s.created_at).getTime(),
-				date: formatShortDate(s.created_at),
+				date: activityDate(s.created_at),
 				label: 'Session créée',
-				detail: [s.title, formatShortDate(s.date), s.location].filter(Boolean).join(' · '),
+				detail: [s.title, dayLabel(s.date, formatShortDate), s.location].filter(Boolean).join(' · '),
 				color: 'var(--color-accent)',
 				href: `/sessions/${s.id}`,
 			})
@@ -141,9 +242,9 @@
 			items.push({
 				kind: 'recordings',
 				ts: new Date(batch.created_at).getTime(),
-				date: formatShortDate(batch.created_at),
+				date: activityDate(batch.created_at),
 				label: `${batch.recording_count} prise${batch.recording_count > 1 ? 's ajoutées' : ' ajoutée'} — ${batch.author}`,
-				detail: [batch.session_title ?? formatShortDate(batch.session_date), batch.song_titles.slice(0, 2).join(', ')].filter(Boolean).join(' · '),
+				detail: [batch.session_title ?? dayLabel(batch.session_date, formatShortDate), batch.song_titles.slice(0, 2).join(', ')].filter(Boolean).join(' · '),
 				color: 'var(--color-accent)',
 				href: `/sessions/${batch.session_id}`,
 			})
@@ -155,7 +256,7 @@
 				items.push({
 					kind: 'playlist',
 					ts: new Date(at).getTime(),
-					date: formatShortDate(at),
+					date: activityDate(at),
 					label: p.updated_at && new Date(p.updated_at).getTime() !== new Date(p.created_at).getTime() ? 'Playlist modifiée' : 'Playlist créée',
 					detail: p.name,
 					color: 'var(--color-blue)',
@@ -170,7 +271,7 @@
 			items.push({
 				kind: 'setlist',
 				ts: new Date(sl.created_at).getTime(),
-				date: formatShortDate(sl.created_at),
+				date: activityDate(sl.created_at),
 				label: `Setlist créée — ${sl.created_by}`,
 				detail: sl.name,
 				color: 'var(--color-mid)',
@@ -183,7 +284,7 @@
 			items.push({
 				kind: 'post',
 				ts: new Date(p.created_at).getTime(),
-				date: formatShortDate(p.created_at),
+				date: activityDate(p.created_at),
 				label: `${postKindLabel(p)} — ${p.author}`,
 				detail: p.message ? `${postTitle(p)} · ${truncate(p.message, 50)}` : postTitle(p),
 				color: 'var(--color-purple)',
@@ -201,7 +302,7 @@
 			items.push({
 				kind: 'comment',
 				ts: new Date(c.created_at).getTime(),
-				date: formatShortDate(c.created_at),
+				date: activityDate(c.created_at),
 				label: `${c.author} — ${target.name}`,
 				detail: truncate(c.content),
 				color: 'var(--color-green)',
@@ -211,24 +312,7 @@
 
 		// Tri sur l'horodatage brut : les libellés de date sont déjà formatés pour l'affichage.
 		items.sort((a, b) => b.ts - a.ts)
-		return items
-	})
-
-	let activityFilter = $state<'all' | ActivityKind>('all')
-
-	const activityFilterOptions: { value: 'all' | ActivityKind; label: string }[] = [
-		{ value: 'all', label: 'Toutes' },
-		{ value: 'session', label: 'Sessions' },
-		{ value: 'recordings', label: 'Prises' },
-		{ value: 'playlist', label: 'Playlists' },
-		{ value: 'setlist', label: 'Setlists' },
-		{ value: 'post', label: 'Publications' },
-		{ value: 'comment', label: 'Commentaires' },
-	]
-
-	const activity = $derived((): ActivityItem[] => {
-		const items = activityFilter === 'all' ? allActivity() : allActivity().filter((i) => i.kind === activityFilter)
-		return items.slice(0, 8)
+		return items.slice(0, ACTIVITY_SHOWN)
 	})
 </script>
 
@@ -241,199 +325,223 @@
 {:else}
 
 <main>
+	<!-- Pas de boutons ici : créer passe par « + Ajouter » de la navigation. -->
+	<h1 class="dash-title">Bonjour {firstName} 👋</h1>
+
 	<div class="dash-layout">
-		<!-- Left column -->
-		<div class="dash-left">
-			<!-- Pas de boutons ici : créer passe par « + Ajouter » de la navigation, et
-			     l'agenda par la section « À venir ». -->
-			<h1 class="dash-title">Bonjour {firstName} 👋</h1>
-
-			<!-- Stats -->
-			{#if stats}
-				<div class="stat-row">
-					<a href="/sessions" class="stat-card">
-						<span class="stat-num">{stats.session_count}</span>
-						<span class="stat-label">Sessions</span>
-					</a>
-					<!-- Pas de liste globale des prises : le référentiel les compte par morceau -->
-					<a href="/songs" class="stat-card">
-						<span class="stat-num">{stats.recording_count}</span>
-						<span class="stat-label">Prises</span>
-					</a>
-					<a href="/playlists" class="stat-card">
-						<span class="stat-num">{stats.playlist_count}</span>
-						<span class="stat-label">Playlists</span>
-					</a>
-				</div>
-			{/if}
-
-			{#snippet sessionCard(s: Pick<SessionRow, 'id' | 'date' | 'location' | 'song_count' | 'song_titles'>, badge = false)}
-				<li>
-					<a href="/sessions/{s.id}" class="session-card">
-						<div class="session-card-top">
-							<span class="session-date">{formatDate(s.date)}</span>
-							{#if badge}
-								<span class="item-badge item-badge-session">Session</span>
-							{/if}
-							{#if s.location}
-								<span class="session-loc">{s.location}</span>
+		<div class="dash-main">
+			{#if hasGroup}
+				<!-- En premier : on ouvre l'application d'abord pour réécouter la dernière
+				     répétition, et le ▶ y suffit sans passer par la page de la session. -->
+				<section aria-labelledby="dash-replay">
+					<div class="section-header">
+						<h2 id="dash-replay">À réécouter</h2>
+						<a href="/sessions" class="link-more">Toutes les sessions →</a>
+					</div>
+					{#if lastSession}
+						<div class="replay">
+							<div class="replay-head">
+								<a href="/sessions/{lastSession.id}" class="replay-cover" tabindex="-1" aria-hidden="true">
+									<SessionCover date={lastSession.date} type={lastSession.type} />
+								</a>
+								<div class="replay-text">
+									<span class="replay-kicker">
+										{sessionTypeLabel(lastSession.type)} · {relativeDayLabel(lastSession.date)}
+									</span>
+									<a href="/sessions/{lastSession.id}" class="replay-title">
+										{lastSession.title ?? `${sessionTypeLabel(lastSession.type)} du ${formatDate(lastSession.date)}`}
+									</a>
+									<span class="replay-stats">
+										{lastStats}{#if lastSession.location} · {lastSession.location}{/if}
+									</span>
+								</div>
+								<div class="replay-play">
+									<PlayAllButton tracks={lastTrackList} label="Écouter toute la session à la suite" />
+								</div>
+							</div>
+							<ul class="replay-songs">
+								{#each lastSongs.slice(0, SONGS_SHOWN) as song (song.id)}
+									<li>
+										<a href="/sessions/{lastSession.id}#song-{song.id}" class="replay-song">
+											<span class="replay-song-title">{song.title}</span>
+											<span class="replay-song-meta">
+												{plural(song.takes, 'prise')}
+												{#if song.comments > 0}
+													<span class="replay-song-comments" title={plural(song.comments, 'commentaire')}>
+														<Icon name="comment" size="0.8rem" /> {song.comments}
+													</span>
+												{/if}
+											</span>
+										</a>
+									</li>
+								{/each}
+							</ul>
+							{#if lastSongs.length > SONGS_SHOWN}
+								<a href="/sessions/{lastSession.id}" class="link-more replay-more">
+									et {plural(lastSongs.length - SONGS_SHOWN, 'autre morceau', 'autres morceaux')} →
+								</a>
 							{/if}
 						</div>
-						{#if s.song_titles?.filter(Boolean).length}
-							<div class="song-pills">
-								{#each s.song_titles.filter(Boolean) as title}
-									<span class="song-pill">{title}</span>
-								{/each}
-							</div>
-						{:else}
-							<div class="session-count">{s.song_count} morceau{s.song_count > 1 ? 'x' : ''}</div>
-						{/if}
-					</a>
-				</li>
-			{/snippet}
+					{:else}
+						<div class="empty-row">
+							<p class="empty">Aucune prise à réécouter pour l'instant.</p>
+							<a href="/record" class="btn btn-secondary btn-sm">
+								<Icon name="mic" /> Enregistrer
+							</a>
+						</div>
+					{/if}
+				</section>
 
-			<!-- Upcoming sessions & session-type agenda events. Toujours affichée, même vide :
-			     c'est l'entrée vers l'agenda, et « rien de prévu » est aussi une information. -->
-			<div class="section-header">
-				<h2>À venir</h2>
-				<a href="/agenda" class="link-more">Agenda →</a>
-			</div>
-			<div class="upcoming-block">
-				{#if upcomingItems.length === 0}
-					<!-- « Agenda → » mène déjà au calendrier : ce lien-ci ouvre le jour même,
-					     formulaire d'ajout déplié, pour être une action et pas un second chemin. -->
-					<div class="upcoming-empty">
-						<p class="empty">Rien de prévu.</p>
-						<a href="/agenda?date={localDateOnly()}" class="btn btn-secondary btn-sm">
-							<Icon name="plus" /> Ajouter une date
-						</a>
+				<!-- Toujours affichée, même vide : c'est l'entrée vers l'agenda, et « rien de
+				     prévu » est aussi une information. -->
+				<section aria-labelledby="dash-upcoming">
+					<div class="section-header">
+						<h2 id="dash-upcoming">À venir</h2>
+						<a href="/agenda" class="link-more">Agenda →</a>
 					</div>
-				{:else}
-					<ul class="session-list session-list-upcoming">
-						{#each upcomingItems as item}
-							{#if item.kind === 'session'}
-								{@render sessionCard(item, true)}
-							{:else}
-								<li>
-									<div
-										class="session-card session-card-event session-type-{item.eventType}"
-									>
-										<a href={agendaDayUrl(item.date)} class="event-info-link">
-											<div class="session-card-top">
-												<span class="session-date">{formatDate(item.date)}</span>
-												<span class="item-badge item-badge-event">{eventTypeLabel[item.eventType] ?? item.eventType}</span>
-												{#if item.location}
-													<span class="session-loc">{item.location}</span>
-												{/if}
-											</div>
-											<div class="session-count">
-												{item.title ? `${item.title} — ` : ''}prévu à l'agenda, pas encore de session
-											</div>
-										</a>
-										<a href={sessionCreateUrl(item)} class="event-create-btn">Créer la session →</a>
-									</div>
-								</li>
+					{#if nextItem}
+						<!-- La prochaine date en entier ; les absents sur sa carte, c'est là qu'ils
+						     comptent. Un événement d'agenda sans session se distingue en pointillé. -->
+						<div class="next session-type-{nextItem.type}" class:next-event={nextItem.kind === 'event'}>
+							<a href={upcomingHref(nextItem)} class="next-link">
+								<span class="next-when">{relativeDayLabel(nextItem.date)}</span>
+								<span class="next-title">
+									{nextItem.title ?? sessionTypeLabel(nextItem.type)}
+								</span>
+								<span class="next-detail">
+									<span class="next-date">{formatDate(nextItem.date)}</span>
+									{#if nextItem.title}· {sessionTypeLabel(nextItem.type)}{/if}
+									{#if nextItem.location}· {nextItem.location}{/if}
+								</span>
+								{#if nextItem.absents.length > 0}
+									<span class="absents">
+										<span class="absents-label">Absent{nextItem.absents.length > 1 ? 's' : ''}</span>
+										{nextItem.absents.join(', ')}
+									</span>
+								{/if}
+							</a>
+							{#if nextItem.kind === 'event'}
+								<a href={sessionCreateUrl(nextItem)} class="event-create-btn">Créer la session →</a>
 							{/if}
-						{/each}
-					</ul>
-				{/if}
-				{#if unavailabilities.length > 0}
-					<p class="unavail-line">
-						<span class="unavail-label">Indisponibles</span>
-						{#each unavailabilities as u, i}
-							<a href={agendaDayUrl(u.date)}>{u.author} ({formatShortDate(u.date)})</a>{i < unavailabilities.length - 1 ? ', ' : ''}
-						{/each}
-					</p>
-				{/if}
-			</div>
-
-			<!-- Recent (past) sessions -->
-			<div class="section-header">
-				<h2>Sessions récentes</h2>
-				<a href="/sessions" class="link-more">Toutes →</a>
-			</div>
-
-			{#if sessions.length === 0}
-				<p class="empty">Aucune session passée pour l'instant.</p>
-			{:else}
-				<!-- 3 cartes seulement : la dernière s'estompe quand il en reste d'autres,
-				     pour signaler que la suite est derrière « Toutes → » -->
-				<ul class="session-list" class:session-list-more={sessions.length > RECENT_SESSIONS_SHOWN}>
-					{#each sessions.slice(0, RECENT_SESSIONS_SHOWN) as s}
-						{@render sessionCard(s)}
-					{/each}
-				</ul>
+						</div>
+						{#if laterItems.length > 0}
+							<ul class="later">
+								{#each laterItems as item (`${item.kind}-${item.id}`)}
+									<li>
+										<a href={upcomingHref(item)} class="later-row">
+											<span class="later-date">{dayLabel(item.date, formatDate)}</span>
+											<span class="later-title">
+												{item.title ?? sessionTypeLabel(item.type)}{#if item.location}<span class="later-loc"> · {item.location}</span>{/if}
+											</span>
+											{#if item.absents.length > 0}
+												<span class="later-absents" title="Absents : {item.absents.join(', ')}">
+													{plural(item.absents.length, 'absent')}
+												</span>
+											{/if}
+										</a>
+									</li>
+								{/each}
+							</ul>
+						{/if}
+					{:else}
+						<!-- « Agenda → » mène déjà au calendrier : ce lien-ci ouvre le jour même,
+						     formulaire d'ajout déplié, pour être une action et pas un second chemin. -->
+						<div class="empty-row">
+							<p class="empty">Rien de prévu.</p>
+							<a href="/agenda?date={localDateOnly()}" class="btn btn-secondary btn-sm">
+								<Icon name="plus" /> Ajouter une date
+							</a>
+						</div>
+					{/if}
+					{#if otherUnavailabilities.length > 0}
+						<p class="unavail-line">
+							<span class="unavail-label">Indisponibles</span>
+							{#each otherUnavailabilities as u, i}
+								<a href={agendaDayUrl(u.date)}>{u.author} ({nearDayLabel(u.date)?.toLowerCase() ?? formatShortDate(u.date)})</a>{i < otherUnavailabilities.length - 1 ? ', ' : ''}
+							{/each}
+						</p>
+					{/if}
+				</section>
 			{/if}
 		</div>
 
-		<!-- Right column: activity timeline -->
-		<div class="dash-right">
-			<div class="section-header">
-				<h2>Activité récente</h2>
-				<div class="activity-tools">
-					<select class="activity-filter" bind:value={activityFilter}>
-						{#each activityFilterOptions as opt}
-							<option value={opt.value}>{opt.label}</option>
-						{/each}
-					</select>
-					<!-- Sur une colonne, cette section arrive sous les sessions et le lien du bas
-					     sous huit entrées : le fil n'a pas d'onglet, il doit se voir dès le titre -->
-					<a href="/fil" class="link-more feed-link-top">Tout le fil →</a>
-				</div>
-			</div>
-
-			{#if activity().length === 0}
-				<p class="empty">{activityFilter === 'all' ? 'Aucune activité.' : 'Aucune activité de ce type.'}</p>
-			{:else}
-				<div class="timeline">
-					<div class="timeline-line"></div>
-					{#each activity() as item}
-						<div class="timeline-item">
-							<div class="timeline-dot" style="background: {item.color}"></div>
-							{#if item.href}
-								<a class="timeline-body" href={item.href}>
-									<div class="timeline-label">
-										<Icon name={ACTIVITY_ICON[item.kind]} size="0.8rem" /> {item.label}
-									</div>
-									{#if item.detail}
-										<div class="timeline-detail">{item.detail}</div>
-									{/if}
-									<div class="timeline-date">{item.date}</div>
+		<div class="dash-side">
+			<!-- N'apparaît que s'il y a quelque chose : une section vide dirait « tout va
+			     bien » en prenant la place de ce qui compte. -->
+			{#if todos.length > 0}
+				<section aria-labelledby="dash-todo">
+					<div class="section-header">
+						<h2 id="dash-todo">À toi</h2>
+					</div>
+					<ul class="todos">
+						{#each todos as todo (todo.href)}
+							<li>
+								<a href={todo.href} class="todo">
+									<Icon name={todo.icon} size="1rem" />
+									<span>{todo.label}</span>
+									<Icon name="chevron-right" size="0.9rem" class="todo-chevron" />
 								</a>
-							{:else}
-								<div class="timeline-body">
-									<div class="timeline-label">
-										<Icon name={ACTIVITY_ICON[item.kind]} size="0.8rem" /> {item.label}
-									</div>
-									{#if item.detail}
-										<div class="timeline-detail">{item.detail}</div>
-									{/if}
-									<div class="timeline-date">{item.date}</div>
-								</div>
-							{/if}
-						</div>
-					{/each}
-				</div>
+							</li>
+						{/each}
+					</ul>
+				</section>
 			{/if}
-			<!-- Sous la liste plutôt qu'à côté du titre : l'en-tête de cette colonne étroite
-			     porte déjà le filtre -->
-			<a href="/fil" class="link-more feed-link">Tout le fil d'actualité →</a>
 
-			<!-- Playlists -->
-			{#if playlists.length > 0}
-				<div class="section-header" style="margin-top: 1.5rem">
-					<h2>Playlists</h2>
-				</div>
-				<ul class="playlist-list">
-					{#each playlists.slice(0, 4) as p}
-						<li>
-							<a href="/playlists/{p.id}" class="playlist-card">
-								<span class="playlist-name">{p.name}</span>
-								<span class="playlist-meta">{p.item_count} prise{p.item_count > 1 ? 's' : ''}</span>
-							</a>
-						</li>
-					{/each}
-				</ul>
+			{#if hasGroup}
+				<section aria-labelledby="dash-activity">
+					<div class="section-header">
+						<h2 id="dash-activity">Activité récente</h2>
+						<a href="/fil" class="link-more">Tout le fil →</a>
+					</div>
+					{#if activity.length === 0}
+						<p class="empty">Aucune activité.</p>
+					{:else}
+						<ul class="timeline">
+							{#each activity as item (`${item.kind}-${item.href}-${item.ts}`)}
+								<li class="timeline-item">
+									<span class="timeline-dot" style="background: {item.color}"></span>
+									<a class="timeline-body" href={item.href}>
+										<span class="timeline-label">
+											<Icon name={ACTIVITY_ICON[item.kind]} size="0.8rem" /> {item.label}
+										</span>
+										{#if item.detail}
+											<span class="timeline-detail">{item.detail}</span>
+										{/if}
+										<span class="timeline-date">{item.date}</span>
+									</a>
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</section>
+
+				{#if setlists.length > 0 || playlists.length > 0}
+					<section aria-labelledby="dash-prep">
+						<div class="section-header">
+							<h2 id="dash-prep">En préparation</h2>
+						</div>
+						<ul class="prep-list">
+							{#each setlists as sl (sl.id)}
+								<li>
+									<a href="/setlists/{sl.id}" class="prep-card">
+										<Icon name="list" size="0.95rem" class="prep-icon" />
+										<span class="prep-name">{sl.name}</span>
+										<span class="prep-meta">{plural(sl.item_count, 'morceau', 'morceaux')}</span>
+									</a>
+								</li>
+							{/each}
+							{#each playlists as p (p.id)}
+								<li>
+									<a href="/playlists/{p.id}" class="prep-card">
+										<Icon name="playlist" size="0.95rem" class="prep-icon" />
+										<span class="prep-name">{p.name}</span>
+										<span class="prep-meta">{plural(p.item_count, 'prise')}</span>
+									</a>
+								</li>
+							{/each}
+						</ul>
+					</section>
+				{/if}
 			{/if}
 		</div>
 	</div>
@@ -446,6 +554,12 @@
 		max-width: 900px;
 	}
 
+	.dash-title {
+		margin: 0 0 1.25rem;
+		font-size: var(--text-xl);
+		font-weight: 700;
+	}
+
 	.dash-layout {
 		display: grid;
 		/* minmax(0, 1fr) et non 1fr seul : sans le 0, une piste de grille ne rétrécit
@@ -456,65 +570,14 @@
 		align-items: start;
 	}
 
-	/* ─── Header ───────────────────────── */
-	.dash-title { margin-bottom: 1rem; }
-
-	h1 {
-		font-size: var(--text-xl);
-		margin: 0;
-		font-weight: 700;
-	}
-
-	/* ─── Stats ────────────────────────── */
-	.stat-row {
-		display: flex;
-		gap: 0.6rem;
-		margin-bottom: 1.4rem;
-	}
-
-	.stat-card {
-		flex: 1;
-		min-width: 0; /* sinon le libellé majuscule (mot entier + letter-spacing) empêche
-		                 la carte de rétrécir sous 320px et déborde de quelques pixels */
-		background: var(--color-paper);
-		border: 1px solid var(--color-border-light);
-		border-radius: var(--radius-lg);
-		padding: 0.7rem 0.8rem;
-		text-align: center;
-		display: flex;
-		flex-direction: column;
-		gap: 2px;
-		text-decoration: none;
-		color: inherit;
-		transition: border-color 0.12s;
-	}
-
-	.stat-card:hover {
-		border-color: var(--color-accent);
-	}
-
-	.stat-num {
-		font-size: var(--text-xl);
-		font-weight: 700;
-		color: var(--color-accent);
-		line-height: 1;
-	}
-
-	.stat-label {
-		font-size: var(--text-2xs);
-		color: var(--color-text-muted);
-		text-transform: uppercase;
-		letter-spacing: 0.04em;
-		overflow: hidden;
-		text-overflow: ellipsis;
-		white-space: nowrap;
-	}
+	section + section { margin-top: 1.75rem; }
 
 	/* ─── Section headers ──────────────── */
 	.section-header {
 		display: flex;
 		align-items: baseline;
 		justify-content: space-between;
+		gap: 0.75rem;
 		margin-bottom: 0.65rem;
 	}
 
@@ -531,79 +594,15 @@
 		font-size: var(--text-xs);
 		color: var(--color-text-muted);
 		text-decoration: none;
+		white-space: nowrap;
 	}
 
 	.link-more:hover { color: var(--color-accent); }
 
-	.feed-link { display: inline-block; margin-top: 0.5rem; }
-
-	.activity-tools {
-		display: flex;
-		align-items: baseline;
-		gap: 0.75rem;
-	}
-
-	/* La colonne de 240 px n'a pas la place à côté du filtre : le lien du bas suffit */
-	.feed-link-top { display: none; }
-
-	.activity-filter {
-		font-size: var(--text-xs);
-		color: var(--color-text-muted);
-		background: var(--color-bg);
-		border: 1px solid var(--color-border-light);
-		border-radius: var(--radius-md);
-		padding: 2px 6px;
-		cursor: pointer;
-	}
-
-	.activity-filter:hover,
-	.activity-filter:focus {
-		color: var(--color-accent);
-		border-color: var(--color-accent);
-	}
-
-	/* ─── Sessions ─────────────────────── */
-	.session-list {
-		list-style: none;
-		padding: 0;
-		margin: 0 0 1rem;
-		display: flex;
-		flex-direction: column;
-		gap: 0.45rem;
-	}
-
-	.session-card {
-		display: block;
-		border: 1px solid var(--color-border-light);
-		border-radius: var(--radius-lg);
-		padding: 0.65rem 0.9rem;
-		text-decoration: none;
-		color: inherit;
-		background: var(--color-bg);
-		transition: border-color 0.12s, background 0.12s;
-	}
-
-	.session-card:hover {
-		border-color: var(--color-accent);
-		background: var(--color-paper);
-	}
-
-	/* Masque plutôt qu'un dégradé de couleur : il estompe la carte quel que soit le fond */
-	.session-list-more > li:last-child {
-		-webkit-mask-image: linear-gradient(to bottom, #000 0%, transparent 95%);
-		mask-image: linear-gradient(to bottom, #000 0%, transparent 95%);
-	}
-
-	.upcoming-block {
-		margin-bottom: 1.4rem;
-	}
-
-	.upcoming-block .empty {
-		margin: 0;
-	}
+	.empty { margin: 0; }
 
 	/* Le constat à gauche, l'action à droite ; l'une passe sous l'autre faute de place. */
-	.upcoming-empty {
+	.empty-row {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
@@ -611,57 +610,180 @@
 		gap: 0.5rem 1rem;
 	}
 
-	.session-list-upcoming .session-card {
-		border-color: var(--color-accent-light);
-		background: var(--color-accent-light);
-	}
-
-	.session-list-upcoming .session-card:hover {
-		border-color: var(--color-accent);
-		background: var(--color-paper);
-	}
-
-	/* Événement d'agenda pas encore transformé en session : style pointillé neutre,
-	   pour bien le distinguer d'une session réelle (fond accent plein ci-dessus). */
-	.session-list-upcoming .session-card-event {
+	/* ─── À réécouter ──────────────────── */
+	.replay {
+		border: 1px solid var(--color-border-light);
+		border-radius: var(--radius-xl);
 		background: var(--color-bg);
-		border-style: dashed;
-		border-color: var(--color-border);
+		overflow: hidden;
 	}
 
-	.session-list-upcoming .session-card-event:hover {
-		border-color: var(--color-text-muted);
+	.replay-head {
+		display: flex;
+		align-items: center;
+		gap: 0.9rem;
+		padding: 0.9rem;
 		background: var(--color-paper);
+		border-bottom: 1px solid var(--color-border-light);
 	}
 
-	.item-badge {
+	/* Le feuillet est dans un lien : sans cela, son texte (mois, jour) hérite du soulignement */
+	.replay-cover {
+		display: block;
+		text-decoration: none;
+		width: 64px;
+		height: 64px;
+		flex-shrink: 0;
+		border-radius: var(--radius-lg);
+		overflow: hidden;
+	}
+
+	.replay-text {
+		flex: 1;
+		min-width: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.replay-kicker {
 		font-size: var(--text-2xs);
 		font-weight: 600;
-		padding: 1px 7px;
-		border-radius: 20px;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--color-text-muted);
+	}
+
+	.replay-title {
+		font-size: var(--text-lg);
+		font-weight: 700;
+		color: var(--color-text);
+		text-decoration: none;
+		overflow: hidden;
+		text-overflow: ellipsis;
 		white-space: nowrap;
 	}
 
-	.item-badge-session {
-		background: var(--color-green-light);
-		color: var(--color-green);
+	.replay-title:hover { color: var(--color-accent-dark); }
+
+	.replay-stats {
+		font-size: var(--text-xs);
+		color: var(--color-text-secondary);
 	}
 
-	/* Mêmes couleurs que l'agenda (`.session-type-*`, src/app.css), pour reconnaître le
-	   type d'un coup d'œil. */
-	.item-badge-event {
-		background: var(--type-bg, var(--color-bg-subtle));
-		color: var(--type-text, var(--color-text-secondary));
+	.replay-play { flex-shrink: 0; }
+
+	.replay-songs {
+		list-style: none;
+		margin: 0;
+		padding: 0.3rem;
 	}
 
-	.session-card-event {
-		display: block;
-	}
-
-	.event-info-link {
-		display: block;
-		text-decoration: none;
+	.replay-song {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: 0.75rem;
+		min-height: 40px;
+		padding: 0.55rem 0.6rem;
+		border-radius: var(--radius-md);
 		color: inherit;
+		text-decoration: none;
+	}
+
+	.replay-song:hover { background: var(--color-bg-subtle); }
+
+	.replay-song-title {
+		min-width: 0;
+		font-size: var(--text-sm);
+		font-weight: 600;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+
+	.replay-song-meta {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		flex-shrink: 0;
+		font-size: var(--text-xs);
+		color: var(--color-text-muted);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.replay-song-comments {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.2rem;
+		color: var(--color-text-secondary);
+	}
+
+	.replay-more {
+		display: block;
+		padding: 0 0.9rem 0.75rem;
+	}
+
+	/* ─── À venir ──────────────────────── */
+	/* Teintée comme le type (`.session-type-*`, src/app.css), comme dans l'agenda. */
+	.next {
+		border: 1px solid transparent;
+		border-left: 4px solid var(--type-text, var(--color-accent));
+		border-radius: var(--radius-lg);
+		background: var(--type-bg, var(--color-accent-light));
+		padding: 0.75rem 0.9rem;
+	}
+
+	/* Événement d'agenda pas encore transformé en session : pointillé neutre, pour le
+	   distinguer d'une session réelle. */
+	.next-event {
+		background: var(--color-bg);
+		border: 1px dashed var(--color-border);
+		border-left: 4px solid var(--type-text, var(--color-border));
+	}
+
+	.next-link {
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.next-link:hover .next-title { color: var(--color-accent-dark); }
+
+	.next-when {
+		font-size: var(--text-2xs);
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.05em;
+		color: var(--type-text, var(--color-accent-dark));
+	}
+
+	.next-title {
+		font-size: var(--text-base);
+		font-weight: 700;
+		color: var(--color-text);
+	}
+
+	.next-detail {
+		font-size: var(--text-xs);
+		color: var(--color-text-secondary);
+	}
+
+	.next-date { text-transform: capitalize; }
+
+	.absents {
+		margin-top: 0.35rem;
+		font-size: var(--text-xs);
+		color: var(--color-text);
+	}
+
+	.absents-label,
+	.unavail-label {
+		font-weight: 700;
+		color: var(--color-red-dark);
+		margin-right: 0.3rem;
 	}
 
 	.event-create-btn {
@@ -669,77 +791,113 @@
 		margin-top: 0.5rem;
 		font-size: var(--text-xs);
 		font-weight: 600;
-		color: var(--color-accent);
+		color: var(--color-accent-dark);
 		text-decoration: none;
 	}
 
-	.event-create-btn:hover {
-		text-decoration: underline;
+	.event-create-btn:hover { text-decoration: underline; }
+
+	.later {
+		list-style: none;
+		margin: 0.4rem 0 0;
+		padding: 0;
 	}
 
-	.session-card-top {
+	.later-row {
 		display: flex;
 		align-items: baseline;
-		gap: 0.5rem;
-		margin-bottom: 0.3rem;
+		gap: 0.75rem;
+		min-height: 40px;
+		padding: 0.5rem 0.4rem;
+		border-bottom: 1px solid var(--color-bg-muted);
+		color: inherit;
+		text-decoration: none;
 	}
 
-	.session-date {
-		font-weight: 700;
-		font-size: var(--text-sm);
+	.later-row:hover { background: var(--color-bg-subtle); }
+
+	.later-date {
+		flex-shrink: 0;
+		width: 6.5rem;
+		font-size: var(--text-xs);
+		font-weight: 600;
 		text-transform: capitalize;
-		color: var(--color-text);
+		color: var(--color-text-secondary);
 	}
 
-	.session-loc {
-		font-size: var(--text-xs);
-		color: var(--color-text-muted);
+	.later-title {
+		flex: 1;
+		min-width: 0;
+		font-size: var(--text-sm);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
-	.song-pills {
-		display: flex;
-		flex-wrap: wrap;
-		gap: 4px;
-	}
+	.later-loc { color: var(--color-text-muted); }
 
-	.song-pill {
+	.later-absents {
+		flex-shrink: 0;
 		font-size: var(--text-2xs);
-		background: var(--color-accent-light);
-		color: var(--color-learning-text);
-		border-radius: 20px;
-		padding: 1px 8px;
-		border: 1px solid var(--color-accent-light);
+		font-weight: 600;
+		color: var(--color-red-dark);
 	}
 
-	.session-count {
-		font-size: var(--text-xs);
-		color: var(--color-text-muted);
-	}
-
-	/* ─── Next event ───────────────────── */
 	.unavail-line {
-		margin: 0.5rem 0 0;
+		margin: 0.6rem 0 0;
 		font-size: var(--text-xs);
 		color: var(--color-text-secondary);
 	}
 
-	.unavail-label {
-		font-weight: 700;
-		color: var(--color-red);
-		margin-right: 0.3rem;
-	}
-
+	/* Pas de soulignement au repos, comme les autres liens de la page : souligné, un nom
+	   se lisait comme une faute de saisie plutôt que comme un lien vers l'agenda. */
 	.unavail-line a {
 		color: inherit;
+		text-decoration: none;
 	}
 
-	/* ─── Timeline ─────────────────────── */
+	.unavail-line a:hover { text-decoration: underline; }
+
+	/* ─── À toi ────────────────────────── */
+	.todos {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+	}
+
+	.todo {
+		display: flex;
+		align-items: center;
+		gap: 0.6rem;
+		min-height: 40px;
+		padding: 0.5rem 0.7rem;
+		border: 1px solid var(--color-accent-light);
+		border-radius: var(--radius-md);
+		background: var(--color-accent-light);
+		color: var(--color-text);
+		font-size: var(--text-sm);
+		font-weight: 600;
+		text-decoration: none;
+	}
+
+	.todo:hover { border-color: var(--color-accent); }
+	.todo > span { flex: 1; min-width: 0; }
+	.todo :global(.todo-chevron) { color: var(--color-mid); }
+
+	/* ─── Activité ─────────────────────── */
 	.timeline {
 		position: relative;
-		padding-left: 20px;
+		list-style: none;
+		margin: 0;
+		padding: 0 0 0 20px;
 	}
 
-	.timeline-line {
+	/* Le trait vertical relie les pastilles */
+	.timeline::before {
+		content: '';
 		position: absolute;
 		left: 5px;
 		top: 4px;
@@ -750,10 +908,10 @@
 
 	.timeline-item {
 		position: relative;
-		display: flex;
-		gap: 10px;
 		margin-bottom: 1rem;
 	}
+
+	.timeline-item:last-child { margin-bottom: 0; }
 
 	.timeline-dot {
 		width: 10px;
@@ -763,7 +921,6 @@
 		position: absolute;
 		left: -20px;
 		top: 3px;
-		flex-shrink: 0;
 		z-index: 1;
 	}
 
@@ -776,7 +933,7 @@
 		text-decoration: none;
 	}
 
-	a.timeline-body:hover .timeline-label { color: var(--color-accent); }
+	.timeline-body:hover .timeline-label { color: var(--color-accent-dark); }
 
 	.timeline-label {
 		font-size: var(--text-sm);
@@ -794,11 +951,11 @@
 
 	.timeline-date {
 		font-size: var(--text-2xs);
-		color: var(--color-border);
+		color: var(--color-text-muted);
 	}
 
-	/* ─── Playlists ────────────────────── */
-	.playlist-list {
+	/* ─── En préparation ───────────────── */
+	.prep-list {
 		list-style: none;
 		padding: 0;
 		margin: 0;
@@ -807,11 +964,12 @@
 		gap: 0.35rem;
 	}
 
-	.playlist-card {
+	.prep-card {
 		display: flex;
 		align-items: center;
-		justify-content: space-between;
-		padding: 0.55rem 0.75rem;
+		gap: 0.55rem;
+		min-height: 40px;
+		padding: 0.5rem 0.75rem;
 		border: 1px solid var(--color-border-light);
 		border-radius: var(--radius-md);
 		text-decoration: none;
@@ -820,15 +978,21 @@
 		transition: border-color 0.12s;
 	}
 
-	.playlist-card:hover { border-color: var(--color-accent); }
+	.prep-card:hover { border-color: var(--color-accent); }
+	.prep-card :global(.prep-icon) { flex-shrink: 0; color: var(--color-text-muted); }
 
-	.playlist-name {
+	.prep-name {
+		flex: 1;
+		min-width: 0;
 		font-size: var(--text-sm);
 		font-weight: 600;
 		color: var(--color-text);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 
-	.playlist-meta {
+	.prep-meta {
 		font-size: var(--text-xs);
 		color: var(--color-text-muted);
 		white-space: nowrap;
@@ -837,10 +1001,9 @@
 	/* ─── Responsive ───────────────────── */
 	@media (max-width: 700px) {
 		main { padding: 1rem; }
-		.dash-layout { grid-template-columns: minmax(0, 1fr); }
-		.dash-right { border-top: 1px solid var(--color-border-light); padding-top: 1.5rem; }
-		.feed-link-top { display: inline; }
-		.stat-row { gap: 0.4rem; }
-		.stat-card { padding: 0.6rem 0.5rem; }
+		.dash-layout { grid-template-columns: minmax(0, 1fr); gap: 1.75rem; }
+		.dash-side:not(:empty) { border-top: 1px solid var(--color-border-light); padding-top: 1.5rem; }
+		.replay-head { padding: 0.75rem; gap: 0.75rem; }
+		.replay-cover { width: 56px; height: 56px; }
 	}
 </style>

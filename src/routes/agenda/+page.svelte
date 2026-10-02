@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { localDateOnly } from '$lib/date'
 	import { SESSION_TYPES, sessionTypeLabel, type SessionType } from '$lib/types'
 	import type { PageData } from './$types'
 	import { tick } from 'svelte'
@@ -93,7 +94,9 @@
 		return events.filter((e) => e.date === d && e.type === 'indisponibilite')
 	}
 
-	const today = new Date().toISOString().slice(0, 10)
+	// Jour de l'appareil : `toISOString` donnerait celui de Greenwich, et la case du jour
+	// resterait sur la veille jusqu'à 1 h ou 2 h du matin.
+	const today = localDateOnly()
 
 	const isCurrentMonth = $derived(
 		data.month ===

@@ -66,11 +66,7 @@ export function formatDateTime(value: DateValue, locale = 'fr-FR') {
 	const date = toDate(value)
 	if (!date) return 'Date invalide'
 
-	const now = new Date()
-	const today =
-		date.getFullYear() === now.getFullYear() &&
-		date.getMonth() === now.getMonth() &&
-		date.getDate() === now.getDate()
+	const today = localDateOnly(date) === localDateOnly()
 
 	return today ? timeLabel(date, locale) : `${dateLabel(date, locale)}, ${timeLabel(date, locale)}`
 }
@@ -93,6 +89,50 @@ export function formatDateTimeFull(value: DateValue, locale = 'fr-FR') {
 export function localDateOnly(date: Date = new Date()) {
 	const pad = (n: number) => String(n).padStart(2, '0')
 	return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+/**
+ * Jour civil d'une valeur : une date seule (« 2026-10-02 », colonne DATE) telle quelle, un
+ * instant (horodatage de création) ramené au fuseau de l'appareil. `toDateOnly` lirait ce
+ * dernier à Greenwich, et une prise déposée à 23 h passerait au lendemain.
+ */
+function calendarDay(value: DateValue) {
+	if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) return value.trim()
+	const date = toDate(value)
+	return date ? localDateOnly(date) : ''
+}
+
+/**
+ * Nombre de jours civils entre aujourd'hui et `value` (négatif dans le passé), date seule
+ * ou horodatage.
+ */
+export function daysFromToday(value: DateValue, today = localDateOnly()) {
+	return Math.round(
+		(Date.parse(`${calendarDay(value)}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86_400_000
+	)
+}
+
+/**
+ * « Aujourd'hui », « Demain » ou « Hier », sinon null : pour ces trois jours, le mot dit
+ * d'emblée ce qu'un quantième obligerait à calculer. À l'appelant de choisir le repli.
+ */
+export function nearDayLabel(value: DateValue, today = localDateOnly()) {
+	const days = daysFromToday(value, today)
+	return days === 0 ? "Aujourd'hui" : days === 1 ? 'Demain' : days === -1 ? 'Hier' : null
+}
+
+/**
+ * Écart d'un jour civil à aujourd'hui, en mots : « Aujourd'hui », « Demain », « Dans 5 jours »,
+ * « Hier », « Il y a 3 semaines ». Pour une date proche, ce qui compte est le temps qui
+ * sépare d'elle, pas son quantième.
+ */
+export function relativeDayLabel(value: DateValue, today = localDateOnly()) {
+	const days = daysFromToday(value, today)
+	const near = nearDayLabel(value, today)
+	if (near) return near
+	const n = Math.abs(days)
+	const span = n < 14 ? `${n} jours` : n < 60 ? `${Math.round(n / 7)} semaines` : `${Math.round(n / 30)} mois`
+	return days > 0 ? `Dans ${span}` : `Il y a ${span}`
 }
 
 /**

@@ -2,6 +2,7 @@
 	import type { PageData, ActionData } from './$types'
 	import type { Song } from '$lib/types'
 	import { enhance } from '$app/forms'
+	import { page } from '$app/state'
 	import Modal from '$lib/components/Modal.svelte'
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
 	import { createSubmitConfirm } from '$lib/confirm-submit.svelte'
@@ -63,10 +64,13 @@
 	type SortKey = 'title' | 'take_count' | 'status'
 
 	let search = $state('')
-	let statusFilter = $state<string>('all')
 	// Pas un statut : les morceaux créés à la volée au classement d'une prise, sous un
-	// titre provisoire. Le filtre existe pour qu'ils ne s'accumulent pas sans qu'on le voie.
+	// titre provisoire. Le filtre existe pour qu'ils ne s'accumulent pas sans qu'on le voie ;
+	// `?filtre=a_nommer` l'ouvre d'emblée (lien « À toi » du tableau de bord).
 	const PLACEHOLDER_FILTER = 'a_nommer'
+	let statusFilter = $state<string>(
+		page.url.searchParams.get('filtre') === PLACEHOLDER_FILTER ? PLACEHOLDER_FILTER : 'all'
+	)
 	let sortKey = $state<SortKey>('title')
 	let sortAsc = $state(true)
 
