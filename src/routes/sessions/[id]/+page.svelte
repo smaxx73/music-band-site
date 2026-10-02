@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types'
+	import { songAlbumArtist } from '$lib/songs'
 	import { formatDateOnly } from '$lib/date'
 	import SessionEditor from '$lib/components/SessionEditor.svelte'
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
@@ -14,9 +15,12 @@
 
 	let { data }: { data: PageData } = $props()
 
+	// La session est du groupe actif : c'est lui l'interprète de chaque morceau.
+	const groupName = $derived(data.user?.groups.find((g) => g.id === data.user?.current_group_id)?.name ?? null)
+
 	type Song = {
-		id: number; title: string; composer: string | null; status: string
-		cover_version: number | null
+		id: number; title: string; composer: string | null; original_artist: string | null
+		status: string; cover_version: number | null
 	}
 	// La vue session ajoute au socle partagé l'auteur du dépôt : c'est lui qui décide
 	// du droit de suppression (voir canDeleteGroupContent).
@@ -337,9 +341,7 @@
 				<header class="song-head">
 					<SongCover songId={group.song.id} title={group.song.title} size={56} coverVersion={group.song.cover_version} />
 					<div class="song-head-text">
-						{#if group.song.composer}
-							<span class="song-kicker">{group.song.composer}</span>
-						{/if}
+						<span class="song-kicker">{songAlbumArtist(group.song, groupName)}</span>
 						<h2><a href="/songs/{group.song.id}">{group.song.title}</a></h2>
 						<span class="song-head-sub">
 							{group.recordings.length} prise{group.recordings.length > 1 ? 's' : ''}

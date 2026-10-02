@@ -5,6 +5,44 @@
  */
 export const PLACEHOLDER_SONG_PREFIX = 'À nommer — '
 
+/** Libellés des statuts d'un morceau (`songs.status`), dans l'ordre des sélecteurs. */
+export const SONG_STATUS_LABELS: Record<string, string> = {
+	en_apprentissage: 'En apprentissage',
+	proposition_de_travail: 'Proposition de travail',
+	au_repertoire: 'Au répertoire',
+	abandonne: 'Abandonné'
+}
+
+/**
+ * Crédit d'un morceau, comme sur un album : l'interprète d'abord — le groupe, qui le
+ * joue, reprise ou non —, puis l'origine : « reprise de Stevie Wonder », « écrit par
+ * Julie ». Une reprise est un morceau qui a un artiste original ; sans lui, c'est une
+ * composition du groupe, et `composer` en nomme les auteurs s'il y en a.
+ */
+export function songCredit(
+	song: { composer: string | null; original_artist: string | null },
+	groupName: string | null
+): { artist: string; detail: string | null } {
+	const detail = [
+		song.original_artist ? `reprise de ${song.original_artist}` : null,
+		song.composer ? `écrit par ${song.composer}` : null
+	]
+		.filter(Boolean)
+		.join(' · ')
+	return { artist: groupName ?? 'Composition du groupe', detail: detail || null }
+}
+
+/**
+ * Surtitre d'un morceau ouvert comme un album (vue session) : l'interprète, et pour une
+ * reprise son origine — « The Lambda », « The Lambda · reprise de Stevie Wonder ». Les
+ * auteurs d'une composition restent sur la page du morceau : sur un album, l'artiste
+ * passe avant eux.
+ */
+export function songAlbumArtist(song: { original_artist: string | null }, groupName: string | null): string {
+	const artist = groupName ?? 'Composition du groupe'
+	return song.original_artist ? `${artist} · reprise de ${song.original_artist}` : artist
+}
+
 export function isPlaceholderSongTitle(title: string): boolean {
 	return title.startsWith(PLACEHOLDER_SONG_PREFIX)
 }

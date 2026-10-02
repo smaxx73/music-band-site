@@ -20,6 +20,21 @@ en montant de version (voir `deploy.md`).
 - Débit relevé de 128 à 192 kbit/s, pour l'enregistrement en direct comme pour les mp3
   stockés (dépôt, espace perso, découpe). Les fichiers existants restent à 128 kbit/s ;
   un enregistrement en direct s'arrête désormais vers 2 h 20 (limite de 200 Mo)
+- Feuille de répétition : la page s'ouvre en lecture (feuille seule, transposable et
+  imprimable) ; « Modifier » ouvre l'atelier, « Enregistrer » ou « Annuler » y ramènent.
+  Une feuille neuve part des paroles et accords déjà saisis dans la fiche du morceau, et
+  « Reprendre la fiche du morceau » les réinsère dans une feuille commencée. Un lien vers la
+  feuille d'un autre de ses groupes bascule le groupe actif. Aucune migration
+- Page d'un morceau : « Modifier » ouvre sa fiche sous l'en-tête (titre, statut, tonalité,
+  reprise, paroles et accords, recherche Deezer), comme sur une session, sans repasser par
+  le tableau de `/songs`. Un morceau sans prise s'y supprime aussi
+- Fiche d'un morceau : « Composition du groupe » ou « Reprise » se choisit en tête du
+  formulaire. Une composition demande seulement qui l'a écrite (facultatif : vide, c'est le
+  groupe) ; une reprise exige l'artiste original et propose la recherche Deezer. L'en-tête
+  du morceau crédite le groupe d'abord, comme un album (« The Lambda · écrit par … »,
+  « The Lambda · reprise de … »). Dans une session, chaque morceau porte de même le nom
+  du groupe au-dessus de son titre, plutôt que son compositeur.
+  Aucune migration : une reprise reste un morceau qui a un artiste original
 
 ## [1.3.0] — 2026-10-02
 

@@ -4,11 +4,17 @@
 	let { data }: { data: PageData } = $props()
 </script>
 
-<svelte:head><title>Partition — {data.song.title}</title></svelte:head>
-<nav class="breadcrumb" aria-label="Fil d’Ariane"><a href="/songs">Morceaux</a> / <a href="/songs/{data.song.id}">{data.song.title}</a> / <span>Partition</span></nav>
-<SongChartPrototype songId={data.song.id} songTitle={data.song.title} />
-
-<style>
-	.breadcrumb { max-width: 1400px; margin: 1.25rem auto -1rem; padding: 0 1rem; color: var(--color-text-muted); font-size: var(--text-sm); }
-	.breadcrumb a { color: inherit; }
-</style>
+<svelte:head><title>Feuille de répétition — {data.song.title}</title></svelte:head>
+{#key data.song.id}
+	<SongChartPrototype
+		songId={data.song.id}
+		songTitle={data.song.title}
+		songLyrics={data.song.lyrics}
+		songMusicNotes={data.song.music_notes}
+		initialSheet={data.sheet}
+	>
+		{#snippet breadcrumb()}
+			<nav class="breadcrumb" aria-label="Fil d’Ariane"><a href="/songs">Morceaux</a> / <a href="/songs/{data.song.id}">{data.song.title}</a> / <span>Feuille de répétition</span></nav>
+		{/snippet}
+	</SongChartPrototype>
+{/key}

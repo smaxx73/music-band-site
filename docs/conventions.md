@@ -20,8 +20,10 @@ src/
 │   │   ├── posts.ts       # publications dans le groupe (enregistrement perso, vidéo, suggestion) + pouces
 │   │   ├── feed.ts        # fil d'actualité : toutes les sources ordonnées, paginé par curseur
 │   │   ├── share-links.ts # liens d'écoute publics : jeton, résolution, ce qui est exposé
-│   │   ├── songs.ts       # référentiel : suppression d'un morceau (scopée au groupe, sans prise)
+│   │   ├── songs.ts       # référentiel : lecture du formulaire de fiche, modification,
+│   │   │                  #   suppression d'un morceau (scopée au groupe, sans prise)
 │   │   ├── song-covers.ts # pochettes de morceau : dépôt (recadrage ffmpeg), lecture, retrait
+│   │   ├── score-documents.ts # feuilles de répétition : validation, accès, droit de suppression
 │   │   ├── session-photos.ts # photo de bandeau d'une session : dépôt (recadrage ffmpeg), lecture, retrait
 │   │   ├── places.ts      # lieux du groupe (/group) : liste, ajout, modification (renommage propagé), retrait
 │   │   ├── addresses.ts   # Base Adresse Nationale : recherche d'une adresse pour un lieu
@@ -44,6 +46,8 @@ src/
 │       ├── RecordingRow.svelte     # une prise en piste de tracklist (vues session et morceau) ;
 │       │                          #   porte le menu ⋮ de la prise et l'état « en lecture »
 │       ├── SongCover.svelte       # pochette d'un morceau : l'image déposée, sinon un dégradé
+│       ├── SongFields.svelte      # champs de la fiche d'un morceau (ajout, tableau de /songs,
+│       │                          #   édition sur la page du morceau)
 │       ├── SongCoverEditor.svelte # déposer, remplacer, retirer la pochette (page du morceau)
 │       ├── CatalogSearch.svelte   # recherche d'une reprise sur Deezer (fiche et pochette)
 │       ├── PlayAllButton.svelte   # « tout écouter » : enchaîne des prises dans le mini-lecteur
@@ -80,6 +84,8 @@ src/
 │       ├── SuggestInput.svelte    # champ libre avec suggestions (combobox ARIA), générique
 │       ├── SessionPhotoAdd.svelte   # ajouter une photo de bandeau depuis l'en-tête (session sans photo)
 │       ├── SessionPhotoField.svelte # photo de bandeau en édition de session : remplacer, retirer, voile
+│       ├── SongChartPrototype.svelte # feuille de répétition : lecture, et atelier de blocs
+│       │                          #   ChordPro / ABC en édition
 │       └── SongDetails.svelte     # paroles et notes musicales
 ├── routes/
 │   ├── +layout.svelte     # layout global + vérif auth
@@ -87,6 +93,7 @@ src/
 │   ├── sessions/[id]/+page.svelte
 │   ├── songs/+page.svelte         # liste + gestion référentiel (tout membre du groupe)
 │   ├── songs/[id]/+page.svelte
+│   ├── songs/[id]/partition/+page.svelte # feuille de répétition du morceau
 │   ├── recording/[id]/+page.svelte
 │   ├── playlists/[id]/+page.svelte
 │   ├── setlists/+page.svelte

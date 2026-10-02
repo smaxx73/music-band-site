@@ -62,6 +62,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 				s.id       AS song_id,
 				s.title    AS song_title,
 				s.composer AS song_composer,
+				s.original_artist AS song_original_artist,
 				s.status   AS song_status,
 				floor(EXTRACT(EPOCH FROM sc.updated_at) * 1000)::float8 AS song_cover_version,
 				COUNT(c.id)::int AS comment_count,
@@ -88,6 +89,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 			id: number
 			title: string
 			composer: string | null
+			original_artist: string | null
 			status: string
 			cover_version: number | null
 		}
@@ -107,6 +109,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 					id: row.song_id,
 					title: row.song_title,
 					composer: row.song_composer,
+					original_artist: row.song_original_artist,
 					status: row.song_status,
 					cover_version: row.song_cover_version
 				},

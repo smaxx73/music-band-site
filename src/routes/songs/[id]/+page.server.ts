@@ -1,8 +1,9 @@
-import type { PageServerLoad } from './$types'
-import { error, redirect } from '@sveltejs/kit'
+import type { Actions, PageServerLoad } from './$types'
+import { error, fail, redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 import { retargetActiveGroup } from '$lib/server/group-scope'
 import { loginRedirect } from '$lib/redirect'
+import { deleteSong, importCatalogCover, parseSongForm, updateSong } from '$lib/server/songs'
 
 export const load: PageServerLoad = async ({ locals, params, cookies, url, isDataRequest }) => {
 	if (!locals.user) redirect(302, loginRedirect(url))
@@ -43,4 +44,33 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 	`
 
 	return { song, recordings }
+}
+
+// Même fiche, mêmes règles que le tableau de /songs : tout membre du groupe actif.
+export const actions: Actions = {
+	update: async ({ request, locals, params }) => {
+		if (!locals.user) error(401, 'Non autorisé')
+		if (!locals.user.current_group_id) return fail(400, { error: 'Aucun groupe actif.' })
+		const id = parseInt(params.id)
+		if (isNaN(id)) return fail(400, { error: 'ID invalide.' })
+
+		const data = await request.formData()
+		const parsed = parseSongForm(data)
+		if (!parsed.ok) return fail(400, { error: parsed.error })
+		const result = await updateSong(locals.user.current_group_id, id, parsed.fields)
+		if (!result.ok) return fail(result.status, { error: result.error })
+
+		return { cover_error: await importCatalogCover(locals.user.current_group_id, locals.user.id, id, data) }
+	},
+
+	delete: async ({ locals, params }) => {
+		if (!locals.user) error(401, 'Non autorisé')
+		if (!locals.user.current_group_id) return fail(400, { error: 'Aucun groupe actif.' })
+		const id = parseInt(params.id)
+		if (isNaN(id)) return fail(400, { error: 'ID invalide.' })
+
+		const result = await deleteSong(locals.user.current_group_id, id)
+		if (!result.ok) return fail(result.status, { error: result.error })
+		redirect(303, '/songs')
+	}
 }

@@ -31,6 +31,9 @@ api/sessions/[id]/photo/+server.ts
 api/songs/+server.ts
 api/songs/[id]/+server.ts
 api/songs/[id]/cover/+server.ts
+api/score-documents/+server.ts
+api/score-documents/[id]/+server.ts
+api/score-documents/[id]/originals/[blockId]/+server.ts
 api/places/+server.ts
 api/places/addresses/+server.ts
 api/catalog/search/+server.ts
@@ -156,6 +159,15 @@ Le **catalogue** (`api/catalog/`) cherche une reprise chez Deezer, pour tout com
 connecté : `GET /api/catalog/search?q=` (2 à 120 caractères, 8 résultats sans année),
 `GET /api/catalog/tracks/[id]` (détail avec l'année). Deezer injoignable → `502`. Passer
 par `src/lib/server/deezer.ts`.
+
+Une **feuille de répétition** (`api/score-documents/`) est celle d'un morceau du groupe
+actif (`?song_id=`), lisible et modifiable par tout membre ; la supprimer suit
+`canDeleteScoreDocument` (auteur ou admin du groupe, `403` sinon). `POST` crée
+(`{ title, song_id, manifest, contents }`, `409` si le morceau en a déjà une), `PATCH`
+remplace le tout sans changer de morceau, et `originals/[blockId]` reçoit ou sert l'original
+MusicXML/MXL d'une mini-partition. Une feuille sans morceau reste à son auteur, admins
+seuls. La page `/songs/[id]/partition` charge la feuille elle-même, pour l'afficher en
+lecture dès le rendu. Passer par `src/lib/server/score-documents.ts`.
 
 `POST /api/songs` répond `409` avec `{ error, song: { id, title, status } }` quand le titre
 existe déjà : un sélecteur qui crée un morceau à la volée choisit alors l'existant.

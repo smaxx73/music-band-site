@@ -8,13 +8,37 @@
 	import SongCoverEditor from '$lib/components/SongCoverEditor.svelte'
 	import MediaHeader from '$lib/components/MediaHeader.svelte'
 	import { canSharePublicly, formatDurationLong } from '$lib/types'
-	import { songHue } from '$lib/songs'
 	import PlayAllButton from '$lib/components/PlayAllButton.svelte'
 	import type { PlayerTrack } from '$lib/player.svelte'
 	import type { RecordingListItem } from '$lib/types'
 	import Icon from '$lib/components/Icon.svelte'
+	import SongFields from '$lib/components/SongFields.svelte'
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
+	import { createSubmitConfirm } from '$lib/confirm-submit.svelte'
+	import { SONG_STATUS_LABELS, songCredit, songHue } from '$lib/songs'
+	import { enhance } from '$app/forms'
 
 	let { data }: { data: PageData } = $props()
+
+	// Mode édition de la fiche, comme sur une session : « Modifier » dans l'en-tête, le
+	// formulaire sous l'en-tête, rien d'appliqué avant « Enregistrer ».
+	let editing = $state(false)
+	let saving = $state(false)
+	let editError = $state<string | null>(null)
+	// Fiche enregistrée, mais pochette du catalogue non importée : on le dit, sans défaire.
+	let coverNotice = $state<string | null>(null)
+	const ask = createSubmitConfirm()
+
+	function startEditing() {
+		editError = null
+		coverNotice = null
+		editing = true
+	}
+
+	function cancelEditing() {
+		editing = false
+		editError = null
+	}
 
 	type Song = {
 		id: number; title: string; composer: string | null
@@ -34,16 +58,12 @@
 
 	const song = $derived(data.song as unknown as Song)
 	const recordings = $derived(data.recordings as unknown as SongRecording[])
+	// Le morceau est du groupe actif (le chargement filtre dessus) : c'est lui l'interprète.
+	const groupName = $derived(data.user?.groups.find((g) => g.id === data.user?.current_group_id)?.name ?? null)
+	const credit = $derived(songCredit(song, groupName))
 	const allowPublicShare = $derived(
 		!!data.user?.current_group_id && canSharePublicly(data.user, { groupId: data.user.current_group_id })
 	)
-
-	const SONG_STATUS_LABELS: Record<string, string> = {
-		en_apprentissage: 'En apprentissage',
-		proposition_de_travail: 'Proposition de travail',
-		au_repertoire: 'Au répertoire',
-		abandonne: 'Abandonné'
-	}
 
 	function formatDate(d: string | Date) {
 		return formatDateOnly(d, {
@@ -109,31 +129,107 @@
 		{#snippet cover()}
 			<SongCover songId={song.id} title={song.title} coverVersion={song.cover_version} />
 		{/snippet}
-		{#if song.composer || song.original_artist || song.release_year}
-			<p class="composer">
-				{song.composer ?? ''}
-				{#if song.original_artist}
-					{song.composer ? '—' : ''} reprise de {song.original_artist}
-				{/if}
-				{#if song.release_year}<span class="year">({song.release_year})</span>{/if}
-			</p>
-		{/if}
+		<p class="composer">
+			<span class="artist">{credit.artist}</span>
+			{#if credit.detail}· {credit.detail}{/if}
+			{#if song.release_year}<span class="year">({song.release_year})</span>{/if}
+		</p>
 		{#if song.reference_duration_s}
 			<p class="ref-duration">Durée de référence : {formatDuration(song.reference_duration_s)}</p>
 		{/if}
 		{#snippet actions()}
-			<a class="btn btn-secondary" href="/songs/{song.id}/partition">Partition / paroles</a>
-			<SongCoverEditor
-				songId={song.id}
-				title={song.title}
-				coverVersion={song.cover_version}
-				searchQuery={[song.title, song.original_artist].filter(Boolean).join(' ')}
-			/>
-			<PlayAllButton tracks={tracks} label="Écouter toutes les prises de {song.title} à la suite" />
+			{#if !editing}
+				<button class="btn btn-ghost mh-secondary" onclick={startEditing}>
+					<Icon name="pencil" size="0.9rem" /> <span class="mh-label">Modifier</span>
+				</button>
+				<a class="btn btn-secondary" href="/songs/{song.id}/partition">Feuille de répétition</a>
+				<SongCoverEditor
+					songId={song.id}
+					title={song.title}
+					coverVersion={song.cover_version}
+					searchQuery={[song.title, song.original_artist].filter(Boolean).join(' ')}
+				/>
+				<PlayAllButton tracks={tracks} label="Écouter toutes les prises de {song.title} à la suite" />
+			{/if}
 		{/snippet}
 	</MediaHeader>
 
-	<SongDetails lyrics={song.lyrics} musicNotes={song.music_notes} />
+	{#if coverNotice}
+		<p class="message-error" role="alert">{coverNotice}</p>
+	{/if}
+
+	{#if editing}
+		<form
+			method="POST"
+			action="?/update"
+			class="form-section edit-form"
+			use:enhance={() => {
+				editError = null
+				saving = true
+				return async ({ result, update }) => {
+					saving = false
+					if (result.type === 'failure') {
+						editError = (result.data as { error?: string } | undefined)?.error ?? 'Erreur.'
+						return
+					}
+					const coverError = (result.type === 'success' ? result.data?.cover_error : null) as unknown
+					coverNotice = typeof coverError === 'string' ? `La pochette n'a pas pu être importée : ${coverError}` : null
+					await update()
+					editing = false
+				}
+			}}
+		>
+			{#if editError}
+				<p class="message-error" role="alert">{editError}</p>
+			{/if}
+			<SongFields {song} />
+			<div class="form-actions">
+				<button type="submit" class="btn btn-primary" disabled={saving}>
+					{saving ? 'Enregistrement…' : 'Enregistrer'}
+				</button>
+				<button type="button" class="btn btn-ghost" onclick={cancelEditing} disabled={saving}>
+					Annuler
+				</button>
+				<!-- Le formulaire de suppression est à part (pas de formulaires imbriqués) : ce
+				     bouton le désigne par son id. Mêmes règles que le tableau de /songs. -->
+				{#if recordings.length === 0}
+					<button type="submit" form="song-delete" class="btn btn-danger delete-song" disabled={saving}>
+						Supprimer le morceau
+					</button>
+				{:else}
+					<button type="button" class="btn btn-danger delete-song" disabled title="Des prises existent">
+						Supprimer le morceau
+					</button>
+				{/if}
+			</div>
+		</form>
+		{#if recordings.length === 0}
+			<form
+				id="song-delete"
+				method="POST"
+				action="?/delete"
+				hidden
+				use:enhance={({ formElement, cancel }) => {
+					if (ask.intercept(formElement, cancel, {
+						level: 'danger',
+						title: 'Supprimer ce morceau ?',
+						message: `« ${song.title} » sera retiré du référentiel, avec ses paroles, ses notes, sa pochette, sa feuille de répétition et sa place dans les setlists. Cette action est irréversible.`,
+						confirmLabel: 'Supprimer le morceau'
+					})) return
+					editError = null
+					return async ({ result, update }) => {
+						if (result.type === 'failure') {
+							editError = (result.data as { error?: string } | undefined)?.error ?? 'Erreur.'
+							return
+						}
+						await update()
+					}
+				}}
+			></form>
+		{/if}
+	{:else}
+		<SongDetails lyrics={song.lyrics} musicNotes={song.music_notes} />
+	{/if}
 
 	{#if recordings.length === 0}
 		<p class="empty">Aucune prise pour ce morceau.</p>
@@ -165,6 +261,16 @@
 			buttonClass="btn btn-secondary"
 		/>
 	</div>
+
+	<ConfirmDialog
+		open={ask.pending !== null}
+		level={ask.pending?.level}
+		title={ask.pending?.title ?? ''}
+		message={ask.pending?.message ?? ''}
+		confirmLabel={ask.pending?.confirmLabel}
+		onConfirm={ask.confirm}
+		onCancel={ask.dismiss}
+	/>
 </main>
 
 <style>
@@ -183,8 +289,23 @@
 	}
 
 	.composer { font-size: var(--text-sm); color: var(--color-text-secondary); margin: 0; }
+	.composer .artist { font-weight: 600; color: var(--color-text); }
 	.composer .year { color: var(--color-text-muted); }
 	.ref-duration { font-size: var(--text-sm); color: var(--color-text-muted); margin: 0; }
+
+	.edit-form { margin-bottom: 1.5rem; }
+
+	.form-actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		align-items: center;
+	}
+
+	/* La suppression s'écarte des deux autres : on ne la touche pas en visant « Annuler ». */
+	.delete-song { margin-left: auto; }
+
+	.message-error { margin: 0 0 1rem; }
 
 	.footer-actions { margin-top: 2rem; display: flex; flex-wrap: wrap; gap: 0.6rem; }
 

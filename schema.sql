@@ -72,10 +72,13 @@ CREATE TABLE songs (
     id          SERIAL PRIMARY KEY,
     group_id    INTEGER NOT NULL REFERENCES groups(id),
     title       TEXT NOT NULL,
-    composer    TEXT,
+    composer    TEXT,                        -- qui l'a écrit ; pour une composition du groupe, ses
+                                             -- auteurs (NULL = le groupe), pour une reprise le
+                                             -- compositeur s'il diffère de l'interprète
     key         TEXT,                        -- ex: "Dm", "Bb"
     release_year          INTEGER,           -- année de sortie / composition d'origine
-    original_artist       TEXT,              -- artiste/groupe d'origine si reprise (distinct de `composer`)
+    original_artist       TEXT,              -- artiste/groupe d'origine : renseigné = reprise,
+                                             -- NULL = composition du groupe (distinct de `composer`)
     reference_duration_s  INTEGER,           -- durée cible/de référence, en secondes
     lyrics      TEXT,
     music_notes TEXT,                        -- accords, structure, tempo, remarques musicales

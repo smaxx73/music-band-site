@@ -414,7 +414,9 @@ rapide d'une session dans `/upload`, `/record` et au classement d'un enregistrem
 - Prises groupées par morceau, triées par `take` ASC
 - Chaque morceau : toutes ses prises + qualité + nombre de commentaires
 - Chaque morceau s'ouvre comme un **album** : pochette générée (`SongCover.svelte`),
-  compositeur, titre, nombre de prises et durée cumulée, et un bouton rond **« tout
+  l'interprète en surtitre — le **groupe**, suivi de « reprise de … » pour une reprise
+  (`songAlbumArtist`, `src/lib/songs.ts`) ; les auteurs d'une composition restent sur la
+  page du morceau —, titre, nombre de prises et durée cumulée, et un bouton rond **« tout
   écouter »** (`PlayAllButton.svelte`). Pas d'image en base : la pochette est un dégradé
   dont la teinte se tire de l'id du morceau — la même d'une page à l'autre, et inchangée
   quand on renomme un morceau « À nommer » (qui porte « ? » en initiale)
@@ -587,6 +589,14 @@ note, 💬 s'il y a des commentaires — plus l'écoute, et un menu ⋮ recueill
   en lien vers elle), avec « Prise n · lieu · déposant » dessous — comme une piste de
   playlist se titre par son morceau. Le nom du fichier déposé passe en infobulle ; il se
   lit en vue session
+- **La fiche du morceau s'y modifie** : « Modifier » dans l'en-tête, comme sur une session,
+  ouvre sous l'en-tête le même formulaire que le tableau de `/songs` (`SongFields.svelte`,
+  recherche Deezer comprise) — titre, compositeur, tonalité, statut, reprise, année,
+  durée, paroles et accords. Les commandes de l'en-tête s'effacent le temps de l'édition ;
+  rien n'est appliqué avant « Enregistrer », « Annuler » rend la fiche telle qu'elle était.
+  « Supprimer le morceau » s'y trouve aussi, aux mêmes conditions qu'en `/songs` : sans
+  prise, après confirmation `danger`, puis retour au référentiel. Les deux écrans passent
+  par les mêmes règles serveur (`parseSongForm`, `updateSong`, `src/lib/server/songs.ts`)
 - Mêmes pistes que la vue session (`RecordingRow.svelte`, prop `session`), en lecture seule :
   la qualité s'y lit en badge, sans sélecteur, et aucune action d'édition n'y figure
 - Les prises affichent leur libellé de qualité libre et leur note
@@ -625,7 +635,8 @@ membre du groupe peut lui donner une vraie image, comme il gère le reste du ré
 Pour une reprise, retaper l'artiste, l'année et la durée est fastidieux : le catalogue
 public de Deezer (API sans clé) les connaît.
 
-- **Formulaire d'ajout et d'édition de `/songs`** : « Rechercher une reprise sur Deezer »
+- **Formulaire d'un morceau** (ajout et tableau de `/songs`, édition sur la page du
+  morceau), une fois « Reprise » choisi : « Rechercher une reprise sur Deezer »
   (`CatalogSearch.svelte`). Choisir un résultat remplit titre (sans mention de version,
   `title_short`), artiste d'origine, année et durée de référence ; les champs restent
   modifiables. Le compositeur n'est pas repris : Deezer ne connaît que les interprètes
@@ -646,6 +657,41 @@ public de Deezer (API sans clé) les connaît.
   de Deezer — déclaré dans la politique de confidentialité
 - Pas dans la création rapide d'un morceau (« + Nouveau morceau… » pendant un envoi) :
   c'est un geste de répétition, pressé, pas un moment de catalogage
+
+## Feuille de répétition (`/songs/[id]/partition`)
+
+Ce qu'on pose sur le pupitre : les paroles avec les accords placés au-dessus, les sections
+dans l'ordre du morceau, et au besoin quelques mesures de partition. Une feuille par
+morceau (`score_documents.song_id` unique), au groupe : tout membre la crée et la modifie.
+
+- **Elle se lit d'abord.** La page s'ouvre en **lecture** : la feuille mise en forme,
+  rendue avec la page, sans l'atelier. « Modifier » ouvre l'**édition** (blocs, source,
+  aperçu) ; « Enregistrer » y revient, « Annuler » abandonne tout après confirmation
+  `warning` — rien n'est appliqué avant. On vient la suivre en répétition bien plus souvent
+  que la corriger, comme une playlist ou le référentiel
+- **Transposer** en lecture décale les accords **et** les mini-partitions (`visualTranspose`
+  d'abcjs), pour l'écran comme pour l'impression, sans toucher la feuille enregistrée. Pour
+  réécrire les accords d'un bloc, c'est « Appliquer au bloc » en édition
+- **Imprimer / PDF** imprime la vue de lecture, jamais les sources
+- Une feuille est une suite de **blocs** : « Paroles et accords » en ChordPro (accords
+  entre crochets dans le texte, sections par directives `{comment: …}`,
+  `{start_of_chorus}`…), ou **mini-partition** en ABC — saisie note à note, source ABC,
+  ou import MusicXML/MXL dont l'original est conservé (`score_originals`)
+- **Fiche et feuille.** La fiche du morceau garde ses deux champs libres, « Paroles » et
+  « Accords / infos musicales » (`songs.lyrics`, `songs.music_notes`) : ce sont eux que
+  reprennent la page d'une prise, la playlist en cours de lecture et l'envoi d'une prise.
+  La feuille est la mise en page de répétition. Une feuille **neuve part de la fiche** —
+  un bloc par champ rempli, le texte libre étant déjà du ChordPro valide —, au lieu de
+  faire tout retaper. Ensuite, les deux ne se synchronisent pas : « Reprendre la fiche du
+  morceau », en édition, insère de nouveau ses deux champs tels qu'ils sont, pour une fiche
+  complétée depuis. Le formulaire de `/songs` le rappelle sous ces deux champs
+- **Suppression** réservée à son auteur et aux admins du groupe (`canDeleteScoreDocument`),
+  en édition, confirmation `danger`. Les paroles et accords de la fiche restent
+- La feuille reste au groupe quand le compte de son auteur disparaît (migration 043) ; elle
+  part avec le morceau. Elle compte parmi ce qu'on a mis dans un morceau « À nommer » :
+  il n'est plus supprimé quand sa dernière prise le quitte
+- Un lien vers la feuille d'un autre de ses groupes bascule le groupe actif, comme toute
+  page de contenu (voir « Partager un lien vers du contenu »)
 
 ## Lecteur audio (`/recording/[id]`)
 
@@ -1229,9 +1275,24 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 ## Référentiel de morceaux (`/songs`)
 
 - Géré par tout membre du groupe actif (pas réservé aux admins) — scope toujours par `current_group_id`
-- Ajout : titre (unique dans le groupe), compositeur, tonalité, statut, et en complément
-  optionnel : artiste/groupe original (si reprise), année de sortie, durée de référence
-- Modification possible après coup
+- Ajout : titre (unique dans le groupe), tonalité, statut, année, durée de référence
+- **Composition du groupe ou reprise**, choisi en tête du formulaire (`SongFields.svelte`) :
+  c'est ce qui dit quoi écrire où. Pas de colonne en base — une reprise est un morceau qui
+  a un artiste original (`original_artist`) :
+  - **Composition du groupe** : « Écrit par » (`composer`), facultatif — les membres qui
+    l'ont écrit, vide pour tout le groupe. Ni le nom du groupe ni un « artiste » à saisir :
+    le groupe est implicite. L'année est celle de la composition
+  - **Reprise** : « Artiste ou groupe original » obligatoire (`400` sinon), « Compositeur »
+    facultatif quand il diffère de l'interprète, année de sortie, et la recherche Deezer,
+    qui n'est proposée qu'ici
+  - Passer de l'un à l'autre ne perd pas la saisie ; enregistrée en composition, la fiche
+    n'a jamais d'artiste original (`parseSongForm`, `src/lib/server/songs.ts`)
+  - L'en-tête d'un morceau le crédite comme un album (`songCredit`, `src/lib/songs.ts`) :
+    le **nom du groupe d'abord**, en interprète — reprise ou non, c'est lui qui le joue —,
+    puis l'origine : « The Lambda · écrit par Julie », « The Lambda · reprise de Stevie
+    Wonder (1972) »
+- Modification possible après coup, dans le tableau (mode édition) ou depuis la page du
+  morceau — voir « Vue morceau »
 - Statut `abandonne` → masqué dans le sélecteur d'upload, prises existantes conservées ; reste visible et modifiable dans `/songs`. Les propositions de travail restent disponibles.
 - Suppression bloquée si des prises existent pour ce morceau
 - Liste affiche tous les statuts du groupe actif, avec nombre de prises (`take_count`)

@@ -10,9 +10,9 @@
 	import MediaHeader from '$lib/components/MediaHeader.svelte'
 	import IconCover from '$lib/components/IconCover.svelte'
 	import SongListRow from '$lib/components/SongListRow.svelte'
-	import CatalogSearch, { type CatalogTrack } from '$lib/components/CatalogSearch.svelte'
+	import SongFields from '$lib/components/SongFields.svelte'
 	import type { IconName } from '$lib/icons'
-	import { isPlaceholderSongTitle } from '$lib/songs'
+	import { SONG_STATUS_LABELS, isPlaceholderSongTitle } from '$lib/songs'
 
 	let { data, form }: { data: PageData; form: ActionData } = $props()
 
@@ -56,37 +56,6 @@
 		createError = null
 		createSuccess = false
 		showCreateModal = true
-	}
-
-	const STATUS_LABELS: Record<string, string> = {
-		en_apprentissage: 'En apprentissage',
-		proposition_de_travail: 'Proposition de travail',
-		au_repertoire: 'Au répertoire',
-		abandonne: 'Abandonné'
-	}
-
-	// Un titre choisi dans le catalogue remplit la fiche qu'on est en train d'écrire. Les
-	// champs restent modifiables : c'est une aide à la saisie, pas une source qui fait foi.
-	// Le compositeur n'est pas repris — Deezer ne connaît que les interprètes.
-	function fillFromCatalog(track: CatalogTrack, root: HTMLElement) {
-		const form = root.closest('form')
-		if (!form) return
-		const set = (name: string, value: string) => {
-			const field = form.elements.namedItem(name)
-			if (field instanceof HTMLInputElement) field.value = value
-		}
-		set('title', track.title)
-		set('original_artist', track.artist)
-		if (track.release_year) set('release_year', String(track.release_year))
-		if (track.duration_s) set('reference_duration', formatDurationInput(track.duration_s))
-	}
-
-	// Préremplit le champ de durée en édition ("3:45"), au format attendu en retour du formulaire.
-	function formatDurationInput(s: number | null | undefined) {
-		if (!s && s !== 0) return ''
-		const m = Math.floor(s / 60)
-		const sec = s % 60
-		return `${m}:${String(sec).padStart(2, '0')}`
 	}
 
 	// ─── Filtrage / tri (côté client : la liste complète est déjà chargée) ───
@@ -184,107 +153,6 @@
 	<title>Morceaux</title>
 </svelte:head>
 
-<!-- Champs partagés entre la modale d'ajout et l'édition inline -->
-{#snippet songFields(song: Song | null)}
-	<div class="fields-create">
-		<CatalogSearch
-			name="deezer_track_id"
-			initialQuery={song ? [song.title, song.original_artist].filter(Boolean).join(' ') : ''}
-			onPick={fillFromCatalog}
-		/>
-		<label class="form-label">
-			<span>Titre <span class="required">*</span></span>
-			<input
-				class="form-input"
-				type="text"
-				name="title"
-				value={song?.title ?? ''}
-				required
-				autocomplete="off"
-			/>
-		</label>
-		<div class="fields-row">
-			<label class="form-label">
-				Compositeur
-				<input class="form-input" type="text" name="composer" value={song?.composer ?? ''} />
-			</label>
-			<label class="form-label tonalite">
-				Tonalité
-				<input
-					class="form-input"
-					type="text"
-					name="key"
-					value={song?.key ?? ''}
-					placeholder="ex : Dm, Bb"
-				/>
-			</label>
-			<label class="form-label statut">
-				Statut
-				<select class="form-input" name="status">
-					{#each Object.entries(STATUS_LABELS) as [value, label]}
-						<option {value} selected={song ? song.status === value : value === 'en_apprentissage'}>
-							{label}
-						</option>
-					{/each}
-				</select>
-			</label>
-		</div>
-		<div class="fields-row fields-row-secondary">
-			<label class="form-label">
-				Artiste/groupe original
-				<input
-					class="form-input"
-					type="text"
-					name="original_artist"
-					value={song?.original_artist ?? ''}
-					placeholder="si reprise"
-				/>
-			</label>
-			<label class="form-label annee">
-				Année de sortie
-				<input
-					class="form-input"
-					type="text"
-					inputmode="numeric"
-					name="release_year"
-					value={song?.release_year ?? ''}
-					placeholder="AAAA"
-					maxlength="4"
-				/>
-			</label>
-			<label class="form-label duree">
-				Durée de référence
-				<input
-					class="form-input"
-					type="text"
-					name="reference_duration"
-					value={formatDurationInput(song?.reference_duration_s)}
-					placeholder="mm:ss"
-				/>
-			</label>
-		</div>
-		<details class="optional-details" open={Boolean(song?.lyrics || song?.music_notes)}>
-			<summary>Paroles et notes musicales <span class="optional-hint">(optionnel)</span></summary>
-			<div class="fields-optional">
-				<label class="form-label">
-					Paroles
-					<textarea class="form-input" name="lyrics" rows="6" value={song?.lyrics ?? ''}></textarea>
-				</label>
-				<label class="form-label">
-					Accords / infos musicales
-					<textarea
-						class="form-input"
-						name="music_notes"
-						rows="6"
-						value={song?.music_notes ?? ''}
-						placeholder="Accords, structure, tempo, remarques..."
-					></textarea>
-				</label>
-			</div>
-		</details>
-	</div>
-{/snippet}
-
 <main class="page page-wide">
 	<MediaHeader title="Morceaux" stats={allSongs.length > 0 ? headerStats : null}>
 		{#snippet kicker()}Référentiel{/snippet}
@@ -335,7 +203,7 @@
 						class:active={statusFilter === 'all'}
 						onclick={() => (statusFilter = 'all')}
 					>Tous <span class="pill-count">{statusCounts.all}</span></button>
-					{#each Object.entries(STATUS_LABELS) as [value, label]}
+					{#each Object.entries(SONG_STATUS_LABELS) as [value, label]}
 						{#if statusCounts[value]}
 							<button
 								class="filter-pill filter-{value}"
@@ -383,7 +251,7 @@
 			{:else if !editMode}
 			<div class="song-list">
 				{#each visibleSongs as song (song.id)}
-					<SongListRow {song} statusLabel={STATUS_LABELS[song.status] ?? song.status} />
+					<SongListRow {song} statusLabel={SONG_STATUS_LABELS[song.status] ?? song.status} />
 				{/each}
 			</div>
 			{:else}
@@ -444,7 +312,7 @@
 											}}
 										>
 											<input type="hidden" name="id" value={song.id} />
-											{@render songFields(song)}
+											<SongFields {song} />
 											<div class="inline-actions">
 												<button type="submit" class="btn btn-primary">Enregistrer</button>
 												<button type="button" class="btn btn-ghost" onclick={cancelEditing}>
@@ -473,7 +341,7 @@
 									<td data-label="Tonalité">{song.key ?? '—'}</td>
 									<td class="status-cell">
 										<span class="badge badge-{song.status}">
-											{STATUS_LABELS[song.status] ?? song.status}
+											{SONG_STATUS_LABELS[song.status] ?? song.status}
 										</span>
 									</td>
 									<td class="center" data-label="Prises">{song.take_count}</td>
@@ -561,7 +429,7 @@
 				{#if createError}
 					<p class="message-error">{createError}</p>
 				{/if}
-				{@render songFields(null)}
+				<SongFields />
 			</div>
 			<div class="modal-footer">
 				<button type="button" class="btn btn-ghost" onclick={() => (showCreateModal = false)}>
@@ -673,73 +541,6 @@
 		margin-bottom: 3rem;
 	}
 
-	.fields-create {
-		display: flex;
-		flex-direction: column;
-		gap: 0.65rem;
-	}
-
-	.fields-row {
-		display: grid;
-		grid-template-columns: 1fr auto auto;
-		gap: 0.65rem;
-	}
-
-	.fields-row .tonalite { width: 110px; }
-	.fields-row .statut  { width: 175px; }
-
-	.fields-row-secondary .annee { width: 110px; }
-	.fields-row-secondary .duree { width: 110px; }
-
-	.optional-details {
-		border: 1px solid var(--color-border-light);
-		border-radius: var(--radius-md);
-		overflow: hidden;
-	}
-
-	.optional-details summary {
-		padding: 0.5rem 0.75rem;
-		font-size: var(--text-sm);
-		font-weight: 600;
-		cursor: pointer;
-		user-select: none;
-		background: var(--color-bg-subtle);
-		list-style: none;
-		display: flex;
-		align-items: center;
-		gap: 0.4rem;
-	}
-
-	.optional-details summary::before {
-		content: '▸';
-		font-size: 0.7rem;
-		transition: transform 0.15s;
-	}
-
-	.optional-details[open] summary::before {
-		transform: rotate(90deg);
-	}
-
-	.optional-hint {
-		font-weight: 400;
-		color: var(--color-text-muted);
-		font-size: var(--text-xs);
-	}
-
-	.fields-optional {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 0.65rem;
-		padding: 0.75rem;
-	}
-
-	textarea.form-input {
-		resize: vertical;
-		min-height: 7rem;
-	}
-
-	.required { color: var(--color-error); }
-
 	.message-success { margin: 0 0 1.5rem; }
 
 	td.center { text-align: center; }
@@ -769,7 +570,7 @@
 		padding: 1rem 0.75rem;
 	}
 
-	.inline-edit-form .fields-create { margin-bottom: 0.5rem; }
+	.inline-edit-form :global(.fields-create) { margin-bottom: 0.5rem; }
 
 	.inline-actions { display: flex; gap: 0.5rem; }
 
@@ -811,14 +612,6 @@
 		}
 		.status-filters::-webkit-scrollbar { display: none; }
 		.filter-pill { flex-shrink: 0; }
-
-		.fields-row { grid-template-columns: 1fr; }
-		.fields-row .tonalite,
-		.fields-row .statut { width: auto; }
-		.fields-row-secondary .annee,
-		.fields-row-secondary .duree { width: auto; }
-
-		.fields-optional { grid-template-columns: 1fr; }
 
 		/* La table devient une pile de cartes */
 		td.title,
