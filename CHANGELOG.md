@@ -13,6 +13,12 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.4.0] — 2026-10-02
+
+Aucune migration à appliquer. `schema.sql` ne change que par ses commentaires.
+`scripts/fix-single-channel.mjs` est facultatif : il corrige les fichiers déjà stockés
+dont un seul canal porte le son (voir `deploy.md`).
+
 - Un enregistrement dont un seul canal porte le son (micro branché sur une seule entrée
   de la carte son) est recopié sur les deux canaux à la conversion : upload, espace perso,
   enregistrement en direct et découpe. `scripts/fix-single-channel.mjs` corrige les
@@ -35,6 +41,18 @@ en montant de version (voir `deploy.md`).
   « The Lambda · reprise de … »). Dans une session, chaque morceau porte de même le nom
   du groupe au-dessus de son titre, plutôt que son compositeur.
   Aucune migration : une reprise reste un morceau qui a un artiste original
+- Tableau de bord repensé autour de ce qui attend le membre : « À réécouter » (la dernière
+  session avec du son, jouable d'un geste, ses morceaux en lien), « À venir » (la
+  prochaine date en carte, avec les absents ce jour-là, puis les deux suivantes), « À toi »
+  (enregistrement non envoyé, découpes en attente, morceaux « À nommer »), les 3 dernières
+  lignes d'activité et « En préparation » (setlists et playlists récentes). Les compteurs
+  et le filtre de l'activité disparaissent : le fil d'actualité montre le reste
+- Page **Plus** (téléphone) : une section au nom du groupe actif (fil en tête, agenda,
+  playlists, setlists, membres, lieux et réseaux), puis les autres groupes seulement, puis
+  le compte. Le fil d'actualité se rejoint aussi depuis le pied du menu des notifications
+- Notifications au téléphone : le panneau descend de la barre du haut sur toute la
+  largeur de l'écran, voile et fige la page derrière lui ; toucher le voile le referme
+  sans activer ce qui est dessous. Même comportement pour le panneau de « + Ajouter »
 
 ## [1.3.0] — 2026-10-02
 
