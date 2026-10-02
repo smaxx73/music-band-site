@@ -1364,7 +1364,7 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 
 ## Tableau de bord (`/`)
 
-- En-tête : « Agenda », « + Publier », « + Session »
+- En-tête : « Agenda », « Publier », « Session » (icône + devant les deux créations)
 - Colonne gauche, section **« À venir »** : sessions et événements d'agenda des prochains
   jours, puis les prochaines indisponibilités des membres. Toujours affichée, même vide
   (« Rien de prévu », avec un lien pour ajouter une date) : c'est l'entrée vers l'agenda.

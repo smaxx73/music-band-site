@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types'
+	import Icon from '$lib/components/Icon.svelte'
 
 	let { data }: { data: PageData } = $props()
 
@@ -38,11 +39,13 @@
 </svelte:head>
 
 <main class="page page-narrow">
-	<div class="header">
+	<div class="page-header">
 		<h1>Playlists</h1>
-		<button class="btn btn-primary" onclick={() => (showForm = !showForm)}>
-			{showForm ? 'Annuler' : '+ Nouvelle playlist'}
-		</button>
+		{#if showForm}
+			<button class="btn btn-secondary" onclick={() => (showForm = false)}>Annuler</button>
+		{:else}
+			<button class="btn btn-primary" onclick={() => (showForm = true)}><Icon name="plus" /> Nouvelle playlist</button>
+		{/if}
 	</div>
 
 	{#if showForm}
@@ -80,8 +83,6 @@
 </main>
 
 <style>
-	.header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
-	h1 { font-size: var(--text-xl); margin: 0; }
 
 	.create-form { margin-bottom: 1.5rem; }
 

@@ -12,6 +12,7 @@
 	import PlayAllButton from '$lib/components/PlayAllButton.svelte'
 	import type { PlayerTrack } from '$lib/player.svelte'
 	import type { RecordingListItem } from '$lib/types'
+	import Icon from '$lib/components/Icon.svelte'
 
 	let { data }: { data: PageData } = $props()
 
@@ -154,7 +155,7 @@
 	{/if}
 
 	<div class="footer-actions">
-		<a href="/upload?song_id={song.id}" class="btn upload-action">+ Ajouter une prise</a>
+		<a href="/upload?song_id={song.id}" class="btn btn-primary"><Icon name="plus" /> Ajouter une prise</a>
 		<!-- Une setlist programme des morceaux, pas des prises : l'action appartient donc à
 		     la page du morceau, pas aux lignes de prises qui portent celle des playlists. -->
 		<AddToSetlistButton
@@ -187,15 +188,6 @@
 
 	.footer-actions { margin-top: 2rem; display: flex; flex-wrap: wrap; gap: 0.6rem; }
 
-	/* Même signal visuel que l'action « Uploader » de la navigation. */
-	.upload-action {
-		background: var(--color-accent);
-		border-color: var(--color-accent);
-		color: #fff;
-		font-weight: 600;
-	}
-
-	.upload-action:hover { opacity: 0.88; }
 
 	/* Les prises se replient toutes seules (voir RecordingRow) : il ne reste ici que
 	   ce qui entoure la liste. */
@@ -203,6 +195,5 @@
 
 		/* La modale du sélecteur est en `position: fixed` : elle reste hors de ce flux. */
 		.footer-actions { flex-direction: column; align-items: stretch; }
-		.footer-actions .upload-action { justify-content: center; }
 	}
 </style>

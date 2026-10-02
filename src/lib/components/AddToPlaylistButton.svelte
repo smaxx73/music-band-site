@@ -168,7 +168,7 @@
 							</div>
 						</form>
 					{:else}
-						<button class="btn btn-ghost btn-sm create-trigger" onclick={() => (showCreate = true)}>+ Créer une playlist</button>
+						<button class="btn btn-ghost btn-sm create-trigger" onclick={() => (showCreate = true)}><Icon name="plus" /> Créer une playlist</button>
 					{/if}
 				{/if}
 			</div>

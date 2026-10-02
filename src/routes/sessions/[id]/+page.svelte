@@ -10,6 +10,7 @@
 	import { canDeleteGroupContent, canSharePublicly, formatDurationLong } from '$lib/types'
 	import type { RecordingListItem, SessionType } from '$lib/types'
 	import { invalidateAll } from '$app/navigation'
+	import Icon from '$lib/components/Icon.svelte'
 
 	let { data }: { data: PageData } = $props()
 
@@ -373,7 +374,7 @@
 	{/if}
 
 	<div class="footer-actions">
-		<a href="/upload?session_id={session.id}" class="btn upload-action">+ Ajouter une prise</a>
+		<a href="/upload?session_id={session.id}" class="btn btn-primary"><Icon name="plus" /> Ajouter une prise</a>
 		<button class="btn btn-secondary" onclick={() => { editMode = !editMode }}>
 			{editMode ? 'Terminer' : 'Modifier les prises'}
 		</button>
@@ -505,14 +506,6 @@
 	.footer-actions { margin-top: 2rem; display: flex; gap: 0.75rem; align-items: center; }
 
 	/* Même signal visuel que l'action « Uploader » de la navigation. */
-	.upload-action {
-		background: var(--color-accent);
-		border-color: var(--color-accent);
-		color: #fff;
-		font-weight: 600;
-	}
-
-	.upload-action:hover { opacity: 0.88; }
 
 	/* Les prises se replient toutes seules (voir RecordingRow) : il ne reste ici que
 	   ce qui entoure la liste. */

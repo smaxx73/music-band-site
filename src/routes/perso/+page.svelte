@@ -171,8 +171,8 @@
 			<p class="lede">Visible par toi seul. Tu choisis ce que tu publies dans un groupe.</p>
 		</div>
 		{#if currentGroup}
-			<button class="btn btn-primary btn-sm" onclick={() => openPublish()}>
-				<Icon name="send" size="0.85rem" /> Publier dans « {currentGroup.name} »
+			<button class="btn btn-primary" onclick={() => openPublish()}>
+				<Icon name="send" /> Publier dans « {currentGroup.name} »
 			</button>
 		{/if}
 	</div>
@@ -333,7 +333,6 @@
 </main>
 
 <style>
-	.page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
 	h1 { font-size: var(--text-xl); margin: 0 0 0.2rem; }
 	.lede { margin: 0; font-size: var(--text-sm); color: var(--color-text-secondary); }
 	.list-header { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
@@ -378,7 +377,6 @@
 	}
 
 	@media (max-width: 640px) {
-		.page-header { flex-direction: column; align-items: stretch; }
 		.card { flex-direction: column; align-items: stretch; }
 	}
 </style>

@@ -270,14 +270,14 @@
 	{#if items.length === 0}
 		<div class="empty-state">
 			<p class="empty">Cette playlist est vide.</p>
-			<button class="btn btn-primary" onclick={openAddModal}>+ Ajouter des prises</button>
+			<button class="btn btn-primary" onclick={openAddModal}><Icon name="plus" /> Ajouter des prises</button>
 		</div>
 	{:else if editMode}
 		<!-- Mode édition : glisser pour réordonner, × pour retirer. Toucher une piste la
 		     lance quand même — on réécoute souvent pour décider de l'ordre. -->
 		<div class="edit-bar">
 			<p class="edit-hint">Glissez les prises pour changer l'ordre.</p>
-			<button class="btn btn-primary btn-sm" onclick={openAddModal}>+ Ajouter des prises</button>
+			<button class="btn btn-primary btn-sm" onclick={openAddModal}><Icon name="plus" /> Ajouter des prises</button>
 		</div>
 		<PlaylistQueue
 			{items}

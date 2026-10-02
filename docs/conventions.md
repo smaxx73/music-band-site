@@ -197,10 +197,20 @@ n'écrit dans son `<style>` que ce qui lui est propre.
 - **Colonne de page** : `<main class="page">` (720 px), `page-narrow` (640 px, formulaire ou
   liste simple) ou `page-wide` (900 px, en-tête média, tableau, agenda). Marges et repli
   mobile sont portés par la classe — ne pas redéfinir `main` dans la page
+- **En-tête de page** : `.page-header` (titre à gauche, action principale à droite, passe
+  sous le titre faute de place sans s'étirer), `.page-actions` s'il y a plusieurs boutons.
+  Ne pas le redéfinir dans la page
 - **Boutons** : `.btn` + une variante (`btn-primary`, `btn-secondary`, `btn-ghost`,
   `btn-danger`) + une taille (`btn-sm`, `btn-lg`, `btn-icon`). Une action dans une phrase
   est un `.btn-link` (orange), `.btn-link-muted` quand elle renonce (« Retirer »).
   Pas de `.btn-delete` / `.remove-btn` local
+- **Créer** (nouvelle session, publier, ajouter une prise…) : `<Icon name="plus" />` suivi
+  du verbe, jamais un « + » tapé — un glyphe ne s'aligne pas sur les icônes voisines.
+  L'action principale d'une page est un `btn-primary` de taille normale (`btn-sm` reste aux
+  commandes d'une ligne ou d'un tiroir), une seule par écran. Le bouton qui referme le
+  formulaire de création (« Annuler ») redevient `btn-secondary`. L'orange plein est
+  réservé à « + Ajouter » de la navigation et à la lecture (▶) : sur un bouton à texte
+  blanc, il n'atteint pas le contraste requis
 - **Focus clavier** : l'anneau orange est global (`:focus-visible`). Un composant ne le
   retire que pour en dessiner un équivalent
 - **Menu déroulant** : `Menu.svelte`, jamais un panneau et ses écouteurs (clic à côté,

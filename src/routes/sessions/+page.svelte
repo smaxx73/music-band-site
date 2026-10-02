@@ -321,7 +321,7 @@
 <main class="page">
 	<div class="page-header">
 		<h1>Sessions</h1>
-		<button class="btn btn-primary" onclick={openCreateModal}>+ Nouvelle session</button>
+		<button class="btn btn-primary" onclick={openCreateModal}><Icon name="plus" /> Nouvelle session</button>
 	</div>
 
 	{#if createSuccess}
@@ -523,13 +523,6 @@
 {/if}
 
 <style>
-	.page-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		gap: 1rem;
-		margin-bottom: 1.5rem;
-	}
 
 	h1 {
 		font-size: var(--text-xl);
@@ -562,11 +555,6 @@
 
 	@media (max-width: 640px) {
 
-		.page-header {
-			flex-direction: column;
-			align-items: stretch;
-			gap: 0.75rem;
-		}
 
 		.fields-row { grid-template-columns: 1fr; }
 

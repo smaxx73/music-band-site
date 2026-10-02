@@ -247,9 +247,9 @@
 			<div class="dash-header">
 				<h1>Bonjour {firstName} 👋</h1>
 				<div class="dash-actions">
-					<a href="/agenda" class="btn btn-secondary btn-sm"><Icon name="agenda" size="0.85rem" /> Agenda</a>
-					<a href="/fil?publier" class="btn btn-secondary btn-sm">+ Publier</a>
-					<a href="/sessions?nouvelle" class="btn btn-primary btn-sm">+ Session</a>
+					<a href="/agenda" class="btn btn-secondary"><Icon name="agenda" /> Agenda</a>
+					<a href="/fil?publier" class="btn btn-secondary"><Icon name="plus" /> Publier</a>
+					<a href="/sessions?nouvelle" class="btn btn-primary"><Icon name="plus" /> Session</a>
 				</div>
 			</div>
 

@@ -450,12 +450,6 @@
 </main>
 
 <style>
-	.page-header {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		margin-bottom: 1.5rem;
-	}
 
 	h1 {
 		font-size: var(--text-xl);

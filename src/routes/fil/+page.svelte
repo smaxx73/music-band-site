@@ -8,6 +8,7 @@
 	import type { MentionMember } from '$lib/components/MentionTextarea.svelte'
 	import { player } from '$lib/player.svelte'
 	import type { FeedItem as FeedItemData, FeedPage } from '$lib/types'
+	import Icon from '$lib/components/Icon.svelte'
 
 	let { data }: { data: PageData } = $props()
 
@@ -95,9 +96,9 @@
 </svelte:head>
 
 <main class="page page-narrow">
-	<div class="header">
+	<div class="page-header">
 		<h1>Fil d'actualité</h1>
-		<button class="btn btn-primary btn-sm" onclick={() => (publishOpen = true)}>+ Publier</button>
+		<button class="btn btn-primary" onclick={() => (publishOpen = true)}><Icon name="plus" /> Publier</button>
 	</div>
 
 	{#if items.length === 0}
@@ -133,8 +134,6 @@
 </main>
 
 <style>
-	.header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; }
-	h1 { font-size: var(--text-xl); margin: 0; }
 
 	.feed { display: flex; flex-direction: column; gap: var(--space-4); }
 
