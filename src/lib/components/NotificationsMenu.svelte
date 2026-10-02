@@ -487,7 +487,11 @@
 			top: var(--top-bar-h);
 			right: 0;
 			left: 0;
-			width: auto;
+			/* Bord à bord : la largeur et le plafond du bureau, passés à Menu en propriétés,
+			   laisseraient sinon un vide à droite. Redéfinies sur le panneau lui-même, elles
+			   l'emportent sur celles héritées du parent, quel que soit l'ordre des feuilles. */
+			--menu-width: auto;
+			--menu-max-width: none;
 			max-height: calc(100dvh - var(--top-bar-h) - var(--footer-actions-h) - var(--mini-player-h) - 1rem);
 			border: none;
 			border-radius: 0 0 calc(var(--radius-xl) * 2) calc(var(--radius-xl) * 2);
