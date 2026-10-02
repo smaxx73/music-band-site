@@ -43,8 +43,8 @@
 		photo?: string | null
 		/** Opacité du voile au bord gauche, en % (voir `SESSION_PHOTO_VEIL`). */
 		photoVeil?: number
-		/** Niveau du titre : h1 sur une page, h2 dans une liste de cartes. */
-		headingLevel?: 1 | 2
+		/** Niveau du titre : h1 sur une page, plus bas dans une liste de cartes. */
+		headingLevel?: 1 | 2 | 3 | 4
 		children?: Snippet
 		actions?: Snippet
 	} = $props()
@@ -66,7 +66,7 @@
 		<div class="mh-cover">{@render cover()}</div>
 		<div class="mh-id">
 			<div class="mh-kicker">{@render kicker()}</div>
-			<svelte:element this={headingLevel === 1 ? 'h1' : 'h2'}>{title}</svelte:element>
+			<svelte:element this={`h${headingLevel}`}>{title}</svelte:element>
 		</div>
 		{#if children}<div class="mh-body">{@render children()}</div>{/if}
 		{#if stats}<p class="mh-stats">{stats}</p>{/if}
@@ -130,7 +130,7 @@
 		color: #fff;
 	}
 
-	.media-header.photo :is(h1, h2) { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); }
+	.media-header.photo :is(h1, h2, h3, h4) { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); }
 
 	/* Référentiel, playlist : la couleur de la barre latérale. Ces pages n'ont pas de
 	   teinte propre, et un bandeau sombre les distingue des pages d'un morceau ou d'une
@@ -198,7 +198,7 @@
 	   le gris du corps de page y manquerait de contraste. */
 	.mh-body :global(p) { color: var(--mh-ink-soft); }
 
-	:is(h1, h2) {
+	:is(h1, h2, h3, h4) {
 		margin: 0;
 		font-size: var(--text-xl);
 		line-height: 1.2;
@@ -275,7 +275,7 @@
 		.mh-stats { align-self: start; margin-top: 0.1rem; font-size: var(--text-xs); }
 		.mh-body { margin-top: 0.55rem; }
 		.mh-actions { justify-self: end; margin-top: 0.4rem; }
-		:is(h1, h2) { font-size: var(--text-lg); }
+		:is(h1, h2, h3, h4) { font-size: var(--text-lg); }
 	}
 
 	@media (max-width: 640px) {

@@ -2,7 +2,7 @@
 	import { SESSION_TYPES, sessionTypeLabel } from '$lib/types'
 	import type { PageData } from './$types'
 	import { goto } from '$app/navigation'
-	import { formatDateOnly } from '$lib/date'
+	import { formatDateOnly, localDateOnly, sessionOfDay } from '$lib/date'
 	import SongDetails from '$lib/components/SongDetails.svelte'
 	import LocationInput from '$lib/components/LocationInput.svelte'
 	import type { Coords } from '$lib/places'
@@ -83,6 +83,24 @@
 	let progress = $state(0)
 	let error = $state<string | null>(null)
 	let duplicate = $state<DuplicateInfo | null>(null)
+
+	// Session proposée d'après la date du fichier : tant qu'on n'y a pas touché, un autre
+	// fichier peut la remplacer ; un choix fait à la main, lui, ne se défait pas.
+	let proposedSession = ''
+
+	/**
+	 * Un fichier enregistré le jour d'une session en est presque toujours une prise :
+	 * la date du fichier (celle de l'enregistrement sur un téléphone) désigne la session.
+	 */
+	function pickFile(input: HTMLInputElement) {
+		file = input.files?.[0] ?? null
+		if (!file) return
+		const recordedAt = new Date(file.lastModified)
+		if (!newDate) newDate = localDateOnly(recordedAt)
+		if (selectedSession !== '' && selectedSession !== proposedSession) return
+		const daySession = sessionOfDay(sessions, recordedAt)
+		selectedSession = proposedSession = daySession ? String(daySession.id) : ''
+	}
 
 	function formatDate(d: string | Date) {
 		return formatDateOnly(d, {
@@ -338,10 +356,7 @@
 					type="file"
 					accept={acceptedAudioFiles}
 					disabled={uploading}
-					onchange={(e) => {
-						const input = e.currentTarget as HTMLInputElement
-						file = input.files?.[0] ?? null
-					}}
+					onchange={(e) => pickFile(e.currentTarget as HTMLInputElement)}
 				/>
 			</label>
 			{#if file}
@@ -361,10 +376,7 @@
 					type="file"
 					accept={acceptedAudioFiles}
 					disabled={uploading}
-					onchange={(e) => {
-						const input = e.currentTarget as HTMLInputElement
-						file = input.files?.[0] ?? null
-					}}
+					onchange={(e) => pickFile(e.currentTarget as HTMLInputElement)}
 				/>
 			</label>
 			{#if file}

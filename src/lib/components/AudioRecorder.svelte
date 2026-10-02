@@ -493,7 +493,9 @@
 	function setResult(blob: Blob, t: StoredTake, durationS: number) {
 		if (previewUrl) URL.revokeObjectURL(previewUrl)
 		previewUrl = URL.createObjectURL(blob)
-		resultFile = new File([blob], fileName(t), { type: t.mimeType })
+		// Daté du début de la captation, pas de sa relecture : une copie de secours
+		// reprise le lendemain doit encore se classer dans la session de la veille.
+		resultFile = new File([blob], fileName(t), { type: t.mimeType, lastModified: t.startedAt })
 		trimDuration = durationS
 		trimStart = 0
 		trimEnd = durationS

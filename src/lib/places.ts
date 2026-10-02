@@ -5,6 +5,8 @@
 // ADRESSE réelle ponctuelle, cherchée dans la Base Adresse Nationale — la session porte
 // alors ses coordonnées pour le lien vers la carte. Voir src/lib/server/places.ts.
 
+import { searchKey } from '$lib/search'
+
 export type Coords = { lat: number; lon: number }
 
 /** Une adresse : son libellé, et ses coordonnées quand elle vient de la Base Adresse Nationale. */
@@ -35,7 +37,7 @@ export function placeKey(label: string): string {
 
 /** Clé de recherche : sans casse ni accents, pour que « elise » trouve « Chez Élise ». */
 export function placeSearchKey(text: string): string {
-	return text.normalize('NFD').replace(/\p{Diacritic}/gu, '').trim().toLocaleLowerCase('fr-FR')
+	return searchKey(text)
 }
 
 /** Le lieu du groupe que désigne un texte de lieu, s'il y en a un. */

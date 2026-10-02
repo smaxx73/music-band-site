@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types'
 	import { goto } from '$app/navigation'
-	import { formatDateOnly, toDateOnly } from '$lib/date'
+	import { formatDateOnly, localDateOnly, sessionOfDay } from '$lib/date'
 	import AudioRecorder from '$lib/components/AudioRecorder.svelte'
 	import SongSelect from '$lib/components/SongSelect.svelte'
 	import LocationInput from '$lib/components/LocationInput.svelte'
@@ -28,13 +28,6 @@
 	// Au-delà, c'est une répétition captée d'un bloc plutôt qu'un morceau isolé.
 	const SPLIT_BY_DEFAULT_ABOVE_S = 10 * 60
 
-	/** Date du jour dans le fuseau de l'appareil : c'est « aujourd'hui » pour qui enregistre. */
-	function localToday(): string {
-		const d = new Date()
-		const pad = (n: number) => String(n).padStart(2, '0')
-		return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-	}
-
 	let file = $state<File | null>(null)
 	let audioTrim = $state<AudioTrim | null>(null)
 	// Date le titre provisoire d'un morceau créé à la volée : c'est l'heure de la prise
@@ -43,7 +36,7 @@
 	let recording = $state(false)
 
 	let selectedSession = $state('')
-	let newDate = $state(localToday())
+	let newDate = $state(localDateOnly())
 	let newType = $state('repetition')
 	let newTitle = $state('')
 	let newLocation = $state('')
@@ -66,7 +59,8 @@
 
 	/**
 	 * À chaque enregistrement terminé, on propose le classement le plus probable :
-	 * la session du jour si elle existe (sinon une nouvelle, datée d'aujourd'hui), et
+	 * la session du jour de l'enregistrement si elle existe (sinon une nouvelle, datée
+	 * de ce jour), et
 	 * la découpe dès que l'enregistrement est long.
 	 */
 	function onRecorded(recorded: File | null, durationS: number) {
@@ -75,14 +69,15 @@
 		error = null
 		duplicate = null
 		if (!recorded) return
-		recordedAt = new Date(Date.now() - durationS * 1000)
+		// L'enregistreur date le fichier du début de la captation, copie de secours
+		// reprise plus tard comprise.
+		recordedAt = new Date(recorded.lastModified)
 		if (!persoTitle.trim()) {
 			persoTitle = `Enregistrement du ${recordedAt.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long' })}`
 		}
-		const today = localToday()
-		const todaySession = sessions.find((s) => toDateOnly(s.date) === today)
-		selectedSession = todaySession ? String(todaySession.id) : 'new'
-		newDate = today
+		const daySession = sessionOfDay(sessions, recordedAt)
+		selectedSession = daySession ? String(daySession.id) : 'new'
+		newDate = localDateOnly(recordedAt)
 		multiTake = durationS >= SPLIT_BY_DEFAULT_ABOVE_S
 	}
 

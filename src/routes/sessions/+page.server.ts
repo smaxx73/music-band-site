@@ -15,10 +15,13 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			sp.veil AS photo_veil,
 			COUNT(DISTINCT r.song_id)::int AS song_count,
 			COUNT(r.id)::int               AS recording_count,
-			COALESCE(SUM(r.duration_s), 0)::float8 AS total_duration_s
+			COALESCE(SUM(r.duration_s), 0)::float8 AS total_duration_s,
+			-- Ce qu'on cherche d'une session passée, c'est d'abord ce qu'on y a joué.
+			COALESCE(array_agg(DISTINCT so.title) FILTER (WHERE so.id IS NOT NULL), '{}') AS song_titles
 		FROM sessions s
 		LEFT JOIN users u ON u.id = s.created_by_user_id
 		LEFT JOIN recordings r ON r.session_id = s.id
+		LEFT JOIN songs so ON so.id = r.song_id
 		LEFT JOIN session_photos sp ON sp.session_id = s.id
 		WHERE s.group_id = ${locals.user.current_group_id}
 		GROUP BY s.id, sp.session_id

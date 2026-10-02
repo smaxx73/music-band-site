@@ -85,3 +85,22 @@ export function formatDateTimeFull(value: DateValue, locale = 'fr-FR') {
 
 	return `${dateLabel(date, locale)}, ${timeLabel(date, locale)}`
 }
+
+/**
+ * Jour civil d'un instant dans le fuseau de l'appareil (« 2026-10-02 ») : c'est le jour
+ * vécu par qui enregistre, là où `toISOString` donnerait celui de Greenwich.
+ */
+export function localDateOnly(date: Date = new Date()) {
+	const pad = (n: number) => String(n).padStart(2, '0')
+	return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+/**
+ * La session tenue le jour où un son a été capté : c'est elle qu'on propose pour le
+ * classer. Le jour de l'enregistrement, pas celui du classement — on valide souvent
+ * le lendemain, ou après minuit.
+ */
+export function sessionOfDay<T extends { date: DateValue }>(sessions: T[], recordedAt: Date) {
+	const day = localDateOnly(recordedAt)
+	return sessions.find((s) => toDateOnly(s.date) === day)
+}

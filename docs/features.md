@@ -31,7 +31,9 @@ recoupent **pas** les mots de l'écran.
 ## Upload d'une prise
 
 1. Sélection de la **session** (existante ou création à la volée) et du **morceau**
-   (liste depuis `songs` où `status != 'abandonne'`)
+   (liste depuis `songs` où `status != 'abandonne'`). Choisir un fichier propose la session
+   tenue le jour de sa date (`lastModified`, celle de l'enregistrement sur un téléphone),
+   sans jamais défaire une session choisie à la main ou passée par `?session_id=`
 2. Réception multipart : fichier audio + `session_id`, `song_id`
 3. Validation : MIME audio autorisé via `audio_formats`, taille < 200 Mo, session et morceau dans le groupe actif
    (réception multipart commune à l'upload et aux imports : `src/lib/server/upload-stream.ts`)
@@ -62,7 +64,7 @@ fait perdre le fil, surtout au téléphone en répétition.
   Les autres champs (compositeur, tonalité, durée…) se complètent plus tard dans `/songs`
 - Le titre arrive **prérempli et sélectionné** : « À nommer — 22 sept. 14:05 ». Pressé,
   on valide tel quel ; sinon on tape par-dessus. L'heure est celle de l'enregistrement
-  (fin de prise moins sa durée sur `/record`, date du fichier sur `/upload`, dépôt de
+  (début de la captation sur `/record`, date du fichier sur `/upload`, dépôt de
   l'import en découpe) : c'est ce qui aide à le reconnaître ensuite. Suffixé « #2 »,
   « #3 »… si le titre est pris — les titres sont uniques dans un groupe
 - Un titre **déjà au référentiel** (casse ignorée) n'est pas une erreur : le morceau
@@ -97,8 +99,10 @@ au milieu de la salle, ou l'interface audio branchée au PC.
   de formulaire : `/record` ne montre que l'enregistreur. La **destination** — le groupe ou
   l'espace perso —, la session et le morceau ne se demandent qu'une fois l'enregistrement
   terminé, préremplis au plus probable :
-  - la **session du jour** si elle existe (date de l'appareil), sinon une nouvelle session
-    datée d'aujourd'hui, créée à l'envoi
+  - la **session du jour de l'enregistrement** si elle existe (son début, à l'heure de
+    l'appareil — pas le jour où on le classe : une copie de secours reprise le lendemain
+    va encore à la session de la veille), sinon une nouvelle session datée de ce jour,
+    créée à l'envoi
   - **« À découper sur les blancs »** dès 10 min d'enregistrement, « D'un seul tenant »
     en deçà, avec le choix du morceau — ou sa création sur place, voir « Morceau absent
     du référentiel »
@@ -355,7 +359,21 @@ rapide d'une session dans `/upload`, `/record` et au classement d'un enregistrem
 
 ## Liste des sessions (`/sessions`)
 
-- Liste des sessions du groupe actif, triées par date décroissante
+- Liste des sessions du groupe actif en deux sections. **À venir** (date du jour comprise,
+  à l'heure de l'appareil) : la plus proche d'abord, chaque carte disant le temps qui
+  reste (« Demain », « Dans 5 jours ») plutôt que « 0 prise ». **Passées** : la plus
+  récente d'abord, regroupées par année, avec des pastilles pour sauter à une année
+- **Retrouver une session passée** : « Rechercher », à droite de l'intitulé « Passées »,
+  déplie la barre de recherche et les filtres par type — repliés par défaut, on parcourt
+  la liste plus souvent qu'on n'y cherche. « Fermer » (ou Échap sur un champ vide) la
+  replie **et efface la recherche** : un filtre actif derrière une barre repliée cacherait
+  des sessions sans le dire. Le champ cherche, sans casse ni accents, dans
+  les **morceaux joués**, le lieu, les présents, le titre, les notes, le type et la date
+  en toutes lettres (« mars », « 2025 », « samedi »). Chaque mot doit se trouver quelque
+  part : « sunny elise » = Sunny joué chez Élise. Les morceaux désignés par la recherche
+  s'affichent sous la carte — c'est le plus souvent eux qu'on cherche. Les filtres par
+  type s'y ajoutent. Tout se fait côté client, la liste étant chargée en entier, et la
+  recherche est rétablie au retour d'une session (`snapshot` SvelteKit)
 - Bouton [+ Nouvelle session] → modale de création (type, date, titre, lieu, membres, notes)
 - La création passe par `POST /api/sessions` et crée l'événement d'agenda lié
 - **Participants** : la modale s'ouvre avec **tous les membres du groupe actif** déjà présents — c'est
@@ -996,7 +1014,9 @@ oublié de créer avant de jouer, l'idée venue seule. Elle se range après coup
 - **« Classer dans une session »** depuis la page de l'enregistrement, depuis sa ligne dans
   `/perso`, et d'emblée après un enregistrement fait sur place (`/perso/[id]?classer`,
   comme `?publier`). La modale demande la session — existante ou créée à la volée — et le
-  morceau, avec la création de morceau sur place (voir « Morceau absent du référentiel »)
+  morceau, avec la création de morceau sur place (voir « Morceau absent du référentiel »).
+  Elle propose la session tenue **le jour de l'enregistrement** (sa création moins sa
+  durée), pas celle du jour où on le classe : on range souvent après coup
 - L'enregistrement **déménage** : le fichier passe de `AUDIO_DIR/perso/` à `AUDIO_DIR`, la
   prise le remplace, la ligne perso disparaît. Un seul exemplaire du son, une seule place
 - Ses **publications partent avec lui**, et leurs commentaires : la modale les nomme avant

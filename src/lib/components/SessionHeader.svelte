@@ -34,7 +34,7 @@
 		veil?: number
 		stats?: string | null
 		actions?: Snippet
-		headingLevel?: 1 | 2
+		headingLevel?: 1 | 2 | 3 | 4
 		/** Une carte déjà cliquable ne doit pas contenir un second lien. */
 		linkLocation?: boolean
 	} = $props()

@@ -3,7 +3,7 @@
 	import SongSelect from '$lib/components/SongSelect.svelte'
 	import LocationInput from '$lib/components/LocationInput.svelte'
 	import type { Coords } from '$lib/places'
-	import { formatDateOnly } from '$lib/date'
+	import { formatDateOnly, localDateOnly, sessionOfDay } from '$lib/date'
 	import { createSession } from '$lib/upload-client'
 	import { sortedWithSong } from '$lib/songs'
 	import { SESSION_TYPES, sessionTypeLabel } from '$lib/types'
@@ -17,6 +17,8 @@
 	type Target = {
 		id: number
 		title: string
+		created_at: string | Date
+		duration_s?: number | null
 		publications?: { group_name: string }[]
 		comment_count?: number
 	}
@@ -43,7 +45,13 @@
 
 	let selectedSession = $state('')
 	let selectedSong = $state('')
-	let newDate = $state(localToday())
+	// Le jour où le son a été capté, pas celui du classement : on range souvent après
+	// coup. Un enregistrement fait sur place est créé à sa fin, d'où la durée retirée.
+	const recordedAt = $derived(
+		new Date(new Date(recording.created_at).getTime() - (recording.duration_s ?? 0) * 1000)
+	)
+
+	let newDate = $state(localDateOnly())
 	let newType = $state('repetition')
 	let newTitle = $state('')
 	let newLocation = $state('')
@@ -53,12 +61,6 @@
 	let error = $state<string | null>(null)
 
 	const publications = $derived(recording.publications ?? [])
-
-	function localToday(): string {
-		const d = new Date()
-		const pad = (n: number) => String(n).padStart(2, '0')
-		return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
-	}
 
 	function sessionLabel(s: SessionRow): string {
 		const date = formatDateOnly(s.date, { day: '2-digit', month: 'short', year: 'numeric' })
@@ -78,10 +80,11 @@
 				if (cancelled) return
 				sessions = s as SessionRow[]
 				songs = g as { id: number; title: string }[]
-				// La session du jour si elle existe : c'est la répétition qu'on vient de jouer.
-				const today = localToday()
-				const todaySession = sessions.find((row) => String(row.date).slice(0, 10) === today)
-				selectedSession = todaySession ? String(todaySession.id) : 'new'
+				// La session du jour de l'enregistrement si elle existe : c'est la répétition
+				// où il a été joué. Sinon une nouvelle, datée de ce jour.
+				const daySession = sessionOfDay(sessions, recordedAt)
+				selectedSession = daySession ? String(daySession.id) : 'new'
+				newDate = localDateOnly(recordedAt)
 				loading = false
 			})
 			.catch(() => {
