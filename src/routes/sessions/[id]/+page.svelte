@@ -186,24 +186,37 @@
 
 	// Une seule confirmation pour les deux suppressions de la page.
 	let pendingDelete = $state<
-		| { kind: 'recording'; id: number; songTitle: string; take: number }
+		| { kind: 'recording'; id: number; songTitle: string; take: number; shareCount: number }
 		| { kind: 'session' }
 		| null
 	>(null)
+
+	// Ce qui cesse de marcher hors du groupe se dit : qui a reçu le lien ne sera pas prévenu.
+	function publicLinksNotice(count: number): string {
+		if (count === 0) return ''
+		return count > 1
+			? ` Les ${count} liens d'écoute publics cesseront de fonctionner.`
+			: " Le lien d'écoute public cessera de fonctionner."
+	}
+
+	const sessionShareCount = $derived(
+		groups.reduce((n, g) => n + g.recordings.reduce((m, r) => m + r.share_count, 0), 0)
+	)
 
 	const deleteDialog = $derived.by(() => {
 		if (pendingDelete?.kind === 'recording') {
 			return {
 				title: 'Supprimer cette prise ?',
-				message: `La prise ${pendingDelete.take} de « ${pendingDelete.songTitle} » sera supprimée avec son fichier audio, ses commentaires et sa place dans les playlists. Les autres prises du morceau gardent leur numéro. Cette action est irréversible.`,
+				message: `La prise ${pendingDelete.take} de « ${pendingDelete.songTitle} » sera supprimée avec son fichier audio, ses commentaires et sa place dans les playlists.${publicLinksNotice(pendingDelete.shareCount)} Les autres prises du morceau gardent leur numéro. Cette action est irréversible.`,
 				confirmLabel: 'Supprimer la prise'
 			}
 		}
+		const photo = data.photo ? ', sa photo de bandeau' : ''
 		return {
 			title: 'Supprimer cette session ?',
 			message: takeCount > 0
-				? `La session sera supprimée avec ses ${takeCount} prise${takeCount > 1 ? 's' : ''}, leurs fichiers audio et leurs commentaires. Les morceaux restent au référentiel. Cette action est irréversible.`
-				: 'La session sera supprimée, avec son événement d’agenda. Cette action est irréversible.',
+				? `La session sera supprimée avec ses ${takeCount} prise${takeCount > 1 ? 's' : ''}, leurs fichiers audio, leurs commentaires et leur place dans les playlists${photo}, ainsi que son événement d’agenda.${publicLinksNotice(sessionShareCount)} Les morceaux restent au référentiel. Cette action est irréversible.`
+				: `La session sera supprimée${photo}, avec son événement d’agenda. Cette action est irréversible.`,
 			confirmLabel: 'Supprimer la session'
 		}
 	})
@@ -351,7 +364,7 @@
 							canDelete={canDeleteRecording(r)}
 							deleting={deletingRecordingId === r.id}
 							onQualityChange={(status) => applyQuality(r.id, status)}
-							onDelete={() => (pendingDelete = { kind: 'recording', id: r.id, songTitle: group.song.title, take: r.take })}
+							onDelete={() => (pendingDelete = { kind: 'recording', id: r.id, songTitle: group.song.title, take: r.take, shareCount: r.share_count })}
 						/>
 					{/each}
 				</div>

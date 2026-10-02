@@ -1,6 +1,7 @@
 import type { PageServerLoad, Actions } from './$types'
 import { error, fail, redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
+import { deleteSong } from '$lib/server/songs'
 import type { Song } from '$lib/types'
 import { loginRedirect } from '$lib/redirect'
 import { setSongCoverFromCatalog } from '$lib/server/song-covers'
@@ -189,22 +190,8 @@ export const actions: Actions = {
 		const id = parseInt(data.get('id') as string)
 		if (isNaN(id)) return fail(400, { action: 'delete', error: 'ID invalide.' })
 
-		const [{ count }] = await sql`
-			SELECT COUNT(*)::int AS count FROM recordings WHERE song_id = ${id}
-		`
-		if (count > 0) {
-			return fail(409, {
-				action: 'delete',
-				id,
-				error: 'Impossible de supprimer : des prises existent pour ce morceau.'
-			})
-		}
-
-		const [deleted] = await sql`
-			DELETE FROM songs WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
-			RETURNING id
-		`
-		if (!deleted) return fail(404, { action: 'delete', id, error: 'Morceau introuvable.' })
+		const result = await deleteSong(locals.user.current_group_id, id)
+		if (!result.ok) return fail(result.status, { action: 'delete', id, error: result.error })
 	}
 }
 

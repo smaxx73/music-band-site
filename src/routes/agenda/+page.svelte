@@ -219,10 +219,7 @@
 	const deleteMessage = $derived.by(() => {
 		if (!pendingDelete) return ''
 		const label = pendingDelete.title || TYPE_LABELS[pendingDelete.type]
-		const sessionWarning = pendingDelete.session_id
-			? ' La session associée est conservée, mais ne figurera plus dans l’agenda.'
-			: ''
-		return `« ${label} » du ${fmtDate(pendingDelete.date)} sera retiré de l’agenda.${sessionWarning}`
+		return `« ${label} » du ${fmtDate(pendingDelete.date)} sera retiré de l’agenda.`
 	})
 
 	async function deleteEvent() {
@@ -235,7 +232,8 @@
 
 	function canDelete(event: CalendarEventRow) {
 		if (event.type === 'indisponibilite') return event.user_id === userId
-		return true
+		// L'événement d'une session part avec elle : sa page porte la suppression.
+		return !event.session_id
 	}
 
 	// Les 4 types de groupe reflètent sessions.type
@@ -381,14 +379,16 @@
 									{/if}
 									<span class="panel-event-meta">par {event.author}</span>
 								</div>
-								<button
-									class="btn btn-ghost btn-sm delete-btn"
-									onclick={() => (pendingDelete = event)}
-									title="Supprimer"
-									aria-label="Supprimer l’événement"
-								>
-									<Icon name="trash" />
-								</button>
+								{#if canDelete(event)}
+									<button
+										class="btn btn-ghost btn-sm delete-btn"
+										onclick={() => (pendingDelete = event)}
+										title="Supprimer"
+										aria-label="Supprimer l’événement"
+									>
+										<Icon name="trash" />
+									</button>
+								{/if}
 							</div>
 						{/each}
 					</div>

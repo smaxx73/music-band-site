@@ -122,10 +122,10 @@ Deux axes indépendants, à ne pas confondre :
 - **member** — tout le contenu de son groupe actif : sessions, prises, morceaux, playlists,
   setlists, publications, commentaires, agenda. Crée et révoque les liens d'écoute publics
   des prises du groupe (`canSharePublicly`) ; ceux de son espace perso, lui seul. Ne supprime que les sessions, les prises,
-  les setlists et les publications dont il est l'auteur. Seul à voir son espace perso.
+  les playlists, les setlists et les publications dont il est l'auteur. Seul à voir son espace perso.
 - **admin de groupe** — en plus, sur SON groupe : ajouter/retirer des membres, renommer le
-  groupe, changer son logo et ses liens réseaux, supprimer les sessions, prises, setlists
-  et publications créées par d'autres.
+  groupe, changer son logo et ses liens réseaux, supprimer les sessions, prises, playlists,
+  setlists et publications créées par d'autres.
 - **admin global** — tout ce qui précède sur tous les groupes, plus la création de groupes
   et la gestion des comptes `user`.
 - **superadmin** — en plus, seul à pouvoir gérer les comptes `admin`/`superadmin`, à attribuer

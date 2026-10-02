@@ -71,6 +71,15 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 		return json({ error: 'Vous ne pouvez supprimer que votre propre indisponibilité.' }, { status: 403 })
 	}
 
+	// Toute session figure à l'agenda par cet événement : le supprimer seul la ferait
+	// disparaître du calendrier. Il part avec la session (DELETE /api/sessions/[id]).
+	if (event.session_id) {
+		return json(
+			{ error: 'Cet événement est celui d’une session : supprimez la session elle-même.' },
+			{ status: 409 }
+		)
+	}
+
 	await sql`DELETE FROM calendar_events WHERE id = ${id}`
 	return json({ success: true })
 }

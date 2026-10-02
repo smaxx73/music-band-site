@@ -376,8 +376,10 @@ CREATE TABLE audio_imports (
                                                  -- (migration 035) : les passages deviennent
                                                  -- des personal_recordings, pas des prises
     user_id     INTEGER NOT NULL REFERENCES users(id)    ON DELETE CASCADE,
-    session_id  INTEGER          REFERENCES sessions(id) ON DELETE CASCADE,
-                                                 -- session qui recevra les prises
+    session_id  INTEGER          REFERENCES sessions(id) ON DELETE SET NULL,
+                                                 -- session proposee a la decoupe ; supprimee,
+                                                 -- l'import reste et en fera choisir une
+                                                 -- autre (migration 044)
     file_name   TEXT NOT NULL,                   -- nom d'origine, pour l'affichage
     source_mime TEXT,                            -- type de l'original conserve
     file_hash   TEXT NOT NULL,                   -- SHA-256 de la source, comme recordings.file_hash

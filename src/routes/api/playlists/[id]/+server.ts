@@ -1,6 +1,7 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import sql from '$lib/server/db'
+import { canDeleteGroupContent } from '$lib/types'
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -40,4 +41,31 @@ export const GET: RequestHandler = async ({ locals, params }) => {
 	`
 
 	return json({ playlist, items })
+}
+
+export const DELETE: RequestHandler = async ({ locals, params }) => {
+	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
+	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
+
+	const id = parseInt(params.id)
+	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
+
+	const [playlist] = await sql`
+		SELECT created_by_user_id FROM playlists
+		WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
+	`
+	if (!playlist) return json({ error: 'Playlist introuvable.' }, { status: 404 })
+
+	if (!canDeleteGroupContent(locals.user, locals.user.current_group_id, playlist.created_by_user_id)) {
+		return json(
+			{ error: 'Seul son auteur ou un administrateur du groupe peut supprimer cette playlist.' },
+			{ status: 403 }
+		)
+	}
+
+	// Les entrées et les notifications de la playlist tombent en cascade ; les prises,
+	// elles, restent dans leurs sessions : une playlist ne fait que les désigner.
+	await sql`DELETE FROM playlists WHERE id = ${id} AND group_id = ${locals.user.current_group_id}`
+
+	return json({ success: true })
 }

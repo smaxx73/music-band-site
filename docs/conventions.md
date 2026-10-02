@@ -20,6 +20,7 @@ src/
 │   │   ├── posts.ts       # publications dans le groupe (enregistrement perso, vidéo, suggestion) + pouces
 │   │   ├── feed.ts        # fil d'actualité : toutes les sources ordonnées, paginé par curseur
 │   │   ├── share-links.ts # liens d'écoute publics : jeton, résolution, ce qui est exposé
+│   │   ├── songs.ts       # référentiel : suppression d'un morceau (scopée au groupe, sans prise)
 │   │   ├── song-covers.ts # pochettes de morceau : dépôt (recadrage ffmpeg), lecture, retrait
 │   │   ├── session-photos.ts # photo de bandeau d'une session : dépôt (recadrage ffmpeg), lecture, retrait
 │   │   ├── places.ts      # lieux du groupe (/group) : liste, ajout, modification (renommage propagé), retrait

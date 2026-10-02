@@ -5,13 +5,15 @@
 	import PlaylistQueue from '$lib/components/PlaylistQueue.svelte'
 	import SongDetails from '$lib/components/SongDetails.svelte'
 	import Modal from '$lib/components/Modal.svelte'
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
 	import { player, type PlayerTrack } from '$lib/player.svelte'
 	import MediaHeader from '$lib/components/MediaHeader.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import IconCover from '$lib/components/IconCover.svelte'
 	import PlaylistTrackRow from '$lib/components/PlaylistTrackRow.svelte'
 	import PlayAllButton from '$lib/components/PlayAllButton.svelte'
-	import { formatDurationLong } from '$lib/types'
+	import { canDeleteGroupContent, formatDurationLong } from '$lib/types'
+	import { goto } from '$app/navigation'
 
 	let { data }: { data: PageData } = $props()
 
@@ -23,7 +25,10 @@
 		song_lyrics: string | null; song_music_notes: string | null
 		session_id: number; session_date: string; session_location: string | null
 	}
-	type Playlist = { id: number; name: string; description: string | null; created_by: string }
+	type Playlist = {
+		id: number; name: string; description: string | null
+		created_by: string; created_by_user_id: number | null
+	}
 	type AvailableRecording = {
 		recording_id: number; take: number; duration_s: number | null
 		recording_status: string; file_path: string
@@ -34,6 +39,9 @@
 	}
 
 	const playlist = $derived(data.playlist as unknown as Playlist)
+	const canDelete = $derived(
+		canDeleteGroupContent(data.user, data.user?.current_group_id, playlist.created_by_user_id)
+	)
 	let items = $state(untrack(() => data.items as unknown as Item[]))
 	let availableRecordings = $state(untrack(() => data.availableRecordings as unknown as AvailableRecording[]))
 
@@ -154,10 +162,65 @@
 		}
 	}
 
-	async function removeItem(itemId: number, idx: number) {
-		await fetch(`/api/playlists/${playlist.id}/items/${itemId}`, { method: 'DELETE' })
-		items = items.filter((_, i) => i !== idx)
+	// Retirer une prise se rattrape en la rajoutant, sauf la note qu'on lui avait mise
+	// dans cette playlist : seule celle-là demande confirmation.
+	let pendingRemove = $state<(typeof items)[number] | null>(null)
+
+	function requestRemove(itemId: number) {
+		const item = items.find((i) => i.id === itemId)
+		if (!item) return
+		if (item.note) pendingRemove = item
+		else void removeItem(itemId)
+	}
+
+	async function removeItem(itemId: number) {
+		pendingRemove = null
+		saveError = null
+		try {
+			const res = await fetch(`/api/playlists/${playlist.id}/items/${itemId}`, { method: 'DELETE' })
+			if (!res.ok) {
+				const data = await res.json().catch(() => ({}))
+				saveError = (data as { error?: string }).error ?? `Erreur ${res.status}`
+				return
+			}
+		} catch {
+			saveError = 'Erreur réseau : la prise n’a pas été retirée.'
+			return
+		}
+		items = items.filter((i) => i.id !== itemId)
 		if (items.length === 0) editMode = false
+	}
+
+	// ─── Suppression ───────────────────────────────────────────────────────
+	let confirmDeleteOpen = $state(false)
+	let deleting = $state(false)
+	let deleteError = $state<string | null>(null)
+
+	const deleteMessage = $derived.by(() => {
+		const notes = items.filter((i) => i.note).length
+		const kept = items.length > 0
+			? ` Ses ${items.length} prise${items.length > 1 ? 's' : ''} restent dans leurs sessions ; seuls l'ordre${notes > 0 ? ` et ${notes > 1 ? `les ${notes} notes` : 'la note'} de playlist` : ''} sont perdus.`
+			: ''
+		return `La playlist « ${playlist.name} » sera définitivement supprimée.${kept}`
+	})
+
+	async function deletePlaylist() {
+		deleting = true
+		deleteError = null
+		try {
+			const res = await fetch(`/api/playlists/${playlist.id}`, { method: 'DELETE' })
+			if (!res.ok) {
+				const body = await res.json().catch(() => ({}))
+				deleteError = (body as { error?: string }).error ?? `Erreur ${res.status}`
+				return
+			}
+			await goto('/playlists')
+		} catch {
+			deleteError = 'Erreur réseau : la playlist n’a pas été supprimée.'
+		} finally {
+			deleting = false
+			confirmDeleteOpen = false
+		}
 	}
 
 	const playlistStats = $derived.by(() => {
@@ -222,7 +285,7 @@
 			error={saveError}
 			onSelect={playFrom}
 			onReorder={reorderItems}
-			onRemove={removeItem}
+			onRemove={requestRemove}
 		/>
 	{:else}
 		{#if currentItem && (currentItem.song_lyrics || currentItem.song_music_notes)}
@@ -277,6 +340,39 @@
 			</div>
 		</Modal>
 	{/if}
+	<!-- Comme pour une prise, la suppression ne se propose qu'en édition : un geste
+	     d'écoute ne doit pas tomber dessus. Une playlist vide n'a pas de mode édition. -->
+	{#if canDelete && (editMode || items.length === 0)}
+		<div class="danger-row">
+			<button class="btn btn-danger btn-sm" disabled={deleting} onclick={() => (confirmDeleteOpen = true)}>
+				{deleting ? 'Suppression…' : 'Supprimer la playlist'}
+			</button>
+		</div>
+		{#if deleteError}<p class="message-error">{deleteError}</p>{/if}
+	{/if}
+
+	<ConfirmDialog
+		open={confirmDeleteOpen}
+		level="danger"
+		title="Supprimer cette playlist ?"
+		message={deleteMessage}
+		confirmLabel="Supprimer la playlist"
+		busy={deleting}
+		onConfirm={deletePlaylist}
+		onCancel={() => (confirmDeleteOpen = false)}
+	/>
+
+	<ConfirmDialog
+		open={pendingRemove !== null}
+		level="warning"
+		title="Retirer cette prise ?"
+		message={pendingRemove
+			? `« ${pendingRemove.song_title} », prise ${pendingRemove.take}, quitte la playlist avec sa note : « ${pendingRemove.note} ». La prise elle-même reste dans sa session.`
+			: ''}
+		confirmLabel="Retirer la prise"
+		onConfirm={() => { if (pendingRemove) removeItem(pendingRemove.id) }}
+		onCancel={() => (pendingRemove = null)}
+	/>
 </main>
 
 <style>
@@ -316,6 +412,7 @@
 		margin-bottom: 0.75rem;
 	}
 
+	.danger-row { display: flex; justify-content: flex-end; margin-top: 1.5rem; }
 	.edit-hint { margin: 0; font-size: var(--text-sm); color: var(--color-text-muted); }
 
 	.add-modal-content { padding: 0.9rem 1.25rem 1.25rem; }

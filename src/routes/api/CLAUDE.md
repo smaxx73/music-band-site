@@ -165,6 +165,11 @@ verrouille le morceau visé (`400` s'il est `abandonne`). Un morceau « À nomme
 sa dernière prise, absent de toute setlist et sans rien d'écrit ni déposé (paroles, notes,
 pochette, feuille, suggestion d'origine) est supprimé au passage (`removed_song_id`).
 
+Une **playlist** (`api/playlists/`) désigne des prises du groupe actif.
+`DELETE /api/playlists/[id]` est réservé à son auteur et aux admins du groupe
+(`canDeleteGroupContent`, `403` sinon) ; entrées et notifications partent en cascade, les
+prises restent. `DELETE .../items/[itemId]` retire une prise et réindexe.
+
 Une **setlist** (`api/setlists/`) est un programme : des `songs` du groupe actif dans un
 ordre. `GET /api/setlists` accepte `?song_id=` : chaque setlist porte alors `contains_song`,
 pour que le sélecteur d'une vue morceau marque celles où le morceau est déjà programmé.

@@ -1,6 +1,7 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import sql from '$lib/server/db'
+import { deleteSong } from '$lib/server/songs'
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -95,21 +96,8 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 	const id = parseInt(params.id)
 	if (isNaN(id)) return json({ error: 'ID invalide.' }, { status: 400 })
 
-	const [{ count }] = await sql`
-		SELECT COUNT(*)::int AS count FROM recordings WHERE song_id = ${id}
-	`
-	if (count > 0) {
-		return json(
-			{ error: 'Impossible de supprimer : des prises existent pour ce morceau.' },
-			{ status: 409 }
-		)
-	}
-
-	const [deleted] = await sql`
-		DELETE FROM songs WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
-		RETURNING id
-	`
-	if (!deleted) return json({ error: 'Morceau introuvable.' }, { status: 404 })
+	const result = await deleteSong(locals.user.current_group_id, id)
+	if (!result.ok) return json({ error: result.error }, { status: result.status })
 
 	return json({ success: true })
 }

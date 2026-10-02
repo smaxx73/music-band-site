@@ -920,6 +920,14 @@ distincte des commentaires, qui sont datés et signés.
 - Le sélecteur indique les playlists qui contiennent déjà la prise, permet d'en créer une sans
   quitter le contexte, et empêche les doublons ; une nouvelle playlist et sa première prise sont
   créées dans la même transaction
+- Toucher une piste lance la lecture ; « × » la retire de la playlist en mode édition. Le
+  retrait est immédiat, sauf si la piste porte une note de playlist : une confirmation
+  `warning` la cite, puisqu'elle serait perdue
+- **Suppression** réservée à son auteur et aux admins du groupe (`canDeleteGroupContent`),
+  comme une setlist : le bouton n'apparaît pas aux autres et l'API répond `403`. Elle se
+  propose en mode édition (ou sur une playlist vide), avec une confirmation `danger` qui
+  dit ce qui est perdu : l'ordre et les notes de playlist. Les prises restent dans leurs
+  sessions — une playlist ne fait que les désigner. Ses notifications partent avec elle
 
 ## Setlists (`/setlists`, `/setlists/[id]`)
 
@@ -1195,6 +1203,8 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 - Badges colorés : rouge = indisponible, orange = répétition, vert = concert, violet = studio, gris = autre
   (mêmes teintes que le visuel d'une session, `SessionCover.svelte`)
 - Droits : seul l'auteur peut modifier ou supprimer son indisponibilité ; les événements de groupe sont modifiables/supprimables par les membres du groupe actif
+- L'événement d'une session ne se supprime pas depuis l'agenda (`409`) : c'est par lui que
+  la session y figure. Il part avec la session, qui porte la suppression
 - `author` = nom de l'utilisateur connecté
 
 ## Groupe actif (`/group`)

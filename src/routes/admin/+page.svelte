@@ -205,7 +205,7 @@
 		level="danger"
 		title="Supprimer cette prise ?"
 		message={pendingDelete
-			? `« ${pendingDelete.label} » sera supprimée avec son fichier audio, ses commentaires et sa place dans les playlists. Cette action est irréversible.`
+			? `« ${pendingDelete.label} » sera supprimée avec son fichier audio, ses commentaires, sa place dans les playlists et ses éventuels liens d'écoute publics. Cette action est irréversible.`
 			: ''}
 		confirmLabel="Supprimer la prise"
 		onConfirm={deleteRecording}
