@@ -39,7 +39,7 @@ recoupent **pas** les mots de l'écran.
    (réception multipart commune à l'upload et aux imports : `src/lib/server/upload-stream.ts`)
 4. Streaming du fichier brut vers un fichier temporaire et calcul SHA-256 sans charger l'audio en mémoire
 5. Détection de doublon dans le groupe actif via `recordings.file_hash` ; retour `409` avec les informations de la prise existante si doublon
-6. Conversion ffmpeg → mp3 128kbps + suppression silence début/fin, et recopie d'un canal
+6. Conversion ffmpeg → mp3 192 kbps + suppression silence début/fin, et recopie d'un canal
    muet sur l'autre — voir « Son d'un seul côté »
 7. Extraction durée via ffprobe
 8. Calcul du `take` dans une transaction :
@@ -69,7 +69,7 @@ stéréo, mais le canal droit est plat. On l'entend alors dans une seule oreille
   chaque extrait : un canal débranché l'est pour toute la captation
 - **Fichiers déjà stockés** : `scripts/fix-single-channel.mjs` parcourt `AUDIO_DIR` et
   `AUDIO_DIR/perso`, liste les fichiers concernés, et ne les corrige qu'avec `--apply`
-  (`--backup=<dossier>` garde les originaux). Le mp3 est réencodé à 128 kbps — une
+  (`--backup=<dossier>` garde les originaux). Le mp3 est réencodé à 128 kbps, le débit de ces anciens fichiers — une
   génération de compression de plus — et la forme d'onde en cache est effacée pour se
   refaire. `file_hash` est l'empreinte du fichier déposé, pas du mp3 : la détection de
   doublon n'en est pas affectée
@@ -154,14 +154,15 @@ au milieu de la salle, ou l'interface audio branchée au PC.
   avant. Stéréo au mieux : pas de multipiste
 - **Annulation d'écho, réduction de bruit et gain automatique sont coupés** : pensés pour
   la visio, ils écrasent la dynamique et mangent les notes tenues
-- Format : WebM/Opus (Chrome, Firefox, Android) ou MP4/AAC (Safari, iOS), à 128 kbit/s.
+- Format : WebM/Opus (Chrome, Firefox, Android) ou MP4/AAC (Safari, iOS), à 192 kbit/s,
+  le débit de stockage : capter moins bien qu'on ne stocke ferait perdre ce que le mp3 garde.
   Le type est envoyé **sans** ses paramètres (`audio/webm`, pas `audio/webm;codecs=opus`) :
   le serveur le compare tel quel à `audio_formats`
 - Un WebM de `MediaRecorder` n'annonce pas sa durée : celle d'un import se lit donc sur le
   proxy, qui partage l'échelle de temps de l'original
 - Vumètre de crête (−60 à 0 dBFS) dès l'ouverture du micro, avant même d'enregistrer, pour
   placer le téléphone ; « Saturation » s'affiche 1,5 s après chaque crête écrêtée
-- Pause / reprise ; arrêt automatique avant 200 Mo (≈ 2 h à 128 kbit/s), prévenu à 170 Mo
+- Pause / reprise ; arrêt automatique avant 200 Mo (≈ 2 h 20 à 192 kbit/s), prévenu à 170 Mo
 - **Annuler** pendant l'enregistrement ou en pause : ce qui est capté est jeté, la copie de
   secours effacée, et le micro reste ouvert pour repartir — annuler n'est pas quitter
   l'écran. Au-delà de 5 s, une confirmation `warning` nomme la durée perdue ;
@@ -236,7 +237,7 @@ Premier des outils d'amélioration audio branchés à la suite de l'upload.
   viennent réellement du même enregistrement, et c'est cela qu'on cherche à retrouver plus
   tard — le numéro du segment, lui, est déjà le `take`
 - À la validation : un extrait par segment, taillé **dans l'original** et encodé aux
-  réglages de stockage de l'application (mp3 128 kbps) — un seul encodage sur tout le
+  réglages de stockage de l'application (mp3 192 kbps) — un seul encodage sur tout le
   chemin d'une prise. Puis création dans **une seule transaction** : les segments d'un
   même morceau se numérotent à la suite, sans trou ni collision
 - Les fichiers sont taillés **avant** l'écriture en base, et posés dans `AUDIO_DIR` ensuite :
@@ -1068,7 +1069,7 @@ travaillée seul, une vidéo repérée. Rien n'y est partagé tant qu'on ne le p
   ce n'est pas une prise du groupe, et il ne se numérote avec rien
 - Trois façons d'en ajouter : déposer un fichier, **enregistrer en direct** (le même
   `AudioRecorder` que `/record`, même copie de secours), coller un lien YouTube. Même
-  chemin que l'upload d'une prise : réception en flux, conversion mp3 128 kbps, durée
+  chemin que l'upload d'une prise : réception en flux, conversion mp3 192 kbps, durée
   ffprobe, doublon par hash — ici **dans son propre espace** (`409`)
 - Un fichier ou un enregistrement qui contient **plusieurs morceaux** se découpe sur les
   blancs, chaque passage devenant un enregistrement perso — voir « Découpe vers l'espace perso »

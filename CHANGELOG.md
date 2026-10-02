@@ -17,6 +17,9 @@ en montant de version (voir `deploy.md`).
   de la carte son) est recopié sur les deux canaux à la conversion : upload, espace perso,
   enregistrement en direct et découpe. `scripts/fix-single-channel.mjs` corrige les
   fichiers déjà stockés (voir `deploy.md`). Aucune migration
+- Débit relevé de 128 à 192 kbit/s, pour l'enregistrement en direct comme pour les mp3
+  stockés (dépôt, espace perso, découpe). Les fichiers existants restent à 128 kbit/s ;
+  un enregistrement en direct s'arrête désormais vers 2 h 20 (limite de 200 Mo)
 
 ## [1.3.0] — 2026-10-02
 

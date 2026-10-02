@@ -1,6 +1,14 @@
 import { spawn } from 'child_process'
 import type { AudioTrim } from '$lib/types'
 
+/**
+ * Débit des mp3 stockés (prises, enregistrements perso, extraits de découpe). Constant et
+ * non variable : en débit variable, certains navigateurs se positionnent mal dans le
+ * fichier, et tout repose ici sur des repères (`?t=`, commentaires ancrés, préécoute).
+ * Les fichiers d'avant le passage à 192k restent à 128k.
+ */
+const STORAGE_BITRATE = '192k'
+
 /** Canal qui porte le son d'un fichier stéréo dont l'autre canal est muet. */
 export type ActiveChannel = 'left' | 'right'
 
@@ -59,7 +67,7 @@ export function duplicateChannelFilter(active: ActiveChannel): string {
 }
 
 /**
- * Convertit un fichier audio en mp3 128kbps. Sans coupe manuelle, les silences
+ * Convertit un fichier audio en mp3 au débit de stockage (`STORAGE_BITRATE`). Sans coupe manuelle, les silences
  * aux extrémités sont aussi supprimés. Un canal muet est remplacé par l'autre
  * (`detectSingleChannel`).
  * Lecture depuis le disque, écriture sur le disque — jamais en mémoire Node.
@@ -83,7 +91,7 @@ export async function convertToMp3(inputPath: string, outputPath: string, trim: 
 			'-i', inputPath,
 			...(trim ? ['-t', (trim.endS - trim.startS).toFixed(3)] : []),
 			'-ar', '44100',
-			'-ab', '128k',
+			'-ab', STORAGE_BITRATE,
 			'-ac', '2',
 			...(filters.length > 0 ? ['-af', filters.join(',')] : []),
 			'-f', 'mp3',
@@ -290,7 +298,7 @@ export function createProxy(inputPath: string, outputPath: string): Promise<void
 
 /**
  * Taille un extrait dans l'ORIGINAL et l'encode aux réglages de stockage de
- * l'application (mp3 128 kbps). L'analyse a beau se faire sur le proxy, le rendu part
+ * l'application (mp3, `STORAGE_BITRATE`). L'analyse a beau se faire sur le proxy, le rendu part
  * toujours du fichier déposé : c'est le seul endroit où la qualité se joue.
  *
  * Un encodage, pas deux : l'original n'a jamais été transcodé avant ce point.
@@ -313,7 +321,7 @@ export function extractSegment(
 			'-i', inputPath,
 			'-t', durationS.toFixed(3),
 			'-ar', '44100',
-			'-ab', '128k',
+			'-ab', STORAGE_BITRATE,
 			'-ac', '2',
 			...(active ? ['-af', duplicateChannelFilter(active)] : []),
 			'-f', 'mp3',

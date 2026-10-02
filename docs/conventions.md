@@ -166,7 +166,8 @@ sur « oui ».
 - Enregistrements perso dans `/data/audio/perso/{id}.mp3`, servis par `/audio/perso/`
 - Un lien d'écoute public sert le même fichier par `/ecoute/[token]/audio`, toujours par
   Node : le jeton y remplace la session, et se revérifie à chaque requête
-- Convertis en mp3 128kbps à l'upload via ffmpeg
+- Convertis en mp3 192 kbps (débit constant) à l'upload via ffmpeg — 128 kbps pour les
+  fichiers antérieurs au passage à 192k
 - Servis par Node (`src/routes/audio/[id]/+server.ts`), en développement comme en production :
   la route vérifie la session et l'appartenance de la prise au groupe actif avant d'ouvrir le
   fichier. Caddy proxyfie `/audio/*` vers l'application et ne sert jamais `AUDIO_DIR` lui-même —

@@ -8,7 +8,7 @@ appartenir à plusieurs groupes ; tout le contenu collectif est rattaché au gro
 
 ### Capturer, importer et découper une répétition
 
-- Dépôt de fichiers audio jusqu'à 200 Mo, conversion en MP3 128 kbps, retrait des silences en tête et en fin, et détection des doublons par empreinte SHA-256
+- Dépôt de fichiers audio jusqu'à 200 Mo, conversion en MP3 192 kbps, retrait des silences en tête et en fin, et détection des doublons par empreinte SHA-256
 - Son d'un seul côté (micro sur une seule entrée de la carte son) détecté et recopié sur les deux canaux ; `scripts/fix-single-channel.mjs` rattrape les fichiers déjà stockés
 - Enregistrement direct depuis le navigateur (micro ou interface audio), avec choix de l'entrée, vumètre, pause/reprise, Wake Lock et copie de secours locale en cas d'échec de l'envoi
 - Ajout d'une prise à une session et à un morceau, avec numérotation automatique par morceau (Prise 1, 2, 3…)

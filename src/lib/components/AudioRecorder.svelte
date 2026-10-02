@@ -38,8 +38,9 @@
 	const WARN_BYTES = 170 * 1024 * 1024
 	// Un bloc toutes les 5 s : c'est ce qu'on perd au pire si l'onglet plante.
 	const TIMESLICE_MS = 5000
-	// 128 kbit/s : le débit de stockage de l'application, et ~2 h sous la limite d'envoi.
-	const BITRATE = 128_000
+	// 192 kbit/s : le débit de stockage de l'application (`STORAGE_BITRATE`), pour ne pas
+	// capter moins bien qu'on ne stocke ; ~2 h 20 sous la limite d'envoi.
+	const BITRATE = 192_000
 	// En deçà, il n'y a rien à perdre : annuler ne demande pas confirmation.
 	const CONFIRM_CANCEL_ABOVE_S = 5
 	const MIN_TRIM_S = 0.5
