@@ -69,6 +69,11 @@
 	let trimStart = $state(0)
 	let trimEnd = $state(0)
 	let previewing = $state(false)
+	// Position réellement lue, tracée sur la forme d'onde : c'est elle qui prouve qu'on
+	// entend la sélection, et non le début du fichier.
+	let playheadS = $state<number | null>(null)
+	let revealing = $state(false)
+	let previewRaf = 0
 	let waveBars = $state<number[]>([])
 	let audioEl = $state<HTMLAudioElement | null>(null)
 	let timelineEl = $state<HTMLDivElement | null>(null)
@@ -123,6 +128,7 @@
 		releaseInput()
 		stopTimer()
 		releaseWakeLock()
+		cancelAnimationFrame(previewRaf)
 		if (previewUrl) URL.revokeObjectURL(previewUrl)
 		if (typeof window !== 'undefined') window.removeEventListener('beforeunload', onBeforeUnload)
 		if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
@@ -626,8 +632,15 @@
 		return `${formatElapsed(whole)}.${Math.floor((seconds - whole) * 10)}`
 	}
 
-	function stopPreview() {
+	function endPreview() {
 		previewing = false
+		cancelAnimationFrame(previewRaf)
+		previewRaf = 0
+		playheadS = null
+	}
+
+	function stopPreview() {
+		endPreview()
 		audioEl?.pause()
 	}
 
@@ -684,7 +697,7 @@
 		setTrim(edge, (edge === 'start' ? trimStart : trimEnd) + (event.key === 'ArrowRight' ? 1 : -1) * (event.shiftKey ? 1 : 0.1))
 	}
 
-	function onAudioMetadata() {
+	function applyAudioDuration() {
 		const duration = audioEl?.duration
 		if (!duration || !Number.isFinite(duration)) return
 		const wasFull = !hasTrim
@@ -694,16 +707,82 @@
 		emitTrim()
 	}
 
-	async function playSelection() {
-		if (!audioEl) return
-		if (previewing) { stopPreview(); return }
-		audioEl.currentTime = trimStart
-		previewing = true
-		try { await audioEl.play() } catch { previewing = false }
+	/**
+	 * Un WebM de MediaRecorder (Chrome, Android) n'annonce ni durée ni index : le navigateur
+	 * ignore alors une demande de position et rejoue depuis 0. L'envoyer au bout du fichier
+	 * l'oblige à le parcourir une fois, après quoi la durée est connue et les positions
+	 * atteignables.
+	 */
+	function revealDuration(el: HTMLAudioElement): Promise<void> {
+		return new Promise((resolve) => {
+			const done = () => {
+				el.removeEventListener('durationchange', check)
+				clearTimeout(timer)
+				el.currentTime = 0
+				resolve()
+			}
+			const check = () => { if (Number.isFinite(el.duration)) done() }
+			const timer = setTimeout(done, 5000)
+			el.addEventListener('durationchange', check)
+			el.currentTime = 1e101
+		})
 	}
 
-	function onAudioTime() {
-		if (previewing && audioEl && audioEl.currentTime >= trimEnd - 0.03) stopPreview()
+	async function onAudioMetadata() {
+		if (audioEl && !previewing && !Number.isFinite(audioEl.duration)) {
+			revealing = true
+			await revealDuration(audioEl)
+			revealing = false
+		}
+		applyAudioDuration()
+	}
+
+	/** Ne lance la lecture qu'une fois la position atteinte, pas seulement demandée. */
+	function seekTo(el: HTMLAudioElement, seconds: number): Promise<void> {
+		return new Promise((resolve) => {
+			if (Math.abs(el.currentTime - seconds) < 0.01) return resolve()
+			const done = () => {
+				el.removeEventListener('seeked', done)
+				clearTimeout(timer)
+				resolve()
+			}
+			const timer = setTimeout(done, 3000)
+			el.addEventListener('seeked', done)
+			el.currentTime = seconds
+		})
+	}
+
+	async function playSelection() {
+		const el = audioEl
+		if (!el) return
+		if (previewing) { stopPreview(); return }
+		previewing = true
+		playheadS = trimStart
+		// `play()` part dans le clic même : iOS refuse une lecture lancée après une attente,
+		// et ne charge rien avant. Muette jusqu'à ce que le début de la sélection soit
+		// atteint, pour ne jamais faire entendre autre chose que la sélection.
+		el.muted = true
+		try {
+			await el.play()
+			await seekTo(el, trimStart)
+		} catch {
+			el.muted = false
+			endPreview()
+			return
+		}
+		el.muted = false
+		if (!previewing) { el.pause(); return }
+		followPreview()
+	}
+
+	// `timeupdate` ne passe que toutes les ~250 ms : on déborderait d'autant après la fin
+	// de la sélection. Suivi à chaque image, la coupure tombe là où le serveur coupera.
+	function followPreview() {
+		const el = audioEl
+		if (!el || !previewing) return
+		playheadS = el.currentTime
+		if (el.currentTime >= trimEnd) { stopPreview(); return }
+		previewRaf = requestAnimationFrame(followPreview)
 	}
 </script>
 
@@ -760,7 +839,9 @@
 					Enregistrement prêt — {formatElapsed(elapsedS)} · {formatSize(sizeBytes)}
 				</p>
 				{#if previewUrl}
-					<audio bind:this={audioEl} controls src={previewUrl} preload="metadata" onloadedmetadata={onAudioMetadata} ontimeupdate={onAudioTime} onpause={() => (previewing = false)} onended={() => (previewing = false)}></audio>
+					<!-- Pas de contrôles natifs : leur ▶ rejouait tout le fichier, sélection ignorée,
+					     sur une barre de progression sans rapport avec les poignées. -->
+					<audio bind:this={audioEl} src={previewUrl} preload="metadata" onloadedmetadata={onAudioMetadata} onpause={endPreview} onended={endPreview}></audio>
 					<div class="trim-editor">
 						<div class="trim-heading">
 							<strong>Recadrer l'audio</strong>
@@ -786,6 +867,9 @@
 							</div>
 							<div class="trim-shade left" style:width={`${trimDuration ? trimStart / trimDuration * 100 : 0}%`}></div>
 							<div class="trim-shade right" style:width={`${trimDuration ? (trimDuration - trimEnd) / trimDuration * 100 : 0}%`}></div>
+							{#if playheadS !== null && trimDuration}
+								<div class="trim-playhead" style:left={`${Math.min(100, playheadS / trimDuration * 100)}%`}></div>
+							{/if}
 							<button type="button" class="trim-handle" data-edge="start" style:left={`${trimDuration ? trimStart / trimDuration * 100 : 0}%`} aria-label={`Début de la sélection : ${formatTrimTime(trimStart)}`} title="Début de la sélection" onkeydown={(e) => moveByKey(e, 'start')} {disabled}></button>
 							<button type="button" class="trim-handle" data-edge="end" style:left={`${trimDuration ? trimEnd / trimDuration * 100 : 100}%`} aria-label={`Fin de la sélection : ${formatTrimTime(trimEnd)}`} title="Fin de la sélection" onkeydown={(e) => moveByKey(e, 'end')} {disabled}></button>
 						</div>
@@ -795,7 +879,9 @@
 							<span>Fin <strong>{formatTrimTime(trimEnd)}</strong></span>
 						</div>
 						<div class="trim-actions">
-							<button type="button" class="btn btn-secondary btn-sm" onclick={playSelection} {disabled}>{previewing ? 'Arrêter la préécoute' : 'Écouter la sélection'}</button>
+							<button type="button" class="btn btn-secondary btn-sm" onclick={playSelection} disabled={disabled || revealing}>
+								{#if previewing}Arrêter · {formatTrimTime(playheadS ?? trimStart)}{:else if hasTrim}Écouter la sélection{:else}Écouter{/if}
+							</button>
 							{#if hasTrim}<button type="button" class="btn btn-ghost btn-sm" onclick={resetTrim} {disabled}>Tout garder</button>{/if}
 						</div>
 					</div>
@@ -1035,6 +1121,7 @@
 	.trim-shade { position: absolute; top: 0; bottom: 0; background: rgba(0, 0, 0, 0.48); pointer-events: none; }
 	.trim-shade.left { left: 0; }
 	.trim-shade.right { right: 0; }
+	.trim-playhead { position: absolute; z-index: 2; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); background: var(--color-text); pointer-events: none; }
 	.trim-handle { position: absolute; z-index: 1; top: 0; bottom: 0; width: 24px; transform: translateX(-50%); border: 0; border-left: 3px solid var(--color-accent); border-right: 3px solid var(--color-accent); border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.22); cursor: ew-resize; touch-action: none; }
 	.trim-handle:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 2px; }
 	.trim-times { display: flex; justify-content: space-between; gap: 0.5rem; font-size: var(--text-xs); font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
