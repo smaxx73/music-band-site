@@ -46,6 +46,8 @@ fichiers MusicXML/MXL originaux. La troisième ajoute le jeton chiffré des lien
   jour sélectionné de l'agenda sur fond neutre
 - En-têtes du référentiel et des playlists sur un bandeau encre, visuel orange ; les
   sessions « Autre » passent du beige à un gris clair
+- Lisibilité : le gris des indications et des dates, l'orange des liens d'action et le
+  rouge des erreurs et du statut « Abandonné » atteignent le contraste minimal de 4,5:1
 
 ## [1.2.1] — 2026-09-29
 

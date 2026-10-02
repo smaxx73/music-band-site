@@ -15,6 +15,7 @@
   --color-purple-light: #EDE9FE;
   --color-red:          #C05050;
   --color-red-light:    #F5DADA;
+  --color-red-dark:     #AC3E3E;  /* rouge lisible en texte, sur fond clair comme sur rouge pâle */
 
   /* Couleurs de base (mappées sur la palette chaude) */
   --color-primary:        var(--color-ink);
@@ -27,7 +28,9 @@
   --color-border-input:   #C0BCB3;
   --color-text:           var(--color-ink);
   --color-text-secondary: #6B6660;
-  --color-text-muted:     var(--color-mid);
+  /* Plus foncé que --color-mid, qui reste celui des fonds encre (barre latérale, barre
+     du haut, mini-lecteur) : 4,8:1 sur le fond de page, au-dessus du seuil de 4,5:1. */
+  --color-text-muted:     #756E63;
 
   /* Statuts — palette chaude */
   --color-learning-bg:      var(--color-accent-light);
@@ -37,7 +40,7 @@
   --color-progress-bg:      var(--color-blue-light);
   --color-progress-text:    #2E5E8A;
   --color-abandoned-bg:     var(--color-red-light);
-  --color-abandoned-text:   var(--color-red);
+  --color-abandoned-text:   var(--color-red-dark);
 
   /* Pastille neutre (tonalité, compteurs) : sa propre couleur, pour qu'elle ne bouge
      pas le jour où l'on change celle du statut « abandonné », qu'elle partageait. */
@@ -63,10 +66,10 @@
   --type-autre-from:          #8C857A;
   --type-autre-to:            #5A554D;
   --type-indisponibilite-bg:  var(--color-red-light);
-  --type-indisponibilite-text: var(--color-red);
+  --type-indisponibilite-text: var(--color-red-dark);
 
   /* Feedback */
-  --color-error:          var(--color-red);
+  --color-error:          var(--color-red-dark);
   --color-danger-bg:      #fef2f2;
   --color-danger-border:  #e5bebe;
   --color-warning-bg:     #fff3cd;
@@ -263,13 +266,14 @@ textarea:focus-visible {
 }
 
 /* Action dans une phrase : un lien souligné, mais un vrai bouton. Orange quand elle
-   invite (« Réinitialiser »), estompée quand elle renonce (« Retirer »). */
+   invite (« Réinitialiser »), estompée quand elle renonce (« Retirer »). L'orange foncé :
+   l'accent, en texte, n'atteint que 3,4:1. */
 .btn-link {
   padding: 0;
   border: none;
   background: none;
   font: inherit;
-  color: var(--color-accent);
+  color: var(--color-accent-dark);
   text-decoration: underline;
   cursor: pointer;
 }
