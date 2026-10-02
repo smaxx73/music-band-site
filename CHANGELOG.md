@@ -44,6 +44,8 @@ fichiers MusicXML/MXL originaux. La troisième ajoute le jeton chiffré des lien
 - Dernières couleurs hors palette remplacées : repères horodatés des commentaires dans
   l'orange de l'application, piste en cours d'une playlist en édition comme en lecture,
   jour sélectionné de l'agenda sur fond neutre
+- En-têtes du référentiel et des playlists sur un bandeau encre, visuel orange ; les
+  sessions « Autre » passent du beige à un gris clair
 
 ## [1.2.1] — 2026-09-29
 

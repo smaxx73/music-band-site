@@ -44,6 +44,7 @@
 	title={title ?? formatDateOnly(date, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
 	{stats}
 	hue={SESSION_TYPE_HUES[type]}
+	neutral="stone"
 	photo={photoUrl}
 	photoVeil={veil}
 	{actions}

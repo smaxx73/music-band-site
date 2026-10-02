@@ -387,8 +387,10 @@ rapide d'une session dans `/upload`, `/record` et au classement d'un enregistrem
   (`MediaHeader.svelte`) : un visuel carré, la nature de la page en petites capitales, le
   titre, ce qu'elle contient en chiffres, et le ▶ rond orange. Posé sur un **bandeau**
   plus foncé que la page, teinté comme son visuel : la teinte de la pochette pour un
-  morceau (`songHue`, `src/lib/songs.ts`), la couleur du type pour une session, un beige
-  neutre pour une playlist ou le référentiel. La même grammaire que
+  morceau (`songHue`, `src/lib/songs.ts`), la couleur du type pour une session (gris
+  clair pour « Autre »). Une playlist et le référentiel, qui n'ont pas de teinte propre,
+  prennent un **bandeau encre**, la couleur de la barre latérale, texte clair : il les
+  distingue des pages d'un morceau ou d'une session, toujours claires. La même grammaire que
   l'en-tête « album » de chaque morceau dans une session, à l'échelle de la page. Le
   visuel d'une session est un **feuillet d'éphéméride** (mois, jour, jour de la semaine,
   et l'année hors de l'année en cours) teinté comme son type (`SessionCover.svelte`) : une
@@ -877,7 +879,7 @@ distincte des commentaires, qui sont datés et signés.
 ## Playlists (`/playlists/[id]`)
 
 - En-tête de page commun (voir « Vue session ») : visuel fixe (`IconCover.svelte`, l'icône
-  playlist sur fond sombre) plutôt qu'une mosaïque de pochettes — la pochette d'un morceau
+  playlist sur fond orange) plutôt qu'une mosaïque de pochettes — la pochette d'un morceau
   ferait croire que la page parle de lui —, nombre de prises, durée et auteur
 - **Deux modes.** Par défaut, la playlist **se lit** : des pistes comme les prises d'une
   session (`PlaylistTrackRow.svelte`, même colonne de tête `TrackLead.svelte`), avec morceau,
@@ -1137,7 +1139,7 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 - Suppression bloquée si des prises existent pour ce morceau
 - Liste affiche tous les statuts du groupe actif, avec nombre de prises (`take_count`)
 - **Deux modes**, comme une playlist. Par défaut la liste **se lit** : en-tête de page
-  commun (visuel fixe `IconCover.svelte`, une note sur fond sombre, comme pour une
+  commun (visuel fixe `IconCover.svelte`, une note sur fond orange, comme pour une
   playlist ; nombre de morceaux, au répertoire, prises), puis une ligne par morceau (`SongListRow.svelte`) — pochette, titre,
   compositeur / reprise / année, statut, tonalité, nombre de prises. Toute la ligne mène au
   morceau ; le tri se choisit dans la barre de filtres. « Modifier » passe au **tableau**

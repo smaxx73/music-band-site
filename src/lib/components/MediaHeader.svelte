@@ -10,6 +10,7 @@
 		cover,
 		stats = null,
 		hue = null,
+		neutral = 'ink',
 		photo = null,
 		photoVeil = 75,
 		headingLevel = 1,
@@ -25,9 +26,15 @@
 		stats?: string | null
 		/**
 		 * Teinte du bandeau (0–360), celle du visuel : un morceau, un type de session.
-		 * Sans teinte, un beige chaud neutre (playlist, référentiel).
+		 * Sans teinte, le bandeau suit `neutral`.
 		 */
 		hue?: number | null
+		/**
+		 * Bandeau sans teinte. `ink` (encre, texte clair) pour les pages qui rassemblent
+		 * des morceaux (référentiel, playlist) ; `stone` (gris clair) pour une session
+		 * « Autre », qui reste ainsi dans la famille claire des bandeaux de session.
+		 */
+		neutral?: 'ink' | 'stone'
 		/**
 		 * Photo posée en fond du bandeau (session) : recadrée au centre à la taille réelle
 		 * du bandeau, sous un voile sombre qui passe le texte en clair. Prend le pas sur
@@ -50,6 +57,7 @@
 	<header
 		class="media-header"
 		class:tinted={hue !== null && !photo}
+		class:ink={hue === null && !photo && neutral === 'ink'}
 		class:photo={!!photo}
 		style={photo
 			? `--mh-photo: url("${photo}"); --mh-veil: ${photoVeil / 100}`
@@ -80,10 +88,11 @@
 	/* Un bandeau plus foncé que le corps de la page, pour que l'en-tête s'en détache.
 	   Teinté comme son visuel : la page d'un morceau prend la couleur de sa pochette,
 	   une session celle de son type. Tons assez clairs pour garder le texte sombre.
+	   Sans teinte, un gris clair (`stone`) — ou l'encre, voir `.ink`.
 	   Large : le texte, centré sur la hauteur du visuel, entre lui et les commandes. */
 	.media-header {
-		--mh-bg: linear-gradient(135deg, var(--color-bg-muted), #E1D9C9);
-		--mh-ink-soft: #57524B;
+		--mh-bg: linear-gradient(135deg, #ECEBE9, #DBD9D7);
+		--mh-ink-soft: #55534E;
 		display: grid;
 		grid-template-columns: 104px minmax(0, 1fr) auto;
 		grid-template-rows: 1fr auto auto auto 1fr;
@@ -122,6 +131,27 @@
 	}
 
 	.media-header.photo :is(h1, h2) { text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35); }
+
+	/* Référentiel, playlist : la couleur de la barre latérale. Ces pages n'ont pas de
+	   teinte propre, et un bandeau sombre les distingue des pages d'un morceau ou d'une
+	   session, toujours claires. */
+	.media-header.ink {
+		--mh-bg: linear-gradient(135deg, var(--color-primary-hover), var(--color-ink));
+		--mh-ink-soft: rgba(245, 243, 238, 0.78);
+		color: var(--color-paper);
+	}
+
+	/* Le bouton principal est à l'encre : sur l'encre, il passe au papier. */
+	.ink .mh-actions :global(.btn-primary) {
+		background: var(--color-paper);
+		border-color: var(--color-paper);
+		color: var(--color-ink);
+	}
+
+	.ink .mh-actions :global(.btn-primary:hover:not(:disabled)) {
+		background: var(--color-bg-muted);
+		border-color: var(--color-bg-muted);
+	}
 
 	.mh-cover {
 		grid-area: cover;
@@ -203,7 +233,8 @@
 		background: rgba(44, 43, 40, 0.08);
 	}
 
-	.photo .mh-actions :global(.mh-secondary:hover:not(:disabled)) {
+	.photo .mh-actions :global(.mh-secondary:hover:not(:disabled)),
+	.ink .mh-actions :global(.mh-secondary:hover:not(:disabled)) {
 		color: #fff;
 		background: rgba(255, 255, 255, 0.16);
 	}

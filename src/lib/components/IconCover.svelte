@@ -17,7 +17,8 @@
 		height: 100%;
 		display: grid;
 		place-items: center;
-		background: linear-gradient(135deg, #4A4843, var(--color-ink));
-		color: var(--color-paper);
+		/* Posé sur le bandeau encre (MediaHeader) : un carré sombre s'y perdrait. */
+		background: linear-gradient(135deg, var(--color-accent), var(--color-accent-dark));
+		color: #fff;
 	}
 </style>
