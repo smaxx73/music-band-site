@@ -370,11 +370,16 @@
 		<div class="dash-right">
 			<div class="section-header">
 				<h2>Activité récente</h2>
-				<select class="activity-filter" bind:value={activityFilter}>
-					{#each activityFilterOptions as opt}
-						<option value={opt.value}>{opt.label}</option>
-					{/each}
-				</select>
+				<div class="activity-tools">
+					<select class="activity-filter" bind:value={activityFilter}>
+						{#each activityFilterOptions as opt}
+							<option value={opt.value}>{opt.label}</option>
+						{/each}
+					</select>
+					<!-- Sur une colonne, cette section arrive sous les sessions et le lien du bas
+					     sous huit entrées : le fil n'a pas d'onglet, il doit se voir dès le titre -->
+					<a href="/fil" class="link-more feed-link-top">Tout le fil →</a>
+				</div>
 			</div>
 
 			{#if activity().length === 0}
@@ -531,6 +536,15 @@
 	.link-more:hover { color: var(--color-accent); }
 
 	.feed-link { display: inline-block; margin-top: 0.5rem; }
+
+	.activity-tools {
+		display: flex;
+		align-items: baseline;
+		gap: 0.75rem;
+	}
+
+	/* La colonne de 240 px n'a pas la place à côté du filtre : le lien du bas suffit */
+	.feed-link-top { display: none; }
 
 	.activity-filter {
 		font-size: var(--text-xs);
@@ -825,6 +839,7 @@
 		main { padding: 1rem; }
 		.dash-layout { grid-template-columns: minmax(0, 1fr); }
 		.dash-right { border-top: 1px solid var(--color-border-light); padding-top: 1.5rem; }
+		.feed-link-top { display: inline; }
 		.stat-row { gap: 0.4rem; }
 		.stat-card { padding: 0.6rem 0.5rem; }
 	}

@@ -235,6 +235,13 @@
 				{/each}
 			{/if}
 		</div>
+
+		<!-- On ouvre la cloche pour savoir « quoi de neuf » : le fil, qui n'a pas d'onglet
+		     au téléphone, en est la réponse complète. La navigation referme le menu. -->
+		<a class="notif-feed" href="/fil">
+			Tout le fil d'actualité
+			<Icon name="chevron-right" size="0.9rem" />
+		</a>
 	</Menu>
 </div>
 
@@ -341,6 +348,22 @@
 		max-height: min(60vh, 380px);
 		overflow-y: auto;
 	}
+
+	.notif-feed {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.2rem;
+		min-height: 40px;
+		border-top: 1px solid var(--color-border-light);
+		background: var(--color-bg-subtle);
+		font-size: var(--text-xs);
+		font-weight: 600;
+		color: var(--color-accent-dark);
+		text-decoration: none;
+	}
+
+	.notif-feed:hover { text-decoration: underline; }
 
 	.notif-msg {
 		margin: 0;

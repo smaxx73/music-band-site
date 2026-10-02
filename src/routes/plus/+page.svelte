@@ -1,5 +1,6 @@
 <!-- « Plus » : tout ce que la barre d'onglets du téléphone (et le rail de la tablette) ne
-     porte pas — changement de groupe, sections secondaires, compte, pages légales. -->
+     porte pas — sections secondaires, changement de groupe, compte, pages légales. Le groupe
+     actif, lui, est déjà dans la barre du haut : on ne le répète pas ici. -->
 <script lang="ts">
 	import type { PageData } from './$types'
 	import { page } from '$app/state'
@@ -29,13 +30,17 @@
 	}
 
 	type Entry = { href: string; label: string; icon: IconName }
+	// Le tableau de bord a son onglet « Accueil » : le fil, sans onglet, passe en tête.
+	// Les infos du groupe en dernier — on les consulte bien moins qu'on ne lit le fil.
 	const groupEntries: Entry[] = [
-		{ href: '/', label: 'Tableau de bord', icon: 'home' },
 		{ href: '/fil', label: "Fil d'actualité", icon: 'feed' },
 		{ href: '/agenda', label: 'Agenda', icon: 'agenda' },
 		{ href: '/playlists', label: 'Playlists', icon: 'playlist' },
 		{ href: '/setlists', label: 'Setlists', icon: 'list' },
+		{ href: '/group', label: 'Membres, lieux et réseaux', icon: 'users' },
 	]
+	const currentGroup = $derived(user.groups.find((g) => g.id === user.current_group_id))
+	const otherGroups = $derived(user.groups.filter((g) => g.id !== user.current_group_id))
 	const meEntries = $derived<Entry[]>([
 		{ href: '/perso', label: 'Mon espace perso', icon: 'user' },
 		{ href: '/profile', label: 'Mon profil', icon: 'settings' },
@@ -68,20 +73,24 @@
 <main class="page page-narrow">
 	<h1 class="title">Plus</h1>
 
-	{#if user.groups.length > 0}
-		<section class="card" aria-labelledby="plus-groups">
+	{#if user.current_group_id}
+		<section aria-labelledby="plus-group-nav">
+			<h2 id="plus-group-nav" class="section-title">{currentGroup?.name ?? 'Groupe'}</h2>
+			{@render entries(groupEntries)}
+		</section>
+	{/if}
+
+	{#if otherGroups.length > 0}
+		<section aria-labelledby="plus-groups">
 			<h2 id="plus-groups" class="section-title">
-				{user.groups.length > 1 ? 'Groupe actif' : 'Mon groupe'}
+				{user.current_group_id ? 'Changer de groupe' : 'Choisir un groupe'}
 			</h2>
 			<ul class="groups">
-				{#each user.groups as group (group.id)}
-					{@const active = group.id === user.current_group_id}
+				{#each otherGroups as group (group.id)}
 					<li>
 						<button
 							type="button"
 							class="group"
-							class:active
-							aria-pressed={active}
 							aria-busy={switching === group.id}
 							disabled={switching !== null}
 							onclick={() => choose(group.id)}
@@ -92,23 +101,12 @@
 								<span class="badge initials" aria-hidden="true">{initials(group.name)}</span>
 							{/if}
 							<span class="group-name">{group.name}</span>
-							{#if active}<Icon name="check" size="1.1rem" class="group-check" />{/if}
+							<Icon name="chevron-right" size="1rem" class="entry-chevron" />
 						</button>
 					</li>
 				{/each}
 			</ul>
 			{#if switchError}<p class="message-error" role="alert">{switchError}</p>{/if}
-			<a href="/group" class="group-info">
-				Membres, lieux et réseaux du groupe
-				<Icon name="chevron-right" size="1rem" />
-			</a>
-		</section>
-	{/if}
-
-	{#if user.current_group_id}
-		<section aria-labelledby="plus-group-nav">
-			<h2 id="plus-group-nav" class="section-title">Groupe</h2>
-			{@render entries(groupEntries)}
 		</section>
 	{/if}
 
@@ -146,15 +144,6 @@
 		color: var(--color-text-muted);
 	}
 
-	.card {
-		padding: 0.4rem;
-		border: 1px solid var(--color-border-light);
-		border-radius: var(--radius-xl);
-		background: var(--color-bg);
-	}
-
-	.card .section-title { margin-top: 0.4rem; }
-
 	.groups,
 	.entries {
 		list-style: none;
@@ -170,7 +159,7 @@
 		min-height: 52px;
 		padding: 0.25rem 0.5rem;
 		border: none;
-		border-radius: var(--radius-lg);
+		border-bottom: 1px solid var(--color-bg-muted);
 		background: transparent;
 		color: var(--color-text);
 		font: inherit;
@@ -179,8 +168,7 @@
 	}
 
 	.group:hover { background: var(--color-bg-subtle); }
-	.group.active { background: var(--color-accent-light); cursor: default; }
-	.group :global(.group-check) { color: var(--color-accent-dark); }
+	.group :global(.entry-chevron) { color: var(--color-mid); }
 
 	.badge {
 		width: 34px;
@@ -204,20 +192,6 @@
 		flex: 1;
 		min-width: 0;
 		font-weight: 600;
-	}
-
-	.group-info {
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-		min-height: 44px;
-		margin-top: 0.25rem;
-		padding: 0 0.5rem;
-		border-top: 1px solid var(--color-border-light);
-		color: var(--color-accent-dark);
-		font-size: var(--text-sm);
-		font-weight: 600;
-		text-decoration: none;
 	}
 
 	.entry {

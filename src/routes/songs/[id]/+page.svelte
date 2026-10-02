@@ -142,7 +142,9 @@
 				<button class="btn btn-ghost mh-secondary" onclick={startEditing}>
 					<Icon name="pencil" size="0.9rem" /> <span class="mh-label">Modifier</span>
 				</button>
-				<a class="btn btn-secondary" href="/songs/{song.id}/partition">Feuille de répétition</a>
+				<a class="btn btn-ghost mh-secondary" href="/songs/{song.id}/partition">
+					<Icon name="sheet" size="0.9rem" /> <span class="mh-label">Feuille de répétition</span>
+				</a>
 				<SongCoverEditor
 					songId={song.id}
 					title={song.title}

@@ -257,8 +257,10 @@
 	/* Étroit : garder les commandes à côté du texte le réduisait à une colonne où le
 	   titre se coupait au milieu des mots. Le visuel ouvre l'en-tête avec le titre et
 	   les chiffres, les détails prennent toute la largeur, et les commandes leur propre
-	   rangée, calées à droite comme le ▶ l'est partout. */
-	@container (max-width: 540px) {
+	   rangée, calées à droite comme le ▶ l'est partout. Le seuil laisse au texte ~230 px
+	   à côté de quatre commandes réduites à leur icône (page d'un morceau) : en deçà,
+	   le libellé se replie sur plusieurs lignes et le titre ne tient plus. */
+	@container (max-width: 600px) {
 		.media-header {
 			grid-template-columns: 64px minmax(0, 1fr);
 			grid-template-rows: none;

@@ -446,7 +446,7 @@ rapide d'une session dans `/upload`, `/record` et au classement d'un enregistrem
   aux lecteurs d'écran (`role="img"`)
 - La disposition suit la **largeur de l'en-tête** (requête de conteneur), pas celle de la
   fenêtre. Large : visuel, texte, commandes sur une rangée. Sous 720 px, les commandes
-  secondaires se réduisent à leur icône. Sous 540 px, le visuel ne garde à côté de lui
+  secondaires se réduisent à leur icône. Sous 600 px, le visuel ne garde à côté de lui
   que le libellé, le titre et les chiffres ; les détails (date, lieu, présents,
   compositeur…) prennent toute la largeur dessous, et les commandes leur propre rangée,
   calées à droite. Laisser les commandes à côté du texte réduisait celui-ci à une colonne
@@ -741,9 +741,14 @@ Trois mises en page, toutes dans `src/routes/+layout.svelte` :
   dans le groupe (`/fil?publier`). Bouton plein sous le groupe sur ordinateur, « + » dans le
   rail, rond central de la barre d'onglets au téléphone, où le panneau monte du bas. Sans
   groupe actif, ne restent qu'Enregistrer et le dépôt dans l'espace perso
-- **Plus** (`/plus`) : ce que la barre d'onglets et le rail ne portent pas — changement de
-  groupe, Fil, Agenda, Playlists, Setlists, espace perso, profil, admin, déconnexion, pages
-  légales et version. L'onglet s'allume aussi sur chacune de ces pages
+- **Plus** (`/plus`) : ce que la barre d'onglets et le rail ne portent pas. D'abord une
+  section au nom du groupe actif — Fil (en tête : il n'a pas d'onglet), Agenda, Playlists,
+  Setlists, puis « Membres, lieux et réseaux » (`/group`) —, ensuite « Changer de groupe »
+  avec les **autres** groupes seulement, enfin espace perso, profil, admin, déconnexion,
+  pages légales et version. Ni le groupe actif ni le tableau de bord n'y sont répétés : la
+  barre du haut montre déjà le premier, l'onglet « Accueil » mène au second. Avec un seul
+  groupe, la section « Changer de groupe » disparaît. L'onglet s'allume aussi sur chacune
+  de ces pages
 - Un onglet s'allume sur les pages qu'il contient : une prise est sous « Sessions ». Le lien
   actif porte `aria-current` (`page` sur la page même, `true` dans sa section)
 - La cloche des notifications reste dans la barre du haut à toutes les largeurs ; le
@@ -1236,7 +1241,10 @@ lisent et se discutent sur place — là où « Activité récente » du tableau
 que signaler, en lignes qui mènent ailleurs. Les deux coexistent : le tableau de bord
 reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 
-- Entrée dans la barre latérale, juste sous le tableau de bord ; sous « Plus » au téléphone
+- Entrée dans la barre latérale, juste sous le tableau de bord. Au téléphone, il n'a pas
+  d'onglet : trois chemins le rendent visible de partout — la première entrée de « Plus »,
+  « Tout le fil → » à côté du titre « Activité récente » du tableau de bord (sur une
+  colonne, où la section arrive sous les sessions), et le pied du menu des notifications
 - **« + Publier » ouvre le formulaire sur place** — voir « Publications ». La nouvelle
   publication arrive en tête du fil, sans changer de page. `/fil?publier` l'ouvre d'emblée
   (c'est la cible du « + Publier » du tableau de bord et de « Publier dans le groupe »
@@ -1438,7 +1446,9 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
   erreurs et n'en propage aucune
 - Le menu offre les actions habituelles : filtre « Non lues » / « Toutes », marquer une
   notification comme lue ou non lue (pastille à droite de la ligne), tout marquer comme lu.
-  Ouvrir une notification la marque lue puis navigue vers la page concernée
+  Ouvrir une notification la marque lue puis navigue vers la page concernée. En pied de
+  menu, « Tout le fil d'actualité » mène à `/fil` : on ouvre la cloche pour savoir « quoi de
+  neuf », et le fil en est la réponse complète
 - Le nom de l'auteur est relu depuis `users` (`actor_name` n'est qu'un repli) : un changement
   de nom affiché se répercute sur l'historique, comme pour les commentaires
 - Une notification disparaît avec le contenu qu'elle annonce (`session_id`, `recording_id`,
@@ -1482,7 +1492,8 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 - Une **publication** y figure à sa création, et ses commentaires y mènent à `/posts/[id]` —
   voir « Publications »
 - « Tout le fil d'actualité → » sous le flux mène à `/fil`, qui montre tout, en entier —
-  voir « Fil d'actualité »
+  voir « Fil d'actualité ». Quand la page passe sur une colonne (≤ 700 px), « Tout le fil → »
+  s'ajoute à côté du filtre : le lien du bas arrive alors après les sessions et huit entrées
 
 ## Pages légales (`/mentions-legales`, `/confidentialite`)
 

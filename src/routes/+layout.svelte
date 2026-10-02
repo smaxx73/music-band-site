@@ -592,8 +592,20 @@
 			box-shadow: 0 0 0 2px var(--color-accent);
 		}
 
-		.sidebar-add { width: 100%; display: flex; justify-content: center; }
-		.sidebar-add :global(.add-trigger-sidebar) { width: 48px; min-height: 40px; }
+		/* Le conteneur du menu prend toute la largeur du rail (le panneau s'y ancre) :
+		   c'est lui qui centre le bouton. Rond, comme au centre de la barre d'onglets. */
+		.sidebar-add { width: 100%; }
+		.sidebar-add :global(.add-menu-sidebar) { justify-content: center; }
+
+		.sidebar-add :global(.add-trigger-sidebar) {
+			width: 44px;
+			height: 44px;
+			min-height: 0;
+			border-radius: 50%;
+			box-shadow: 0 4px 12px rgba(226, 94, 54, 0.35);
+		}
+
+		.sidebar-add :global(.add-trigger-sidebar svg) { width: 1.35rem; height: 1.35rem; }
 	}
 
 	/* ─── Téléphone : barre d'onglets en bas ─────── */
