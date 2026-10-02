@@ -473,13 +473,63 @@
 			right: 6px;
 		}
 
-		/* Le panneau appartient à Menu.svelte : on l'atteint depuis la portée de la cloche. */
+		/* Le panneau appartient à Menu.svelte : on l'atteint depuis la portée de la cloche.
+		   Il descend de la barre du haut comme un store, bord à bord, et voile la page
+		   sous lui sans assombrir la barre, qui garde la cloche allumée. L'ombre décalée
+		   d'autant qu'elle s'étend part du haut du panneau : elle ne déborde que dessous,
+		   barre d'onglets et mini-lecteur compris. Sa hauteur s'arrête au-dessus d'eux. */
 		.notif :global(.menu-panel) {
 			position: fixed;
-			top: calc(var(--top-bar-h) + 4px);
-			right: 0.4rem;
-			left: 0.4rem;
+			top: var(--top-bar-h);
+			right: 0;
+			left: 0;
 			width: auto;
+			max-height: calc(100dvh - var(--top-bar-h) - var(--footer-actions-h) - var(--mini-player-h) - 1rem);
+			border: none;
+			border-radius: 0 0 calc(var(--radius-xl) * 2) calc(var(--radius-xl) * 2);
+			box-shadow: 0 100vmax 0 100vmax rgba(0, 0, 0, 0.45);
+			/* Glisse depuis la barre, d'où il descend. */
+			--menu-enter-y: -16px;
+		}
+
+		/* Ouvert, il fige la page derrière lui, comme une modale. */
+		:global(html:has(.notif .menu-panel)) { overflow: hidden; }
+
+		/* La liste prend la hauteur que le panneau lui laisse, sans plafond de bureau, et
+		   son défilement ne se propage pas à la page au bout de la liste. */
+		.notif-list {
+			flex: 1;
+			min-height: 0;
+			max-height: none;
+			overscroll-behavior: contain;
+		}
+
+		.notif-head {
+			padding: 0.4rem 0.4rem 0.4rem 0.9rem;
+			font-size: var(--text-lg);
+		}
+
+		/* Cibles au pouce : une action d'en-tête et une pastille de 26 px se ratent. */
+		.notif-mark-all {
+			min-height: 44px;
+			padding: 0 0.5rem;
+			font-size: var(--text-sm);
+		}
+
+		.notif-filters { padding: 0.5rem 0.9rem; }
+
+		.notif-filters button {
+			min-height: 36px;
+			padding: 0 0.9rem;
+			font-size: var(--text-sm);
+		}
+
+		.notif-link { padding: 0.7rem 0.2rem 0.75rem 0.9rem; gap: 0.7rem; }
+		.notif-dot { width: 44px; font-size: 0.7rem; }
+
+		.notif-feed {
+			min-height: 48px;
+			font-size: var(--text-sm);
 		}
 	}
 </style>

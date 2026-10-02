@@ -1431,6 +1431,10 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 ## Notifications d'activité
 
 - Cloche dans la barre du haut, avec pastille du nombre de non lues du **groupe actif**
+- Au téléphone, le panneau descend de la barre du haut sur toute la largeur, sa hauteur
+  s'arrête au-dessus de la barre d'onglets et la page derrière lui est voilée et figée.
+  Toucher le voile ferme le panneau sans activer ce qui est dessous ; même règle pour le
+  panneau de « + Ajouter » (`Menu.svelte`)
 - Une notification est créée pour **chaque membre du groupe sauf l'auteur de l'action**, au
   moment de l'action (`src/lib/server/notifications.ts` → `notifyGroup`)
 - Sept déclencheurs, un par création : prise uploadée (`recording`), commentaire (`comment`),

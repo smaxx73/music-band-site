@@ -150,6 +150,8 @@
 		border: none;
 		border-radius: calc(var(--radius-xl) * 2) calc(var(--radius-xl) * 2) 0 0;
 		box-shadow: 0 0 0 100vmax rgba(0, 0, 0, 0.45);
+		/* Monte depuis la barre d'onglets. */
+		--menu-enter-y: 24px;
 	}
 
 	:global(.add-menu-tab) .add-item { min-height: 60px; }

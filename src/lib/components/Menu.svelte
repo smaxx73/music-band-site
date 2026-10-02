@@ -8,6 +8,7 @@
 
 <script lang="ts">
 	import type { Snippet } from 'svelte'
+	import { cubicOut } from 'svelte/easing'
 
 	/**
 	 * Menu déroulant : un bouton, un panneau posé dessous. Le panneau se ferme au clic à
@@ -17,7 +18,8 @@
 	 * Le bouton est écrit par le parent (`trigger`), qui y étale les attributs reçus : il
 	 * garde ainsi ses propres styles. Les entrées portent `.menu-item` (`src/app.css`).
 	 * La largeur du panneau se règle par propriétés CSS : `<Menu --menu-min-width="15rem">`
-	 * (`--menu-width`, `--menu-min-width`, `--menu-max-width`, `--menu-padding`, `--menu-z`).
+	 * (`--menu-width`, `--menu-min-width`, `--menu-max-width`, `--menu-padding`, `--menu-z`),
+	 * et son apparition par `--menu-enter-y`, le décalage en px d'où il glisse.
 	 */
 	let {
 		open = $bindable(false),
@@ -51,7 +53,14 @@
 		if (!open) return
 
 		const closeOnOutside = (e: MouseEvent) => {
-			if (root && !root.contains(e.target as Node)) open = false
+			if (!root || root.contains(e.target as Node)) return
+			open = false
+			// Un panneau fixé à l'écran (« + Ajouter », notifications au téléphone) voile la
+			// page : toucher le voile referme, et ne doit pas activer le lien caché dessous.
+			if (panel && getComputedStyle(panel).position === 'fixed') {
+				e.preventDefault()
+				e.stopPropagation()
+			}
 		}
 		const closeOnEscape = (e: KeyboardEvent) => {
 			if (e.key !== 'Escape') return
@@ -59,10 +68,11 @@
 			root?.querySelector<HTMLElement>(':scope > [aria-haspopup]')?.focus()
 		}
 
-		document.addEventListener('click', closeOnOutside)
+		// En capture : passer avant le routeur de SvelteKit, qui écoute les clics de liens.
+		document.addEventListener('click', closeOnOutside, true)
 		document.addEventListener('keydown', closeOnEscape)
 		return () => {
-			document.removeEventListener('click', closeOnOutside)
+			document.removeEventListener('click', closeOnOutside, true)
 			document.removeEventListener('keydown', closeOnEscape)
 		}
 	})
@@ -81,6 +91,26 @@
 		if (scrollIntoView) panel.scrollIntoView({ block: 'nearest' })
 	})
 
+	/**
+	 * Apparition en fondu, glissée de `--menu-enter-y` (le sens d'où vient le panneau).
+	 * Un panneau fixé à l'écran prend plus de temps qu'un menu déroulant : il couvre la
+	 * page, et son voile s'installe avec lui (l'opacité porte aussi l'ombre). Sans
+	 * mouvement si l'utilisateur l'a demandé : le fondu suffit.
+	 */
+	function reveal(node: HTMLElement, { leaving = false }: { leaving?: boolean } = {}) {
+		const style = getComputedStyle(node)
+		const sheet = style.position === 'fixed'
+		const still = matchMedia('(prefers-reduced-motion: reduce)').matches
+		// Par défaut, un menu déroulant descend de quelques pixels vers sa place.
+		const y = still ? 0 : parseFloat(style.getPropertyValue('--menu-enter-y') || '-4')
+		const duration = (sheet ? 220 : 120) * (leaving ? 0.7 : 1)
+		return {
+			duration,
+			easing: cubicOut,
+			css: (t: number, u: number) => `opacity: ${t}; transform: translateY(${u * y}px)`
+		}
+	}
+
 	const triggerProps = $derived<MenuTriggerProps>({
 		onclick: () => (open = !open),
 		'aria-haspopup': role,
@@ -92,7 +122,15 @@
 	{@render trigger(triggerProps)}
 
 	{#if open}
-		<div class="menu-panel" class:align-left={alignLeft} {role} aria-label={label} bind:this={panel}>
+		<div
+			class="menu-panel"
+			class:align-left={alignLeft}
+			{role}
+			aria-label={label}
+			bind:this={panel}
+			in:reveal
+			out:reveal={{ leaving: true }}
+		>
 			{@render children()}
 		</div>
 	{/if}
