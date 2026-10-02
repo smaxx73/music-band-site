@@ -1,12 +1,82 @@
 import { spawn } from 'child_process'
 import type { AudioTrim } from '$lib/types'
 
+/** Canal qui porte le son d'un fichier stéréo dont l'autre canal est muet. */
+export type ActiveChannel = 'left' | 'right'
+
+/**
+ * Sous ce niveau RMS, un canal est muet : une entrée de carte son sans rien de branché
+ * reste vers −90 dB, un micro branché même loin de la source dépasse largement −60 dB.
+ */
+const SILENT_CHANNEL_RMS_DB = -60
+/** Écart minimal entre les deux canaux : un enregistrement simplement très calme n'est pas visé. */
+const CHANNEL_GAP_DB = 30
+
+/**
+ * Repère un stéréo dont un seul canal porte le son : un micro branché sur l'entrée 1
+ * d'une carte son, l'entrée 2 restée vide. Le fichier s'écoute alors dans une seule
+ * oreille. Retourne le canal qui porte le son, ou null pour tout autre cas (mono,
+ * vrai stéréo, plus de deux canaux, fichier illisible) — dans le doute, on ne touche à rien.
+ *
+ * Décode le fichier entier (filtre `astats`, rien n'est écrit) : un canal débranché
+ * l'est pour toute la captation, un extrait ne suffirait pas à l'affirmer.
+ */
+export function detectSingleChannel(filePath: string): Promise<ActiveChannel | null> {
+	return new Promise((resolve) => {
+		const ff = spawn('ffmpeg', [
+			'-hide_banner',
+			'-nostats',
+			'-i', filePath,
+			'-map', '0:a:0',
+			'-af', 'astats=measure_overall=none:measure_perchannel=RMS_level',
+			'-f', 'null',
+			'-'
+		])
+
+		let stderr = ''
+		ff.stderr.on('data', (d: Buffer) => (stderr += d.toString()))
+
+		ff.on('close', (code) => {
+			if (code !== 0) { resolve(null); return }
+			// Un niveau par canal, dans l'ordre ; un canal tout à zéro vaut `-inf`.
+			const levels = [...stderr.matchAll(/RMS level dB:\s*(-?inf|-?[\d.]+)/g)]
+				.map((m) => (m[1].endsWith('inf') ? -Infinity : parseFloat(m[1])))
+			if (levels.length !== 2) { resolve(null); return }
+			const [left, right] = levels
+			if (right <= SILENT_CHANNEL_RMS_DB && left - right >= CHANNEL_GAP_DB) resolve('left')
+			else if (left <= SILENT_CHANNEL_RMS_DB && right - left >= CHANNEL_GAP_DB) resolve('right')
+			else resolve(null)
+		})
+
+		ff.on('error', () => resolve(null))
+	})
+}
+
+/** Recopie le canal qui porte le son sur les deux sorties : le son revient au centre. */
+export function duplicateChannelFilter(active: ActiveChannel): string {
+	const source = active === 'left' ? 'c0' : 'c1'
+	return `pan=stereo|c0=${source}|c1=${source}`
+}
+
 /**
  * Convertit un fichier audio en mp3 128kbps. Sans coupe manuelle, les silences
- * aux extrémités sont aussi supprimés.
+ * aux extrémités sont aussi supprimés. Un canal muet est remplacé par l'autre
+ * (`detectSingleChannel`).
  * Lecture depuis le disque, écriture sur le disque — jamais en mémoire Node.
  */
-export function convertToMp3(inputPath: string, outputPath: string, trim: AudioTrim | null = null): Promise<void> {
+export async function convertToMp3(inputPath: string, outputPath: string, trim: AudioTrim | null = null): Promise<void> {
+	const active = await detectSingleChannel(inputPath)
+	const filters = [
+		...(active ? [duplicateChannelFilter(active)] : []),
+		// Une coupe manuelle garde exactement la portion choisie ; le rognage
+		// automatique des silences ne sert qu'aux dépôts sans bornes.
+		...(!trim ? [
+			'silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB',
+			'areverse',
+			'silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB',
+			'areverse'
+		] : [])
+	]
 	return new Promise((resolve, reject) => {
 		const ff = spawn('ffmpeg', [
 			...(trim ? ['-ss', trim.startS.toFixed(3)] : []),
@@ -15,17 +85,7 @@ export function convertToMp3(inputPath: string, outputPath: string, trim: AudioT
 			'-ar', '44100',
 			'-ab', '128k',
 			'-ac', '2',
-			// Une coupe manuelle garde exactement la portion choisie ; le rognage
-			// automatique des silences ne sert qu'aux dépôts sans bornes.
-			...(!trim ? [
-				'-af',
-				[
-					'silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB',
-					'areverse',
-					'silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB',
-					'areverse'
-				].join(',')
-			] : []),
+			...(filters.length > 0 ? ['-af', filters.join(',')] : []),
 			'-f', 'mp3',
 			'-y',
 			outputPath
@@ -234,12 +294,16 @@ export function createProxy(inputPath: string, outputPath: string): Promise<void
  * toujours du fichier déposé : c'est le seul endroit où la qualité se joue.
  *
  * Un encodage, pas deux : l'original n'a jamais été transcodé avant ce point.
+ *
+ * `active` recopie le canal qui porte le son sur l'autre, muet : détecté une fois sur
+ * l'original entier par l'appelant (`detectSingleChannel`), pas extrait par extrait.
  */
 export function extractSegment(
 	inputPath: string,
 	outputPath: string,
 	startS: number,
-	durationS: number
+	durationS: number,
+	active: ActiveChannel | null = null
 ): Promise<void> {
 	return new Promise((resolve, reject) => {
 		const ff = spawn('ffmpeg', [
@@ -251,6 +315,7 @@ export function extractSegment(
 			'-ar', '44100',
 			'-ab', '128k',
 			'-ac', '2',
+			...(active ? ['-af', duplicateChannelFilter(active)] : []),
 			'-f', 'mp3',
 			'-y',
 			outputPath

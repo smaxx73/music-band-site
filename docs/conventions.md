@@ -8,7 +8,7 @@ src/
 │   ├── server/
 │   │   ├── db.ts          # client postgres.js + helpers SQL
 │   │   ├── storage.ts     # lecture/écriture fichiers audio
-│   │   ├── ffmpeg.ts      # conversion mp3, proxy, détection des blancs, extraction, durée,
+│   │   ├── ffmpeg.ts      # conversion mp3, proxy, détection des blancs, canal muet, extraction, durée,
 │   │   │                  #   miniature du logo de groupe, recadrage des images déposées
 │   │   ├── upload-stream.ts # réception multipart d'un fichier audio (prise ou import)
 │   │   ├── imports.ts     # zone de transit des outils audio d'après upload

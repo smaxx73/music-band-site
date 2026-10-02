@@ -53,6 +53,12 @@ docker compose logs -f app          # logs de l'app
 docker compose logs -f db           # logs postgres
 docker ps                           # état des containers
 docker compose exec db psql -U band -d bandapp   # accès BDD
+
+# Fichiers audio dont un seul canal porte le son : lister, puis corriger.
+# La sauvegarde est hors volume : la rapatrier sur l'hôte avant de recréer le conteneur.
+docker compose exec app node scripts/fix-single-channel.mjs
+docker compose exec app node scripts/fix-single-channel.mjs --apply --backup=/tmp/mono-backup
+docker compose cp app:/tmp/mono-backup ./mono-backup
 ```
 
 ## Architecture

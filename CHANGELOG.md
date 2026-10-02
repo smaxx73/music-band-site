@@ -13,6 +13,11 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+- Un enregistrement dont un seul canal porte le son (micro branché sur une seule entrée
+  de la carte son) est recopié sur les deux canaux à la conversion : upload, espace perso,
+  enregistrement en direct et découpe. `scripts/fix-single-channel.mjs` corrige les
+  fichiers déjà stockés (voir `deploy.md`). Aucune migration
+
 ## [1.3.0] — 2026-10-02
 
 Migrations à appliquer, dans l'ordre : `040_song_titles_per_group.sql`,

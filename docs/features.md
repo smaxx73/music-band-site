@@ -39,7 +39,8 @@ recoupent **pas** les mots de l'écran.
    (réception multipart commune à l'upload et aux imports : `src/lib/server/upload-stream.ts`)
 4. Streaming du fichier brut vers un fichier temporaire et calcul SHA-256 sans charger l'audio en mémoire
 5. Détection de doublon dans le groupe actif via `recordings.file_hash` ; retour `409` avec les informations de la prise existante si doublon
-6. Conversion ffmpeg → mp3 128kbps + suppression silence début/fin
+6. Conversion ffmpeg → mp3 128kbps + suppression silence début/fin, et recopie d'un canal
+   muet sur l'autre — voir « Son d'un seul côté »
 7. Extraction durée via ffprobe
 8. Calcul du `take` dans une transaction :
    `SELECT COALESCE(MAX(take), 0) + 1 FROM recordings WHERE song_id=$1`
@@ -50,6 +51,30 @@ recoupent **pas** les mots de l'écran.
 10. L'écran enchaîne directement sur `/recording/{id}` — lecteur et commentaires — plutôt
     que de rester sur le formulaire : c'est juste après l'ajout qu'on commente la prise.
     Idem pour une prise vidéo YouTube. Une découpe, elle, mène à `/decoupe/[id]`
+
+## Son d'un seul côté (canal muet)
+
+Un micro branché sur l'entrée 1 d'une carte son, l'entrée 2 restée vide : le fichier est
+stéréo, mais le canal droit est plat. On l'entend alors dans une seule oreille.
+
+- **Détecté et corrigé à la conversion**, sans rien demander : upload d'une prise, dépôt
+  dans l'espace perso, enregistrement en direct, extraits d'une découpe
+  (`detectSingleChannel`, `src/lib/server/ffmpeg.ts`). Le canal qui porte le son est
+  recopié sur l'autre : le son revient au centre
+- Critère : un canal sous **−60 dB RMS** et au moins **30 dB** sous l'autre, mesurés sur
+  le fichier entier. Une entrée vide reste vers −90 dB, un micro branché dépasse largement
+  −60 : un enregistrement simplement calme, ou un vrai stéréo très latéralisé, n'est pas
+  visé. Dans le doute — mono, plus de deux canaux, fichier illisible —, rien n'est touché
+- Une découpe mesure l'**original entier** une fois, puis applique la même correction à
+  chaque extrait : un canal débranché l'est pour toute la captation
+- **Fichiers déjà stockés** : `scripts/fix-single-channel.mjs` parcourt `AUDIO_DIR` et
+  `AUDIO_DIR/perso`, liste les fichiers concernés, et ne les corrige qu'avec `--apply`
+  (`--backup=<dossier>` garde les originaux). Le mp3 est réencodé à 128 kbps — une
+  génération de compression de plus — et la forme d'onde en cache est effacée pour se
+  refaire. `file_hash` est l'empreinte du fichier déposé, pas du mp3 : la détection de
+  doublon n'en est pas affectée
+- Pas de bouton à l'écran ni de colonne en base : un fichier corrigé ne se distingue plus
+  d'un autre, et il n'y a rien à décider au cas par cas
 
 ## Morceau absent du référentiel, et morceaux « À nommer »
 

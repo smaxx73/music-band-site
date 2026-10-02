@@ -191,8 +191,8 @@ dans docs/features.md.
   par curseur : voir « Fil d'actualité » dans docs/features.md
 - Suppression de commentaires (l'édition, elle, existe — voir docs/features.md)
 - Tests automatisés
-- Autres outils d'amélioration audio (normalisation, fondus, réduction de bruit) : seule
-  la découpe sur les blancs existe — voir docs/features.md
+- Autres outils d'amélioration audio (normalisation, fondus, réduction de bruit) : seules
+  la découpe sur les blancs et la recopie d'un canal muet existent — voir docs/features.md
 - Score de confiance par coupure, et seuil de silence déduit du bruit de fond : différés
   volontairement, ils se règlent sur des fichiers réels et non a priori
 - Waveform zoomable avec marqueurs déplaçables : la retouche des bornes se fait au clavier

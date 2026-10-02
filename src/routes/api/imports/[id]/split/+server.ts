@@ -4,7 +4,7 @@ import { copyFile, unlink } from 'fs/promises'
 import { join } from 'path'
 import { tmpdir } from 'os'
 import sql from '$lib/server/db'
-import { extractSegment, getDuration } from '$lib/server/ffmpeg'
+import { detectSingleChannel, extractSegment, getDuration } from '$lib/server/ffmpeg'
 import { audioPath, ensureAudioDir, hashFile } from '$lib/server/storage'
 import { claimImport, loadImport, releaseImport, sourcePath } from '$lib/server/imports'
 import { notifyGroup } from '$lib/server/notifications'
@@ -113,9 +113,11 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		//    Dans l'ORIGINAL, pas dans le proxy : l'analyse s'est faite sur le fichier
 		//    léger, le rendu part du fichier déposé.
 		const source = sourcePath(audioImport.id)
+		// Micro sur une seule entrée de la carte son : chaque extrait le recopie sur l'autre canal.
+		const active = await detectSingleChannel(source)
 		for (const [index, segment] of segments.entries()) {
 			const tmpPath = join(tmpdir(), `band-slice-${audioImport.id}-${index}.mp3`)
-			await extractSegment(source, tmpPath, segment.start_s, segment.end_s - segment.start_s)
+			await extractSegment(source, tmpPath, segment.start_s, segment.end_s - segment.start_s, active)
 			prepared.push({
 				tmpPath,
 				segment,
