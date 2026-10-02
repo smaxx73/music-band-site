@@ -2,7 +2,7 @@
 	import type { PageData } from './$types'
 	import { onMount } from 'svelte'
 	import { invalidateAll } from '$app/navigation'
-	import { formatDateOnly, toDateOnly } from '$lib/date'
+	import { formatDateOnly, localDateOnly, toDateOnly } from '$lib/date'
 	import PublicLanding from '$lib/components/PublicLanding.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import type { IconName } from '$lib/icons'
@@ -244,14 +244,9 @@
 	<div class="dash-layout">
 		<!-- Left column -->
 		<div class="dash-left">
-			<div class="dash-header">
-				<h1>Bonjour {firstName} 👋</h1>
-				<div class="dash-actions">
-					<a href="/agenda" class="btn btn-secondary"><Icon name="agenda" /> Agenda</a>
-					<a href="/fil?publier" class="btn btn-secondary"><Icon name="plus" /> Publier</a>
-					<a href="/sessions?nouvelle" class="btn btn-primary"><Icon name="plus" /> Session</a>
-				</div>
-			</div>
+			<!-- Pas de boutons ici : créer passe par « + Ajouter » de la navigation, et
+			     l'agenda par la section « À venir ». -->
+			<h1 class="dash-title">Bonjour {firstName} 👋</h1>
 
 			<!-- Stats -->
 			{#if stats}
@@ -305,9 +300,14 @@
 			</div>
 			<div class="upcoming-block">
 				{#if upcomingItems.length === 0}
-					<p class="empty">
-						Rien de prévu. <a href="/agenda">Ajouter une date à l'agenda →</a>
-					</p>
+					<!-- « Agenda → » mène déjà au calendrier : ce lien-ci ouvre le jour même,
+					     formulaire d'ajout déplié, pour être une action et pas un second chemin. -->
+					<div class="upcoming-empty">
+						<p class="empty">Rien de prévu.</p>
+						<a href="/agenda?date={localDateOnly()}" class="btn btn-secondary btn-sm">
+							<Icon name="plus" /> Ajouter une date
+						</a>
+					</div>
 				{:else}
 					<ul class="session-list session-list-upcoming">
 						{#each upcomingItems as item}
@@ -452,16 +452,7 @@
 	}
 
 	/* ─── Header ───────────────────────── */
-	.dash-header {
-		display: flex;
-		flex-wrap: wrap; /* trois boutons + le salut ne tiennent pas sur une ligne à 320 px */
-		align-items: center;
-		justify-content: space-between;
-		gap: 0.5rem;
-		margin-bottom: 1rem;
-	}
-
-	.dash-actions { display: flex; gap: 0.4rem; flex-shrink: 0; }
+	.dash-title { margin-bottom: 1rem; }
 
 	h1 {
 		font-size: var(--text-xl);
@@ -595,6 +586,15 @@
 
 	.upcoming-block .empty {
 		margin: 0;
+	}
+
+	/* Le constat à gauche, l'action à droite ; l'une passe sous l'autre faute de place. */
+	.upcoming-empty {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.5rem 1rem;
 	}
 
 	.session-list-upcoming .session-card {

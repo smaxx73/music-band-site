@@ -1364,10 +1364,13 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 
 ## Tableau de bord (`/`)
 
-- En-tête : « Agenda », « Publier », « Session » (icône + devant les deux créations)
+- En-tête : le salut seul. Créer une session ou publier passe par « + Ajouter » de la
+  navigation (voir « Navigation »), l'agenda par la section « À venir » ; trois boutons de
+  plus ne faisaient que les répéter
 - Colonne gauche, section **« À venir »** : sessions et événements d'agenda des prochains
   jours, puis les prochaines indisponibilités des membres. Toujours affichée, même vide
-  (« Rien de prévu », avec un lien pour ajouter une date) : c'est l'entrée vers l'agenda.
+  (« Rien de prévu », avec « Ajouter une date », qui ouvre l'agenda sur le jour même,
+  formulaire déplié — « Agenda → » mène déjà au calendrier) : c'est l'entrée vers l'agenda.
   Un événement ou une indisponibilité mène à `/agenda?date=…`, panneau du jour ouvert
 - Colonne gauche : 3 dernières sessions (date, morceaux travaillés en résumé) ; s'il en existe
   d'autres, la 3ᵉ s'estompe en fondu vers le bas pour signaler la suite derrière « Toutes → »
@@ -1393,10 +1396,6 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
   voir « Publications »
 - « Tout le fil d'actualité → » sous le flux mène à `/fil`, qui montre tout, en entier —
   voir « Fil d'actualité »
-- Bouton [+ Uploader] toujours visible en haut. « + Publier » (vers `/fil`, formulaire
-  ouvert) se tient dans
-  l'en-tête, à côté de « + Session » : la colonne du flux, étroite, n'a pas la place d'une
-  troisième commande à côté de son titre et de son filtre
 
 ## Pages légales (`/mentions-legales`, `/confidentialite`)
 
