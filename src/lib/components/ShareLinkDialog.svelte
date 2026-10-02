@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte'
 	import Modal from '$lib/components/Modal.svelte'
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import { formatDateOnly, formatDateTime } from '$lib/date'
 	import {
@@ -107,7 +108,12 @@
 		node.select()
 	}
 
+	// Révoquer est sans retour : un lien recréé a une autre adresse, et celui déjà
+	// envoyé reste mort. D'où la confirmation, à côté d'un « Copier » qu'on vise souvent.
+	let pendingRevoke = $state<ShareLinkView | null>(null)
+
 	async function revoke(id: number) {
+		pendingRevoke = null
 		revokingId = id
 		error = null
 		try {
@@ -176,7 +182,7 @@
 									{#if copiedId === link.id}<Icon name="check" /> Copié{:else}<Icon name="link" /> Copier{/if}
 								</button>
 							{/if}
-							<button class="btn btn-ghost btn-sm" onclick={() => revoke(link.id)} disabled={revokingId === link.id}>
+							<button class="btn btn-ghost btn-sm" onclick={() => (pendingRevoke = link)} disabled={revokingId === link.id}>
 								{revokingId === link.id ? 'Révocation…' : 'Révoquer'}
 							</button>
 						</div>
@@ -203,6 +209,18 @@
 		{/if}
 	</div>
 </Modal>
+
+<ConfirmDialog
+	open={pendingRevoke !== null}
+	level="warning"
+	title="Révoquer ce lien ?"
+	message={pendingRevoke
+		? `Qui a reçu ce lien ne pourra plus écouter ni télécharger le fichier${pendingRevoke.last_accessed_at ? ` (ouvert pour la dernière fois ${formatDateTime(pendingRevoke.last_accessed_at)})` : ''}. Un nouveau lien aura une autre adresse, à renvoyer.`
+		: ''}
+	confirmLabel="Révoquer le lien"
+	onConfirm={() => { if (pendingRevoke) revoke(pendingRevoke.id) }}
+	onCancel={() => (pendingRevoke = null)}
+/>
 
 <style>
 	.share-dialog { padding: 0.9rem 1.25rem 1.25rem; display: flex; flex-direction: column; gap: 0.9rem; }

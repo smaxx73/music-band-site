@@ -86,7 +86,8 @@ fait perdre le fil, surtout au téléphone en répétition.
   trou, comme à la suppression d'une prise — on ne renumérote pas
 - Un morceau « À nommer » vidé de sa dernière prise **disparaît** avec le déplacement :
   il n'existait que pour la porter. Pas s'il est programmé dans une setlist, ni un morceau
-  nommé — quelqu'un l'a choisi
+  nommé — quelqu'un l'a choisi —, ni s'il porte ce qu'on y a mis : paroles, notes
+  musicales, pochette, feuille de répétition, ou la suggestion dont il est issu
 - `/songs` marque ces morceaux d'une étiquette « à nommer » et propose un filtre dédié,
   pour qu'ils ne s'accumulent pas sans qu'on le voie
 
@@ -751,7 +752,9 @@ membre. C'est la **seule** porte de l'application qui s'ouvre sans connexion.
   `AUTH_SECRET` laisse les liens fonctionner mais les rend impossibles à recopier, comme
   ceux créés avant la migration 042 : ceux-là se recréent puis se révoquent
 - **Expiration toujours** : 1 semaine, 1 mois ou **6 mois** (défaut). Un lien expiré
-  n'ouvre plus rien et disparaît de la liste. **Révoquer** supprime la ligne
+  n'ouvre plus rien et disparaît de la liste. **Révoquer** supprime la ligne, après une
+  confirmation `warning` : c'est sans retour — un lien recréé a une autre adresse, et
+  celui déjà envoyé reste mort
 - Le jeton est **revérifié à chaque requête**, page comme fichier : un lien révoqué coupe
   aussitôt, lecture en cours comprise. Lien expiré, révoqué ou inventé : même `404`, aucun
   ne doit se reconnaître

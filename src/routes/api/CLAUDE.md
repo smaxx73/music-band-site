@@ -162,7 +162,8 @@ existe déjà : un sélecteur qui crée un morceau à la volée choisit alors l'
 `PATCH /api/recordings/[id]` accepte `{ song_id }`, **seul** (`400` avec un autre champ) :
 la prise change de morceau et prend le numéro suivant de celui-ci, dans une transaction qui
 verrouille le morceau visé (`400` s'il est `abandonne`). Un morceau « À nommer — … » vidé de
-sa dernière prise et absent de toute setlist est supprimé au passage (`removed_song_id`).
+sa dernière prise, absent de toute setlist et sans rien d'écrit ni déposé (paroles, notes,
+pochette, feuille, suggestion d'origine) est supprimé au passage (`removed_song_id`).
 
 Une **setlist** (`api/setlists/`) est un programme : des `songs` du groupe actif dans un
 ordre. `GET /api/setlists` accepte `?song_id=` : chaque setlist porte alors `contains_song`,

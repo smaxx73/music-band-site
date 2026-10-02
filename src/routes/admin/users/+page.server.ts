@@ -130,7 +130,13 @@ export const actions: Actions = {
 		// L'espace perso part avec le compte (cascade) : ses fichiers sont effacés après
 		// le commit, un fichier orphelin se rattrapant mieux qu'une ligne sans fichier.
 		const personalIds = await personalFileIds(id)
-		const [deleted] = await sql`DELETE FROM users WHERE id = ${id} RETURNING id`
+		const deleted = await sql.begin(async (tx) => {
+			// Les feuilles libres sont à lui seul ; celles d'un morceau restent au groupe
+			// (user_id passe à NULL, migration 043).
+			await tx`DELETE FROM score_documents WHERE user_id = ${id} AND song_id IS NULL`
+			const [row] = await tx`DELETE FROM users WHERE id = ${id} RETURNING id`
+			return row
+		})
 		if (!deleted) return fail(404, { action: 'delete', id, error: 'Utilisateur introuvable.' })
 		for (const recordingId of personalIds) await removePersonalFiles(recordingId)
 	}

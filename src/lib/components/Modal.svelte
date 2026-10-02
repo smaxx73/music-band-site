@@ -1,5 +1,11 @@
+<script module lang="ts">
+	// Modales ouvertes, la plus récente en dernier : une confirmation s'ouvre souvent
+	// par-dessus une autre modale, et Échap ne doit fermer que celle du dessus.
+	const openModals: symbol[] = []
+</script>
+
 <script lang="ts">
-	import type { Snippet } from 'svelte'
+	import { onMount, type Snippet } from 'svelte'
 	import Icon from '$lib/components/Icon.svelte'
 
 	let {
@@ -13,11 +19,17 @@
 		onClose: () => void
 		children: Snippet
 	} = $props()
+
+	const id = Symbol()
+	onMount(() => {
+		openModals.push(id)
+		return () => openModals.splice(openModals.indexOf(id), 1)
+	})
 </script>
 
 <svelte:window
 	onkeydown={(e) => {
-		if (e.key === 'Escape') onClose()
+		if (e.key === 'Escape' && openModals.at(-1) === id) onClose()
 	}}
 />
 

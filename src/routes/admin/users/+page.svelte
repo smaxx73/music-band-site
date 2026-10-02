@@ -245,7 +245,7 @@
 													ask.intercept(formElement, cancel, {
 														level: 'danger',
 														title: 'Supprimer ce compte ?',
-														message: `Le compte « ${user.nickname} » sera supprimé avec son espace perso, fichiers compris, et les publications qui en montraient les enregistrements. Ses sessions, prises et commentaires restent dans les groupes, sans compte rattaché. Pour seulement couper l'accès, passez-le en « Inactif ». Cette action est irréversible.`,
+														message: `Le compte « ${user.nickname} » sera supprimé avec son espace perso, fichiers compris, et les publications qui en montraient les enregistrements. Ses sessions, prises, commentaires et feuilles de répétition restent dans les groupes, sans compte rattaché. Pour seulement couper l'accès, passez-le en « Inactif ». Cette action est irréversible.`,
 														confirmLabel: 'Supprimer le compte'
 													})
 												}}

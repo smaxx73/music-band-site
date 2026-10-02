@@ -3,6 +3,8 @@
 	import { strFromU8, unzipSync } from 'fflate'
 	import { chordProTitle, parseChordPro } from '$lib/chordpro'
 	import { moveAbcPitch } from '$lib/abc-editor'
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
+	import type { ConfirmRequest } from '$lib/confirm-submit.svelte'
 
 	let { songId = null, songTitle = 'Nouvelle feuille de répétition' }: { songId?: number | null; songTitle?: string } = $props()
 
@@ -50,6 +52,10 @@ K:D
 	let documentId = $state<number | null>(null)
 	let documentTitle = $state('Nouvelle feuille de répétition')
 	let documents = $state<{ id: number; title: string }[]>([])
+	// Décidé par le serveur (canDeleteScoreDocument) : auteur ou admin du groupe.
+	let canDelete = $state(false)
+	let deleting = $state(false)
+	let pendingConfirm = $state<(ConfirmRequest & { resolve: (ok: boolean) => void }) | null>(null)
 	let saveError = $state<string | null>(null)
 	let saving = $state(false)
 	let loading = $state(false)
@@ -194,6 +200,23 @@ K:D
 		return body
 	}
 
+	function ask(request: ConfirmRequest): Promise<boolean> {
+		return new Promise((resolve) => { pendingConfirm = { ...request, resolve } })
+	}
+
+	function answer(ok: boolean) {
+		const pending = pendingConfirm
+		pendingConfirm = null
+		pending?.resolve(ok)
+	}
+
+	const discardRequest: ConfirmRequest = {
+		level: 'warning',
+		title: 'Abandonner les modifications ?',
+		message: 'Les changements non enregistrés de cette feuille seront perdus.',
+		confirmLabel: 'Abandonner les modifications'
+	}
+
 	async function loadDocuments() {
 		loading = true
 		try {
@@ -206,12 +229,13 @@ K:D
 	}
 
 	async function openDocument(id: number) {
-		if (dirty && !confirm('Abandonner les modifications non enregistrées ?')) return
+		if (dirty && !(await ask(discardRequest))) return
 		loading = true; saveError = null
 		try {
 			const { document, originals } = await apiJson(await fetch(`/api/score-documents/${id}`))
 			documentId = document.id
 			documentTitle = document.title
+			canDelete = document.can_delete === true
 			blocks = document.manifest
 			blockContent = document.contents
 			notationAssets = Object.fromEntries(originals.map((original: { block_id: number; file_name: string; format: 'musicxml' | 'mxl'; warning: string | null }) => [original.block_id, original]))
@@ -221,9 +245,9 @@ K:D
 		finally { loading = false }
 	}
 
-	function newDocument() {
-		if (dirty && !confirm('Abandonner les modifications non enregistrées ?')) return
-		documentId = null; documentTitle = songTitle
+	async function newDocument() {
+		if (dirty && !(await ask(discardRequest))) return
+		documentId = null; canDelete = false; documentTitle = songTitle
 		blocks = startingBlocks(); blockContent = startingContent()
 		notationAssets = {}; selectedId = 1; selectedNoteIndex = null; transpose = 0
 		savedSnapshot = snapshot(); saveError = null
@@ -238,6 +262,8 @@ K:D
 			const response = await apiJson(await fetch(documentId ? `/api/score-documents/${documentId}` : '/api/score-documents', {
 				method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
 			}))
+			// Une feuille qu'on vient de créer est à soi.
+			if (method === 'POST') canDelete = true
 			documentId = response.document.id
 			for (const [key, asset] of Object.entries(notationAssets)) {
 				if (!asset.file) continue
@@ -254,16 +280,25 @@ K:D
 	}
 
 	async function deleteDocument() {
-		if (!documentId || !confirm('Supprimer définitivement cette feuille et ses fichiers originaux ?')) return
+		if (!documentId || deleting) return
+		const confirmed = await ask({
+			level: 'danger',
+			title: 'Supprimer cette feuille ?',
+			message: `« ${documentTitle} » sera supprimée avec tous ses blocs et les partitions importées${songId ? ', pour tout le groupe' : ''}. Cette action est irréversible.`,
+			confirmLabel: 'Supprimer la feuille'
+		})
+		if (!confirmed) return
+		deleting = true
 		try {
 			await apiJson(await fetch(`/api/score-documents/${documentId}`, { method: 'DELETE' }))
 			documents = documents.filter((item) => item.id !== documentId)
-			documentId = null
+			documentId = null; canDelete = false
 			blocks = startingBlocks(); blockContent = startingContent()
 			notationAssets = {}; selectedId = 1; documentTitle = songTitle
 			savedSnapshot = snapshot()
 			if (documents.length) await openDocument(documents[0].id)
 		} catch (error) { saveError = error instanceof Error ? error.message : 'Suppression impossible.' }
+		finally { deleting = false }
 	}
 
 	async function importChordPro(event: Event) {
@@ -479,7 +514,7 @@ K:D
 </script>
 
 <section class="composer" aria-labelledby="composer-title">
-	<header><div><p class="eyebrow">Feuille de répétition</p><h1 id="composer-title">Composer une feuille de répétition</h1><p class="intro">Assemble des sections ChordPro et des mini-partitions dans l’ordre du morceau.</p></div><div class="header-actions"><button class="button print-button" onclick={printDocument}>Imprimer / PDF</button><button class="button" onclick={saveDocument} disabled={saving || loading}>{saving ? 'Sauvegarde…' : dirty ? 'Enregistrer *' : 'Enregistré'}</button>{#if !songId}<button class="button" onclick={newDocument}>Nouvelle feuille</button>{/if}<button class="button delete" onclick={deleteDocument} disabled={!documentId}>Supprimer</button></div></header>
+	<header><div><p class="eyebrow">Feuille de répétition</p><h1 id="composer-title">Composer une feuille de répétition</h1><p class="intro">Assemble des sections ChordPro et des mini-partitions dans l’ordre du morceau.</p></div><div class="header-actions"><button class="button print-button" onclick={printDocument}>Imprimer / PDF</button><button class="button" onclick={saveDocument} disabled={saving || loading}>{saving ? 'Sauvegarde…' : dirty ? 'Enregistrer *' : 'Enregistré'}</button>{#if !songId}<button class="button" onclick={newDocument}>Nouvelle feuille</button>{/if}{#if !documentId || canDelete}<button class="button delete" onclick={deleteDocument} disabled={!documentId || deleting}>{deleting ? 'Suppression…' : 'Supprimer'}</button>{/if}</div></header>
 
 	<div class="document-tools">{#if !songId}<label>Document <select value={documentId ?? ''} onchange={(event) => { const id = Number(event.currentTarget.value); if (id) void openDocument(id) }}><option value="">Nouvelle feuille</option>{#each documents as document}<option value={document.id}>{document.title}</option>{/each}</select></label>{/if}<label>Titre <input bind:value={documentTitle} maxlength="200" /></label>{#if saveError}<p class="import-error" role="alert">{saveError}</p>{/if}</div>
 	<div class="workspace">
@@ -527,6 +562,16 @@ K:D
 		</section>
 	</div>
 </section>
+
+<ConfirmDialog
+	open={pendingConfirm !== null}
+	level={pendingConfirm?.level}
+	title={pendingConfirm?.title ?? ''}
+	message={pendingConfirm?.message ?? ''}
+	confirmLabel={pendingConfirm?.confirmLabel}
+	onConfirm={() => answer(true)}
+	onCancel={() => answer(false)}
+/>
 
 <style>
 	.composer { max-width: 1400px; margin: 2rem auto 4rem; padding: 0 1rem; color: var(--color-text); } header { display: flex; justify-content: space-between; gap: 1rem; align-items: flex-start; margin-bottom: 1.5rem; } .header-actions { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: flex-end; } .print-button { color: #fff; background: var(--color-accent); border-color: var(--color-accent); } h1 { font-size: clamp(1.5rem, 3vw, 2rem); margin: .15rem 0 .35rem; } h2 { margin: 0; font-size: var(--text-base); } p { margin: 0; }

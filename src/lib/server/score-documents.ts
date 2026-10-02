@@ -1,4 +1,5 @@
 import sql from '$lib/server/db'
+import { canDeleteGroupContent, type RoleBearer } from '$lib/types'
 
 export type ScoreBlock = { id: number; type: 'chordpro' | 'notation'; label: string }
 export type ScorePayload = { title: string; song_id: number | null; manifest: ScoreBlock[]; contents: Record<string, string> }
@@ -35,12 +36,22 @@ export function validId(value: string): number | null {
 
 export async function accessibleDocument(id: number, userId: number, groupId: number | null, admin: boolean) {
 	const [row] = await sql`
-		SELECT d.id, d.song_id FROM score_documents d
+		SELECT d.id, d.song_id, d.user_id, s.group_id FROM score_documents d
 		LEFT JOIN songs s ON s.id = d.song_id
 		WHERE d.id = ${id} AND (
 			(d.song_id IS NULL AND d.user_id = ${userId} AND ${admin})
 			OR (d.song_id IS NOT NULL AND s.group_id = ${groupId})
 		)
 	`
-	return row ?? null
+	return (row as { id: number; song_id: number | null; user_id: number | null; group_id: number | null } | undefined) ?? null
+}
+
+// La feuille d'un morceau s'écrit à plusieurs, comme une setlist, et se supprime comme
+// elle : son auteur ou un admin du groupe. Une feuille libre n'est lisible que de son
+// auteur — l'atteindre suffit.
+export function canDeleteScoreDocument(
+	user: RoleBearer,
+	document: { song_id: number | null; user_id: number | null; group_id: number | null }
+): boolean {
+	return document.song_id === null || canDeleteGroupContent(user, document.group_id, document.user_id)
 }

@@ -2,17 +2,18 @@ import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 import { isAdmin } from '$lib/types'
-import { accessibleDocument, parseScorePayload, validId } from '$lib/server/score-documents'
+import { accessibleDocument, canDeleteScoreDocument, parseScorePayload, validId } from '$lib/server/score-documents'
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
 	const id = validId(params.id)
 	if (!id) return json({ error: 'ID invalide' }, { status: 400 })
-	if (!await accessibleDocument(id, locals.user.id, locals.user.current_group_id, isAdmin(locals.user.role))) return json({ error: 'Document introuvable' }, { status: 404 })
+	const access = await accessibleDocument(id, locals.user.id, locals.user.current_group_id, isAdmin(locals.user.role))
+	if (!access) return json({ error: 'Document introuvable' }, { status: 404 })
 	const [document] = await sql`SELECT id, song_id, title, manifest, contents, updated_at FROM score_documents WHERE id = ${id}`
 	if (!document) return json({ error: 'Document introuvable' }, { status: 404 })
 	const originals = await sql`SELECT block_id, file_name, format, warning FROM score_originals WHERE document_id = ${id}`
-	return json({ document, originals })
+	return json({ document: { ...document, can_delete: canDeleteScoreDocument(locals.user, access) }, originals })
 }
 
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
@@ -46,7 +47,11 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
 	const id = validId(params.id)
 	if (!id) return json({ error: 'ID invalide' }, { status: 400 })
-	if (!await accessibleDocument(id, locals.user.id, locals.user.current_group_id, isAdmin(locals.user.role))) return json({ error: 'Document introuvable' }, { status: 404 })
+	const access = await accessibleDocument(id, locals.user.id, locals.user.current_group_id, isAdmin(locals.user.role))
+	if (!access) return json({ error: 'Document introuvable' }, { status: 404 })
+	if (!canDeleteScoreDocument(locals.user, access)) {
+		return json({ error: "Seul l'auteur de la feuille ou un administrateur du groupe peut la supprimer." }, { status: 403 })
+	}
 	await sql`DELETE FROM score_documents WHERE id = ${id}`
 	return json({ success: true })
 }

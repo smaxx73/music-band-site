@@ -418,7 +418,11 @@ CREATE UNIQUE INDEX group_places_label  ON group_places (group_id, lower(btrim(l
 -- Feuilles de répétition (voir migration 041)
 CREATE TABLE score_documents (
     id SERIAL PRIMARY KEY,
-    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                                             -- auteur ; NULL si son compte a disparu (migration 043).
+                                             -- Une feuille de morceau reste au groupe ; une feuille
+                                             -- libre (song_id NULL) part avec le compte, effacée
+                                             -- explicitement à sa suppression
     song_id INTEGER UNIQUE REFERENCES songs(id) ON DELETE CASCADE,
     title TEXT NOT NULL,
     manifest JSONB NOT NULL DEFAULT '[]'::jsonb,
