@@ -13,11 +13,55 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.3.0] — 2026-10-02
+
 Migrations à appliquer, dans l'ordre : `040_song_titles_per_group.sql`,
-`041_score_documents.sql`, puis `042_share_link_token_sealed.sql`. La première remplace
-l'unicité globale des titres par une unicité dans chaque groupe, sans modifier les
-morceaux existants. La deuxième ajoute les tables des feuilles de répétition et de leurs
-fichiers MusicXML/MXL originaux. La troisième ajoute le jeton chiffré des liens d'écoute.
+`041_score_documents.sql`, `042_share_link_token_sealed.sql`,
+`043_score_documents_keep_on_account_delete.sql`, puis
+`044_audio_imports_keep_on_session_delete.sql`. La première remplace l'unicité globale
+des titres par une unicité dans chaque groupe, sans modifier les morceaux existants. La
+deuxième ajoute les tables des feuilles de répétition et de leurs fichiers MusicXML/MXL
+originaux. La troisième ajoute le jeton chiffré des liens d'écoute. Les deux dernières ne
+font qu'assouplir des clés étrangères (`ON DELETE SET NULL` au lieu d'une cascade) : aucune
+donnée n'est modifiée.
+
+- Navigation repensée selon la largeur d'écran. Sur ordinateur, la barre latérale est
+  rangée en sections « Groupe » et « Moi », avec en tête le groupe actif et le bouton
+  **+ Ajouter** (enregistrer, envoyer un fichier, nouvelle session, publier), qui rend
+  l'enregistrement accessible depuis l'ordinateur. Sur tablette, elle devient un rail
+  d'icônes. Sur téléphone, une barre d'onglets (Accueil, Sessions, +, Morceaux, Plus)
+  remplace le menu latéral, et la page **Plus** rassemble le reste : changement de groupe,
+  fil, agenda, playlists, setlists, espace perso, profil, déconnexion
+- Changer de groupe garde la section en cours (une liste se recharge pour le nouveau
+  groupe, une page de détail ramène à sa liste) au lieu de revenir au tableau de bord.
+  Un onglet resté ouvert se recharge quand le groupe actif a changé dans un autre
+- Sur ordinateur, c'est la page qui défile : le retour arrière retrouve la position dans
+  une liste, une nouvelle page s'ouvre en haut, et la barre du haut, la barre latérale et
+  le mini-lecteur restent à l'écran. Une fenêtre ouverte fige la page derrière elle
+- Fils d'Ariane : un seul chemin par page, réduit à la page parente (« ‹ Sessions ») sur
+  téléphone. L'envoi d'un fichier et l'enregistrement nomment la page d'où l'on vient et
+  y ramènent. Une publication renvoie au fil d'actualité
+- Boutons de création harmonisés (icône +, même taille, même couleur) et en-têtes de page
+  identiques d'un écran à l'autre. Le tableau de bord perd ses boutons en double avec
+  « + Ajouter », et « Ajouter une date » ouvre l'agenda sur le jour même
+- Accessibilité de la navigation : lien de la page en cours annoncé aux lecteurs d'écran,
+  cibles tactiles d'au moins 44 px dans les barres du haut et du bas
+- Enregistrement en direct : l'audio se recadre avant l'envoi (poignées de début et de
+  fin, préécoute de la sélection). La copie de secours enregistre ses blocs dans l'ordre,
+  pour qu'un enregistrement annulé ne réapparaisse pas
+- Partager une prise : un seul bouton « Partager », qui copie le lien pour le groupe à la
+  position du lecteur ou ouvre la gestion des liens d'écoute publics. Révoquer un lien
+  demande confirmation
+- Sessions : « À venir » et « Passées » (par année), recherche dans les morceaux joués,
+  le lieu, les présents et la date. Un fichier déposé ou un enregistrement propose la
+  session tenue le jour où il a été enregistré
+- Playlists : suppression par leur auteur ou un admin du groupe ; retirer une piste qui
+  porte une note de playlist demande confirmation
+- La feuille de répétition d'un morceau reste au groupe quand le compte de son auteur
+  est supprimé. **Migration `043_score_documents_keep_on_account_delete.sql`**
+- Supprimer une session ne supprime plus les fichiers en attente de découpe qui lui
+  étaient proposés : la découpe en fait choisir une autre.
+  **Migration `044_audio_imports_keep_on_session_delete.sql`**
 
 - Correction : un morceau créé dans un groupe n'empêche plus de créer ou de renommer
   un morceau du même titre dans un autre groupe. Les doublons restent refusés au sein
