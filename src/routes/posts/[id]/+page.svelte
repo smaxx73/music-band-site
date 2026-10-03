@@ -56,11 +56,17 @@
 		return `${m}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 	}
 
-	const markers = $derived(
-		comments
+	// Repère du commentaire en cours d'écriture, montré sur le lecteur avant l'envoi.
+	let draftAnchor = $state<number | null>(null)
+
+	const markers = $derived([
+		...comments
 			.filter((c) => c.timestamp_s !== null && c.timestamp_s !== undefined)
-			.map((c) => ({ id: c.id, time: c.timestamp_s as number, label: `${formatTime(c.timestamp_s as number)} — ${c.author}` }))
-	)
+			.map((c) => ({ id: c.id, time: c.timestamp_s as number, label: `${formatTime(c.timestamp_s as number)} — ${c.author}` })),
+		...(draftAnchor !== null
+			? [{ id: 'draft', time: draftAnchor, label: `Ton commentaire, à ${formatTime(draftAnchor)}`, draft: true }]
+			: [])
+	])
 
 	// Mêmes adresses que la page d'une prise : `?t=` pour le passage, `#comment-<id>`.
 	onMount(() => {
@@ -273,9 +279,9 @@
 			members={groupMembers}
 			currentTime={playerState.currentTime}
 			playerReady={playerState.ready}
-			isPlaying={playerState.isPlaying}
 			{highlightRequest}
 			onSeek={seekTo}
+			onDraftAnchorChange={(seconds) => (draftAnchor = seconds)}
 			onCommentsChange={(updated) => { comments = updated }}
 		/>
 	</div>

@@ -315,11 +315,11 @@
 				<strong>{comment.author}</strong>
 				{#if comment.timestamp_s !== null && comment.timestamp_s !== undefined}
 					{#if onSeek}
-						<button class="timestamp-link" onclick={() => onSeek?.(comment.timestamp_s as number)}>
+						<button class="timestamp-link" title="Écouter à partir de {formatTime(comment.timestamp_s)}" onclick={() => onSeek?.(comment.timestamp_s as number)}>
 							<Icon name="clock" size="0.8rem" /> {formatTime(comment.timestamp_s)}
 						</button>
 					{:else}
-						<span class="timestamp-badge"><Icon name="clock" size="0.8rem" /> {formatTime(comment.timestamp_s)}</span>
+						<span class="timestamp-badge" title="Commentaire épinglé à {formatTime(comment.timestamp_s)}"><Icon name="clock" size="0.8rem" /> {formatTime(comment.timestamp_s)}</span>
 					{/if}
 				{/if}
 				<span class="comment-date">

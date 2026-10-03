@@ -345,15 +345,21 @@
 		playerHeight > 0 && innerHeight > 0 && playerHeight <= innerHeight * 0.45
 	)
 
-	const commentMarkers = $derived(
-		comments
+	// Repère du commentaire en cours d'écriture, montré sur le lecteur avant l'envoi.
+	let draftAnchor = $state<number | null>(null)
+
+	const commentMarkers = $derived([
+		...comments
 			.filter((comment) => comment.timestamp_s !== null && comment.timestamp_s !== undefined)
 			.map((comment) => ({
 				id: comment.id,
 				time: comment.timestamp_s as number,
 				label: `${formatTime(comment.timestamp_s as number)} — ${comment.author}`
-			}))
-	)
+			})),
+		...(draftAnchor !== null
+			? [{ id: 'draft', time: draftAnchor, label: `Ton commentaire, à ${formatTime(draftAnchor)}`, draft: true }]
+			: [])
+	])
 </script>
 
 <svelte:head>
@@ -599,9 +605,9 @@
 		members={groupMembers}
 		currentTime={playerState.currentTime}
 		playerReady={playerState.ready}
-		isPlaying={playerState.isPlaying}
 		highlightRequest={highlightRequest}
 		onSeek={seekTo}
+		onDraftAnchorChange={(seconds) => (draftAnchor = seconds)}
 		onCommentsChange={(updatedComments) => {
 			comments = updatedComments
 		}}

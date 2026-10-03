@@ -11,7 +11,7 @@
 	 * ne joue que des prises du groupe. Un seul lecteur à la fois : lancer celui-ci met
 	 * la barre du bas en pause.
 	 */
-	type Marker = { id: number | string; time: number; label?: string }
+	type Marker = { id: number | string; time: number; label?: string; draft?: boolean }
 	type PlayerState = { currentTime: number; duration: number; isPlaying: boolean; ready: boolean }
 
 	let {

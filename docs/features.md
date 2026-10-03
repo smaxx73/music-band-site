@@ -828,7 +828,8 @@ morceau (`score_documents.song_id` unique), au groupe : tout membre la crée et 
   leur pseudo unique (`@pseudo`) et est mise en évidence dans toutes les listes de commentaires.
   Le membre mentionné est notifié (voir « Notifications d'activité ») ; la règle de détection
   est partagée entre affichage et serveur dans `src/lib/mentions.ts`
-- L'ancrage est actif par défaut si le lecteur est en pause, inactif dès qu'il joue
+- Un commentaire est **général par défaut** ; l'ancrer est un choix, et le repère se
+  **fige à la première frappe** — voir « Boîte d'ajout d'un commentaire »
 - Auteur pré-rempli depuis l'utilisateur connecté
 - Le nom du fichier déposé figure sous la ligne de métadonnées de la prise, la note
   de la prise juste en dessous
@@ -1057,8 +1058,7 @@ tiers de l'écran en l'attendant.
   le placeholder « Écrire un commentaire… (@ pour mentionner) » porte l'intitulé comme la
   règle du `@`, à l'endroit où l'on va taper. Le libellé reste dans le DOM pour les lecteurs
   d'écran (`hideLabel`)
-- Le **bouton d'envoi est dans le cadre**, en rond à droite, avec la pastille d'ancrage. Ils
-  sont **voisins** de la saisie, jamais posés par-dessus : le texte ne passe pas dessous et
+- Le **bouton d'envoi est dans le cadre**, en rond à droite. Il est **voisin** de la saisie, jamais posés par-dessus : le texte ne passe pas dessous et
   ils restent en bas quand la zone grandit. Cible de 34 px, portée à 40 px sous 640 px — au
   doigt, une cible de 34 px se rate
 - Le bouton est **désactivé tant que le champ est vide**, et le raccourci clavier l'est avec
@@ -1069,9 +1069,22 @@ tiers de l'écran en l'attendant.
   toute hauteur imposée
 - **Ctrl/⌘+Entrée envoie**, comme la note d'une prise et l'édition d'un commentaire. Le
   raccourci passe avant la liste de mentions : avec un modificateur, l'intention est explicite
-- L'ancrage est une **pastille ⏱ 1:23**, pas une case à cocher : elle montre le repère
-  **avant** qu'on l'active, et disparaît quand le lecteur n'a pas de position (l'ancrage
-  retombe alors avec elle)
+- **Où se pose le commentaire** se choisit sous le cadre, entre deux boutons nommés :
+  **« ⏱ À 1:23 »** et **« Général »**. Une pastille seule, allumée ou non, ne se
+  comprenait pas : on ne savait ni ce qu'elle faisait, ni dans quel état elle était. Le
+  choix disparaît quand le lecteur n'a pas de position (rien à ancrer) et sur une cible
+  qui ne se lit pas (setlist, suggestion)
+- **Le repère se fige à la première frappe.** Avant, il suit la lecture ; dès qu'on écrit,
+  il ne bouge plus. On commente ce qu'on vient d'entendre : un repère pris à l'envoi
+  tombait 20 ou 30 s plus loin quand on écrivait en écoutant. Si la lecture s'en éloigne
+  ensuite (de 2 s ou plus), un commentaire ancré propose « Épingler à 1:58 » pour l'y
+  recaler. Vider le champ — ou envoyer — remet tout à zéro
+- **Général par défaut** : ancrer est un choix conscient, que l'écran ne fait jamais à la
+  place de l'utilisateur — ni selon la pause ou la lecture, ni selon la position. Une fois
+  fait, il n'est défait par rien d'autre qu'un clic sur « Général »
+- Pendant l'écriture d'un commentaire ancré, un **repère en pointillé** (pastille cerclée)
+  apparaît sur la forme d'onde ou la barre de la vidéo, là où il se posera
+  (`onDraftAnchorChange`) : il se voit avant d'exister
 
 ## Note d'une prise
 

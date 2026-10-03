@@ -5,7 +5,7 @@
 	import Icon from '$lib/components/Icon.svelte'
 	import { loadYouTubeApi, youtubeErrorMessage, YT_STATE, type YTPlayer } from '$lib/youtube-player'
 
-	type Marker = { id: number | string; time: number; label?: string }
+	type Marker = { id: number | string; time: number; label?: string; draft?: boolean }
 	type PlayerState = { currentTime: number; duration: number; isPlaying: boolean; ready: boolean }
 
 	let {
@@ -138,7 +138,13 @@
 		<div class="marker-track">
 			{#if duration > 0}
 				{#each markers as marker (marker.id)}
-					{#if marker.time >= 0 && marker.time <= duration}
+					{#if marker.draft && marker.time >= 0 && marker.time <= duration}
+						<span
+							class="yt-marker draft"
+							style="left: {(marker.time / duration) * 100}%"
+							title={marker.label ?? formatTimecode(marker.time)}
+						></span>
+					{:else if marker.time >= 0 && marker.time <= duration}
 						<button
 							type="button"
 							class="yt-marker"
@@ -236,5 +242,12 @@
 		border-radius: 50%;
 		background: var(--color-accent);
 		cursor: pointer;
+	}
+
+	/* Le commentaire en cours d'écriture : cerclé, pas plein — il n'existe pas encore. */
+	.yt-marker.draft {
+		background: var(--color-bg);
+		box-shadow: inset 0 0 0 2px var(--color-accent);
+		pointer-events: none;
 	}
 </style>

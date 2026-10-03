@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte'
+	import { onMount, tick, untrack } from 'svelte'
 	import CommentList from '$lib/components/CommentList.svelte'
 	import MentionTextarea, { type MentionMember } from '$lib/components/MentionTextarea.svelte'
 	import Icon from '$lib/components/Icon.svelte'
@@ -17,10 +17,10 @@
 		members,
 		currentTime = 0,
 		playerReady = false,
-		isPlaying = false,
 		highlightRequest = null,
 		onSeek = () => {},
 		onCommentsChange = () => {},
+		onDraftAnchorChange = () => {},
 		inline = false
 	}: {
 		/** Prise ou setlist : ce dont on discute ici. */
@@ -29,10 +29,14 @@
 		members: MentionMember[]
 		currentTime?: number
 		playerReady?: boolean
-		isPlaying?: boolean
 		highlightRequest?: HighlightRequest | null
 		onSeek?: (seconds: number) => void
 		onCommentsChange?: (comments: CommentWithReactions[]) => void
+		/**
+		 * Repère du commentaire en cours d'écriture, `null` s'il est général ou vide : la
+		 * page le montre sur le lecteur, pour qu'on voie où il se posera avant d'envoyer.
+		 */
+		onDraftAnchorChange?: (seconds: number | null) => void
 		/**
 		 * Sous une carte du fil : ni titre ni outils de tri, et seuls les derniers
 		 * commentaires sont montrés — les précédents se déplient sur place.
@@ -82,7 +86,12 @@
 	const maxVisible = $derived(inline ? INLINE_FOLD_THRESHOLD : sort === 'chrono' ? FOLD_THRESHOLD : null)
 
 	let content = $state('')
-	let anchorTimestamp = $state(false)
+	// Général par défaut : ancrer est un choix conscient, jamais une déduction de l'écran.
+	let anchorChoice = $state<'anchored' | 'general'>('general')
+	// Repère figé à la première frappe : on commente ce qu'on vient d'entendre, pas ce que
+	// la lecture, qui continue pendant qu'on écrit, joue au moment d'envoyer.
+	let capturedTime = $state<number | null>(null)
+	let draftStarted = $state(false)
 	let submitting = $state(false)
 	let formError = $state<string | null>(null)
 	let lastHighlightToken = $state<number | null>(null)
@@ -105,6 +114,54 @@
 		return `${m}:${String(sec).padStart(2, '0')}`
 	}
 
+	// Sans position de lecture, il n'y a rien à ancrer : le choix ne s'affiche pas.
+	const anchorable = $derived(thread.kind !== 'setlist' && (thread.kind !== 'post' || thread.anchorable))
+	const canAnchor = $derived(anchorable && playerReady && isFinite(currentTime) && currentTime > 0)
+
+	// Avant la première frappe, le repère suit la lecture ; ensuite il ne bouge plus.
+	const anchorTime = $derived(capturedTime ?? currentTime)
+
+	const anchored = $derived(
+		anchorChoice === 'anchored' && anchorable && playerReady && anchorTime > 0
+	)
+
+	// La lecture a quitté le repère figé : on propose d'y recaler le commentaire ancré.
+	const canRetarget = $derived(
+		anchored && capturedTime !== null && canAnchor && Math.abs(currentTime - capturedTime) >= 2
+	)
+
+	$effect(() => {
+		const empty = content === ''
+		untrack(() => {
+			if (empty) {
+				draftStarted = false
+				capturedTime = null
+				anchorChoice = 'general'
+			} else if (!draftStarted) {
+				draftStarted = true
+				if (canAnchor) capturedTime = currentTime
+			}
+		})
+	})
+
+	$effect(() => {
+		onDraftAnchorChange(content !== '' && anchored ? anchorTime : null)
+	})
+
+	/** Le bouton « À 0:42 » garde le repère qu'il affiche. */
+	function chooseAnchored() {
+		anchorChoice = 'anchored'
+		// Saisie commencée sans position (lecteur pas encore lancé) : le repère se fige
+		// maintenant. Avant la première frappe, il suit encore la lecture.
+		if (draftStarted && capturedTime === null) capturedTime = currentTime
+	}
+
+	/** « Épingler à 1:58 » : la lecture a avancé, le repère la rejoint. */
+	function retarget() {
+		anchorChoice = 'anchored'
+		capturedTime = currentTime
+	}
+
 	async function submitComment(event: SubmitEvent) {
 		event.preventDefault()
 		formError = null
@@ -114,9 +171,7 @@
 			return
 		}
 
-		const ts = anchorTimestamp && isFinite(currentTime) && currentTime > 0
-			? currentTime
-			: null
+		const ts = anchored && isFinite(anchorTime) ? anchorTime : null
 
 		submitting = true
 		try {
@@ -139,7 +194,6 @@
 			displayComments = updatedComments
 			onCommentsChange(updatedComments)
 			content = ''
-			anchorTimestamp = false
 
 			await tick()
 			list?.highlightComment(json.id)
@@ -149,14 +203,6 @@
 			submitting = false
 		}
 	}
-
-	// Sans position de lecture, il n'y a rien à ancrer : la pastille ne s'affiche pas.
-	const canAnchor = $derived(playerReady && isFinite(currentTime) && currentTime > 0)
-
-	// L'ancrage suit ce que la pastille peut faire : elle disparaît, il retombe.
-	$effect(() => {
-		if (!canAnchor && anchorTimestamp) anchorTimestamp = false
-	})
 
 	/** Ctrl/⌘+Entrée : le bouton est désactivé à vide, le raccourci l'est aussi. */
 	function send() {
@@ -168,14 +214,6 @@
 		displayComments = updatedComments
 		onCommentsChange(updatedComments)
 	}
-
-	$effect(() => {
-		if (playerReady && !isPlaying && currentTime > 0) {
-			anchorTimestamp = true
-		} else if (isPlaying) {
-			anchorTimestamp = false
-		}
-	})
 
 	$effect(() => {
 		if (!highlightRequest) return
@@ -262,22 +300,6 @@
 			<!-- Voisines de la saisie, jamais posées par-dessus : le texte ne passe pas
 			     dessous, et les boutons restent en bas quand la zone grandit. -->
 			<div class="composer-actions">
-				{#if canAnchor}
-					<!-- Le repère est lisible avant d'ancrer : on voit où le commentaire se posera. -->
-					<button
-						type="button"
-						class="anchor-pill"
-						class:on={anchorTimestamp}
-						aria-pressed={anchorTimestamp}
-						title={anchorTimestamp
-							? `Commentaire ancré à ${formatTime(currentTime)} — cliquer pour le détacher`
-							: `Ancrer le commentaire à ${formatTime(currentTime)}`}
-						disabled={submitting}
-						onclick={() => (anchorTimestamp = !anchorTimestamp)}
-					>
-						<Icon name="clock" size="0.85rem" /> {formatTime(currentTime)}
-					</button>
-				{/if}
 
 				<button
 					type="submit"
@@ -290,6 +312,38 @@
 				</button>
 			</div>
 		</div>
+
+		<!-- Deux choix nommés plutôt qu'une pastille à allumer : on lit où le commentaire se
+		     posera sans avoir à deviner ce que veut dire une couleur. -->
+		{#if anchorable && playerReady && anchorTime > 0}
+			<div class="anchor-row">
+				<div class="anchor-toggle" role="group" aria-label="Où poser le commentaire">
+					<button
+						type="button"
+						class:active={anchored}
+						aria-pressed={anchored}
+						title="Le commentaire s'épingle à ce moment : un repère apparaît sur le lecteur, et un clic y ramène"
+						disabled={submitting}
+						onclick={chooseAnchored}
+					>
+						<Icon name="clock" size="0.8rem" /> À {formatTime(anchorTime)}
+					</button>
+					<button
+						type="button"
+						class:active={!anchored}
+						aria-pressed={!anchored}
+						title="Le commentaire porte sur l'ensemble, sans repère"
+						disabled={submitting}
+						onclick={() => (anchorChoice = 'general')}
+					>Général</button>
+				</div>
+				{#if canRetarget}
+					<button type="button" class="btn-link retarget" disabled={submitting} onclick={retarget}>
+						Épingler à {formatTime(currentTime)}
+					</button>
+				{/if}
+			</div>
+		{/if}
 	</form>
 </section>
 
@@ -425,13 +479,29 @@
 		cursor: default;
 	}
 
-	/* Une propriété du commentaire, pas une case de formulaire : elle se lit d'un coup
-	   d'œil et s'active d'un clic, sur la même ligne que l'envoi. */
-	.anchor-pill {
-		background: none;
+	/* Même grammaire que le choix d'ordre de la liste : deux boutons accolés, l'actif
+	   en orange pâle. */
+	.anchor-row {
+		display: flex;
+		align-items: center;
+		flex-wrap: wrap;
+		gap: 0.3rem 0.75rem;
+	}
+
+	.anchor-toggle {
+		display: inline-flex;
 		border: 1px solid var(--color-border-light);
 		border-radius: var(--radius-pill);
-		padding: 0.2rem 0.6rem;
+		overflow: hidden;
+	}
+
+	.anchor-toggle button {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		background: none;
+		border: none;
+		padding: 0.25rem 0.7rem;
 		font: inherit;
 		font-size: var(--text-xs);
 		font-variant-numeric: tabular-nums;
@@ -439,17 +509,21 @@
 		cursor: pointer;
 	}
 
-	.anchor-pill:hover:not(:disabled) { background: var(--color-bg-muted); }
+	.anchor-toggle button + button { border-left: 1px solid var(--color-border-light); }
 
-	.anchor-pill.on {
-		border-color: var(--color-accent);
+	.anchor-toggle button:hover:not(:disabled):not(.active) { background: var(--color-bg-muted); }
+
+	.anchor-toggle button.active {
 		background: var(--color-accent-light);
 		color: var(--color-accent);
 		font-weight: 600;
 	}
 
+	.retarget { font-size: var(--text-xs); font-variant-numeric: tabular-nums; }
+
 	/* Au doigt, une cible de 34 px se rate : le bouton d'envoi grandit. */
 	@media (max-width: 640px) {
 		.send { width: 40px; height: 40px; font-size: var(--text-base); }
+		.anchor-toggle button { padding: 0.45rem 0.85rem; }
 	}
 </style>

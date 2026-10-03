@@ -14,6 +14,8 @@
 		id: number | string
 		time: number
 		label?: string
+		/** Commentaire en cours d'écriture : montré, pas cliquable. */
+		draft?: boolean
 	}
 
 	type SeekRequest = {
@@ -107,6 +109,16 @@
 			if (!isFinite(marker.time) || marker.time < 0 || marker.time > duration) continue
 
 			const pct = marker.time / duration
+
+			if (marker.draft) {
+				const ghost = document.createElement('div')
+				ghost.className = 'audio-marker draft'
+				ghost.style.left = `${pct * 100}%`
+				ghost.title = marker.label ?? formatTime(marker.time)
+				waveformEl.appendChild(ghost)
+				continue
+			}
+
 			const el = document.createElement('button')
 			el.type = 'button'
 			el.className = 'audio-marker'
