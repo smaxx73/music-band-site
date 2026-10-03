@@ -55,6 +55,7 @@ const MAX_POST_GAIN_DB = 12
 const LOW_MID_BAND: [number, number] = [150, 500]
 const PRESENCE_BAND: [number, number] = [2000, 6000]
 const AIR_BAND: [number, null] = [6000, null]
+const BASS_BAND: [number, number] = [40, 150]
 
 /** Le limiteur ne travaille que sur les crêtes : une attaque courte, un relâchement bref. */
 const LIMITER = 'attack=5:release=50:level=false:latency=true'
@@ -108,11 +109,12 @@ export async function analyzeTarget(target: EnhanceTarget): Promise<AudioAnalysi
 	if (size === null) return null
 	const cached = target.audio_analysis
 	// Une mesure antérieure à l'équilibre aigu / grave n'a pas ces champs : elle est refaite.
-	if (cached?.source_bytes === size && cached.tilt_db !== undefined && cached.air_db !== undefined) return cached
+	const complete = cached?.tilt_db !== undefined && cached?.air_db !== undefined && cached?.bass_db !== undefined
+	if (cached?.source_bytes === size && complete) return cached
 
 	const [measured, bands] = await Promise.all([
 		measureLoudness(path, { truePeak: true }),
-		measureBandLevels(path, [LOW_MID_BAND, PRESENCE_BAND, AIR_BAND])
+		measureBandLevels(path, [LOW_MID_BAND, PRESENCE_BAND, AIR_BAND, BASS_BAND])
 	])
 	if (!measured) return null
 	const relative = (level: number | undefined) => {
@@ -127,6 +129,7 @@ export async function analyzeTarget(target: EnhanceTarget): Promise<AudioAnalysi
 		true_peak_dbtp: measured.truePeakDbtp,
 		tilt_db: relative(bands?.[1]),
 		air_db: relative(bands?.[2]),
+		bass_db: relative(bands?.[3]),
 		source_bytes: size
 	}
 	await sql`UPDATE recordings SET audio_analysis = ${sql.json(analysis)} WHERE id = ${target.id}`
@@ -211,19 +214,24 @@ function fixed(value: number): string {
 	return value.toFixed(2)
 }
 
-/** Gain d'entrée, coupe-bas, égalisation, compression : tout ce qui précède la mesure. */
+/** Gain d'entrée, coupe-bas, égalisation, compression, grave : tout ce qui précède la mesure. */
 function shapingFilters(plan: EnhancePlan): string[] {
 	const c = plan.compressor
 	const filters = [
 		`volume=${fixed(plan.pre_gain_db)}dB`,
 		`highpass=f=${plan.highpass_hz}:poles=2`,
-		...plan.eq.map((band) => {
-			const filter = band.type === 'highshelf' ? 'highshelf' : 'equalizer'
-			return `${filter}=f=${band.freq_hz}:t=q:w=${band.q}:g=${fixed(band.gain_db)}`
-		})
+		...(plan.bass_boost ? [bandFilter(plan.bass_boost)] : []),
+		...plan.eq.map(bandFilter)
 	]
 	if (c) filters.push(`acompressor=threshold=${c.threshold_db}dB:ratio=${c.ratio}:attack=${c.attack_ms}:release=${c.release_ms}`)
+	// Après le compresseur : avant, il rendrait au grave une part de ce qu'on lui retire.
+	if (plan.bass_cut) filters.push(bandFilter(plan.bass_cut))
 	return filters
+}
+
+function bandFilter(band: EnhancePlan['eq'][number]): string {
+	const filter = band.type === 'peak' ? 'equalizer' : band.type
+	return `${filter}=f=${band.freq_hz}:t=q:w=${band.q}:g=${fixed(band.gain_db)}`
 }
 
 /**

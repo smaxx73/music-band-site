@@ -5,7 +5,10 @@
 	import { player } from '$lib/player.svelte'
 	import { formatDateTime } from '$lib/date'
 	import {
+		BASS_CHOICES,
+		BASS_CHOICE_LABELS,
 		ENHANCE_TARGET_LUFS,
+		formatLevel,
 		EQ_LEVELS,
 		EQ_LEVEL_LABELS,
 		enhancePlan,
@@ -64,7 +67,8 @@
 
 	function describeSettings(value: EnhanceSettings) {
 		const eq = value.eq === 'none' ? 'sans égalisation' : `égalisation ${EQ_LEVEL_LABELS[value.eq].toLowerCase()}`
-		return `${eq}, ${value.compression ? 'avec' : 'sans'} compression`
+		const bass = value.bass === 'none' ? '' : `grave ${BASS_CHOICE_LABELS[value.bass].toLowerCase()}, `
+		return `${eq}, ${bass}${value.compression ? 'avec' : 'sans'} compression`
 	}
 
 	// --- Le reste de la session ---
@@ -290,7 +294,7 @@
 					</div>
 					<div>
 						<dt>Écarts de volume</dt>
-						<dd>{formatDb(a.lra_lu, 'LU')}</dd>
+						<dd>{formatLevel(a.lra_lu, 'LU')}</dd>
 					</div>
 					<div>
 						<dt>Crête</dt>
@@ -308,6 +312,12 @@
 							<dd>{formatDb(a.air_db, 'dB')}</dd>
 						</div>
 					{/if}
+					{#if a.bass_db !== null}
+						<div>
+							<dt>Grave face au bas-médium</dt>
+							<dd>{formatDb(a.bass_db, 'dB')}</dd>
+						</div>
+					{/if}
 				</dl>
 				{#if !enhance.diagnosis.enhanceable}
 					<p class="issue"><Icon name="info" size="0.9rem" /> Cette prise est presque muette : il n'y a rien à améliorer.</p>
@@ -319,7 +329,7 @@
 							<li class="issue" class:unfixable={!issue.fixable}>
 								<Icon name={issue.fixable ? 'alert' : 'info'} size="0.9rem" />
 								<span>
-									{issue.label}{#if !issue.fixable}<span class="muted"> — l'amélioration ne le répare pas.</span>{/if}
+									{issue.label}{#if !issue.fixable}{' '}<span class="muted">— l'amélioration ne le répare pas.</span>{/if}
 								</span>
 							</li>
 						{/each}
@@ -344,6 +354,24 @@
 									/>
 									{EQ_LEVEL_LABELS[level]}
 									{#if enhance.proposed?.eq === level}<span class="proposed">proposé</span>{/if}
+								</label>
+							{/each}
+						</div>
+					</div>
+					<div class="setting">
+						<span class="setting-label" id="enhance-bass-label">Grave</span>
+						<div class="choice" role="radiogroup" aria-labelledby="enhance-bass-label">
+							{#each BASS_CHOICES as choice (choice)}
+								<label class="choice-option" class:active={settings.bass === choice} class:locked>
+									<input
+										type="radio"
+										name="enhance-bass"
+										checked={settings.bass === choice}
+										disabled={locked}
+										onchange={() => (settings = { ...settings!, bass: choice })}
+									/>
+									{BASS_CHOICE_LABELS[choice]}
+									{#if enhance.proposed?.bass === choice}<span class="proposed">proposé</span>{/if}
 								</label>
 							{/each}
 						</div>
@@ -386,12 +414,15 @@
 					<ol class="chain">
 						<li><strong>Gain d'entrée</strong> {formatDb(plan.pre_gain_db, 'dB')}</li>
 						<li><strong>Coupe-bas léger</strong> sous {plan.highpass_hz} Hz, le grondement de la salle</li>
+						{#if plan.bass_boost}
+							<li><strong>Grave renforcé</strong> {formatDb(plan.bass_boost.gain_db, 'dB')} à {formatHz(plan.bass_boost.freq_hz)}</li>
+						{/if}
 						<li>
 							<strong>Égalisation</strong>
 							{#if plan.eq.length === 0}
 								aucune
 							{:else}
-								{plan.eq.map((b) => `${formatDb(b.gain_db, 'dB')} ${b.type === 'highshelf' ? 'au-dessus de' : 'à'} ${formatHz(b.freq_hz)}`).join(', ')}
+								{plan.eq.map((b) => `${formatDb(b.gain_db, 'dB')} ${b.type === 'highshelf' ? 'au-dessus de' : b.type === 'lowshelf' ? 'sous' : 'à'} ${formatHz(b.freq_hz)}`).join(', ')}
 							{/if}
 						</li>
 						<li>
@@ -402,6 +433,9 @@
 								aucune
 							{/if}
 						</li>
+						{#if plan.bass_cut}
+							<li><strong>Grave allégé</strong> {formatDb(plan.bass_cut.gain_db, 'dB')} sous {formatHz(plan.bass_cut.freq_hz)}</li>
+						{/if}
 						<li><strong>Normalisation</strong> à {formatDb(plan.target_lufs, 'LUFS')}</li>
 						<li><strong>Limiteur</strong> crêtes à {formatDb(plan.limit_db, 'dBFS')}</li>
 					</ol>

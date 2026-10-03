@@ -89,23 +89,24 @@ plus forte que les autres, étouffée par le grave de la pièce, avec du grondem
   monter le volume pour l'entendre ») avec « Améliorer le son ». Sinon, un simple lien
   discret, pour qui veut quand même essayer
 - **La mesure** (EBU R128, `ebur128`) : loudness intégrée, écarts de volume (LRA), crête
-  vraie, et l'**équilibre aigus / grave** — énergie de la présence (2–6 kHz) et des aigus
-  (au-dessus de 6 kHz), chacune moins celle du bas-médium (150–500 Hz). Défauts : son
-  faible (sous −20 LUFS), très fort (au-dessus de −10), grands écarts (LRA > 14 LU),
-  **son étouffé** (présence sous −11 dB **et** aigus sous −21 dB : le grave de la salle
-  domine — c'est la pièce qui l'imprime, téléphone comme micro à condensateur). La
-  présence seule ne suffit pas : un mix de groupe aux cymbales brillantes a souvent la
-  présence creuse sans être étouffé. Un son étouffé est proposé
-  même à bon volume. Une crête au-dessus de 0 dBTP signale une **saturation à
-  l'enregistrement**, que l'écran dit ne pas réparer — elle ne suffit pas à proposer
-  l'amélioration. Sous −50 LUFS, rien à améliorer : le gain ferait un souffle
+  vraie, et l'**équilibre spectral** — énergie du grave (40–150 Hz), de la présence
+  (2–6 kHz) et des aigus (au-dessus de 6 kHz), chacune moins celle du bas-médium
+  (150–500 Hz). Défauts : son faible (sous −20 LUFS), très fort (au-dessus de −10),
+  grands écarts (LRA > 14 LU), **son étouffé** (présence sous −11 dB **et** aigus sous
+  −21 dB : le grave de la salle domine — c'est la pièce qui l'imprime, téléphone comme
+  micro à condensateur), **grave trop présent** (au-dessus de −4,5 dB). La présence seule
+  ne suffit pas à dire « étouffé » : un mix de groupe aux cymbales brillantes a souvent la
+  présence creuse sans l'être. Ces défauts de timbre sont proposés même à bon volume.
+  Une crête au plafond est signalée sans en affirmer la cause (« saturation à
+  l'enregistrement, ou son déjà masterisé ») : l'amélioration ne la répare pas, et elle
+  ne suffit pas à la proposer. Sous −50 LUFS, rien à améliorer : le gain ferait un souffle
 - **La chaîne**, dans l'ordre : gain d'entrée (amène le son à −20 LUFS, niveau de travail
   du compresseur), coupe-bas 35 Hz (le grondement, sans mordre sur le mi grave d'une basse),
   égalisation dosée par l'équilibre aigus / grave, compression douce (1,5:1 à 2,5:1 selon
-  les écarts de volume mesurés), normalisation à **−14 LUFS** (le niveau de YouTube et
+  les écarts de volume mesurés), grave allégé s'il le faut, normalisation à **−14 LUFS** (le niveau de YouTube et
   Spotify ; −16 paraissait trop faible, −12 écrasait les attaques du piano), limiteur à −1,5 dBFS
   (`src/lib/audio-enhance.ts`)
-- **L'égalisation** à plein dosage : +2 dB à 90 Hz, −4 dB à 280 Hz, +3 dB à 3 kHz, +3 dB
+- **L'égalisation** à plein dosage : −4 dB à 280 Hz (le carton), +3 dB à 3 kHz, +3 dB
   au-dessus de 7 kHz. Rien au-dessus de −10 dB d'équilibre ; dosage croissant jusqu'au
   plein à −13 dB, jamais au-delà. **Calibrée à l'oreille** sur deux prises de répétition
   piano acoustique et voix, dans un même local, l'une au téléphone, l'autre au micro à
@@ -114,9 +115,21 @@ plus forte que les autres, étouffée par le grave de la pièce, avec du grondem
   −12,4 dB, mais aigus −16,7 dB) sonnait mieux **sans** égalisation, avec la compression :
   c'est lui qui fixe la condition sur les aigus. Une seule salle et deux formations pour
   l'instant : les seuils sont à revoir sur d'autres prises
-- **Pas de correction du grave** : sur ce même morceau, qui semblait trop chargé en grave,
-  l'alléger de 4 dB l'a trop atténué à l'écoute. Ni de correction d'un son trop brillant Un son trop brillant n'est pas corrigé — aucune prise pour le
-  calibrer
+- **Le grave**, réglé à part de l'égalisation — c'est dans le bas que la différence
+  s'entend : séparer le carton creusé de l'éclaircissement ne changeait presque rien à
+  l'écoute, le renfort du grave si (« on entend mieux les basses du piano ») :
+  - **Allégé** : −2,5 dB sous 100 Hz (plateau), **après** le compresseur — placée avant,
+    la coupe le faisait moins travailler, et il rendait au grave une partie de ce qu'on lui
+    retirait. Proposé au-dessus de −4,5 dB de grave. Calibré sur le morceau de groupe
+    (grave −2,2 dB, contre −9,2 et −7,2 pour les prises piano–voix ; seuil au milieu) :
+    entre −1,5 et −2,5 dB écoutés au même volume, −2,5 sonnait le mieux ; une coupe plus
+    franche avant le compresseur l'avait trop atténué
+  - **Renforcé** : +2 dB à 90 Hz, avant le compresseur — le corps de la main gauche du
+    piano, de la basse. Il faisait partie de l'égalisation franche au calibrage : il est
+    proposé avec elle (prise étouffée), sauf grave déjà trop présent. Faute de prise au
+    grave maigre mais non étouffée, pas de seuil propre
+  - **Tel quel** sinon
+- Un son **trop brillant** n'est pas corrigé — aucune prise pour le calibrer
 - **Deux passes** : la première mesure la loudness en sortie de compresseur, la seconde
   applique le gain fixe qui l'amène à la cible. Pas de `loudnorm` dynamique, qui pomperait
   sur un live
@@ -124,8 +137,9 @@ plus forte que les autres, étouffée par le grave de la pièce, avec du grondem
   retard compensé (`latency`), vérifié sur des impulsions : un commentaire ancré à 1:23
   reste sur la même note, et la durée ne change pas
 - **Réglages par prise** : le module propose les siens, l'oreille a le dernier mot. Dans la
-  fenêtre, **Égalisation** (Aucune / Douce / Franche — douce = moitié de franche) et
-  **Compression** (Oui / Non), le choix du module marqué « proposé ». Les seuils ne
+  fenêtre, **Égalisation** (Aucune / Douce / Franche — douce = moitié de franche),
+  **Grave** (Allégé / Tel quel / Renforcé) et **Compression** (Oui / Non), le choix du module marqué
+  « proposé ». Les seuils ne
   décident que de la proposition : une prise qui les déjoue se corrige là, sans toucher
   aux autres — pas de seuils réglables à l'échelle du groupe. L'aperçu est lié à ses
   réglages (gardés à côté de lui) : en changer demande de le refaire avant de comparer ou
@@ -138,7 +152,7 @@ plus forte que les autres, étouffée par le grave de la pièce, avec du grondem
   en plus **« Appliquer à ces N prises »** : ses réglages, sur les autres prises de la
   session pas encore améliorées — jamais celles qu'on a déjà réglées. Une requête par
   prise, l'une après l'autre, la progression à l'écran (fenêtre gardée ouverte), les
-  échecs nommés. Seuls l'égalisation et la compression se reprennent : gain et taux de
+  échecs nommés. Seuls l'égalisation, le grave et la compression se reprennent : gain et taux de
   compression suivent la mesure de chaque prise. Chacune se rétablit ensuite à part
 - **Écouter avant de décider** : « Préparer la version améliorée » rend un aperçu (quelques
   secondes pour un morceau) **hors d'`AUDIO_DIR`**, dans le répertoire temporaire —

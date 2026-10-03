@@ -199,14 +199,19 @@ dans docs/features.md.
 - Suppression de commentaires (l'édition, elle, existe — voir docs/features.md)
 - Tests automatisés
 - Autres outils d'amélioration audio (fondus, réduction de bruit, déclippage, correction
-  du grave ou d'un son trop brillant) : seules la découpe sur les blancs, la recopie d'un canal muet et
-  l'amélioration du son d'une prise (loudness, et égalisation dosée sur l'équilibre aigus /
-  grave) existent — voir
+  d'un son trop brillant) : seules la découpe sur les blancs, la recopie d'un canal muet et
+  l'amélioration du son d'une prise (loudness, égalisation dosée sur l'équilibre aigus /
+  grave, grave allégé) existent — voir
   docs/features.md. Pas d'amélioration sur un enregistrement perso
 - Curseur continu pour l'égalisation ou la compression de l'amélioration du son : écarté
-  pour l'instant. Les paliers (aucune / douce / franche, compression oui / non) suivent ce
+  pour l'instant. Les paliers (égalisation aucune / douce / franche, grave allégé / tel quel /
+  renforcé, compression oui / non) suivent ce
   que l'oreille distingue, et sans écoute en direct (Web Audio) chaque position coûterait
   un rendu. À reconsidérer si l'on hésite souvent entre « douce » et « franche »
+- Égalisation séparée par zone (médium creusé / aigus éclaircis) : écartée après écoute.
+  À volume égal, creuser le carton ou éclaircir donnaient presque le même résultat — la
+  compensation de volume remonte les aigus dans les deux cas. Un seul réglage d'égalisation
+  suffit ; seul le grave, qui s'entendait, a son choix à part
 - Score de confiance par coupure, et seuil de silence déduit du bruit de fond : différés
   volontairement, ils se règlent sur des fichiers réels et non a priori
 - Waveform zoomable avec marqueurs déplaçables : la retouche des bornes se fait au clavier

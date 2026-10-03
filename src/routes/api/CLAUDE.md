@@ -134,7 +134,9 @@ mesures, diagnostic, réglages proposés (`proposed`), état (`enhanced` avec se
 `preview` : réglages de l'aperçu en attente) et `session` — les autres prises de la
 session avec piste audio, et la dernière améliorée avec ses réglages, que l'écran reprend
 et peut appliquer aux autres, une requête `POST .../enhance` par prise. Les réglages sont
-`{ eq: 'none' | 'soft' | 'full', compression: boolean }`, validés par
+`{ eq: 'none' | 'soft' | 'full', bass: 'cut' | 'none' | 'boost', compression: boolean }`
+(`bass` absent — réglages gardés avant ce choix — vaut `boost` avec une égalisation,
+`none` sans), validés par
 `parseEnhanceSettings` (`400` sinon). `POST .../enhance/preview` (réglages en corps)
 prépare la version améliorée hors d'`AUDIO_DIR` (`201`), `DELETE` l'écarte ;
 `GET .../enhance/audio?version=original|enhanced` sert l'une ou l'autre pour les comparer,

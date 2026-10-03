@@ -33,6 +33,11 @@ export type AudioAnalysis = {
 	 * `null` comme `tilt_db`.
 	 */
 	air_db: number | null
+	/**
+	 * Grave (40–150 Hz) moins le bas-médium, en dB : un grave qui couvre le reste.
+	 * `null` comme `tilt_db`.
+	 */
+	bass_db: number | null
 	/** Taille du fichier mesuré : une autre taille, et la mesure est à refaire. */
 	source_bytes: number
 }
@@ -72,10 +77,10 @@ export const ENHANCE_SILENT_BELOW_LUFS = -50
  * −25 et −26,9 dB pour les prises piano–voix, −16,7 pour le groupe ; le seuil passe au
  * milieu. Une prise qui ne manque pas d'aigus n'est pas égalisée du tout.
  *
- * Ce même morceau semblait avoir trop de grave ; l'alléger de 4 dB l'a trop atténué à
- * l'écoute : aucune correction du grave n'est faite. Un son trop brillant n'est pas
- * corrigé non plus : aucune prise réelle pour le calibrer. Une seule salle et deux
- * formations pour l'instant : d'autres pourront déplacer les seuils.
+ * Le grave a sa propre mesure et sa propre correction, indépendantes de ce dosage :
+ * voir `BASS_HEAVY_DB`. Un son trop brillant n'est pas corrigé : aucune prise réelle pour
+ * le calibrer. Une seule salle et deux formations pour l'instant : d'autres pourront
+ * déplacer les seuils.
  */
 const TILT_OK_DB = -10
 const TILT_FULL_DB = -13
@@ -84,12 +89,29 @@ const TILT_MUFFLED_DB = -11
 /** Au-dessus, les aigus sont là : le son n'est pas étouffé, quelle que soit la présence. */
 const AIR_MUFFLED_DB = -21
 
-type EqBand = { type: 'peak' | 'highshelf'; freq_hz: number; q: number; gain_db: number }
+type EqBand = { type: 'peak' | 'highshelf' | 'lowshelf'; freq_hz: number; q: number; gain_db: number }
+
+/**
+ * Grave trop présent. Calibré sur un morceau de groupe masterisé (grave −2,2 dB face au
+ * bas-médium, contre −9,2 et −7,2 pour les prises piano–voix) : entre −1,5 et −2,5 dB
+ * sous 100 Hz, écoutés au même volume, −2,5 sonnait le mieux. Une coupe plus franche,
+ * placée avant le compresseur, l'avait trop atténué. Le seuil passe au milieu.
+ *
+ * La coupe se fait **après** le compresseur : avant, elle le faisait moins travailler,
+ * et il rendait au grave une partie de ce qu'on lui retirait.
+ */
+const BASS_HEAVY_DB = -4.5
+const BASS_CUT: EqBand = { type: 'lowshelf', freq_hz: 100, q: 0.7, gain_db: -2.5 }
+/**
+ * Grave renforcé : le corps du grave (main gauche du piano, basse, grosse caisse), que le
+ * creusement du bas-médium allègerait sinon. Il faisait partie de l'égalisation franche
+ * lors du calibrage, et c'est lui — avec le carton creusé — qui faisait « mieux entendre
+ * les basses du piano » face à l'éclaircissement seul. Avant le compresseur, à sa place
+ * d'origine, pour que les prises calibrées sonnent à l'identique.
+ */
+const BASS_BOOST: EqBand = { type: 'peak', freq_hz: 90, q: 0.9, gain_db: 2 }
 
 const EQ_FULL: EqBand[] = [
-	// Le corps du grave (main gauche du piano, basse, grosse caisse), que le creusement du
-	// bas-médium allègerait sinon.
-	{ type: 'peak', freq_hz: 90, q: 0.9, gain_db: 2 },
 	// Le carton de la salle, où s'entasse l'énergie d'une prise étouffée.
 	{ type: 'peak', freq_hz: 280, q: 0.8, gain_db: -4 },
 	// La présence : intelligibilité de la voix, attaque des marteaux, guitares.
@@ -97,6 +119,10 @@ const EQ_FULL: EqBand[] = [
 	// L'air : souffle de la voix, harmoniques aiguës du piano, cymbales.
 	{ type: 'highshelf', freq_hz: 7000, q: 0.5, gain_db: 3 }
 ]
+
+function heavyBass(a: Pick<AudioAnalysis, 'bass_db'>): boolean {
+	return a.bass_db !== null && a.bass_db > BASS_HEAVY_DB
+}
 
 /** Un son étouffé manque à la fois de présence et d'aigus. */
 function lacksHighs(a: Pick<AudioAnalysis, 'air_db'>): boolean {
@@ -115,10 +141,13 @@ export function eqAmount(a: Pick<AudioAnalysis, 'tilt_db' | 'air_db'>): number {
  * proposition — une prise qui les déjoue se corrige ici, sans toucher aux autres.
  */
 export type EqLevel = 'none' | 'soft' | 'full'
-export type EnhanceSettings = { eq: EqLevel; compression: boolean }
+export type BassChoice = 'cut' | 'none' | 'boost'
+export type EnhanceSettings = { eq: EqLevel; bass: BassChoice; compression: boolean }
 
 export const EQ_LEVELS: EqLevel[] = ['none', 'soft', 'full']
 export const EQ_LEVEL_LABELS: Record<EqLevel, string> = { none: 'Aucune', soft: 'Douce', full: 'Franche' }
+export const BASS_CHOICES: BassChoice[] = ['cut', 'none', 'boost']
+export const BASS_CHOICE_LABELS: Record<BassChoice, string> = { cut: 'Allégé', none: 'Tel quel', boost: 'Renforcé' }
 /** « Douce » vaut la moitié de « Franche » : le dosage entre les deux variantes écoutées. */
 const EQ_LEVEL_AMOUNT: Record<EqLevel, number> = { none: 0, soft: 0.5, full: 1 }
 
@@ -126,19 +155,30 @@ const EQ_LEVEL_AMOUNT: Record<EqLevel, number> = { none: 0, soft: 0.5, full: 1 }
 export function proposedSettings(a: AudioAnalysis): EnhanceSettings {
 	const amount = eqAmount(a)
 	// La compression a servi sur toutes les prises écoutées, master compris.
-	return { eq: amount === 0 ? 'none' : amount < 0.75 ? 'soft' : 'full', compression: true }
+	return {
+		eq: amount === 0 ? 'none' : amount < 0.75 ? 'soft' : 'full',
+		// Faute de prise au grave maigre qui ne soit pas étouffée, le renfort accompagne la
+		// proposition d'égalisation, comme au calibrage — sauf grave déjà trop présent.
+		bass: heavyBass(a) ? 'cut' : amount > 0 ? 'boost' : 'none',
+		compression: true
+	}
 }
 
 /** Réglages reçus du navigateur, ou relus d'un fichier : `null` s'ils sont mal formés. */
 export function parseEnhanceSettings(raw: unknown): EnhanceSettings | null {
 	if (typeof raw !== 'object' || raw === null) return null
-	const { eq, compression } = raw as Record<string, unknown>
+	const { eq, bass, compression } = raw as Record<string, unknown>
 	if (!EQ_LEVELS.includes(eq as EqLevel) || typeof compression !== 'boolean') return null
-	return { eq: eq as EqLevel, compression }
+	if (bass === undefined) {
+		// Réglages gardés avant le choix du grave : le renfort faisait partie de l'égalisation.
+		return { eq: eq as EqLevel, bass: eq === 'none' ? 'none' : 'boost', compression }
+	}
+	if (!BASS_CHOICES.includes(bass as BassChoice)) return null
+	return { eq: eq as EqLevel, bass: bass as BassChoice, compression }
 }
 
 export function sameSettings(a: EnhanceSettings | null, b: EnhanceSettings | null): boolean {
-	return !!a && !!b && a.eq === b.eq && a.compression === b.compression
+	return !!a && !!b && a.eq === b.eq && a.bass === b.bass && a.compression === b.compression
 }
 
 /** Niveau de travail du compresseur : son seuil n'a de sens que pour un niveau connu. */
@@ -147,7 +187,7 @@ const MAX_PRE_GAIN_DB = 24
 const MAX_CUT_DB = -20
 
 export type EnhanceIssue = {
-	kind: 'quiet' | 'loud' | 'dynamics' | 'muffled' | 'saturated'
+	kind: 'quiet' | 'loud' | 'dynamics' | 'muffled' | 'boomy' | 'saturated'
 	label: string
 	/** Faux pour un défaut signalé que l'amélioration ne corrige pas (saturation). */
 	fixable: boolean
@@ -180,6 +220,9 @@ export function diagnose(a: AudioAnalysis): EnhanceDiagnosis {
 	if (a.tilt_db !== null && a.tilt_db < TILT_MUFFLED_DB && lacksHighs(a)) {
 		issues.push({ kind: 'muffled', label: 'Son étouffé : le grave de la salle domine, les aigus manquent', fixable: true })
 	}
+	if (heavyBass(a)) {
+		issues.push({ kind: 'boomy', label: 'Grave très présent : il couvre le reste', fixable: true })
+	}
 	if (a.lra_lu > 14) {
 		issues.push({ kind: 'dynamics', label: 'Grands écarts de volume entre passages calmes et forts', fixable: true })
 	}
@@ -206,6 +249,10 @@ export type EnhancePlan = {
 	eq: EqBand[]
 	/** `null` sans compression. */
 	compressor: { threshold_db: number; ratio: number; attack_ms: number; release_ms: number } | null
+	/** Renfort du grave, avant l'égalisation ; `null` sans. */
+	bass_boost: EqBand | null
+	/** Coupe du grave, après le compresseur ; `null` sans. */
+	bass_cut: EqBand | null
 	target_lufs: number
 	limit_db: number
 }
@@ -227,6 +274,8 @@ export function enhancePlan(a: AudioAnalysis, settings: EnhanceSettings = propos
 			attack_ms: 15,
 			release_ms: 200
 		} : null,
+		bass_boost: settings.bass === 'boost' ? BASS_BOOST : null,
+		bass_cut: settings.bass === 'cut' ? BASS_CUT : null,
 		target_lufs: ENHANCE_TARGET_LUFS,
 		limit_db: ENHANCE_LIMIT_DB
 	}
@@ -266,6 +315,11 @@ function eqBands(level: EqLevel): EqBand[] {
 	const amount = EQ_LEVEL_AMOUNT[level]
 	if (amount === 0) return []
 	return EQ_FULL.map((band) => ({ ...band, gain_db: round1(band.gain_db * amount) }))
+}
+
+/** Une grandeur sans signe — une plage, pas un gain : « 14,1 LU ». */
+export function formatLevel(value: number, unit: string): string {
+	return `${(Math.round(value * 10) / 10).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} ${unit}`
 }
 
 /** « −29 LUFS », à la française. */
