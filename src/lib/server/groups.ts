@@ -1,4 +1,5 @@
 import { stat } from 'fs/promises'
+import { basename } from 'path'
 import sql from './db'
 import { audioPath, originalAudioPath, removeRecordingFiles, totalFileSize } from './storage'
 import { imageThumbnail } from './ffmpeg'
@@ -516,8 +517,16 @@ export type GroupArchive = {
 	// Contrairement aux mp3, le logo est assez petit (2 Mo max) pour voyager dans l'archive.
 	logo: { mime_type: string; updated_at: Date; base64: string } | null
 	// Les mp3 eux-mêmes ne sont pas embarqués (plusieurs Go) : le manifeste permet
-	// de les archiver à part depuis AUDIO_DIR avant de lancer la suppression.
-	audio_files: { recording_id: number; file: string; bytes: number; sha256: string | null }[]
+	// de les archiver à part depuis AUDIO_DIR avant de lancer la suppression. Une prise au
+	// son amélioré a deux fichiers : `audio` (celui qu'on écoute) et `original`, gardé à
+	// côté — archiver le premier seul perdrait le son d'origine.
+	audio_files: {
+		recording_id: number
+		file: string
+		kind: 'audio' | 'original'
+		bytes: number
+		sha256: string | null
+	}[]
 }
 
 export async function exportGroup(
@@ -582,17 +591,22 @@ export async function exportGroup(
 		])
 	const [logo] = logos
 
+	type AudioRow = { id: number; file_path: string | null; file_hash: string | null; enhanced_at: Date | null }
+	const fileSize = (path: string) => stat(path).then((st) => st.size).catch(() => 0)
 	const audio_files = await Promise.all(
-		(recordings as unknown as { id: number; file_path: string | null; file_hash: string | null }[])
+		(recordings as unknown as AudioRow[])
 			.filter((r) => r.file_path !== null)
-			.map(async (r) => ({
-			recording_id: r.id,
-			file: `${r.id}.mp3`,
-			bytes: await stat(audioPath(r.id))
-				.then((st) => st.size)
-				.catch(() => 0),
-			sha256: r.file_hash
-		}))
+			.flatMap((r) => [
+				{ recording_id: r.id, kind: 'audio' as const, path: audioPath(r.id), sha256: r.file_hash },
+				...(r.enhanced_at
+					? [{ recording_id: r.id, kind: 'original' as const, path: originalAudioPath(r.id), sha256: r.file_hash }]
+					: [])
+			])
+			.map(async ({ path, ...entry }) => ({
+				...entry,
+				file: basename(path),
+				bytes: await fileSize(path)
+			}))
 	)
 
 	return {

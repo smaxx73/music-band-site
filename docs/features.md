@@ -1489,7 +1489,9 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 - Deux téléchargements proposés :
   - `GET /api/groups/[id]/export` — archive JSON du seul groupe (morceaux, sessions, prises,
     commentaires, playlists, agenda, membres) + **manifeste audio** (nom de fichier, taille,
-    SHA-256). Ne contient **jamais** de hash de mot de passe. Superadmin uniquement
+    SHA-256). Une prise au son amélioré y figure deux fois : `kind: 'audio'` (`{id}.mp3`, la
+    version écoutée) et `kind: 'original'` (`{id}.original.mp3`). Ne contient **jamais** de
+    hash de mot de passe. Superadmin uniquement
   - `GET /api/admin/backup` — dump `pg_dump` complet, le seul restaurable tel quel
 - Ni l'un ni l'autre n'embarque les `.mp3` (plusieurs Go) : le manifeste sert à les archiver
   à part depuis `AUDIO_DIR` avant de lancer la suppression
