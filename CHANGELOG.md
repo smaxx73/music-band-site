@@ -13,6 +13,27 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.5.1] — 2026-10-03
+
+Aucune migration à appliquer.
+
+- Amélioration du son, moins de calcul : une prise déjà améliorée ne se mesure plus à
+  l'ouverture du lecteur (« Son amélioré » s'affiche aussitôt, la mesure attend
+  « Comparer »), et une même mesure ou une même forme d'onde demandée deux fois à la fois
+  ne se calcule qu'une fois
+- Un aperçu par réglage essayé : revenir à des réglages déjà écoutés, rouvrir la fenêtre
+  ou garder la version écoutée ne refait aucun rendu, et l'écoute reprend au même endroit.
+  6 aperçus au plus par prise, balayés au bout d'un jour. Revenir à l'original garde la
+  version améliorée parmi les aperçus si elle date du démarrage en cours du serveur
+- Au démarrage, le serveur mesure d'avance, en priorité basse, les prises non améliorées
+  sans mesure à jour : plus d'attente à leur première ouverture. Le premier déploiement
+  mesure toutes les prises existantes une fois
+- « Télécharger le fichier audio » (MP3) dans le menu « Partager » d'une prise, sur sa page
+  comme sur sa ligne : le fichier est nommé d'après le morceau et la prise
+  (`/audio/{id}.mp3?download`)
+- Lecteur : un flux audio interrompu (réseau coupé, lecture qui cale) se reprend seul, à la
+  même position, sans relancer une pause voulue (`src/lib/audio-reconnect.ts`)
+
 ## [1.5.0] — 2026-10-03
 
 Migration à appliquer : `045_recording_enhancement.sql`.
