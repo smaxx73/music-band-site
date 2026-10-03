@@ -386,6 +386,7 @@
 			buttonClass="btn btn-ghost btn-sm row-quiet"
 			recordingId={recording.id}
 			time={shareTime}
+			downloadUrl={hasAudio ? `/audio/${recording.id}.mp3?download` : null}
 			{canSharePublic}
 			{shareCount}
 			showCount={false}

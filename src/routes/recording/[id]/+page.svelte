@@ -499,6 +499,7 @@
 				class="share-menu-slot"
 				recordingId={recording.id}
 				time={shareTime}
+				downloadUrl={hasAudio ? `/audio/${recording.id}.mp3?download` : null}
 				canSharePublic={canShare}
 				{shareCount}
 				label="Partager"

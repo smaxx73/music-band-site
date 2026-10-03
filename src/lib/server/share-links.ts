@@ -283,7 +283,7 @@ export async function markShareAccessed(linkId: number): Promise<void> {
  * Nom du fichier téléchargé. Le fichier sur disque s'appelle `{id}.mp3`, muet pour qui
  * le reçoit : on lui donne le titre, débarrassé de ce qu'un système de fichiers refuse.
  */
-export function downloadFileName(shared: SharedAudio): string {
+export function downloadFileName(shared: Pick<SharedAudio, 'title' | 'take'>): string {
 	const base = shared.take !== null ? `${shared.title} - prise ${shared.take}` : shared.title
 	const safe = base.replace(/[\\/:*?"<>|\u0000-\u001f]+/g, ' ').replace(/\s+/g, ' ').trim()
 	return `${(safe || 'enregistrement').slice(0, 150)}.mp3`

@@ -3,8 +3,9 @@ import { join } from 'path'
 import sql from '$lib/server/db'
 import { audioDir } from '$lib/server/config'
 import { streamAudioFile } from '$lib/server/storage'
+import { attachmentHeader, downloadFileName } from '$lib/server/share-links'
 
-export const GET: RequestHandler = async ({ params, request, locals }) => {
+export const GET: RequestHandler = async ({ params, request, locals, url }) => {
 	if (!locals.user) return new Response('Non autorisé', { status: 401 })
 	if (!locals.user.current_group_id) return new Response('Aucun groupe actif', { status: 403 })
 
@@ -17,9 +18,11 @@ export const GET: RequestHandler = async ({ params, request, locals }) => {
 
 	// La protection ne doit pas dépendre du proxy : vérifier l'appartenance de
 	// la prise au groupe actif avant d'ouvrir le fichier sur disque.
-	const [recording] = await sql`
-		SELECT r.id FROM recordings r
+	const [recording] = await sql<{ title: string; take: number }[]>`
+		SELECT s.title, r.take
+		FROM recordings r
 		JOIN sessions ses ON ses.id = r.session_id
+		JOIN songs s ON s.id = r.song_id
 		WHERE r.id = ${recordingId} AND ses.group_id = ${locals.user.current_group_id}
 	`
 	if (!recording) return new Response('Not found', { status: 404 })
@@ -29,5 +32,8 @@ export const GET: RequestHandler = async ({ params, request, locals }) => {
 	// Le fichier d'une prise peut changer sous la même adresse (son amélioré, ou rendu à
 	// l'original) : le navigateur ne doit pas rejouer une copie gardée.
 	response.headers.set('Cache-Control', 'no-cache')
+	if (url.searchParams.has('download')) {
+		response.headers.set('Content-Disposition', attachmentHeader(downloadFileName(recording)))
+	}
 	return response
 }

@@ -18,6 +18,7 @@
 		showCount = true,
 		label = null,
 		buttonClass = 'btn btn-secondary btn-sm',
+		downloadUrl = null,
 		class: className = '',
 		onOpenPublic
 	}: {
@@ -32,6 +33,8 @@
 		/** Sans libellé, le bouton se réduit à son icône. */
 		label?: string | null
 		buttonClass?: string
+		/** Adresse de téléchargement, absente pour une prise vidéo seule. */
+		downloadUrl?: string | null
 		/** Classe du conteneur (bouton et panneau) : `row-wide-only` le retire d'une ligne étroite. */
 		class?: string
 		onOpenPublic: () => void
@@ -111,6 +114,15 @@
 				onfocus={(e) => e.currentTarget.select()}
 			/>
 		</div>
+	{/if}
+	{#if downloadUrl}
+		<a class="menu-item" role="menuitem" href={downloadUrl} download>
+			<Icon name="download" />
+			<span class="menu-item-text">
+				<span class="menu-item-title">Télécharger le fichier audio</span>
+				<span class="menu-item-hint">MP3</span>
+			</span>
+		</a>
 	{/if}
 	{#if canSharePublic}
 		<button class="menu-item" role="menuitem" onclick={openPublic}>
