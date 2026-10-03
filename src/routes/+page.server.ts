@@ -9,6 +9,9 @@ import { PLACEHOLDER_SONG_PREFIX } from '$lib/songs'
 // Trois par source suffisent pour les trois dernières toutes sources confondues.
 const ACTIVITY_LIMIT = 3
 const UPCOMING_LIMIT = 3
+// La vue « Commentaires » de l'activité en montre un peu plus : c'est la discussion
+// qu'on vient y rattraper, et ces lignes ne s'affichent que si on les demande.
+const COMMENTS_LIMIT = 5
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// Hors connexion, "/" sert de page d'accueil publique (voir +page.svelte) :
@@ -92,7 +95,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 			LIMIT ${ACTIVITY_LIMIT}
 		`,
 		listRecentPosts(groupId, ACTIVITY_LIMIT),
-		listRecentGroupComments(groupId, ACTIVITY_LIMIT),
+		listRecentGroupComments(groupId, COMMENTS_LIMIT),
 		// L'activité suit la création, quelle que soit la date prévue de la session.
 		sql`
 			SELECT s.id, s.date::text AS date, s.title, s.location, s.created_at

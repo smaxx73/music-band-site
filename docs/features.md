@@ -1627,14 +1627,21 @@ la prochaine date, puis seulement l'activité.
   de secours de ce navigateur (→ `/record`), des découpes en attente (→ `/upload`, ou
   `/perso` sans groupe actif), des morceaux « À nommer » (→ `/songs?filtre=a_nommer`). Pas
   les mentions : la cloche les signale déjà, et les marque lues à l'ouverture
-- **« Activité récente »** : les **3** dernières entrées, « Tout le fil → » à côté du titre.
-  Sessions créées, prises ajoutées (regroupées par membre, session et jour, comme dans
-  `/fil`), playlists créées ou modifiées, setlists créées, publications et commentaires,
-  triés par horodatage de création, de dépôt ou de modification — pas par date prévue.
-  Sans filtre : trois lignes n'en demandent pas, le fil montre le reste
-- Un commentaire y mène là où il a été écrit : la prise, la setlist ou la publication. La
-  requête part de `comments` et rejoint les trois cibles — c'est la cible qui dit à quel
-  groupe il appartient
+- **« Activité récente »**, en deux vues, « Tout le fil → » à côté du titre :
+  - **Nouveautés** (par défaut) : les **3** dernières entrées. Sessions créées, prises
+    ajoutées (regroupées par membre, session et jour, comme dans `/fil`), playlists créées
+    ou modifiées, setlists créées, publications, triés par horodatage de création, de
+    dépôt ou de modification — pas par date prévue. Pas de filtre par type : trois lignes
+    n'en demandent pas, le fil montre le reste
+  - **Commentaires** : les **5** derniers, seuls. Ils n'entrent pas dans les nouveautés :
+    mêlés au reste, ils en sortaient dès qu'une répétition était déposée — et ni le fil
+    ni la cloche (qui les marque lus) ne servent à rattraper la discussion
+  - Deux vues à la même place plutôt qu'une section de plus : la page ne s'allonge que
+    pour qui la demande. Le choix est gardé dans ce navigateur
+- Un commentaire y mène là où il a été écrit — la prise, la setlist ou la publication —,
+  **sur le commentaire lui-même** (`#comment-<id>`), au repère de la prise s'il en a un
+  (`?t=`). La requête part de `comments` et rejoint les trois cibles — c'est la cible qui
+  dit à quel groupe il appartient
 - **« En préparation »** : les 3 dernières setlists créées et les 3 dernières playlists
   modifiées, avec leur nombre de morceaux ou de prises
 - Sur ordinateur, « À réécouter » et « À venir » à gauche ; « À toi », l'activité et

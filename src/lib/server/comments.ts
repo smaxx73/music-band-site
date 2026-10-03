@@ -121,7 +121,7 @@ export function commentThread(row: {
 export function listRecentGroupComments(groupId: number, limit = 8) {
 	return sql`
 		SELECT
-			c.id, COALESCE(u.display_name, c.author) AS author, c.content, c.created_at,
+			c.id, COALESCE(u.display_name, c.author) AS author, c.content, c.created_at, c.timestamp_s,
 			r.id AS recording_id, so.title AS song_title,
 			sl.id AS setlist_id, sl.name AS setlist_name,
 			p.id AS post_id,

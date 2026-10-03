@@ -39,7 +39,7 @@
 	}
 	// Un commentaire porte sur une prise, une setlist OU une publication : une seule paire est remplie.
 	type RecentComment = {
-		id: number; author: string; content: string; created_at: string
+		id: number; author: string; content: string; created_at: string; timestamp_s: number | null
 		recording_id: number | null; song_title: string | null
 		setlist_id: number | null; setlist_name: string | null
 		post_id: number | null; post_title: string | null
@@ -65,6 +65,10 @@
 
 	// Le tableau de bord reste à jour lorsqu’on le laisse ouvert ou qu’on y revient.
 	onMount(() => {
+		try {
+			if (localStorage.getItem(ACTIVITY_VIEW_KEY) === 'comments') activityView = 'comments'
+		} catch { /* Stockage refusé : la vue par défaut suffit. */ }
+
 		findPendingTake()
 			.then((take) => { pendingTake = take !== null })
 			.catch(() => { /* Pas de stockage local (navigation privée) : rien à reprendre. */ })
@@ -223,7 +227,41 @@
 	}
 	const ACTIVITY_SHOWN = 3
 
-	const activity = $derived.by((): ActivityItem[] => {
+	// Deux vues séparées, à la même place plutôt qu'une section de plus : les nouveautés
+	// (ce qui a été créé ou déposé) et les commentaires. Mêlés, les commentaires sortaient
+	// des trois lignes dès qu'une répétition était déposée. Le choix suit le membre d'une
+	// visite à l'autre.
+	const ACTIVITY_VIEW_KEY = 'dashboard-activity-view'
+	type ActivityView = 'news' | 'comments'
+	let activityView = $state<ActivityView>('news')
+
+	function setActivityView(view: ActivityView) {
+		activityView = view
+		try { localStorage.setItem(ACTIVITY_VIEW_KEY, view) }
+		catch { /* Stockage refusé : le choix vaut pour cette visite. */ }
+	}
+
+	// Le commentaire mène là où il a été écrit — la prise, la setlist ou la publication —,
+	// et sur le commentaire lui-même, au repère de la prise s'il en a un.
+	function commentItem(c: RecentComment): ActivityItem {
+		const target = c.setlist_id !== null
+			? { name: c.setlist_name, path: `/setlists/${c.setlist_id}` }
+			: c.post_id !== null
+				? { name: c.post_title, path: `/posts/${c.post_id}` }
+				: { name: c.song_title, path: `/recording/${c.recording_id}` }
+		const t = c.timestamp_s !== null ? `?t=${Math.floor(c.timestamp_s)}` : ''
+		return {
+			kind: 'comment',
+			ts: new Date(c.created_at).getTime(),
+			date: activityDate(c.created_at),
+			label: `${c.author} — ${target.name}`,
+			detail: truncate(c.content),
+			color: 'var(--color-green)',
+			href: `${target.path}${t}#comment-${c.id}`,
+		}
+	}
+
+	const news = $derived.by((): ActivityItem[] => {
 		const items: ActivityItem[] = []
 
 		for (const s of recentSessions) {
@@ -292,28 +330,12 @@
 			})
 		}
 
-		for (const c of recentComments) {
-			// Le commentaire mène là où il a été écrit : la prise, la setlist ou la publication.
-			const target = c.setlist_id !== null
-				? { name: c.setlist_name, href: `/setlists/${c.setlist_id}` }
-				: c.post_id !== null
-					? { name: c.post_title, href: `/posts/${c.post_id}` }
-					: { name: c.song_title, href: `/recording/${c.recording_id}` }
-			items.push({
-				kind: 'comment',
-				ts: new Date(c.created_at).getTime(),
-				date: activityDate(c.created_at),
-				label: `${c.author} — ${target.name}`,
-				detail: truncate(c.content),
-				color: 'var(--color-green)',
-				href: target.href,
-			})
-		}
-
 		// Tri sur l'horodatage brut : les libellés de date sont déjà formatés pour l'affichage.
 		items.sort((a, b) => b.ts - a.ts)
 		return items.slice(0, ACTIVITY_SHOWN)
 	})
+
+	const shownActivity = $derived(activityView === 'comments' ? recentComments.map(commentItem) : news)
 </script>
 
 <svelte:head>
@@ -493,11 +515,23 @@
 						<h2 id="dash-activity">Activité récente</h2>
 						<a href="/fil" class="link-more">Tout le fil →</a>
 					</div>
-					{#if activity.length === 0}
-						<p class="empty">Aucune activité.</p>
+					<div class="activity-toggle" role="group" aria-label="Activité à afficher">
+						<button
+							type="button"
+							aria-pressed={activityView === 'news'}
+							onclick={() => setActivityView('news')}
+						>Nouveautés</button>
+						<button
+							type="button"
+							aria-pressed={activityView === 'comments'}
+							onclick={() => setActivityView('comments')}
+						><Icon name="comment" size="0.8rem" /> Commentaires</button>
+					</div>
+					{#if shownActivity.length === 0}
+						<p class="empty">{activityView === 'comments' ? 'Aucun commentaire.' : 'Aucune nouveauté.'}</p>
 					{:else}
 						<ul class="timeline">
-							{#each activity as item (`${item.kind}-${item.href}-${item.ts}`)}
+							{#each shownActivity as item (`${item.kind}-${item.href}-${item.ts}`)}
 								<li class="timeline-item">
 									<span class="timeline-dot" style="background: {item.color}"></span>
 									<a class="timeline-body" href={item.href}>
@@ -888,6 +922,36 @@
 	.todo :global(.todo-chevron) { color: var(--color-mid); }
 
 	/* ─── Activité ─────────────────────── */
+	.activity-toggle {
+		display: inline-flex;
+		margin-bottom: 0.75rem;
+		border: 1px solid var(--color-border-light);
+		border-radius: var(--radius-pill);
+		overflow: hidden;
+	}
+
+	.activity-toggle button {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.25rem;
+		min-height: 28px;
+		padding: 0.2rem 0.7rem;
+		border: none;
+		background: none;
+		font: inherit;
+		font-size: var(--text-xs);
+		color: var(--color-text-secondary);
+		cursor: pointer;
+	}
+
+	.activity-toggle button:hover { background: var(--color-bg-muted); }
+
+	.activity-toggle button[aria-pressed='true'] {
+		background: var(--color-accent-light);
+		color: var(--color-accent-dark);
+		font-weight: 600;
+	}
+
 	.timeline {
 		position: relative;
 		list-style: none;
