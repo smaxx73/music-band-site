@@ -14,9 +14,11 @@ const measure = (integrated_lufs, lra_lu = 8, true_peak_dbtp = -3, tilt_db = -9,
 
 test('un son faible ou très fort est signalé, un son correct ne l’est pas', () => {
 	assert.deepEqual(diagnose(measure(-29)).issues.map((i) => i.kind), ['quiet'])
-	assert.deepEqual(diagnose(measure(-10)).issues.map((i) => i.kind), ['loud'])
-	assert.equal(diagnose(measure(-17)).recommended, false)
-	assert.equal(diagnose(measure(-17)).enhanceable, true)
+	assert.deepEqual(diagnose(measure(-9)).issues.map((i) => i.kind), ['loud'])
+	assert.equal(diagnose(measure(-15)).recommended, false)
+	assert.equal(diagnose(measure(-15)).enhanceable, true)
+	assert.equal(diagnose(measure(-19)).recommended, false)
+	assert.deepEqual(diagnose(measure(-21)).issues.map((i) => i.kind), ['quiet'])
 })
 
 test('une saturation se signale sans suffire à proposer l’amélioration', () => {

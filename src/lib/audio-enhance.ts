@@ -37,8 +37,14 @@ export type AudioAnalysis = {
 	source_bytes: number
 }
 
-/** Loudness visée : celle des plateformes d'écoute sur téléphone, sans écraser un live. */
-export const ENHANCE_TARGET_LUFS = -16
+/**
+ * Loudness visée : celle de YouTube et Spotify. −16 (Apple Music) paraissait trop faible
+ * à l'écoute, et baissait un morceau déjà masterisé de 6 dB. À −14, le limiteur ne retire
+ * que 0,6 dB au plus sur les prises de calibrage ; à −12, il écrasait déjà les attaques
+ * du piano (2,6 dB). Un morceau masterisé plus fort reste ramené ici : le garder à son
+ * niveau après compression demanderait 3,5 dB de limiteur.
+ */
+export const ENHANCE_TARGET_LUFS = -14
 /** Plafond du limiteur, en dBFS : la marge que l'encodage mp3 consomme en crêtes. */
 export const ENHANCE_LIMIT_DB = -1.5
 /**

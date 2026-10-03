@@ -91,7 +91,7 @@ plus forte que les autres, étouffée par le grave de la pièce, avec du grondem
 - **La mesure** (EBU R128, `ebur128`) : loudness intégrée, écarts de volume (LRA), crête
   vraie, et l'**équilibre aigus / grave** — énergie de la présence (2–6 kHz) et des aigus
   (au-dessus de 6 kHz), chacune moins celle du bas-médium (150–500 Hz). Défauts : son
-  faible (sous −22 LUFS), très fort (au-dessus de −12), grands écarts (LRA > 14 LU),
+  faible (sous −20 LUFS), très fort (au-dessus de −10), grands écarts (LRA > 14 LU),
   **son étouffé** (présence sous −11 dB **et** aigus sous −21 dB : le grave de la salle
   domine — c'est la pièce qui l'imprime, téléphone comme micro à condensateur). La
   présence seule ne suffit pas : un mix de groupe aux cymbales brillantes a souvent la
@@ -102,7 +102,8 @@ plus forte que les autres, étouffée par le grave de la pièce, avec du grondem
 - **La chaîne**, dans l'ordre : gain d'entrée (amène le son à −20 LUFS, niveau de travail
   du compresseur), coupe-bas 35 Hz (le grondement, sans mordre sur le mi grave d'une basse),
   égalisation dosée par l'équilibre aigus / grave, compression douce (1,5:1 à 2,5:1 selon
-  les écarts de volume mesurés), normalisation à **−16 LUFS**, limiteur à −1,5 dBFS
+  les écarts de volume mesurés), normalisation à **−14 LUFS** (le niveau de YouTube et
+  Spotify ; −16 paraissait trop faible, −12 écrasait les attaques du piano), limiteur à −1,5 dBFS
   (`src/lib/audio-enhance.ts`)
 - **L'égalisation** à plein dosage : +2 dB à 90 Hz, −4 dB à 280 Hz, +3 dB à 3 kHz, +3 dB
   au-dessus de 7 kHz. Rien au-dessus de −10 dB d'équilibre ; dosage croissant jusqu'au
