@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte'
+	import { onDestroy, onMount, untrack } from 'svelte'
 	import Modal from '$lib/components/Modal.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import { player } from '$lib/player.svelte'
@@ -14,6 +14,7 @@
 		enhancePlan,
 		formatDb,
 		sameSettings,
+		settingsKey,
 		type EnhanceSettings,
 		type EnhanceState,
 		type EnhanceVersion
@@ -46,7 +47,7 @@
 	let error = $state<string | null>(null)
 	let busy = $state<null | 'preview' | 'apply' | 'revert' | 'session'>(null)
 
-	// Réglages affichés : ceux de l'amélioration gardée, sinon de l'aperçu en attente,
+	// Réglages affichés : ceux de l'amélioration gardée, sinon du dernier aperçu rendu,
 	// sinon ceux de la dernière prise améliorée de la session — même salle, même micro,
 	// l'oreille a déjà tranché —, sinon la proposition du module. Après amélioration, ils
 	// se lisent sans se changer : pour en essayer d'autres, on revient d'abord à l'original.
@@ -58,7 +59,7 @@
 	function settingsOf(state: EnhanceState | null): EnhanceSettings | null {
 		if (!state) return null
 		if (state.enhanced) return state.enhanced.settings ?? state.proposed
-		return state.preview ?? state.session.last?.settings ?? state.proposed
+		return state.previews[0] ?? state.session.last?.settings ?? state.proposed
 	}
 
 	const fromSession = $derived(
@@ -132,11 +133,24 @@
 	let duration = $state(0)
 	let resume: { at: number; play: boolean } | null = null
 
-	// Un aperçu préparé avec d'autres réglages ne se compare pas : ce ne serait pas ce
-	// qu'on s'apprête à garder.
-	const previewMatches = $derived(!!enhance && sameSettings(enhance.preview, settings))
+	// Chaque réglage essayé garde son aperçu : y revenir s'écoute aussitôt. Sans aperçu
+	// pour les réglages affichés, rien à comparer — ce ne serait pas ce qu'on va garder.
+	const previewMatches = $derived(!!enhance && enhance.previews.some((p) => sameSettings(p, settings)))
 	const canCompare = $derived(!!enhance && (previewMatches || !!enhance.enhanced))
-	const src = $derived(`/api/recordings/${recordingId}/enhance/audio?version=${version}&g=${generation}`)
+	const src = $derived(
+		`/api/recordings/${recordingId}/enhance/audio?version=${version}` +
+			(version === 'enhanced' && !enhance?.enhanced && settings ? `&settings=${settingsKey(settings)}` : '') +
+			`&g=${generation}`
+	)
+
+	// Toute source qui change — version, réglages, aperçu refait — reprend au même endroit,
+	// dans le même état : on compare un passage, pas deux débuts de morceau.
+	$effect.pre(() => {
+		void src
+		untrack(() => {
+			if (audio && !resume) resume = { at: audio.currentTime, play: !audio.paused }
+		})
+	})
 
 	async function readError(res: Response, fallback: string) {
 		const body = (await res.json().catch(() => ({}))) as { error?: string }
@@ -165,8 +179,6 @@
 	}
 
 	function selectVersion(next: EnhanceVersion) {
-		if (next === version) return
-		if (audio) resume = { at: audio.currentTime, play: !audio.paused }
 		version = next
 	}
 
@@ -213,7 +225,9 @@
 				body: JSON.stringify(requested)
 			})
 			if (!res.ok) { error = await readError(res, 'Aperçu impossible.'); return }
-			if (enhance) enhance = { ...enhance, preview: requested }
+			if (enhance) {
+				enhance = { ...enhance, previews: [requested, ...enhance.previews.filter((p) => !sameSettings(p, requested))] }
+			}
 			version = 'enhanced'
 			generation = Date.now()
 		} catch {
@@ -264,18 +278,11 @@
 		}
 	}
 
-	// Un aperçu qu'on n'a pas gardé n'a pas à attendre le balayage du lendemain.
-	function cancel() {
-		if (enhance?.preview && !enhance.enhanced) {
-			void fetch(`/api/recordings/${recordingId}/enhance/preview`, { method: 'DELETE' }).catch(() => {})
-		}
-		onClose()
-	}
-
+	// Les aperçus restent après la fermeture : rouvrir la fenêtre pour réécouter ne refait
+	// aucun rendu. Le serveur en borne le nombre par prise, et les balaie au bout d'un jour.
 	function closeDialog() {
 		if (busy) return
-		if (enhance?.enhanced) onClose()
-		else cancel()
+		onClose()
 	}
 </script>
 
@@ -498,7 +505,7 @@
 							<Icon name="sliders" size="0.95rem" />
 							{busy === 'preview'
 								? 'Préparation… quelques secondes'
-								: enhance.preview ? 'Préparer avec ces réglages' : 'Préparer la version améliorée'}
+								: enhance.previews.length > 0 ? 'Préparer avec ces réglages' : 'Préparer la version améliorée'}
 						</button>
 						<p class="muted hint">Rien ne change pour le groupe avant que tu ne la gardes.</p>
 					{/if}
@@ -562,7 +569,7 @@
 			</button>
 			<button class="btn btn-secondary" onclick={onClose} disabled={busy !== null}>Fermer</button>
 		{:else}
-			<button class="btn btn-secondary" onclick={cancel} disabled={busy !== null}>Annuler</button>
+			<button class="btn btn-secondary" onclick={onClose} disabled={busy !== null}>Annuler</button>
 			{#if enhance?.diagnosis?.enhanceable}
 				<button class="btn btn-primary" onclick={apply} disabled={busy !== null || !previewMatches}>
 					{busy === 'apply' ? 'Application…' : 'Garder la version améliorée'}

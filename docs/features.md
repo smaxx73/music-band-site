@@ -87,7 +87,14 @@ plus forte que les autres, étouffée par le grave de la pièce, avec du grondem
   première fois, gardée ensuite dans `recordings.audio_analysis`). Si elle relève un
   défaut que la chaîne corrige, un bandeau sous le lecteur le dit (« Son faible : il faut
   monter le volume pour l'entendre ») avec « Améliorer le son ». Sinon, un simple lien
-  discret, pour qui veut quand même essayer
+  discret, pour qui veut quand même essayer. Une prise déjà améliorée ne se mesure pas à
+  l'ouverture : « Son amélioré » vient du chargement de la page, et la mesure attend
+  qu'on ouvre « Comparer ». Une même mesure demandée deux fois à la fois (deux membres,
+  deux onglets) ne décode le fichier qu'une fois. **Mesure d'avance** : une minute après
+  son démarrage, le serveur mesure une à une, en priorité basse (`nice` 19) et les plus
+  récentes d'abord, les prises non
+  améliorées qui n'ont pas de mesure à jour — le calcul est le même, il change de moment,
+  et personne ne l'attend à l'ouverture. Une fois à jour, il ne coûte qu'une requête
 - **La mesure** (EBU R128, `ebur128`) : loudness intégrée, écarts de volume (LRA), crête
   vraie, et l'**équilibre spectral** — énergie du grave (40–150 Hz), de la présence
   (2–6 kHz) et des aigus (au-dessus de 6 kHz), chacune moins celle du bas-médium
@@ -141,9 +148,9 @@ plus forte que les autres, étouffée par le grave de la pièce, avec du grondem
   **Grave** (Allégé / Tel quel / Renforcé) et **Compression** (Oui / Non), le choix du module marqué
   « proposé ». Les seuils ne
   décident que de la proposition : une prise qui les déjoue se corrige là, sans toucher
-  aux autres — pas de seuils réglables à l'échelle du groupe. L'aperçu est lié à ses
-  réglages (gardés à côté de lui) : en changer demande de le refaire avant de comparer ou
-  de garder. Les réglages gardés restent sur la prise (`recordings.enhancement`) ; pour en
+  aux autres — pas de seuils réglables à l'échelle du groupe. Un aperçu est lié à ses
+  réglages (dans son nom de fichier) : des réglages encore jamais essayés demandent d'en
+  préparer un avant de comparer ou de garder. Les réglages gardés restent sur la prise (`recordings.enhancement`) ; pour en
   essayer d'autres, on revient d'abord à l'original
 - **D'une prise à l'autre de la session** : même salle, même micro, souvent mêmes
   réglages. Sur une prise pas encore améliorée, la fenêtre reprend ceux de la **dernière
@@ -158,14 +165,23 @@ plus forte que les autres, étouffée par le grave de la pièce, avec du grondem
   secondes pour un morceau) **hors d'`AUDIO_DIR`**, dans le répertoire temporaire —
   personne ne l'a encore gardé. Puis une écoute comparée **Original / Amélioré** sur un
   seul `<audio>` : basculer reprend au même endroit. L'écran rappelle que la version la
-  plus forte paraît souvent la meilleure. Un aperçu ni gardé ni écarté est balayé au bout
-  d'un jour
+  plus forte paraît souvent la meilleure
+- **Un aperçu par réglage essayé**, pour ne jamais rendre deux fois la même chose : revenir
+  à des réglages déjà écoutés les fait réentendre aussitôt, au même endroit du morceau, et
+  « Garder » reprend l'aperçu écouté sans nouveau rendu. Ils restent après la fermeture de
+  la fenêtre (« Annuler » ne garde rien pour le groupe, il n'efface pas ce qui a été rendu).
+  Chacun pèse le poids de la prise : **6 au plus par prise**, le plus ancien part le
+  premier, et tout aperçu est balayé au bout d'un jour. Deux demandes du même
+  aperçu à la fois (double clic, deux membres) n'en rendent qu'un
 - **« Garder la version améliorée »** : elle prend la place de `{id}.mp3` — c'est elle que
   jouent la barre du bas, les playlists, les liens d'écoute — et l'original passe à côté,
   `{id}.original.mp3`. Renommages atomiques dans la transaction ; la forme d'onde en cache
   est refaite. Sous le lecteur : « Son amélioré · Comparer avec l'original »
-- **Réversible** : « Revenir à l'original » le remet en place et efface la version
-  améliorée, qui se refait en quelques secondes. Pas de confirmation : rien ne se perd
+- **Réversible** : « Revenir à l'original » le remet en place, et la version améliorée
+  redevient un aperçu : on revient souvent à l'original pour comparer encore ou essayer
+  autre chose, et la regarder de nouveau ne coûte rien. Seulement si elle a été gardée
+  depuis le dernier démarrage du serveur : plus ancienne, elle a pu sortir d'une chaîne
+  qui a changé depuis, et elle est effacée. Pas de confirmation : rien ne se perd
 - **Tout membre** du groupe, comme la note d'une prise : un geste de travail sur le son
   commun, et il se défait. L'écran dit qui l'a fait et quand. Pas de notification
 - La source est le **mp3 stocké** : le fichier déposé n'est pas conservé. Une génération

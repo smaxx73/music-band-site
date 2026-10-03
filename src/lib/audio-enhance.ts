@@ -181,6 +181,20 @@ export function sameSettings(a: EnhanceSettings | null, b: EnhanceSettings | nul
 	return !!a && !!b && a.eq === b.eq && a.bass === b.bass && a.compression === b.compression
 }
 
+/**
+ * Les réglages en un mot (`full-boost-comp`) : le nom de leur aperçu sur disque, et ce que
+ * l'écran demande à écouter. Chaque réglage essayé garde le sien — y revenir ne coûte rien.
+ */
+export function settingsKey(s: EnhanceSettings): string {
+	return `${s.eq}-${s.bass}-${s.compression ? 'comp' : 'flat'}`
+}
+
+export function parseSettingsKey(key: string | null): EnhanceSettings | null {
+	const [eq, bass, compression, ...rest] = (key ?? '').split('-')
+	if (rest.length > 0 || (compression !== 'comp' && compression !== 'flat')) return null
+	return parseEnhanceSettings({ eq, bass: bass ?? null, compression: compression === 'comp' })
+}
+
 /** Niveau de travail du compresseur : son seuil n'a de sens que pour un niveau connu. */
 const WORKING_LUFS = -20
 const MAX_PRE_GAIN_DB = 24
@@ -293,8 +307,11 @@ export type EnhanceState = {
 	 * l'ont produite (`null` s'ils n'ont pas été gardés).
 	 */
 	enhanced: { at: string; by: string | null; settings: EnhanceSettings | null } | null
-	/** Réglages de l'aperçu qui attend d'être écouté, puis gardé ou non ; `null` sans aperçu. */
-	preview: EnhanceSettings | null
+	/**
+	 * Réglages des aperçus déjà rendus pour l'original actuel, le plus récent d'abord :
+	 * chacun s'écoute et se garde sans nouveau rendu. Vide pour une prise déjà améliorée.
+	 */
+	previews: EnhanceSettings[]
 	/**
 	 * Les autres prises de la même session : même salle, même micro, donc souvent les mêmes
 	 * réglages. `last` est la dernière améliorée, dont l'écran reprend les réglages.

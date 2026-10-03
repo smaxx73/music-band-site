@@ -28,12 +28,24 @@ export async function loadPeaksAt(filePath: string, cacheName: string): Promise<
 	try {
 		return JSON.parse(await readFile(peaksPath, 'utf-8')) as PeaksCache
 	} catch {
-		const fullPath = join(dir, filePath)
-		const [peaks, duration] = await Promise.all([
-			extractPeaks(fullPath),
-			getDuration(fullPath)
-		])
-		if (peaks.length > 0) writeFile(peaksPath, JSON.stringify({ peaks, duration })).catch(() => {})
-		return { peaks, duration }
+		// Les liens sont préchargés au survol : survoler puis cliquer une prise jamais
+		// affichée demanderait deux fois la même extraction, en même temps.
+		let pending = extracting.get(cacheName)
+		if (!pending) {
+			pending = extract(join(dir, filePath), peaksPath).finally(() => extracting.delete(cacheName))
+			extracting.set(cacheName, pending)
+		}
+		return pending
 	}
+}
+
+const extracting = new Map<string, Promise<PeaksCache>>()
+
+async function extract(fullPath: string, peaksPath: string): Promise<PeaksCache> {
+	const [peaks, duration] = await Promise.all([
+		extractPeaks(fullPath),
+		getDuration(fullPath)
+	])
+	if (peaks.length > 0) await writeFile(peaksPath, JSON.stringify({ peaks, duration })).catch(() => {})
+	return { peaks, duration }
 }

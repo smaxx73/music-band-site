@@ -131,19 +131,21 @@ L'**amélioration du son** d'une prise (`api/recordings/[id]/enhance`) est group
 ouverte à tout membre du groupe actif, comme la note : elle se défait. `GET` mesure
 l'original (gardé ensuite dans `recordings.audio_analysis`) et rend un `EnhanceState` :
 mesures, diagnostic, réglages proposés (`proposed`), état (`enhanced` avec ses réglages,
-`preview` : réglages de l'aperçu en attente) et `session` — les autres prises de la
+`previews` : réglages des aperçus déjà rendus, le plus récent d'abord) et `session` — les autres prises de la
 session avec piste audio, et la dernière améliorée avec ses réglages, que l'écran reprend
 et peut appliquer aux autres, une requête `POST .../enhance` par prise. Les réglages sont
 `{ eq: 'none' | 'soft' | 'full', bass: 'cut' | 'none' | 'boost', compression: boolean }`
 (`bass` absent — réglages gardés avant ce choix — vaut `boost` avec une égalisation,
 `none` sans), validés par
 `parseEnhanceSettings` (`400` sinon). `POST .../enhance/preview` (réglages en corps)
-prépare la version améliorée hors d'`AUDIO_DIR` (`201`), `DELETE` l'écarte ;
+prépare la version améliorée hors d'`AUDIO_DIR` (`201`) — un aperçu par réglage, rien
+n'est rendu deux fois —, `DELETE` les écarte tous ;
 `GET .../enhance/audio?version=original|enhanced` sert l'une ou l'autre pour les comparer,
-toujours par Node. `POST .../enhance` (réglages en corps) garde la version améliorée — un
-aperçu fait avec d'autres réglages est refait, jamais gardé tel quel — et enregistre les
+toujours par Node ; avant amélioration, `&settings=<clé>` (`settingsKey`) désigne l'aperçu
+écouté. `POST .../enhance` (réglages en corps) garde l'aperçu de ces réglages — rendu
+d'abord s'il n'existe pas, jamais un aperçu d'autres réglages — et enregistre les
 réglages dans `recordings.enhancement` (`409` si déjà fait) ; `DELETE .../enhance`
-rétablit l'original. Une prise sans
+rétablit l'original, et la version améliorée redevient un aperçu. Une prise sans
 piste audio répond `400`, une prise quasi muette aussi à l'aperçu. Passer par
 `src/lib/server/audio-enhance.ts`.
 

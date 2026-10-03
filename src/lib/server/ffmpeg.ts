@@ -1,4 +1,5 @@
-import { spawn } from 'child_process'
+import { spawn, type ChildProcess } from 'child_process'
+import { setPriority } from 'os'
 import type { AudioTrim } from '$lib/types'
 
 /**
@@ -341,6 +342,19 @@ export function extractSegment(
 	})
 }
 
+/**
+ * Un calcul que personne n'attend (mesure d'avance) passe derrière tout le reste : le
+ * système ne lui donne que le processeur que les requêtes laissent libre.
+ */
+function lowerPriority(ff: ChildProcess) {
+	if (ff.pid === undefined) return
+	try {
+		setPriority(ff.pid, 19)
+	} catch {
+		// Refusé par le système : le calcul tourne simplement à la priorité normale.
+	}
+}
+
 /** Mesure EBU R128 d'un fichier (filtre `ebur128`). */
 export type LoudnessMeasure = {
 	integratedLufs: number
@@ -357,7 +371,7 @@ export type LoudnessMeasure = {
  */
 export function measureLoudness(
 	filePath: string,
-	{ filters = [], truePeak = false }: { filters?: string[]; truePeak?: boolean } = {}
+	{ filters = [], truePeak = false, background = false }: { filters?: string[]; truePeak?: boolean; background?: boolean } = {}
 ): Promise<LoudnessMeasure | null> {
 	return new Promise((resolve) => {
 		const ff = spawn('ffmpeg', [
@@ -369,6 +383,7 @@ export function measureLoudness(
 			'-f', 'null',
 			'-'
 		])
+		if (background) lowerPriority(ff)
 
 		let stderr = ''
 		ff.stderr.on('data', (d: Buffer) => (stderr += d.toString()))
@@ -403,7 +418,11 @@ export function measureLoudness(
  * passe-bande (deux pôles de part et d'autre) puis mesurée. Un haut `null` laisse la bande
  * ouverte vers l'aigu. `null` si ffmpeg échoue.
  */
-export function measureBandLevels(filePath: string, bands: [number, number | null][]): Promise<number[] | null> {
+export function measureBandLevels(
+	filePath: string,
+	bands: [number, number | null][],
+	{ background = false }: { background?: boolean } = {}
+): Promise<number[] | null> {
 	const labels = bands.map((_, i) => `b${i}`)
 	const graph = [
 		`[0:a:0]asplit=${bands.length}${labels.map((l) => `[${l}]`).join('')}`,
@@ -419,6 +438,7 @@ export function measureBandLevels(filePath: string, bands: [number, number | nul
 			'-filter_complex', graph,
 			...bands.flatMap((_, i) => ['-map', `[o${i}]`, '-f', 'null', '-'])
 		])
+		if (background) lowerPriority(ff)
 
 		let stderr = ''
 		ff.stderr.on('data', (d: Buffer) => (stderr += d.toString()))

@@ -1,8 +1,21 @@
-import type { Handle } from '@sveltejs/kit'
+import type { Handle, ServerInit } from '@sveltejs/kit'
+import { building, dev } from '$app/environment'
 import { verifyCookie } from '$lib/server/auth'
 import sql from '$lib/server/db'
 import { authSecret } from '$lib/server/config'
 import { setActiveGroupCookie } from '$lib/server/group-scope'
+import { measurePendingRecordings } from '$lib/server/audio-enhance'
+
+/** Laisse le serveur démarrer et servir ses premières pages avant de mesurer. */
+const BACKFILL_DELAY_MS = 60_000
+
+export const init: ServerInit = () => {
+	// Pas en dev : chaque rechargement du serveur relancerait le rattrapage.
+	if (building || dev) return
+	setTimeout(() => {
+		measurePendingRecordings().catch((err) => console.error('[enhance] mesure d’avance', err))
+	}, BACKFILL_DELAY_MS).unref()
+}
 
 export const handle: Handle = async ({ event, resolve }) => {
 	// Valider la configuration dès la première requête, même sans cookie de session.

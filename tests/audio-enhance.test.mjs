@@ -7,7 +7,9 @@ import {
 	formatDb,
 	formatLevel,
 	parseEnhanceSettings,
-	proposedSettings
+	parseSettingsKey,
+	proposedSettings,
+	settingsKey
 } from '../src/lib/audio-enhance.ts'
 
 const measure = (integrated_lufs, lra_lu = 8, true_peak_dbtp = -3, tilt_db = -9, air_db = -26, bass_db = -8) =>
@@ -131,4 +133,19 @@ test('les niveaux s’écrivent à la française', () => {
 	assert.equal(formatDb(1.5, 'dB'), '+1,5 dB')
 	assert.equal(formatDb(0, 'dB'), '0 dB')
 	assert.equal(formatLevel(14.06, 'LU'), '14,1 LU')
+})
+
+test('la clé d’un réglage nomme son aperçu et se relit à l’identique', () => {
+	for (const eq of ['none', 'soft', 'full']) {
+		for (const bass of ['cut', 'none', 'boost']) {
+			for (const compression of [true, false]) {
+				const settings = { eq, bass, compression }
+				assert.deepEqual(parseSettingsKey(settingsKey(settings)), settings)
+			}
+		}
+	}
+	assert.equal(settingsKey({ eq: 'full', bass: 'boost', compression: true }), 'full-boost-comp')
+	for (const bad of [null, '', 'full', 'full-boost', 'full-boost-yes', 'loud-boost-comp', 'full-boost-comp-x', '../x-boost-comp']) {
+		assert.equal(parseSettingsKey(bad), null, String(bad))
+	}
 })

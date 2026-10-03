@@ -26,7 +26,7 @@
 	type Recording = {
 		id: number; take: number; status: string; notes: string | null
 		duration_s: number | null; uploaded_by: string; session_id: number; song_id: number
-		file_path: string | null; source_file_name: string | null
+		file_path: string | null; source_file_name: string | null; enhanced_at: string | null
 		youtube_video_id: string | null; youtube_title: string | null
 		song_title: string; song_composer: string | null; song_key: string | null
 		song_lyrics: string | null; song_music_notes: string | null
@@ -259,6 +259,9 @@
 	// Remonte le lecteur quand le fichier de la prise change : nouvelle forme d'onde.
 	let audioGeneration = $state(0)
 	const firstEnhanceIssue = $derived(enhance?.diagnosis?.issues.find((issue) => issue.fixable) ?? null)
+	// Que la prise soit améliorée, la page le sait dès son chargement : seule la fenêtre,
+	// ou un retour à l'original, en dit plus.
+	const isEnhanced = $derived(enhance ? !!enhance.enhanced : !!recording.enhanced_at)
 
 	// Suivi par l'id seul : `recording` est recréé à chaque `invalidateAll`, et refermer
 	// la fenêtre juste après « Garder la version améliorée » ne doit pas en découler.
@@ -269,7 +272,9 @@
 		enhance = null
 		enhanceFailed = false
 		enhanceOpen = false
-		if (!audio) return
+		// La mesure décode tout le fichier la première fois. Une prise déjà améliorée n'a
+		// rien à suggérer : c'est la fenêtre « Comparer » qui la demandera, si on l'ouvre.
+		if (!audio || untrack(() => recording.enhanced_at)) return
 		const controller = new AbortController()
 		fetch(`/api/recordings/${id}/enhance`, { signal: controller.signal })
 			.then((res) => (res.ok ? (res.json() as Promise<EnhanceState>) : null))
@@ -559,17 +564,17 @@
 		{/if}
 	</div>
 
-	{#if hasAudio && enhanceFailed}
+	{#if hasAudio && isEnhanced}
+		<p class="enhance-line">
+			<Icon name="sliders" size="0.85rem" /> Son amélioré
+			<button class="btn-link" onclick={() => (enhanceOpen = true)}>Comparer avec l'original</button>
+		</p>
+	{:else if hasAudio && enhanceFailed}
 		<p class="enhance-line">
 			<Icon name="sliders" size="0.85rem" /> Amélioration du son indisponible : l'analyse a échoué.
 		</p>
 	{:else if hasAudio && enhance}
-		{#if enhance.enhanced}
-			<p class="enhance-line">
-				<Icon name="sliders" size="0.85rem" /> Son amélioré
-				<button class="btn-link" onclick={() => (enhanceOpen = true)}>Comparer avec l'original</button>
-			</p>
-		{:else if enhance.diagnosis?.recommended && firstEnhanceIssue}
+		{#if enhance.diagnosis?.recommended && firstEnhanceIssue}
 			<div class="enhance-suggest">
 				<p><Icon name="sliders" size="0.9rem" /> {firstEnhanceIssue.label}.</p>
 				<button class="btn btn-secondary btn-sm" onclick={() => (enhanceOpen = true)}>Améliorer le son</button>

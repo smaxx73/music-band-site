@@ -1,10 +1,12 @@
 import type { RequestHandler } from './$types'
 import { findEnhanceTarget, versionFile } from '$lib/server/audio-enhance'
 import { streamAudioFile } from '$lib/server/storage'
+import { parseSettingsKey } from '$lib/audio-enhance'
 
 /**
  * L'une des deux versions d'une prise, pour les comparer : `?version=original` ou
- * `?version=enhanced`. Mêmes règles que `/audio/` — session et groupe actif vérifiés
+ * `?version=enhanced`, avec avant amélioration `&settings=<clé>` pour l'aperçu de ces
+ * réglages (`settingsKey`). Mêmes règles que `/audio/` — session et groupe actif vérifiés
  * avant d'ouvrir le fichier. Jamais en cache : une version change de fichier quand on
  * garde l'amélioration ou qu'on revient à l'original.
  */
@@ -21,7 +23,7 @@ export const GET: RequestHandler = async ({ locals, params, url, request }) => {
 	const target = await findEnhanceTarget(id, locals.user.current_group_id)
 	if (!target?.file_path) return new Response('Not found', { status: 404 })
 
-	const path = await versionFile(target, version)
+	const path = await versionFile(target, version, parseSettingsKey(url.searchParams.get('settings')))
 	const response = path ? await streamAudioFile(path, request) : null
 	if (!response) return new Response('Not found', { status: 404 })
 	response.headers.set('Cache-Control', 'no-store')
