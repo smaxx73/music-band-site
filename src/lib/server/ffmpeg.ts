@@ -341,6 +341,135 @@ export function extractSegment(
 	})
 }
 
+/** Mesure EBU R128 d'un fichier (filtre `ebur128`). */
+export type LoudnessMeasure = {
+	integratedLufs: number
+	lraLu: number
+	/** Crête vraie en dBTP, `null` si non demandée ou fichier muet. */
+	truePeakDbtp: number | null
+}
+
+/**
+ * Mesure la loudness d'un fichier, après `filters` s'il y en a : c'est ainsi qu'on
+ * connaît le niveau qu'aura le son en sortie d'une chaîne avant de la rendre. La crête
+ * vraie suréchantillonne le signal, ce qui coûte : elle n'est mesurée que sur demande.
+ * Rien n'est écrit, seul le résumé de stderr est lu. `null` si ffmpeg échoue.
+ */
+export function measureLoudness(
+	filePath: string,
+	{ filters = [], truePeak = false }: { filters?: string[]; truePeak?: boolean } = {}
+): Promise<LoudnessMeasure | null> {
+	return new Promise((resolve) => {
+		const ff = spawn('ffmpeg', [
+			'-hide_banner',
+			'-nostats',
+			'-i', filePath,
+			'-map', '0:a:0',
+			'-af', [...filters, `ebur128=framelog=quiet${truePeak ? ':peak=true' : ''}`].join(','),
+			'-f', 'null',
+			'-'
+		])
+
+		let stderr = ''
+		ff.stderr.on('data', (d: Buffer) => (stderr += d.toString()))
+
+		ff.on('close', (code) => {
+			if (code !== 0) { resolve(null); return }
+			// Le résumé arrive en fin de sortie, après le dernier `Summary:`.
+			const summary = stderr.slice(stderr.lastIndexOf('Summary:'))
+			const read = (label: string) => {
+				const m = summary.match(new RegExp(`${label}:\\s*(-?inf|-?[\\d.]+)`))
+				if (!m) return null
+				return m[1].endsWith('inf') ? -Infinity : parseFloat(m[1])
+			}
+			const integrated = read('I')
+			const lra = read('LRA')
+			if (integrated === null || lra === null) { resolve(null); return }
+			const peak = truePeak ? read('Peak') : null
+			resolve({
+				integratedLufs: integrated,
+				lraLu: lra,
+				truePeakDbtp: peak !== null && Number.isFinite(peak) ? peak : null
+			})
+		})
+
+		ff.on('error', () => resolve(null))
+	})
+}
+
+/**
+ * Niveau RMS (dB, tous canaux) de chaque bande de fréquences `[bas, haut]` en Hz, en une
+ * seule lecture du fichier : le signal est dupliqué (`asplit`), chaque copie filtrée
+ * passe-bande (deux pôles de part et d'autre) puis mesurée. Un haut `null` laisse la bande
+ * ouverte vers l'aigu. `null` si ffmpeg échoue.
+ */
+export function measureBandLevels(filePath: string, bands: [number, number | null][]): Promise<number[] | null> {
+	const labels = bands.map((_, i) => `b${i}`)
+	const graph = [
+		`[0:a:0]asplit=${bands.length}${labels.map((l) => `[${l}]`).join('')}`,
+		...bands.map(([low, high], i) =>
+			`[${labels[i]}]highpass=f=${low},${high === null ? '' : `lowpass=f=${high},`}astats=measure_perchannel=none:measure_overall=RMS_level[o${i}]`
+		)
+	].join(';')
+	return new Promise((resolve) => {
+		const ff = spawn('ffmpeg', [
+			'-hide_banner',
+			'-nostats',
+			'-i', filePath,
+			'-filter_complex', graph,
+			...bands.flatMap((_, i) => ['-map', `[o${i}]`, '-f', 'null', '-'])
+		])
+
+		let stderr = ''
+		ff.stderr.on('data', (d: Buffer) => (stderr += d.toString()))
+
+		ff.on('close', (code) => {
+			if (code !== 0) { resolve(null); return }
+			// Les instances d'astats sont numérotées dans l'ordre du graphe, donc des bandes ;
+			// leurs résumés, eux, arrivent dans l'ordre où ffmpeg ferme les sorties.
+			const levels = [...stderr.matchAll(/Parsed_astats_(\d+)[^\n]*RMS level dB:\s*(-?inf|-?[\d.]+)/g)]
+				.map((m) => ({ index: Number(m[1]), db: m[2].endsWith('inf') ? -Infinity : parseFloat(m[2]) }))
+				.sort((a, b) => a.index - b.index)
+				.map((l) => l.db)
+			resolve(levels.length === bands.length ? levels : null)
+		})
+
+		ff.on('error', () => resolve(null))
+	})
+}
+
+/**
+ * Applique une chaîne de filtres et encode le résultat aux réglages de stockage. Les
+ * filtres travaillent en virgule flottante (`aformat` en tête) : un gain qui dépasse
+ * 0 dBFS entre deux étages n'écrête pas, c'est le limiteur final qui tient la crête.
+ * Disque → disque, jamais en mémoire Node.
+ */
+export function renderFiltered(inputPath: string, outputPath: string, filters: string[]): Promise<void> {
+	return new Promise((resolve, reject) => {
+		const ff = spawn('ffmpeg', [
+			'-i', inputPath,
+			'-map', '0:a:0',
+			'-af', ['aformat=sample_fmts=dbl', ...filters].join(','),
+			'-ar', '44100',
+			'-ab', STORAGE_BITRATE,
+			'-ac', '2',
+			'-f', 'mp3',
+			'-y',
+			outputPath
+		])
+
+		let stderr = ''
+		ff.stderr.on('data', (d: Buffer) => (stderr += d.toString()))
+
+		ff.on('close', (code) => {
+			if (code === 0) resolve()
+			else reject(new Error(`ffmpeg render exited with code ${code}: ${stderr.slice(-300)}`))
+		})
+
+		ff.on('error', reject)
+	})
+}
+
 /**
  * Miniature JPEG carrée d'une image (logo de groupe, pochette de morceau), posée sur fond
  * blanc — un PNG transparent deviendrait noir en JPEG. Une image animée donne sa première

@@ -5,7 +5,7 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import sql from '$lib/server/db'
 import { detectSingleChannel, extractSegment, getDuration } from '$lib/server/ffmpeg'
-import { audioPath, ensureAudioDir, hashFile } from '$lib/server/storage'
+import { audioPath, ensureAudioDir, hashFile, removeRecordingFiles } from '$lib/server/storage'
 import { claimImport, loadImport, releaseImport, sourcePath } from '$lib/server/imports'
 import { notifyGroup } from '$lib/server/notifications'
 import { createPersonalFromSlices, normalizeTitle } from '$lib/server/personal'
@@ -177,7 +177,7 @@ export const POST: RequestHandler = async ({ locals, params, request }) => {
 		// Rien ne doit rester à moitié fait : les prises déjà insérées repartent avec
 		// leurs fichiers, et l'import redevient découpable.
 		for (const id of insertedIds) {
-			await unlink(audioPath(id)).catch(() => {})
+			await removeRecordingFiles(id)
 			await sql`DELETE FROM recordings WHERE id = ${id}`.catch(() => {})
 		}
 		await releaseImport(audioImport.id)

@@ -1,5 +1,5 @@
 import { createReadStream } from 'fs'
-import { mkdir, stat } from 'fs/promises'
+import { mkdir, stat, unlink } from 'fs/promises'
 import { join } from 'path'
 import { Readable } from 'stream'
 import { createHash } from 'crypto'
@@ -7,6 +7,26 @@ import { audioDir } from '$lib/server/config'
 
 export function audioPath(recordingId: number): string {
 	return join(audioDir(), `${recordingId}.mp3`)
+}
+
+/**
+ * Original d'une prise dont le son a été amélioré (`recordings.enhanced_at`) : gardé à
+ * côté pour revenir en arrière. Jamais servi par `/audio/`, dont la route n'ouvre que
+ * `{id}.mp3` — voir `src/lib/server/audio-enhance.ts`.
+ */
+export function originalAudioPath(recordingId: number): string {
+	return join(audioDir(), `${recordingId}.original.mp3`)
+}
+
+/**
+ * Efface tout ce qu'une prise a laissé sur le disque : son mp3, l'original d'un son
+ * amélioré, la forme d'onde en cache. À appeler après la suppression en base.
+ */
+export async function removeRecordingFiles(recordingId: number): Promise<void> {
+	await Promise.all(
+		[audioPath(recordingId), originalAudioPath(recordingId), join(audioDir(), `${recordingId}.peaks.json`)]
+			.map((path) => unlink(path).catch(() => {}))
+	)
 }
 
 /**

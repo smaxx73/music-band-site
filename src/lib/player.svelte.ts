@@ -91,6 +91,27 @@ class SharedPlayer {
 		if (autoplay) this.play()
 	}
 
+	/**
+	 * Le fichier d'une prise a changé sous la même adresse (son amélioré, ou rendu à
+	 * l'original) : on le recharge, à la même position et dans le même état de lecture.
+	 * Réaffecter `src`, même identique, relance le chargement.
+	 */
+	reload(recordingId: number) {
+		const media = this.media
+		if (!media || this.track?.recordingId !== recordingId) return
+		const at = media.currentTime
+		const wasPlaying = !media.paused
+		media.addEventListener(
+			'loadedmetadata',
+			() => {
+				media.currentTime = at
+				if (wasPlaying) this.play()
+			},
+			{ once: true }
+		)
+		media.src = audioUrl(recordingId)
+	}
+
 	play() {
 		this.media?.play().catch(() => {})
 	}

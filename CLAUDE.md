@@ -106,6 +106,11 @@ NODE_ENV=production
   qui franchit cette porte passe par `src/lib/server/share-links.ts`, qui décide seul de ce
   qui est exposé : fichier audio, titre, date, nom du groupe. Jamais commentaires, note ni
   participants. Voir « Lien d'écoute public » dans docs/features.md
+- IMPORTANT : une prise au son amélioré (`recordings.enhanced_at`) a DEUX fichiers :
+  `{id}.mp3` (la version améliorée, celle que tout joue) et `{id}.original.mp3`. Les
+  fichiers d'une prise s'effacent par `removeRecordingFiles` (`src/lib/server/storage.ts`),
+  jamais par un `unlink(audioPath(id))` qui laisserait l'original. Tout passe par
+  `src/lib/server/audio-enhance.ts`. Voir « Amélioration du son d'une prise » dans docs/features.md
 - Une prise peut n'avoir qu'une vidéo YouTube, sans fichier : tout code qui touche à `AUDIO_DIR`,
   au lecteur audio partagé ou aux playlists vérifie `file_path IS NOT NULL`. Voir « Prises vidéo
   YouTube » dans docs/features.md
@@ -193,8 +198,11 @@ dans docs/features.md.
   par curseur : voir « Fil d'actualité » dans docs/features.md
 - Suppression de commentaires (l'édition, elle, existe — voir docs/features.md)
 - Tests automatisés
-- Autres outils d'amélioration audio (normalisation, fondus, réduction de bruit) : seules
-  la découpe sur les blancs et la recopie d'un canal muet existent — voir docs/features.md
+- Autres outils d'amélioration audio (fondus, réduction de bruit, déclippage, correction
+  du grave ou d'un son trop brillant) : seules la découpe sur les blancs, la recopie d'un canal muet et
+  l'amélioration du son d'une prise (loudness, et égalisation dosée sur l'équilibre aigus /
+  grave) existent — voir
+  docs/features.md. Pas d'amélioration sur un enregistrement perso
 - Score de confiance par coupure, et seuil de silence déduit du bruit de fond : différés
   volontairement, ils se règlent sur des fichiers réels et non a priori
 - Waveform zoomable avec marqueurs déplaçables : la retouche des bornes se fait au clavier

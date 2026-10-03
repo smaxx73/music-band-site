@@ -152,6 +152,13 @@ CREATE TABLE recordings (
     uploaded_by TEXT NOT NULL,
     uploaded_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at  TIMESTAMPTZ DEFAULT now(),
+    -- Amélioration du son (migration 045) : mesures de l'original, gardées en cache ;
+    -- enhanced_at renseigné = {id}.mp3 est la version améliorée, l'original est à côté
+    -- dans {id}.original.mp3 et se rétablit à la demande
+    audio_analysis      JSONB,
+    enhanced_at         TIMESTAMPTZ,
+    enhanced_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+    enhancement         JSONB,                   -- réglages choisis : { eq, compression }
     UNIQUE (song_id, take),
     CONSTRAINT recordings_source CHECK (file_path IS NOT NULL OR youtube_video_id IS NOT NULL)
 );

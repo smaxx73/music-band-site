@@ -1,6 +1,6 @@
-import { stat, unlink } from 'fs/promises'
+import { stat } from 'fs/promises'
 import sql from './db'
-import { audioPath, totalFileSize } from './storage'
+import { audioPath, originalAudioPath, removeRecordingFiles, totalFileSize } from './storage'
 import { imageThumbnail } from './ffmpeg'
 import {
 	canAssignGroupAdmin,
@@ -421,7 +421,8 @@ export async function groupDeletionImpact(groupId: number): Promise<GroupDeletio
 // propriétaire, et partent avec son espace, pas avec le groupe.
 export async function groupAudioBytes(groupId: number): Promise<number> {
 	const recordingIds = await groupAudioRecordingIds(groupId)
-	return totalFileSize(recordingIds.map(audioPath))
+	// L'original d'un son amélioré occupe le disque autant que la prise : il compte.
+	return totalFileSize(recordingIds.flatMap((id) => [audioPath(id), originalAudioPath(id)]))
 }
 
 // Prises qui ont un fichier dans AUDIO_DIR : une prise vidéo seule n'en a pas.
@@ -485,7 +486,7 @@ export async function deleteGroup(
 	// Après commit seulement : un fichier orphelin est récupérable, une ligne
 	// pointant vers un fichier disparu ne l'est pas.
 	for (const id of recordingIds) {
-		await unlink(audioPath(id)).catch(() => {})
+		await removeRecordingFiles(id)
 	}
 
 	return { ok: true, value: { id: group.id, name: group.name, impact } }

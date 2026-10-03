@@ -10,6 +10,8 @@ src/
 │   │   ├── storage.ts     # lecture/écriture fichiers audio
 │   │   ├── ffmpeg.ts      # conversion mp3, proxy, détection des blancs, canal muet, extraction, durée,
 │   │   │                  #   miniature du logo de groupe, recadrage des images déposées
+│   │   ├── audio-enhance.ts # amélioration du son d'une prise : mesure, aperçu, application,
+│   │   │                  #   retour à l'original (réglages partagés : src/lib/audio-enhance.ts)
 │   │   ├── upload-stream.ts # réception multipart d'un fichier audio (prise ou import)
 │   │   ├── imports.ts     # zone de transit des outils audio d'après upload
 │   │   ├── youtube.ts     # vidéo YouTube d'une prise : lien, oEmbed, doublon
@@ -71,6 +73,7 @@ src/
 │       ├── MediaPlayer.svelte     # lecteur d'un enregistrement perso (audio et/ou vidéo, hors barre du bas)
 │       ├── PublishDialog.svelte   # publier dans le groupe actif : enregistrement perso, vidéo, suggestion
 │       ├── ClassifyDialog.svelte  # classer un enregistrement perso en prise (session + morceau)
+│       ├── AudioEnhanceDialog.svelte # améliorer le son d'une prise : mesure, chaîne, écoute comparée
 │       ├── PendingImports.svelte  # fichiers encore en transit : reprendre ou refaire une découpe
 │       ├── ShareLinkDialog.svelte # liens d'écoute publics d'un enregistrement : créer, révoquer
 │       ├── ShareMenu.svelte       # bouton « Partager » d'une prise : lien pour le groupe, lien public
@@ -170,6 +173,9 @@ sur « oui ».
 
 ## Fichiers audio
 - Stockés dans `/data/audio/{recording_id}.mp3`
+- Une prise au son amélioré garde son original à côté : `/data/audio/{id}.original.mp3`,
+  jamais servi par `/audio/` (seulement par `/api/recordings/[id]/enhance/audio`). Effacer
+  les fichiers d'une prise passe par `removeRecordingFiles`
 - Enregistrements perso dans `/data/audio/perso/{id}.mp3`, servis par `/audio/perso/`
 - Un lien d'écoute public sert le même fichier par `/ecoute/[token]/audio`, toujours par
   Node : le jeton y remplace la session, et se revérifie à chaque requête

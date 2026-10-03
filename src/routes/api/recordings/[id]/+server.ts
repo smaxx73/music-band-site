@@ -1,8 +1,7 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
-import { unlink } from 'fs/promises'
 import sql from '$lib/server/db'
-import { audioPath } from '$lib/server/storage'
+import { removeRecordingFiles } from '$lib/server/storage'
 import { canDeleteGroupContent } from '$lib/types'
 import { PLACEHOLDER_SONG_PREFIX } from '$lib/songs'
 
@@ -182,7 +181,7 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 	if (!deleted) return json({ error: 'Prise introuvable.' }, { status: 404 })
 
 	// Une prise vidéo seule n'a pas de fichier : la vidéo, elle, reste sur YouTube.
-	if (deleted.file_path) await unlink(audioPath(id)).catch(() => {})
+	if (deleted.file_path) await removeRecordingFiles(id)
 
 	return json({ success: true })
 }

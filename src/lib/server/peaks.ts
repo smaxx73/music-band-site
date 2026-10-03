@@ -1,4 +1,4 @@
-import { readFile, writeFile } from 'fs/promises'
+import { readFile, unlink, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { audioDir } from '$lib/server/config'
 import { extractPeaks, getDuration } from '$lib/server/ffmpeg'
@@ -11,6 +11,11 @@ export type PeaksCache = { peaks: number[]; duration: number | null }
  */
 export function loadPeaks(recordingId: number, filePath: string): Promise<PeaksCache> {
 	return loadPeaksAt(filePath, `${recordingId}.peaks.json`)
+}
+
+/** Oublie la forme d'onde d'une prise dont le son a changé : elle se refera au prochain affichage. */
+export async function forgetPeaks(recordingId: number): Promise<void> {
+	await unlink(join(audioDir(), `${recordingId}.peaks.json`)).catch(() => {})
 }
 
 /**

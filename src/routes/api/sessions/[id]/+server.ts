@@ -1,8 +1,7 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
-import { unlink } from 'fs/promises'
 import sql from '$lib/server/db'
-import { audioPath } from '$lib/server/storage'
+import { removeRecordingFiles } from '$lib/server/storage'
 import { canDeleteGroupContent } from '$lib/types'
 import { parseCoords } from '$lib/places'
 
@@ -202,7 +201,7 @@ export const DELETE: RequestHandler = async ({ locals, params }) => {
 	if (!deleted) return json({ error: 'Session introuvable.' }, { status: 404 })
 
 	for (const r of recordings) {
-		await unlink(audioPath(r.id as number)).catch(() => {})
+		await removeRecordingFiles(r.id as number)
 	}
 
 	return json({ success: true })

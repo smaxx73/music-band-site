@@ -18,6 +18,8 @@
 	import ShareMenu from '$lib/components/ShareMenu.svelte'
 	import { canSharePublicly } from '$lib/types'
 	import { isPlaceholderSongTitle, sortedWithSong } from '$lib/songs'
+	import AudioEnhanceDialog from '$lib/components/AudioEnhanceDialog.svelte'
+	import type { EnhanceState } from '$lib/audio-enhance'
 
 	let { data }: { data: PageData } = $props()
 
@@ -244,6 +246,49 @@
 		} finally {
 			moving = false
 		}
+	}
+
+	// --- Amélioration du son ---
+	//
+	// Proposée là où l'on arrive juste après un envoi ou un enregistrement. La mesure
+	// coûte quelques secondes à la première visite (gardée ensuite) : elle se charge
+	// après la page, sans la retenir, et rien ne s'affiche tant qu'elle n'a rien à dire.
+	let enhance = $state<EnhanceState | null>(null)
+	let enhanceFailed = $state(false)
+	let enhanceOpen = $state(false)
+	// Remonte le lecteur quand le fichier de la prise change : nouvelle forme d'onde.
+	let audioGeneration = $state(0)
+	const firstEnhanceIssue = $derived(enhance?.diagnosis?.issues.find((issue) => issue.fixable) ?? null)
+
+	// Suivi par l'id seul : `recording` est recréé à chaque `invalidateAll`, et refermer
+	// la fenêtre juste après « Garder la version améliorée » ne doit pas en découler.
+	const recordingId = $derived(recording.id)
+	$effect(() => {
+		const id = recordingId
+		const audio = hasAudio
+		enhance = null
+		enhanceFailed = false
+		enhanceOpen = false
+		if (!audio) return
+		const controller = new AbortController()
+		fetch(`/api/recordings/${id}/enhance`, { signal: controller.signal })
+			.then((res) => (res.ok ? (res.json() as Promise<EnhanceState>) : null))
+			.then((state) => {
+				if (state) enhance = state
+				else enhanceFailed = true
+			})
+			.catch((err: unknown) => {
+				if ((err as { name?: string }).name !== 'AbortError') enhanceFailed = true
+			})
+		return () => controller.abort()
+	})
+
+	async function onEnhanceChange(state: EnhanceState) {
+		enhance = state
+		player.reload(recording.id)
+		// La forme d'onde vient du chargement de la page, recalculée sur le nouveau fichier.
+		await invalidateAll()
+		audioGeneration += 1
 	}
 
 	// --- Liens entrants et lien à partager ---
@@ -494,7 +539,7 @@
 				}}
 			/>
 		{:else}
-			{#key sharedTrackMatches}
+			{#key `${sharedTrackMatches}-${audioGeneration}`}
 				<AudioPlayer
 					track={playerTrack}
 					media={sharedTrackMatches ? player.media : null}
@@ -513,6 +558,35 @@
 		{/if}
 	</div>
 
+	{#if hasAudio && enhanceFailed}
+		<p class="enhance-line">
+			<Icon name="sliders" size="0.85rem" /> Amélioration du son indisponible : l'analyse a échoué.
+		</p>
+	{:else if hasAudio && enhance}
+		{#if enhance.enhanced}
+			<p class="enhance-line">
+				<Icon name="sliders" size="0.85rem" /> Son amélioré
+				<button class="btn-link" onclick={() => (enhanceOpen = true)}>Comparer avec l'original</button>
+			</p>
+		{:else if enhance.diagnosis?.recommended && firstEnhanceIssue}
+			<div class="enhance-suggest">
+				<p><Icon name="sliders" size="0.9rem" /> {firstEnhanceIssue.label}.</p>
+				<button class="btn btn-secondary btn-sm" onclick={() => (enhanceOpen = true)}>Améliorer le son</button>
+			</div>
+		{:else if enhance.diagnosis?.enhanceable}
+			<p class="enhance-line">
+				<button class="btn-link-muted" onclick={() => (enhanceOpen = true)}>
+					<Icon name="sliders" size="0.85rem" /> Améliorer le son
+				</button>
+			</p>
+		{:else if !enhance.analysis}
+			<!-- Se taire ici cacherait que l'outil existe, et qu'il y a un problème de fichier. -->
+			<p class="enhance-line">
+				<Icon name="sliders" size="0.85rem" /> Amélioration du son indisponible : le fichier audio n'a pas pu être lu.
+			</p>
+		{/if}
+	{/if}
+
 	<CommentsPanel
 		thread={{ kind: 'recording', id: recording.id }}
 		comments={comments}
@@ -526,6 +600,15 @@
 			comments = updatedComments
 		}}
 	/>
+
+	{#if enhanceOpen}
+		<AudioEnhanceDialog
+			recordingId={recording.id}
+			initial={enhance}
+			onClose={() => (enhanceOpen = false)}
+			onChange={onEnhanceChange}
+		/>
+	{/if}
 
 	{#if shareOpen}
 		<ShareLinkDialog
@@ -657,6 +740,20 @@
 		gap: 0.4rem;
 		margin-top: 0.3rem;
 	}
+
+	/* Sous le lecteur, hors de la partie collée : une proposition, pas une commande. */
+	.enhance-line {
+		display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+		margin: -1.25rem 0 2rem; font-size: var(--text-sm); color: var(--color-text-muted);
+	}
+	.enhance-line .btn-link-muted { display: inline-flex; align-items: center; gap: 0.35rem; }
+	.enhance-suggest {
+		display: flex; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; flex-wrap: wrap;
+		margin: -1.25rem 0 2rem; padding: 0.55rem 0.8rem;
+		background: var(--color-warning-bg); border: 1px solid var(--color-warning-border);
+		border-radius: var(--radius-lg); color: var(--color-warning-text); font-size: var(--text-sm);
+	}
+	.enhance-suggest p { margin: 0; display: flex; align-items: center; gap: 0.4rem; }
 
 	.notes-hint { font-size: var(--text-xs); color: var(--color-text-muted); }
 	.notes-error { margin: 0.3rem 0 0; font-size: var(--text-xs); color: var(--color-error); }

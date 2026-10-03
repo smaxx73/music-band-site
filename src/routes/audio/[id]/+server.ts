@@ -25,5 +25,9 @@ export const GET: RequestHandler = async ({ params, request, locals }) => {
 	if (!recording) return new Response('Not found', { status: 404 })
 
 	const response = await streamAudioFile(join(audioDir(), filename), request)
-	return response ?? new Response('Not found', { status: 404 })
+	if (!response) return new Response('Not found', { status: 404 })
+	// Le fichier d'une prise peut changer sous la même adresse (son amélioré, ou rendu à
+	// l'original) : le navigateur ne doit pas rejouer une copie gardée.
+	response.headers.set('Cache-Control', 'no-cache')
+	return response
 }

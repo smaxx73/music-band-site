@@ -13,6 +13,16 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+Migration à appliquer : `045_recording_enhancement.sql`.
+
+- Amélioration du son d'une prise : coupe-bas léger, égalisation, compression douce,
+  normalisation loudness et limiteur, réglés sur la mesure de l'original. Proposée sous le
+  lecteur quand la mesure le justifie (son faible, très fort, étouffé, grands écarts de
+  volume), écoutée en comparaison avant d'être gardée, réversible. Égalisation (aucune,
+  douce, franche) et compression se choisissent prise par prise, le module proposant les
+  siennes ; les réglages d'une prise se reprennent sur les autres prises de la session : l'original reste à
+  côté (`{id}.original.mp3`) et compte dans le volume du groupe
+
 ## [1.4.0] — 2026-10-02
 
 Aucune migration à appliquer. `schema.sql` ne change que par ses commentaires.

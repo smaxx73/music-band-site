@@ -39,6 +39,9 @@ api/places/addresses/+server.ts
 api/catalog/search/+server.ts
 api/catalog/tracks/[id]/+server.ts
 api/recordings/[id]/+server.ts
+api/recordings/[id]/enhance/+server.ts
+api/recordings/[id]/enhance/preview/+server.ts
+api/recordings/[id]/enhance/audio/+server.ts
 api/youtube/+server.ts
 api/comments/+server.ts
 api/comments/[id]/+server.ts
@@ -123,6 +126,24 @@ rattacher la vidéo à la piste audio envoyée. Les deux passent par `resolveYou
 (`src/lib/server/youtube.ts`) : lien reconnu, vidéo lisible, `409` si déjà dans le groupe. Toute
 route qui touche à `AUDIO_DIR` (peaks, suppression, volume, manifeste) filtre sur
 `file_path IS NOT NULL` ; une prise sans piste audio ne va jamais dans une playlist (`400`).
+
+L'**amélioration du son** d'une prise (`api/recordings/[id]/enhance`) est groupe-scopée,
+ouverte à tout membre du groupe actif, comme la note : elle se défait. `GET` mesure
+l'original (gardé ensuite dans `recordings.audio_analysis`) et rend un `EnhanceState` :
+mesures, diagnostic, réglages proposés (`proposed`), état (`enhanced` avec ses réglages,
+`preview` : réglages de l'aperçu en attente) et `session` — les autres prises de la
+session avec piste audio, et la dernière améliorée avec ses réglages, que l'écran reprend
+et peut appliquer aux autres, une requête `POST .../enhance` par prise. Les réglages sont
+`{ eq: 'none' | 'soft' | 'full', compression: boolean }`, validés par
+`parseEnhanceSettings` (`400` sinon). `POST .../enhance/preview` (réglages en corps)
+prépare la version améliorée hors d'`AUDIO_DIR` (`201`), `DELETE` l'écarte ;
+`GET .../enhance/audio?version=original|enhanced` sert l'une ou l'autre pour les comparer,
+toujours par Node. `POST .../enhance` (réglages en corps) garde la version améliorée — un
+aperçu fait avec d'autres réglages est refait, jamais gardé tel quel — et enregistre les
+réglages dans `recordings.enhancement` (`409` si déjà fait) ; `DELETE .../enhance`
+rétablit l'original. Une prise sans
+piste audio répond `400`, une prise quasi muette aussi à l'aperçu. Passer par
+`src/lib/server/audio-enhance.ts`.
 
 La **pochette** d'un morceau (`api/songs/[id]/cover`) est groupe-scopée : tout membre du
 groupe actif la dépose (`POST`, multipart, champ `cover`, 8 Mo au plus) ou la retire

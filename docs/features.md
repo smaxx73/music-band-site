@@ -76,6 +76,90 @@ stéréo, mais le canal droit est plat. On l'entend alors dans une seule oreille
 - Pas de bouton à l'écran ni de colonne en base : un fichier corrigé ne se distingue plus
   d'un autre, et il n'y a rien à décider au cas par cas
 
+## Amélioration du son d'une prise
+
+Un téléphone ou un micro posé dans la salle donne une prise trop faible, ou saturée et
+plus forte que les autres, étouffée par le grave de la pièce, avec du grondement et des
+écarts de volume qu'on rattrape au bouton en écoutant. L'amélioration remet le son à un niveau d'écoute commun, sans le dénaturer.
+
+- **Proposée, jamais imposée.** Sur `/recording/[id]`, là où l'on arrive juste après un
+  envoi ou un enregistrement, la mesure se charge après la page (quelques secondes la
+  première fois, gardée ensuite dans `recordings.audio_analysis`). Si elle relève un
+  défaut que la chaîne corrige, un bandeau sous le lecteur le dit (« Son faible : il faut
+  monter le volume pour l'entendre ») avec « Améliorer le son ». Sinon, un simple lien
+  discret, pour qui veut quand même essayer
+- **La mesure** (EBU R128, `ebur128`) : loudness intégrée, écarts de volume (LRA), crête
+  vraie, et l'**équilibre aigus / grave** — énergie de la présence (2–6 kHz) et des aigus
+  (au-dessus de 6 kHz), chacune moins celle du bas-médium (150–500 Hz). Défauts : son
+  faible (sous −22 LUFS), très fort (au-dessus de −12), grands écarts (LRA > 14 LU),
+  **son étouffé** (présence sous −11 dB **et** aigus sous −21 dB : le grave de la salle
+  domine — c'est la pièce qui l'imprime, téléphone comme micro à condensateur). La
+  présence seule ne suffit pas : un mix de groupe aux cymbales brillantes a souvent la
+  présence creuse sans être étouffé. Un son étouffé est proposé
+  même à bon volume. Une crête au-dessus de 0 dBTP signale une **saturation à
+  l'enregistrement**, que l'écran dit ne pas réparer — elle ne suffit pas à proposer
+  l'amélioration. Sous −50 LUFS, rien à améliorer : le gain ferait un souffle
+- **La chaîne**, dans l'ordre : gain d'entrée (amène le son à −20 LUFS, niveau de travail
+  du compresseur), coupe-bas 35 Hz (le grondement, sans mordre sur le mi grave d'une basse),
+  égalisation dosée par l'équilibre aigus / grave, compression douce (1,5:1 à 2,5:1 selon
+  les écarts de volume mesurés), normalisation à **−16 LUFS**, limiteur à −1,5 dBFS
+  (`src/lib/audio-enhance.ts`)
+- **L'égalisation** à plein dosage : +2 dB à 90 Hz, −4 dB à 280 Hz, +3 dB à 3 kHz, +3 dB
+  au-dessus de 7 kHz. Rien au-dessus de −10 dB d'équilibre ; dosage croissant jusqu'au
+  plein à −13 dB, jamais au-delà. **Calibrée à l'oreille** sur deux prises de répétition
+  piano acoustique et voix, dans un même local, l'une au téléphone, l'autre au micro à
+  condensateur (−14,4 et −13,5 dB), écoutées au même volume : ce dosage sonnait juste sur
+  les deux, le double devenait criard. Un morceau de groupe déjà masterisé (présence
+  −12,4 dB, mais aigus −16,7 dB) sonnait mieux **sans** égalisation, avec la compression :
+  c'est lui qui fixe la condition sur les aigus. Une seule salle et deux formations pour
+  l'instant : les seuils sont à revoir sur d'autres prises
+- **Pas de correction du grave** : sur ce même morceau, qui semblait trop chargé en grave,
+  l'alléger de 4 dB l'a trop atténué à l'écoute. Ni de correction d'un son trop brillant Un son trop brillant n'est pas corrigé — aucune prise pour le
+  calibrer
+- **Deux passes** : la première mesure la loudness en sortie de compresseur, la seconde
+  applique le gain fixe qui l'amène à la cible. Pas de `loudnorm` dynamique, qui pomperait
+  sur un live
+- **Rien ne décale le temps** — filtres IIR, compresseur sans anticipation, limiteur au
+  retard compensé (`latency`), vérifié sur des impulsions : un commentaire ancré à 1:23
+  reste sur la même note, et la durée ne change pas
+- **Réglages par prise** : le module propose les siens, l'oreille a le dernier mot. Dans la
+  fenêtre, **Égalisation** (Aucune / Douce / Franche — douce = moitié de franche) et
+  **Compression** (Oui / Non), le choix du module marqué « proposé ». Les seuils ne
+  décident que de la proposition : une prise qui les déjoue se corrige là, sans toucher
+  aux autres — pas de seuils réglables à l'échelle du groupe. L'aperçu est lié à ses
+  réglages (gardés à côté de lui) : en changer demande de le refaire avant de comparer ou
+  de garder. Les réglages gardés restent sur la prise (`recordings.enhancement`) ; pour en
+  essayer d'autres, on revient d'abord à l'original
+- **D'une prise à l'autre de la session** : même salle, même micro, souvent mêmes
+  réglages. Sur une prise pas encore améliorée, la fenêtre reprend ceux de la **dernière
+  prise améliorée de la session** plutôt que la proposition du module, le dit (« Repris de
+  « Sunny », prise 3 »), et offre de revenir à la proposition. Une prise améliorée propose
+  en plus **« Appliquer à ces N prises »** : ses réglages, sur les autres prises de la
+  session pas encore améliorées — jamais celles qu'on a déjà réglées. Une requête par
+  prise, l'une après l'autre, la progression à l'écran (fenêtre gardée ouverte), les
+  échecs nommés. Seuls l'égalisation et la compression se reprennent : gain et taux de
+  compression suivent la mesure de chaque prise. Chacune se rétablit ensuite à part
+- **Écouter avant de décider** : « Préparer la version améliorée » rend un aperçu (quelques
+  secondes pour un morceau) **hors d'`AUDIO_DIR`**, dans le répertoire temporaire —
+  personne ne l'a encore gardé. Puis une écoute comparée **Original / Amélioré** sur un
+  seul `<audio>` : basculer reprend au même endroit. L'écran rappelle que la version la
+  plus forte paraît souvent la meilleure. Un aperçu ni gardé ni écarté est balayé au bout
+  d'un jour
+- **« Garder la version améliorée »** : elle prend la place de `{id}.mp3` — c'est elle que
+  jouent la barre du bas, les playlists, les liens d'écoute — et l'original passe à côté,
+  `{id}.original.mp3`. Renommages atomiques dans la transaction ; la forme d'onde en cache
+  est refaite. Sous le lecteur : « Son amélioré · Comparer avec l'original »
+- **Réversible** : « Revenir à l'original » le remet en place et efface la version
+  améliorée, qui se refait en quelques secondes. Pas de confirmation : rien ne se perd
+- **Tout membre** du groupe, comme la note d'une prise : un geste de travail sur le son
+  commun, et il se défait. L'écran dit qui l'a fait et quand. Pas de notification
+- La source est le **mp3 stocké** : le fichier déposé n'est pas conservé. Une génération
+  de compression de plus à 192 kbps, inaudible face à ce que la chaîne corrige
+- L'original compte dans le **volume du groupe** ; il part avec la prise, la session ou le
+  groupe (`removeRecordingFiles`). `file_hash` reste l'empreinte du fichier déposé : la
+  détection de doublon n'est pas affectée
+- Pas sur une prise vidéo seule, ni sur un enregistrement perso (pour l'instant)
+
 ## Morceau absent du référentiel, et morceaux « À nommer »
 
 Ce qu'on vient d'enregistrer ne correspond pas toujours à un morceau déjà créé — une
