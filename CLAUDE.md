@@ -203,6 +203,10 @@ dans docs/features.md.
   l'amélioration du son d'une prise (loudness, et égalisation dosée sur l'équilibre aigus /
   grave) existent — voir
   docs/features.md. Pas d'amélioration sur un enregistrement perso
+- Curseur continu pour l'égalisation ou la compression de l'amélioration du son : écarté
+  pour l'instant. Les paliers (aucune / douce / franche, compression oui / non) suivent ce
+  que l'oreille distingue, et sans écoute en direct (Web Audio) chaque position coûterait
+  un rendu. À reconsidérer si l'on hésite souvent entre « douce » et « franche »
 - Score de confiance par coupure, et seuil de silence déduit du bruit de fond : différés
   volontairement, ils se règlent sur des fichiers réels et non a priori
 - Waveform zoomable avec marqueurs déplaçables : la retouche des bornes se fait au clavier
