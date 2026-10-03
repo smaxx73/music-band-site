@@ -13,6 +13,8 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.5.0] — 2026-10-03
+
 Migration à appliquer : `045_recording_enhancement.sql`.
 
 - Amélioration du son d'une prise : coupe-bas léger, égalisation, compression douce,
