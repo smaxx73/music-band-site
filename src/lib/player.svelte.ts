@@ -9,6 +9,7 @@
  */
 
 import { untrack } from 'svelte'
+import { reconnectAudio } from '$lib/audio-reconnect'
 
 export type PlayerTrack = {
 	recordingId: number
@@ -24,6 +25,7 @@ export function audioUrl(recordingId: number): string {
 }
 
 class SharedPlayer {
+	#reconnect: ReturnType<typeof reconnectAudio> | null = null
 	track = $state<PlayerTrack | null>(null)
 	media = $state<HTMLAudioElement | null>(null)
 	isPlaying = $state(false)
@@ -37,6 +39,14 @@ class SharedPlayer {
 	// Nombre de waveforms montées sur le média partagé. Tant qu'il y en a une, la barre
 	// du bas reste masquée : elle ferait doublon avec les contrôles déjà à l'écran.
 	viewCount = $state(0)
+
+	bindMedia(media: HTMLAudioElement | null) {
+		this.#reconnect?.destroy()
+		this.#reconnect = media ? reconnectAudio(media) : null
+		this.media = media
+		const track = untrack(() => this.track)
+		if (media && track) media.src = audioUrl(track.recordingId)
+	}
 
 	/**
 	 * Charge une prise. Si c'est déjà la piste en cours, le `src` n'est pas retouché :
@@ -83,6 +93,7 @@ class SharedPlayer {
 		this.track = next
 
 		if (isNew) {
+			this.#reconnect?.reset()
 			this.currentTime = 0
 			this.duration = next.durationS ?? 0
 			if (this.media) this.media.src = audioUrl(next.recordingId)
@@ -101,6 +112,8 @@ class SharedPlayer {
 		if (!media || this.track?.recordingId !== recordingId) return
 		const at = media.currentTime
 		const wasPlaying = !media.paused
+		this.#reconnect?.stop()
+		if (wasPlaying) this.#reconnect?.requestPlay()
 		media.addEventListener(
 			'loadedmetadata',
 			() => {
@@ -113,10 +126,12 @@ class SharedPlayer {
 	}
 
 	play() {
+		this.#reconnect?.requestPlay()
 		this.media?.play().catch(() => {})
 	}
 
 	pause() {
+		this.#reconnect?.stop()
 		this.media?.pause()
 	}
 
@@ -139,6 +154,7 @@ class SharedPlayer {
 	/** Ferme la barre et libère le média. */
 	close() {
 		this.pause()
+		this.#reconnect?.reset()
 		this.track = null
 		this.queue = []
 		this.isPlaying = false

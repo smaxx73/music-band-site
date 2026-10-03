@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte'
 	import Icon from '$lib/components/Icon.svelte'
+	import { reconnectAudio } from '$lib/audio-reconnect'
 
 	type AudioTrack = {
 		id: number | string
@@ -79,6 +80,7 @@
 	let lastToggleToken = $state<number | null>(null)
 	let pendingAutoplay = $state(false)
 	let removeMediaDurationListener: (() => void) | null = null
+	let reconnect: ReturnType<typeof reconnectAudio> | null = null
 
 	function emitState() {
 		onStateChange({ currentTime, duration, isPlaying, ready })
@@ -184,6 +186,7 @@
 
 			if (pendingAutoplay) {
 				pendingAutoplay = false
+				reconnect?.requestPlay()
 				instance.play()
 			}
 		})
@@ -210,6 +213,7 @@
 		})
 
 		wavesurfer = instance
+		if (!media) reconnect = reconnectAudio(instance.getMediaElement())
 		removeMediaDurationListener = observeMediaDuration(media ?? instance.getMediaElement())
 		currentTrackId = track.id
 		mounted = true
@@ -226,6 +230,7 @@
 
 	function loadTrack(nextTrack: AudioTrack) {
 		if (!wavesurfer) return
+		reconnect?.reset()
 
 		ready = false
 		isPlaying = false
@@ -271,6 +276,7 @@
 
 	onDestroy(() => {
 		removeMediaDurationListener?.()
+		reconnect?.destroy()
 		wavesurfer?.destroy()
 	})
 

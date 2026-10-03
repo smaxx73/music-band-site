@@ -8,8 +8,8 @@
 	// L'élément est monté en permanence, même sans piste : une waveform de page peut
 	// s'y attacher dès son montage, sans dépendre de l'ordre de rendu.
 	$effect(() => {
-		player.media = el
-		return () => { player.media = null }
+		player.bindMedia(el)
+		return () => { player.bindMedia(null) }
 	})
 
 	// Masquée tant qu'une waveform de la page pilote déjà le même média.
