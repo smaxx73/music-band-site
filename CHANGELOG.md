@@ -13,6 +13,21 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.5.3] — 2026-10-03
+
+Aucune migration à appliquer.
+
+- Tableau de bord : « Activité récente » se bascule entre **Nouveautés** et
+  **Commentaires** (les 5 derniers, seuls). Le choix est gardé dans le navigateur. Un
+  commentaire mène désormais au commentaire lui-même, à son repère s'il en a un
+- Fil d'actualité : vues **Tout**, **Nouveautés** et **Commentaires** (`/fil?vue=…`). Les
+  commentaires y entrent, regroupés par cible et par jour en une carte qui cite les 5
+  derniers et propose « Répondre »
+- Commentaire d'une prise ou d'une publication : **général par défaut**, l'ancrage se
+  choisit entre « ⏱ À 1:23 » et « Général » sous la zone de saisie. Le repère se fige à la
+  première frappe — « Épingler à … » le recale si la lecture s'en éloigne — et se montre
+  en pointillé sur la forme d'onde ou la barre vidéo pendant l'écriture
+
 ## [1.5.2] — 2026-10-03
 
 Aucune migration à appliquer.
