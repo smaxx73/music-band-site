@@ -8,6 +8,12 @@ const config = {
 	},
 	kit: {
 		adapter: adapter(),
+		// Un onglet reste ouvert des jours (téléphone en répétition) : il interroge
+		// `_app/version.json` pour savoir qu'un déploiement l'a rendu obsolète, et le
+		// layout propose alors d'actualiser. Le nom de version est l'horodatage du build.
+		version: {
+			pollInterval: 5 * 60 * 1000
+		},
 		env: {
 			publicPrefix: 'PUBLIC_'
 		}

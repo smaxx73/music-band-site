@@ -1,7 +1,7 @@
 <script lang="ts">
 	import '../app.css'
 	import type { LayoutData } from './$types'
-	import { page } from '$app/state'
+	import { page, updated } from '$app/state'
 	import { onMount } from 'svelte'
 	import { isAdmin } from '$lib/types'
 	import MiniPlayer from '$lib/components/MiniPlayer.svelte'
@@ -17,6 +17,10 @@
 
 	// Fermeture locale ; une nouvelle annonce du serveur réaffiche le bandeau.
 	let groupSwitchNotice = $derived(data.group_switched_to)
+
+	// Fermé, le bandeau de mise à jour ne revient pas dans cet onglet : actualiser coupe
+	// la lecture en cours et un formulaire entamé, c'est au membre de choisir son moment.
+	let updateNoticeDismissed = $state(false)
 
 	// Le cookie du groupe est commun aux onglets. Au retour dans cet onglet, on
 	// recharge l'ensemble de la page si un autre onglet l'a changé.
@@ -36,11 +40,18 @@
 				checking = false
 			}
 		}
+		// Un onglet en arrière-plan voit ses minuteries ralenties, voire suspendues sur
+		// téléphone : le retour dans l'onglet vérifie la version sans attendre le prochain tour.
+		function checkUpdate() {
+			if (document.visibilityState === 'visible' && !updated.current) updated.check()
+		}
 		window.addEventListener('focus', checkActiveGroup)
 		document.addEventListener('visibilitychange', checkActiveGroup)
+		document.addEventListener('visibilitychange', checkUpdate)
 		return () => {
 			window.removeEventListener('focus', checkActiveGroup)
 			document.removeEventListener('visibilitychange', checkActiveGroup)
+			document.removeEventListener('visibilitychange', checkUpdate)
 		}
 	})
 
@@ -219,14 +230,33 @@
 			</nav>
 
 			<div class="app-content">
+				{#if updated.current && !updateNoticeDismissed}
+					<!-- L'application chargée dans l'onglet n'est plus celle du serveur : ses
+					     liens peuvent viser des fichiers qui n'existent plus. -->
+					<div class="app-banner" role="status">
+						<span>
+							Une nouvelle version de BandStash est en ligne.
+							<button type="button" class="btn-link" onclick={() => location.reload()}>Actualiser la page</button>
+						</span>
+						<button
+							type="button"
+							class="app-banner-close"
+							aria-label="Fermer le bandeau de mise à jour"
+							title="Fermer"
+							onclick={() => (updateNoticeDismissed = true)}
+						>
+							<Icon name="close" size="1rem" />
+						</button>
+					</div>
+				{/if}
 				{#if groupSwitchNotice}
 					<!-- Un lien reçu visait un autre groupe : la bascule a déjà eu lieu, mais
 					     elle vaut pour tous les onglets — la taire serait plus déroutant. -->
-					<div class="group-switch-banner">
+					<div class="app-banner">
 						<span>Groupe actif basculé sur <strong>{groupSwitchNotice}</strong> pour ouvrir ce lien.</span>
 						<button
 							type="button"
-							class="group-switch-close"
+							class="app-banner-close"
 							aria-label="Fermer le bandeau de changement de groupe"
 							title="Fermer"
 							onclick={() => (groupSwitchNotice = null)}
@@ -481,8 +511,8 @@
 	/* ─── Barre d'onglets (téléphone) ────────────── */
 	.tab-bar { display: none; }
 
-	/* ─── Bascule de groupe sur lien entrant ─────── */
-	.group-switch-banner {
+	/* ─── Bandeaux d'information (bascule de groupe, mise à jour) ─ */
+	.app-banner {
 		display: flex;
 		align-items: center;
 		gap: 0.5rem;
@@ -494,10 +524,10 @@
 		color: var(--color-text-muted);
 	}
 
-	.group-switch-banner strong { color: var(--color-text); }
-	.group-switch-banner > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+	.app-banner strong { color: var(--color-text); }
+	.app-banner > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 
-	.group-switch-close {
+	.app-banner-close {
 		display: flex;
 		align-items: center;
 		justify-content: center;
@@ -512,8 +542,8 @@
 		cursor: pointer;
 	}
 
-	.group-switch-close:hover { background: var(--color-border); color: var(--color-text); }
-	.group-switch-close:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+	.app-banner-close:hover { background: var(--color-border); color: var(--color-text); }
+	.app-banner-close:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 
 	/* ─── No-group banner ────────────────────────── */
 	.no-group-banner {

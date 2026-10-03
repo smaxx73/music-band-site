@@ -13,6 +13,13 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.5.2] — 2026-10-03
+
+Aucune migration à appliquer.
+
+- Après un déploiement, un bandeau discret propose d'actualiser la page aux onglets restés
+  ouverts sur l'ancienne version (vérifiée toutes les 5 min et au retour dans l'onglet)
+
 ## [1.5.1] — 2026-10-03
 
 Aucune migration à appliquer.

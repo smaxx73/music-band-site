@@ -877,6 +877,24 @@ Trois mises en page, toutes dans `src/routes/+layout.svelte` :
   position de défilement comprise. Ouvertes directement : la session demandée, sinon le
   tableau de bord
 
+### Nouvelle version en ligne
+
+Un onglet reste ouvert des jours — le téléphone d'une répétition à l'autre. Après un
+déploiement, l'application qu'il a chargée n'est plus celle du serveur, et une navigation
+peut viser des fichiers qui n'existent plus.
+
+- L'onglet interroge `/_app/version.json` toutes les 5 min (`kit.version.pollInterval`,
+  `svelte.config.js`) et au retour dans l'onglet, où les minuteries ont pu être suspendues.
+  La version est l'horodatage du build : tout redéploiement compte, même sans changement
+  du numéro affiché
+- Une version différente fait paraître un **bandeau discret** en tête du contenu, dans le
+  style de celui de la bascule de groupe : « Une nouvelle version de BandStash est en
+  ligne. Actualiser la page »
+- **Jamais de rechargement imposé** : il couperait la lecture en cours, un enregistrement
+  ou un formulaire entamé. Le bandeau se ferme, et ne revient pas dans cet onglet. SvelteKit
+  recharge de lui-même une navigation qui échouerait faute des anciens fichiers
+- Rien en développement : la vérification n'existe qu'en build
+
 ## Partager un lien vers du contenu
 
 Toutes les pages de contenu sont des permaliens (`/recording/12`, `/sessions/4`, `/songs/7`,
