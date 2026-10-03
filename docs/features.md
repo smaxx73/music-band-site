@@ -1396,10 +1396,23 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
   (c'est la cible du « + Publier » du tableau de bord et de « Publier dans le groupe »
   du menu + Ajouter, y compris depuis le fil lui-même)
 - **Ce qui y figure**, à sa création : publications, sessions, prises, setlists,
-  playlists. Pas les commentaires : ils se lisent **sous** ce qu'ils discutent
-- **Strictement chronologique.** Un commentaire ne fait pas remonter sa cible : le flux
-  « Activité récente » du tableau de bord signale déjà les nouveaux commentaires, et un
-  fil qui se réordonne se relit mal dans un petit groupe
+  playlists — les **nouveautés** — et les **commentaires**, de toutes les cibles (prise,
+  setlist, publication)
+- **Trois vues**, en tête de page : **Tout** (par défaut), **Nouveautés**, **Commentaires**
+  (`?vue=nouveautes`, `?vue=commentaires`). Dans l'URL : la vue est rendue par le serveur,
+  se partage, et « Tous → » de la vue Commentaires du tableau de bord y mène. Basculer ne
+  fait ni défiler ni empiler l'historique. Une vue inconnue retombe sur Tout
+- **Strictement chronologique.** Un commentaire ne fait pas remonter sa cible : il est son
+  propre élément, daté de son écriture. Un fil qui se réordonne se relit mal dans un petit
+  groupe
+- **Les commentaires sont regroupés**, comme les prises : ceux d'un même jour sur une même
+  cible forment une carte (« Marc et Julie ont commenté », « sur Sunny — prise 3 · … »).
+  Une discussion de dix réponses est une nouvelle, pas dix. La carte cite les 5 derniers
+  dans l'ordre de la discussion, chacun menant à lui-même (`#comment-<id>`, au repère
+  `?t=` s'il en a un), puis « Répondre → » (`#commenter`). Une **citation**, pas la
+  discussion : ni pouces ni saisie sur la carte, on réagit là où elle vit, avec le lecteur
+  pour les repères. Ceux d'une publication ou d'une setlist se lisent aussi sous leur carte
+  quand elle est dans la page — la vue Nouveautés évite ce doublon
 - **Les prises sont regroupées** : celles qu'un même membre dépose le même jour dans une
   même session forment une seule carte (« Marc a ajouté 6 prises »). Une répétition
   découpée en douze prises est une nouvelle, pas douze. La carte en montre 5 et renvoie
@@ -1640,7 +1653,8 @@ la prochaine date, puis seulement l'activité.
   de secours de ce navigateur (→ `/record`), des découpes en attente (→ `/upload`, ou
   `/perso` sans groupe actif), des morceaux « À nommer » (→ `/songs?filtre=a_nommer`). Pas
   les mentions : la cloche les signale déjà, et les marque lues à l'ouverture
-- **« Activité récente »**, en deux vues, « Tout le fil → » à côté du titre :
+- **« Activité récente »**, en deux vues, « Tout le fil → » à côté du titre (« Tous → »
+  vers `/fil?vue=commentaires` dans la vue Commentaires) :
   - **Nouveautés** (par défaut) : les **3** dernières entrées. Sessions créées, prises
     ajoutées (regroupées par membre, session et jour, comme dans `/fil`), playlists créées
     ou modifiées, setlists créées, publications, triés par horodatage de création, de

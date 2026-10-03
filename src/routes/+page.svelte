@@ -513,7 +513,11 @@
 				<section aria-labelledby="dash-activity">
 					<div class="section-header">
 						<h2 id="dash-activity">Activité récente</h2>
-						<a href="/fil" class="link-more">Tout le fil →</a>
+						{#if activityView === 'comments'}
+							<a href="/fil?vue=commentaires" class="link-more">Tous →</a>
+						{:else}
+							<a href="/fil" class="link-more">Tout le fil →</a>
+						{/if}
 					</div>
 					<div class="activity-toggle" role="group" aria-label="Activité à afficher">
 						<button

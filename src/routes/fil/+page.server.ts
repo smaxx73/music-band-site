@@ -1,7 +1,7 @@
 import type { PageServerLoad } from './$types'
 import { error, redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
-import { loadFeed } from '$lib/server/feed'
+import { loadFeed, parseFeedView } from '$lib/server/feed'
 import { listPersonalRecordings } from '$lib/server/personal'
 import { loginRedirect } from '$lib/redirect'
 
@@ -9,9 +9,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) redirect(302, loginRedirect(url))
 	const groupId = locals.user.current_group_id
 	if (!groupId) error(403, 'Aucun groupe actif')
+	// Une vue inconnue (lien abîmé) retombe sur tout le fil plutôt que sur une erreur.
+	const parsed = parseFeedView(url.searchParams.get('vue'))
+	const view = parsed === 'invalid' ? 'all' : parsed
 
 	const [feed, personal, groupMembers] = await Promise.all([
-		loadFeed(groupId, locals.user.id, null),
+		loadFeed(groupId, locals.user.id, null, view),
 		// Ce que « Publier » propose de reprendre de l'espace perso.
 		listPersonalRecordings(locals.user.id),
 		// Pour les @mentions des commentaires écrits depuis le fil.
@@ -32,5 +35,5 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		has_audio: r.file_path !== null
 	}))
 
-	return { feed, groupMembers, groupName, publishChoices }
+	return { feed, view, groupMembers, groupName, publishChoices }
 }

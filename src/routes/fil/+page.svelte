@@ -16,6 +16,27 @@
 	const members = $derived(data.groupMembers as unknown as MentionMember[])
 	const publishChoices = $derived(data.publishChoices as unknown as PublishChoice[])
 
+	// ─── Vue ───────────────────────────────────────────────────────────────
+	// Dans l'URL (`?vue=`) : rendue par le serveur, partageable, et « Commentaires » du
+	// tableau de bord y mène directement.
+	const VIEWS = [
+		{ id: 'all', param: null, label: 'Tout' },
+		{ id: 'news', param: 'nouveautes', label: 'Nouveautés' },
+		{ id: 'comments', param: 'commentaires', label: 'Commentaires' },
+	] as const
+	const view = $derived(data.view as (typeof VIEWS)[number]['id'])
+	const viewParam = $derived(VIEWS.find((v) => v.id === view)?.param ?? null)
+
+	function viewHref(param: string | null) {
+		return param ? `/fil?vue=${param}` : '/fil'
+	}
+
+	const emptyText = $derived(
+		view === 'comments'
+			? 'Aucun commentaire pour l’instant. Ceux des prises, des setlists et des publications apparaîtront ici.'
+			: 'Rien pour l’instant. Une session, une prise ou une publication apparaîtra ici.'
+	)
+
 	// ─── Publier ───────────────────────────────────────────────────────────
 	// Sur place : on publie là où la publication va apparaître, sans passer par l'espace perso.
 	let publishOpen = $state(false)
@@ -54,6 +75,7 @@
 		try {
 			const params = new URLSearchParams({ before: next })
 			if (data.user?.current_group_id) params.set('group_id', String(data.user.current_group_id))
+			if (viewParam) params.set('vue', viewParam)
 			const res = await fetch(`/api/feed?${params}`)
 			const json = await res.json().catch(() => ({}))
 			// Un autre onglet a changé de groupe : la suite serait celle d'un autre fil.
@@ -101,8 +123,21 @@
 		<button class="btn btn-primary" onclick={() => (publishOpen = true)}><Icon name="plus" /> Publier</button>
 	</div>
 
+	<!-- Des liens, pas des boutons : chaque vue a son adresse. Ni défilement ni entrée
+	     d'historique : on bascule une vue, on ne change pas de page. -->
+	<nav class="view-switch" aria-label="Contenu du fil">
+		{#each VIEWS as v (v.id)}
+			<a
+				href={viewHref(v.param)}
+				aria-current={view === v.id ? 'page' : undefined}
+				data-sveltekit-noscroll
+				data-sveltekit-replacestate
+			>{v.label}</a>
+		{/each}
+	</nav>
+
 	{#if items.length === 0}
-		<p class="empty">Rien pour l'instant. Une session, une prise ou une publication apparaîtra ici.</p>
+		<p class="empty">{emptyText}</p>
 	{:else}
 		<div class="feed" bind:this={feedEl} onplaycapture={onFeedPlay}>
 			{#each items as item (item.key)}
@@ -134,6 +169,31 @@
 </main>
 
 <style>
+	.view-switch {
+		display: inline-flex;
+		margin-bottom: var(--space-4);
+		border: 1px solid var(--color-border-light);
+		border-radius: var(--radius-pill);
+		overflow: hidden;
+	}
+
+	.view-switch a {
+		display: inline-flex;
+		align-items: center;
+		min-height: 32px;
+		padding: 0.25rem 0.85rem;
+		font-size: var(--text-sm);
+		color: var(--color-text-secondary);
+		text-decoration: none;
+	}
+
+	.view-switch a:hover { background: var(--color-bg-muted); }
+
+	.view-switch a[aria-current='page'] {
+		background: var(--color-accent-light);
+		color: var(--color-accent-dark);
+		font-weight: 600;
+	}
 
 	.feed { display: flex; flex-direction: column; gap: var(--space-4); }
 

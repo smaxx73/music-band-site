@@ -273,9 +273,12 @@ la suggestion est déjà reliée à un morceau. `POST /api/posts/[id]/reactions`
 pose ou remplace le pouce de l'utilisateur, `DELETE` le retire ; tout membre, les deux retournent
 les compteurs, les votants et `my_reaction`. Passer par `src/lib/server/posts.ts`.
 
-Le **fil d'actualité** (`GET /api/feed?before=<curseur>&group_id=`) rend la page suivante du fil
+Le **fil d'actualité** (`GET /api/feed?before=<curseur>&group_id=&vue=`) rend la page suivante du fil
 du groupe actif : `{ items, next }`, `next` valant `null` en fin de fil. Le curseur est celui que
-la page précédente a rendu, et rien d'autre (`400` sinon) ; `group_id` suit la règle des
+la page précédente a rendu, et rien d'autre (`400` sinon) ; `vue` (`nouveautes`, `commentaires`,
+absent pour tout) doit être celle de la page — `400` si inconnue. Les commentaires y sont des
+cartes `kind: 'comments'`, regroupés par cible et par jour, la cible relue en base pour vérifier
+le groupe ; `group_id` suit la règle des
 notifications (`409` si le groupe actif a changé). Passer par `src/lib/server/feed.ts`.
 C'est la seule liste paginée de l'application — par curseur, pas par `offset` : le fil bouge
 pendant qu'on le lit.

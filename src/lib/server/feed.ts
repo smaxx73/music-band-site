@@ -2,7 +2,7 @@ import sql from './db'
 import { commentsWithReactions } from './comments'
 import { listPostsByIds, postReactions } from './posts'
 import { listSetlistsByIds } from './setlists'
-import type { FeedItem, FeedPage, FeedRecording, ReactionSummary } from '$lib/types'
+import type { FeedComment, FeedCommentTarget, FeedItem, FeedPage, FeedRecording, ReactionSummary } from '$lib/types'
 
 /**
  * Fil d'actualité du groupe actif : tout ce qui y a été créé, du plus récent au plus
@@ -13,18 +13,37 @@ import type { FeedItem, FeedPage, FeedRecording, ReactionSummary } from '$lib/ty
  * jour dans une même session forment une seule carte. Une répétition découpée en douze
  * prises est une nouvelle, pas douze.
  *
- * Les commentaires ne sont pas des éléments du fil : ils se lisent sous ce qu'ils
- * discutent, et un commentaire ne fait pas remonter sa cible — le flux « Activité
- * récente » du tableau de bord les signale déjà.
+ * Les commentaires y entrent de la même façon : ceux d'un même jour sur une même cible
+ * (prise, setlist, publication) forment une carte, pour qu'une discussion ne noie pas le
+ * reste. Un commentaire ne fait jamais remonter sa cible : il est son propre élément.
+ * La vue choisie (`FeedView`) retient tout, les nouveautés seules ou les commentaires seuls.
  */
 
 const PAGE_SIZE = 20
+
+export type FeedView = 'all' | 'news' | 'comments'
+
+const NEWS_KINDS: FeedItem['kind'][] = ['post', 'session', 'recordings', 'setlist', 'playlist']
+const VIEW_KINDS: Record<FeedView, FeedItem['kind'][]> = {
+	all: [...NEWS_KINDS, 'comments'],
+	news: NEWS_KINDS,
+	comments: ['comments']
+}
+
+// Le paramètre d'URL est en français, comme les autres (`?publier`, `?filtre=`).
+const VIEW_PARAMS: Record<string, FeedView> = { nouveautes: 'news', commentaires: 'comments' }
+
+/** `?vue=` → vue du fil ; absent, c'est tout le fil. */
+export function parseFeedView(raw: string | null): FeedView | 'invalid' {
+	if (raw === null || raw === '') return 'all'
+	return VIEW_PARAMS[raw] ?? 'invalid'
+}
 
 type Cursor = { ts: string; key: string }
 
 // Le curseur voyage dans l'URL : il n'est accepté que sous la forme qu'on lui a donnée.
 const CURSOR_TS = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d{1,6})?[+-]\d{2}(:\d{2})?$/
-const CURSOR_KEY = /^(post|session|recordings|setlist|playlist):\d+$/
+const CURSOR_KEY = /^(post|session|recordings|setlist|playlist|comments):\d+$/
 
 export function parseFeedCursor(raw: string | null): Cursor | null | 'invalid' {
 	if (!raw) return null
@@ -39,7 +58,10 @@ type FeedRow = { kind: FeedItem['kind']; ref_id: number; ids: number[] | null; t
 
 const NO_REACTION: ReactionSummary = { up_count: 0, down_count: 0, up_reactors: [], down_reactors: [], my_reaction: null }
 
-export async function loadFeed(groupId: number, userId: number, before: Cursor | null): Promise<FeedPage> {
+export async function loadFeed(
+	groupId: number, userId: number, before: Cursor | null, view: FeedView = 'all'
+): Promise<FeedPage> {
+	const kinds = VIEW_KINDS[view]
 	// L'horodatage repasse en texte : un Date JavaScript perdrait les microsecondes, et le
 	// curseur ne retrouverait plus sa ligne.
 	const rows = await sql<FeedRow[]>`
@@ -61,15 +83,27 @@ export async function loadFeed(groupId: number, userId: number, before: Cursor |
 			UNION ALL
 			SELECT 'playlist', pl.id, NULL, pl.created_at
 			FROM playlists pl WHERE pl.group_id = ${groupId} AND pl.created_at IS NOT NULL
+			UNION ALL
+			-- C'est la cible qui dit à quel groupe appartient un commentaire.
+			SELECT 'comments', MIN(c.id), ARRAY_AGG(c.id ORDER BY c.created_at, c.id), MAX(c.created_at)
+			FROM comments c
+			LEFT JOIN recordings r ON r.id = c.recording_id
+			LEFT JOIN sessions s   ON s.id = r.session_id
+			LEFT JOIN setlists sl  ON sl.id = c.setlist_id
+			LEFT JOIN posts p      ON p.id = c.post_id
+			WHERE (s.group_id = ${groupId} OR sl.group_id = ${groupId} OR p.group_id = ${groupId})
+			  AND c.created_at IS NOT NULL
+			GROUP BY c.recording_id, c.setlist_id, c.post_id, date_trunc('day', c.created_at)
 		)
 		SELECT
 			kind, ref_id, ids, ts::text AS ts,
 			to_char(ts AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS at,
 			(kind || ':' || ref_id) COLLATE "C" AS key
 		FROM feed
+		WHERE kind = ANY(${kinds})
 		${before
-			? sql`WHERE ts < ${before.ts}::timestamptz
-				OR (ts = ${before.ts}::timestamptz AND (kind || ':' || ref_id) COLLATE "C" < ${before.key})`
+			? sql`AND (ts < ${before.ts}::timestamptz
+				OR (ts = ${before.ts}::timestamptz AND (kind || ':' || ref_id) COLLATE "C" < ${before.key}))`
 			: sql``}
 		ORDER BY ts DESC, key DESC
 		LIMIT ${PAGE_SIZE + 1}
@@ -83,8 +117,9 @@ export async function loadFeed(groupId: number, userId: number, before: Cursor |
 	const postIds = idsOf('post')
 	const setlistIds = idsOf('setlist')
 	const recordingIds = page.filter((r) => r.kind === 'recordings').flatMap((r) => r.ids ?? [])
+	const commentIds = page.filter((r) => r.kind === 'comments').flatMap((r) => r.ids ?? [])
 
-	const [posts, reactions, postComments, sessions, recordings, setlists, setlistComments, playlists] =
+	const [posts, reactions, postComments, sessions, recordings, setlists, setlistComments, playlists, comments] =
 		await Promise.all([
 			listPostsByIds(postIds, groupId),
 			postReactions(postIds, userId),
@@ -95,12 +130,14 @@ export async function loadFeed(groupId: number, userId: number, before: Cursor |
 			loadRecordings(recordingIds, groupId),
 			listSetlistsByIds(setlistIds, groupId),
 			Promise.all(setlistIds.map((id) => commentsWithReactions({ kind: 'setlist', id }, userId))),
-			loadPlaylists(idsOf('playlist'), groupId)
+			loadPlaylists(idsOf('playlist'), groupId),
+			loadComments(commentIds, groupId)
 		])
 
 	const commentsByPost = new Map(postIds.map((id, i) => [id, postComments[i]]))
 	const commentsBySetlist = new Map(setlistIds.map((id, i) => [id, setlistComments[i]]))
 	const recordingById = new Map(recordings.map((r) => [r.id, r]))
+	const commentById = new Map(comments.map((c) => [c.id, c]))
 
 	const items: FeedItem[] = []
 	for (const row of page) {
@@ -155,6 +192,19 @@ export async function loadFeed(groupId: number, userId: number, before: Cursor |
 				if (!p) break
 				const { author, ...playlist } = p
 				items.push({ ...base, kind: 'playlist', author, playlist })
+				break
+			}
+			case 'comments': {
+				const batch = (row.ids ?? []).map((id) => commentById.get(id)).filter((c) => c !== undefined)
+				const first = batch[0]
+				if (!first) break
+				// Les plus récents d'abord dans l'en-tête : c'est qui vient de parler.
+				const authors = [...new Set(batch.map((c) => c.author).reverse())]
+				items.push({
+					...base, kind: 'comments', author: authors[0], authors,
+					target: commentTarget(first),
+					comments: batch.map(({ id, author, content, timestamp_s, at }) => ({ id, author, content, timestamp_s, at }))
+				})
 				break
 			}
 		}
@@ -223,5 +273,48 @@ function loadPlaylists(ids: number[], groupId: number) {
 		LEFT JOIN playlist_items pi ON pi.playlist_id = p.id
 		WHERE p.id = ANY(${ids}) AND p.group_id = ${groupId}
 		GROUP BY p.id
+	`
+}
+
+type CommentRow = FeedComment & {
+	recording_id: number | null; song_title: string | null; take: number | null
+	session_id: number | null; session_date: string | null; session_type: string | null; session_title: string | null
+	setlist_id: number | null; setlist_name: string | null
+	post_id: number | null; post_title: string | null
+}
+
+function commentTarget(c: CommentRow): FeedCommentTarget {
+	if (c.setlist_id !== null) return { kind: 'setlist', id: c.setlist_id, name: c.setlist_name ?? '' }
+	if (c.post_id !== null) return { kind: 'post', id: c.post_id, title: c.post_title ?? 'Publication' }
+	return {
+		kind: 'recording',
+		id: c.recording_id ?? 0,
+		song_title: c.song_title ?? '',
+		take: c.take ?? 0,
+		session: { id: c.session_id ?? 0, date: c.session_date ?? '', type: c.session_type ?? '', title: c.session_title }
+	}
+}
+
+function loadComments(ids: number[], groupId: number) {
+	if (ids.length === 0) return Promise.resolve([] as CommentRow[])
+	return sql<CommentRow[]>`
+		SELECT
+			c.id, COALESCE(u.display_name, c.author) AS author, c.content, c.timestamp_s,
+			to_char(c.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS at,
+			r.id AS recording_id, so.title AS song_title, r.take,
+			s.id AS session_id, s.date::text AS session_date, s.type AS session_type, s.title AS session_title,
+			sl.id AS setlist_id, sl.name AS setlist_name,
+			p.id AS post_id,
+			COALESCE(pr.title, p.youtube_title, p.song_title, 'Publication') AS post_title
+		FROM comments c
+		LEFT JOIN recordings r          ON r.id = c.recording_id
+		LEFT JOIN sessions s            ON s.id = r.session_id
+		LEFT JOIN songs so              ON so.id = r.song_id
+		LEFT JOIN setlists sl           ON sl.id = c.setlist_id
+		LEFT JOIN posts p               ON p.id = c.post_id
+		LEFT JOIN personal_recordings pr ON pr.id = p.personal_recording_id
+		LEFT JOIN users u               ON u.id = c.author_user_id
+		WHERE c.id = ANY(${ids})
+		  AND (s.group_id = ${groupId} OR sl.group_id = ${groupId} OR p.group_id = ${groupId})
 	`
 }

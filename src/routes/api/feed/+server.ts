@@ -1,8 +1,11 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
-import { loadFeed, parseFeedCursor } from '$lib/server/feed'
+import { loadFeed, parseFeedCursor, parseFeedView } from '$lib/server/feed'
 
-/** GET — page suivante du fil du groupe actif : `?before=<curseur>`, tel que rendu par la page précédente. */
+/**
+ * GET — page suivante du fil du groupe actif : `?before=<curseur>`, tel que rendu par la page
+ * précédente, et `?vue=` (`nouveautes`, `commentaires`, absent pour tout) — la même que celle-ci.
+ */
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
 	const groupId = locals.user.current_group_id
@@ -17,6 +20,8 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 
 	const before = parseFeedCursor(url.searchParams.get('before'))
 	if (before === 'invalid') return json({ error: 'Curseur invalide.' }, { status: 400 })
+	const view = parseFeedView(url.searchParams.get('vue'))
+	if (view === 'invalid') return json({ error: 'Vue inconnue.' }, { status: 400 })
 
-	return json(await loadFeed(groupId, locals.user.id, before))
+	return json(await loadFeed(groupId, locals.user.id, before, view))
 }

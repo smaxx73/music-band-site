@@ -8,12 +8,14 @@
 	import Icon from '$lib/components/Icon.svelte'
 	import type { MentionMember } from '$lib/components/MentionTextarea.svelte'
 	import { formatTimecode } from '$lib/youtube'
+	import { commentParts } from '$lib/comment-content'
 	import {
 		formatSetlistDuration,
 		personalAudioUrl,
 		postKindLabel,
 		postTitle,
 		sessionTypeLabel,
+		type FeedCommentTarget,
 		type FeedItem
 	} from '$lib/types'
 
@@ -22,6 +24,8 @@
 	/** Au-delà, une carte de prises renvoie à la session : elle annonce, elle ne liste pas tout. */
 	const RECORDINGS_SHOWN = 5
 	const SONG_PILLS_SHOWN = 8
+	/** Une carte de commentaires montre la fin de la discussion ; le reste se lit sur place. */
+	const COMMENTS_SHOWN = 5
 
 	const initials = $derived(
 		item.author
@@ -46,8 +50,37 @@
 			}
 			case 'setlist': return 'a créé une setlist'
 			case 'playlist': return 'a créé une playlist'
+			case 'comments': {
+				const n = item.comments.length
+				const verb = item.authors.length > 1 ? 'ont commenté' : 'a commenté'
+				return n > 1 && item.authors.length === 1 ? `${verb} ${n} fois` : verb
+			}
 		}
 	})
+
+	// « Marc », « Marc et Julie », « Marc, Julie et 2 autres » — le plus récent d'abord.
+	const authorLabel = $derived.by(() => {
+		if (item.kind !== 'comments') return item.author
+		const [a, b, c, ...rest] = item.authors
+		if (!b) return a
+		if (!c) return `${a} et ${b}`
+		if (rest.length === 0) return `${a}, ${b} et ${c}`
+		return `${a}, ${b} et ${rest.length + 1} autres`
+	})
+
+	function targetPath(target: FeedCommentTarget) {
+		switch (target.kind) {
+			case 'recording': return `/recording/${target.id}`
+			case 'setlist': return `/setlists/${target.id}`
+			case 'post': return `/posts/${target.id}`
+		}
+	}
+
+	// Sur le commentaire lui-même, au repère de la prise s'il en a un.
+	function commentHref(target: FeedCommentTarget, comment: { id: number; timestamp_s: number | null }) {
+		const t = comment.timestamp_s !== null ? `?t=${Math.floor(comment.timestamp_s)}` : ''
+		return `${targetPath(target)}${t}#comment-${comment.id}`
+	}
 
 	const href = $derived.by(() => {
 		switch (item.kind) {
@@ -56,6 +89,7 @@
 			case 'recordings': return `/sessions/${item.session.id}`
 			case 'setlist': return `/setlists/${item.setlist.id}`
 			case 'playlist': return `/playlists/${item.playlist.id}`
+			case 'comments': return targetPath(item.target)
 		}
 	})
 
@@ -92,7 +126,7 @@
 	<header class="card-head">
 		<span class="avatar" aria-hidden="true">{initials}</span>
 		<div class="head-text">
-			<p class="head-line"><strong>{item.author}</strong> {action}</p>
+			<p class="head-line"><strong>{authorLabel}</strong> {action}</p>
 			<a class="head-time" href={href} title={formatDateTimeFull(item.at)}>{formatDateTime(item.at)}</a>
 		</div>
 	</header>
@@ -217,6 +251,42 @@
 			<span class="muted">{playlist.item_count} prise{playlist.item_count > 1 ? 's' : ''}</span>
 		</a>
 		{#if playlist.description}<p class="message">{playlist.description}</p>{/if}
+
+	{:else if item.kind === 'comments'}
+		{@const target = item.target}
+		{@const hidden = item.comments.length - COMMENTS_SHOWN}
+		<p class="context">
+			{#if target.kind === 'recording'}
+				sur <a href="/recording/{target.id}">{target.song_title} — prise {target.take}</a>
+				· <a class="muted" href="/sessions/{target.session.id}">{sessionLabel(target.session)}</a>
+			{:else if target.kind === 'setlist'}
+				sur la setlist <a href="/setlists/{target.id}">{target.name}</a>
+			{:else}
+				sur la publication <a href="/posts/{target.id}">{target.title}</a>
+			{/if}
+		</p>
+		{#if hidden > 0}
+			<a class="more" href={targetPath(target)}>
+				{hidden} commentaire{hidden > 1 ? 's' : ''} plus ancien{hidden > 1 ? 's' : ''} ce jour-là →
+			</a>
+		{/if}
+		<!-- Une citation de la discussion, pas la discussion : réagir et répondre se font là
+		     où elle vit, avec le lecteur pour les repères. -->
+		<ul class="quotes">
+			{#each item.comments.slice(-COMMENTS_SHOWN) as comment (comment.id)}
+				<li class="quote">
+					<p class="quote-head">
+						{#if item.authors.length > 1}<strong>{comment.author}</strong>{/if}
+						{#if comment.timestamp_s !== null}
+							<a class="quote-time" href={commentHref(target, comment)}>⏱ {formatTimecode(comment.timestamp_s)}</a>
+						{/if}
+						<a class="quote-at muted" href={commentHref(target, comment)} title={formatDateTimeFull(comment.at)}>{formatDateTime(comment.at)}</a>
+					</p>
+					<p class="message">{#each commentParts(comment.content) as part}{#if part.kind === 'mention'}<span class="mention">{part.text}</span>{:else if part.kind === 'link'}<a href={part.href} target="_blank" rel="noopener noreferrer nofollow">{part.text}</a>{:else}{part.text}{/if}{/each}</p>
+				</li>
+			{/each}
+		</ul>
+		<a class="more" href="{targetPath(target)}#commenter">Répondre →</a>
 	{/if}
 </article>
 
@@ -325,6 +395,42 @@
 	.take-song:hover { color: var(--color-accent); }
 
 	.programme { margin: 0; padding-left: 1.4rem; font-size: var(--text-sm); }
+
+	/* Même plateau que les listes de commentaires ailleurs : creusé, cartes claires. */
+	.quotes {
+		list-style: none;
+		margin: 0;
+		padding: var(--space-2);
+		display: flex;
+		flex-direction: column;
+		gap: var(--space-2);
+		background: var(--color-bg-subtle);
+		border-radius: var(--radius-md);
+	}
+	.quote {
+		padding: var(--space-2) var(--space-3);
+		background: var(--color-bg);
+		border: 1px solid var(--color-border-light);
+		border-radius: var(--radius-md);
+	}
+	.quote-head {
+		display: flex;
+		align-items: baseline;
+		flex-wrap: wrap;
+		gap: 0.2rem 0.5rem;
+		margin: 0 0 0.15rem;
+		font-size: var(--text-xs);
+	}
+	.quote-time {
+		font-weight: 600;
+		font-variant-numeric: tabular-nums;
+		color: var(--color-accent-dark);
+		text-decoration: none;
+	}
+	.quote-at { text-decoration: none; }
+	.quote-time:hover, .quote-at:hover { text-decoration: underline; }
+	.quote .message { font-size: var(--text-sm); }
+	.mention { color: var(--color-accent); font-weight: 700; }
 
 	.more { font-size: var(--text-sm); }
 

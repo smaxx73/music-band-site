@@ -705,6 +705,28 @@ export type FeedRecording = {
 	comment_count: number
 }
 
+/** Un commentaire dans une carte « commentaires » du fil. */
+export type FeedComment = {
+	id: number
+	author: string
+	content: string
+	timestamp_s: number | null
+	/** Horodatage ISO. */
+	at: string
+}
+
+/** Ce que discutent les commentaires d'une carte : une prise, une setlist ou une publication. */
+export type FeedCommentTarget =
+	| {
+			kind: 'recording'
+			id: number
+			song_title: string
+			take: number
+			session: { id: number; date: string; type: string; title: string | null }
+	  }
+	| { kind: 'setlist'; id: number; name: string }
+	| { kind: 'post'; id: number; title: string }
+
 type FeedBase = {
 	/** Clé stable de l'élément, et départage du curseur à horodatage égal. */
 	key: string
@@ -753,6 +775,14 @@ export type FeedItem =
 	| (FeedBase & {
 			kind: 'playlist'
 			playlist: { id: number; name: string; description: string | null; item_count: number }
+	  })
+	| (FeedBase & {
+			kind: 'comments'
+			/** Auteurs distincts, le plus récent d'abord ; `author` est le premier. */
+			authors: string[]
+			target: FeedCommentTarget
+			/** Ordre de la discussion : le plus ancien d'abord. */
+			comments: FeedComment[]
 	  })
 
 export type FeedPage = {
