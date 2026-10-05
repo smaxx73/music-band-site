@@ -13,6 +13,15 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.5.4] — 2026-10-05
+
+Aucune migration à appliquer.
+
+- Notification d'un commentaire : l'ouvrir mène au commentaire lui-même, mis en évidence,
+  et recharge la page même si elle est déjà ouverte — le commentaire annoncé y paraît
+  sans avoir à actualiser. La lecture et la saisie en cours ne sont pas interrompues.
+  Les notifications antérieures mènent toujours à la page, sans viser le commentaire
+
 ## [1.5.3] — 2026-10-03
 
 Aucune migration à appliquer.
