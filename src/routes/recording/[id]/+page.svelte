@@ -2,7 +2,7 @@
 	import type { PageData } from './$types'
 	import { onMount, tick, untrack } from 'svelte'
 	import { page } from '$app/state'
-	import { invalidateAll } from '$app/navigation'
+	import { afterNavigate, invalidateAll } from '$app/navigation'
 	import { player } from '$lib/player.svelte'
 	import { formatDateOnly } from '$lib/date'
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte'
@@ -308,15 +308,18 @@
 		// Le lecteur n'est pas encore prêt : il rejoue la demande dès qu'il l'est.
 		if (t !== null) seekTo(t)
 
-		const targeted = location.hash.match(/^#comment-(\d+)$/)
-		if (targeted) {
-			highlightToken += 1
-			highlightRequest = { id: Number(targeted[1]), token: highlightToken }
-		}
-
 		if (location.hash !== '#notes') return
 		notesBlock?.scrollIntoView({ block: 'center' })
 		startEditNotes()
+	})
+
+	// À chaque navigation, pas seulement au montage : une notification de commentaire
+	// cliquée sur la prise déjà ouverte y revient avec une autre ancre.
+	afterNavigate(() => {
+		const targeted = location.hash.match(/^#comment-(\d+)$/)
+		if (!targeted) return
+		highlightToken += 1
+		highlightRequest = { id: Number(targeted[1]), token: highlightToken }
 	})
 
 	// Copier le lien plutôt que d'aller le chercher dans la barre d'adresse : sur

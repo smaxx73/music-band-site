@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types'
-	import { onMount, untrack } from 'svelte'
-	import { goto, invalidateAll } from '$app/navigation'
+	import { untrack } from 'svelte'
+	import { afterNavigate, goto, invalidateAll } from '$app/navigation'
 	import { formatDateTimeFull } from '$lib/date'
 	import {
 		canDeleteGroupContent,
@@ -40,7 +40,9 @@
 	const setlist = $derived(data.setlist as unknown as Setlist)
 	let items = $state(untrack(() => data.items as unknown as SetlistItemView[]))
 	let availableSongs = $state(untrack(() => data.availableSongs as unknown as AvailableSong[]))
-	let comments = $state(untrack(() => data.comments as unknown as CommentWithReactions[]))
+	// Dérivé, pas figé : une notification cliquée sur la page déjà ouverte recharge les
+	// données, et le commentaire qu'elle annonce doit y paraître.
+	let comments = $derived(data.comments as unknown as CommentWithReactions[])
 	const groupMembers = $derived(data.groupMembers as unknown as MentionMember[])
 
 	// Le total est la somme des durées de référence connues : celles qui manquent sont
@@ -253,10 +255,14 @@
 	// La liste la déplie et la met en évidence, comme sur la page d'une prise.
 	let highlightRequest = $state<{ id: number; token: number } | null>(null)
 
-	onMount(() => {
+	// À chaque navigation, pas seulement au montage : une notification cliquée sur la
+	// setlist déjà ouverte y revient avec une autre ancre.
+	let highlightToken = 0
+	afterNavigate(() => {
 		const targeted = location.hash.match(/^#comment-(\d+)$/)
 		if (!targeted) return
-		highlightRequest = { id: Number(targeted[1]), token: 1 }
+		highlightToken += 1
+		highlightRequest = { id: Number(targeted[1]), token: highlightToken }
 	})
 
 	// ─── Suppression ───────────────────────────────────────────────────────

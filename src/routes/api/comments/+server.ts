@@ -122,7 +122,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		actor: locals.user,
 		subject: target.subject,
 		excerpt: content.trim(),
-		link: target.link,
+		link: `${target.link}#comment-${comment.id}`,
 		recordingId,
 		setlistId,
 		postId

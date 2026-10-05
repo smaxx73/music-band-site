@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types'
 	import { onMount, tick } from 'svelte'
-	import { goto, invalidateAll } from '$app/navigation'
+	import { afterNavigate, goto, invalidateAll } from '$app/navigation'
 	import { page } from '$app/state'
 	import { formatDateTimeFull } from '$lib/date'
 	import MediaPlayer from '$lib/components/MediaPlayer.svelte'
@@ -72,11 +72,14 @@
 	onMount(() => {
 		const t = parseTimecode(page.url.searchParams.get('t'))
 		if (t !== null && playable) seekTo(t)
+	})
+
+	// L'ancre à chaque navigation : une notification cliquée sur la page déjà ouverte.
+	afterNavigate(() => {
 		const targeted = location.hash.match(/^#comment-(\d+)$/)
-		if (targeted) {
-			highlightToken += 1
-			highlightRequest = { id: Number(targeted[1]), token: highlightToken }
-		}
+		if (!targeted) return
+		highlightToken += 1
+		highlightRequest = { id: Number(targeted[1]), token: highlightToken }
 	})
 
 	// ─── Message ───────────────────────────────────────────────────────────

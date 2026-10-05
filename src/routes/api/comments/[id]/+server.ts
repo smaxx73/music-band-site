@@ -87,7 +87,7 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 				actor: locals.user,
 				subject: target.subject,
 				excerpt: nextContent,
-				link: target.link,
+				link: `${target.link}#comment-${existing.id}`,
 				recordingId: existing.recording_id,
 				setlistId: existing.setlist_id,
 				postId: existing.post_id

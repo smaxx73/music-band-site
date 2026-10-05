@@ -128,12 +128,14 @@
 
 	// Ouvrir une notification vaut lecture. On attend le marquage avant de naviguer :
 	// la page suivante recompte la pastille côté serveur, et la trouverait sinon en retard.
+	// Les données sont rechargées même si la page visée est déjà ouverte : sans temps
+	// réel, c'est en cliquant la notification qu'on voit le commentaire qu'elle annonce.
 	async function openNotification(event: MouseEvent, notification: ActivityNotification) {
 		event.preventDefault()
 		// Groupe changé entre-temps : le lien viserait un contenu d'un autre groupe.
 		if (!notification.read_at && !(await setRead(notification, true))) return
 		open = false
-		goto(notification.link)
+		goto(notification.link, { invalidateAll: true })
 	}
 
 	function switchFilter(value: boolean) {

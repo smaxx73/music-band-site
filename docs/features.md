@@ -1611,7 +1611,11 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
   erreurs et n'en propage aucune
 - Le menu offre les actions habituelles : filtre « Non lues » / « Toutes », marquer une
   notification comme lue ou non lue (pastille à droite de la ligne), tout marquer comme lu.
-  Ouvrir une notification la marque lue puis navigue vers la page concernée. En pied de
+  Ouvrir une notification la marque lue puis navigue vers la page concernée. Une
+  notification de commentaire mène au commentaire lui-même (`#comment-<id>`), mis en
+  évidence. Pas de temps réel : une page ouverte ne voit pas arriver les commentaires des
+  autres, mais ouvrir la notification **recharge ses données** même si l'on y est déjà
+  (`invalidateAll`), sans couper la lecture ni la saisie en cours. En pied de
   menu, « Tout le fil d'actualité » mène à `/fil` : on ouvre la cloche pour savoir « quoi de
   neuf », et le fil en est la réponse complète
 - Le nom de l'auteur est relu depuis `users` (`actor_name` n'est qu'un repli) : un changement
