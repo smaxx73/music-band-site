@@ -33,7 +33,15 @@ recoupent **pas** les mots de l'écran.
 1. Sélection de la **session** (existante ou création à la volée) et du **morceau**
    (liste depuis `songs` où `status != 'abandonne'`). Choisir un fichier propose la session
    tenue le jour de sa date (`lastModified`, celle de l'enregistrement sur un téléphone),
-   sans jamais défaire une session choisie à la main ou passée par `?session_id=`
+   sans jamais défaire une session choisie à la main ou passée par `?session_id=`.
+   Son **nom** propose de même le morceau qui s'y lit à peu près (`songFromFileName`,
+   `src/lib/song-match.ts`) : « 2025-03-12 Sunny v2.m4a », « WeWillRockYou-live.mp3 ».
+   Mots entiers seulement (« sunnyday » ne désigne pas « Sunny »), sans casse ni accents,
+   article de tête facultatif (« wall » → « The Wall »), une faute tolérée dès 5 lettres
+   et deux dès 9. Le titre le plus long l'emporte (« Sunny Afternoon » plutôt que
+   « Sunny ») ; deux morceaux aussi plausibles, ou un titre de moins de 3 lettres, et rien
+   n'est proposé. Les morceaux « À nommer » ne se devinent pas. Une ligne sous le
+   sélecteur dit que le choix vient du nom du fichier
 2. Réception multipart : fichier audio + `session_id`, `song_id`
 3. Validation : MIME audio autorisé via `audio_formats`, taille < 200 Mo, session et morceau dans le groupe actif
    (réception multipart commune à l'upload et aux imports : `src/lib/server/upload-stream.ts`)

@@ -12,6 +12,7 @@
 	import SongSelect from '$lib/components/SongSelect.svelte'
 	import PendingImports from '$lib/components/PendingImports.svelte'
 	import { sortedWithSong } from '$lib/songs'
+	import { songFromFileName } from '$lib/song-match'
 	import { parseYouTubeVideoId } from '$lib/youtube'
 	import { createSession, DuplicateError, sendAudioFile, type DuplicateInfo } from '$lib/upload-client'
 
@@ -100,19 +101,27 @@
 	// Session proposée d'après la date du fichier : tant qu'on n'y a pas touché, un autre
 	// fichier peut la remplacer ; un choix fait à la main, lui, ne se défait pas.
 	let proposedSession = ''
+	// Même règle pour le morceau, deviné d'après le nom du fichier.
+	let proposedSong = $state('')
 
 	/**
 	 * Un fichier enregistré le jour d'une session en est presque toujours une prise :
 	 * la date du fichier (celle de l'enregistrement sur un téléphone) désigne la session.
+	 * Son nom, quand on l'a renommé, désigne souvent le morceau.
 	 */
 	function pickFile(input: HTMLInputElement) {
 		file = input.files?.[0] ?? null
 		if (!file) return
 		const recordedAt = new Date(file.lastModified)
 		if (!newDate) newDate = localDateOnly(recordedAt)
-		if (selectedSession !== '' && selectedSession !== proposedSession) return
-		const daySession = sessionOfDay(sessions, recordedAt)
-		selectedSession = proposedSession = daySession ? String(daySession.id) : ''
+		if (selectedSession === '' || selectedSession === proposedSession) {
+			const daySession = sessionOfDay(sessions, recordedAt)
+			selectedSession = proposedSession = daySession ? String(daySession.id) : ''
+		}
+		if (selectedSong === '' || selectedSong === proposedSong) {
+			const named = songFromFileName(file.name, songs)
+			selectedSong = proposedSong = named ? String(named.id) : ''
+		}
 	}
 
 	function formatDate(d: string | Date) {
@@ -311,6 +320,9 @@
 					required
 					disabled={uploading}
 				/>
+				{#if file && proposedSong !== '' && selectedSong === proposedSong}
+					<p class="hint">Proposé d'après le nom du fichier.</p>
+				{/if}
 				{#if selectedSongData}
 					<SongDetails
 						lyrics={selectedSongData.lyrics}
