@@ -11,7 +11,7 @@ pour une bibliothèque :
 Chaque version liste les migrations qu'elle apporte : ce sont elles qu'il faut appliquer
 en montant de version (voir `deploy.md`).
 
-## [Non publié]
+## [1.6.0] — 2026-10-06
 
 Migrations à appliquer, dans l'ordre : `046_user_profile.sql`, `047_notification_prefs.sql`.
 
