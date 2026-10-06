@@ -134,7 +134,7 @@ type Recording = {
   take: number
   file_path: string
   duration_s: number | null
-  status: string // qualité libre : 'À revoir' | 'Moyen' | 'Bon' | 'Référence' | texte court
+  status: string | null // qualité libre : 'À revoir' | 'Moyen' | 'Bon' | 'Référence' | texte court ; NULL = pas évaluée
   file_hash: string | null
   notes: string | null
   uploaded_by: string

@@ -94,7 +94,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 			cover_version: number | null
 		}
 		recordings: {
-			id: number; take: number; status: string; notes: string | null
+			id: number; take: number; status: string | null; notes: string | null
 			duration_s: number | null; uploaded_by: string; uploaded_by_user_id: number | null
 			comment_count: number; share_count: number; file_path: string | null; source_file_name: string | null
 			youtube_video_id: string | null; youtube_title: string | null

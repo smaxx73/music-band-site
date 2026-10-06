@@ -9,7 +9,7 @@
 		recording_id: number
 		take: number
 		duration_s: number | null
-		recording_status: string
+		recording_status: string | null
 		note: string | null
 		song_title: string
 		session_date: string
@@ -57,7 +57,9 @@
 {/snippet}
 
 {#snippet tags()}
-	<span class="badge badge-quality-{qualityClass(item.recording_status)}">{item.recording_status}</span>
+	{#if item.recording_status}
+		<span class="badge badge-quality-{qualityClass(item.recording_status)}">{item.recording_status}</span>
+	{/if}
 {/snippet}
 
 {#snippet actions()}

@@ -164,7 +164,8 @@ CREATE TABLE recordings (
     source_file_name TEXT,                   -- nom du fichier audio tel que déposé, pour l'affichage
                                              -- NULL pour les prises antérieures à la migration 023
     duration_s  INTEGER,
-    status      TEXT DEFAULT 'À revoir',      -- qualité libre : 'À revoir' | 'Moyen' | 'Bon' | 'Référence' | texte court personnalisé
+    status      TEXT,                        -- qualité libre : 'À revoir' | 'Moyen' | 'Bon' | 'Référence' | texte court personnalisé ;
+                                             -- NULL = pas encore évaluée (migration 048)
     file_hash   TEXT,
     notes       TEXT,
     uploaded_by TEXT NOT NULL,

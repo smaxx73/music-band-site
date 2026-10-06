@@ -630,6 +630,11 @@ rapide d'une session dans `/upload`, `/record` et au classement d'un enregistrem
   n'a jamais été écrit — et retombent sur `{id}.mp3`, en italique grisé
 - La **qualité** est une pastille : elle ne devient un sélecteur qu'au clic. Une valeur qui
   change rarement n'a pas à occuper la largeur d'un menu déroulant sur chaque ligne
+- **Une prise neuve n'a pas de qualité** (`status` NULL, migration 048) : pas de pastille,
+  rien n'est à lire. Elle naissait « À revoir », ce qui ne disait rien puisque personne ne
+  l'avait choisi, et ôtait son sens à un vrai « À revoir ». À la place, un « + Qualité » en
+  pointillés, comme « + 📝 » (au survol à la souris, dans le menu ⋮ sous 640 px). Le
+  sélecteur propose « Sans qualité » pour la retirer (`PATCH` avec `{ status: null }`)
 - Le compteur de commentaires d'une prise est cliquable : il déplie la liste des commentaires
   sous la ligne, chargée à la demande via `GET /api/comments?recording_id=`, sans ouvrir le lecteur
 - Cette liste dépliée s'arrête aux **5 derniers** commentaires, avec « Voir les N précédents
@@ -704,7 +709,8 @@ offre 274 au plus : la ligne ne garde alors que ce qu'il y a **à lire** — �
 note, 💬 s'il y a des commentaires — plus l'écoute, et un menu ⋮ recueille le reste.
 
 - **Composition stable** du menu, indépendante de ce que la prise contient déjà : ouvrir le
-  lecteur complet, ajouter à une playlist, ajouter ou modifier la note, ajouter un
+  lecteur complet, ajouter à une playlist, donner ou changer la qualité (vue session
+  seulement), ajouter ou modifier la note, ajouter un
   commentaire, copier le lien pour le groupe, lien d'écoute public (si la prise a de
   l'audio et qu'on peut partager). Un menu qui ne grouperait que les ajouts fondrait à une seule entrée sur une
   prise déjà annotée et commentée, et vaudrait alors moins que le bouton qu'il remplace
@@ -751,7 +757,8 @@ note, 💬 s'il y a des commentaires — plus l'écoute, et un menu ⋮ recueill
   prise, après confirmation `danger`, puis retour au référentiel. Les deux écrans passent
   par les mêmes règles serveur (`parseSongForm`, `updateSong`, `src/lib/server/songs.ts`)
 - Mêmes pistes que la vue session (`RecordingRow.svelte`, prop `session`), en lecture seule :
-  la qualité s'y lit en badge, sans sélecteur, et aucune action d'édition n'y figure
+  la qualité s'y lit en badge (aucun sans qualité), sans sélecteur, et aucune action
+  d'édition n'y figure
 - Les prises affichent leur libellé de qualité libre et leur note
 - Le compteur de commentaires déplie la liste des commentaires de la prise, sans ouvrir le
   lecteur — mêmes 5 derniers qu'en vue session, avec le renvoi vers le lecteur au-delà

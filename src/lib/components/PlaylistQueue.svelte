@@ -9,7 +9,7 @@
 		recording_id: number
 		take: number
 		duration_s: number | null
-		recording_status: string
+		recording_status: string | null
 		file_path: string
 		song_id: number
 		song_title: string

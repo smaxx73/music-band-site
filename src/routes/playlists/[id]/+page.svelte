@@ -20,7 +20,7 @@
 	type Item = {
 		id: number; position: number; note: string | null
 		recording_id: number; take: number; duration_s: number | null
-		recording_status: string; file_path: string
+		recording_status: string | null; file_path: string
 		song_id: number; song_title: string; song_composer: string | null
 		song_lyrics: string | null; song_music_notes: string | null
 		session_id: number; session_date: string; session_location: string | null
@@ -31,7 +31,7 @@
 	}
 	type AvailableRecording = {
 		recording_id: number; take: number; duration_s: number | null
-		recording_status: string; file_path: string
+		recording_status: string | null; file_path: string
 		song_id: number; song_title: string; song_composer: string | null
 		song_lyrics: string | null; song_music_notes: string | null
 		session_id: number; session_date: string; session_location: string | null

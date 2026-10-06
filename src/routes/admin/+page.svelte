@@ -8,7 +8,7 @@
 	let { data }: { data: PageData } = $props()
 
 	type RecentRecording = {
-		id: number; take: number; status: string
+		id: number; take: number; status: string | null
 		uploaded_by: string; created_at: string
 		song_title: string; session_date: string
 	}

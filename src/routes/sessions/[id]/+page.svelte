@@ -177,7 +177,7 @@
 
 	// La ligne enregistre elle-même la qualité ; la page n'a qu'à refléter le résultat
 	// dans sa copie locale, que `data` réécrasera à la prochaine invalidation.
-	function applyQuality(id: number, status: string) {
+	function applyQuality(id: number, status: string | null) {
 		groups = groups.map((g) => ({
 			...g,
 			recordings: g.recordings.map((r) => (r.id === id ? { ...r, status } : r))

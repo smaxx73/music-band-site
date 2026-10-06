@@ -55,12 +55,16 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		return moveToSong(id, songId, locals.user.current_group_id)
 	}
 
-	if (body.status !== undefined && (typeof body.status !== 'string' || !body.status.trim() || body.status.length > 50)) {
-		return json({ error: 'Qualité invalide (texte non vide, 50 caractères max).' }, { status: 400 })
+	// `null` retire la qualité : la prise redevient « pas encore évaluée ».
+	if (
+		body.status !== undefined && body.status !== null &&
+		(typeof body.status !== 'string' || !body.status.trim() || body.status.length > 50)
+	) {
+		return json({ error: 'Qualité invalide (texte non vide, 50 caractères max, ou null).' }, { status: 400 })
 	}
 
 	const updates: Record<string, unknown> = {}
-	if (body.status !== undefined) updates.status = body.status.trim()
+	if (body.status !== undefined) updates.status = body.status === null ? null : body.status.trim()
 	if ('notes' in body)
 		updates.notes =
 			typeof body.notes === 'string' && body.notes.trim() ? body.notes.trim() : null

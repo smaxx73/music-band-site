@@ -40,7 +40,7 @@
 		canDelete?: boolean
 		deleting?: boolean
 		/** Prévient la page pour qu'elle mette sa copie locale à jour. */
-		onQualityChange?: ((status: string) => void) | null
+		onQualityChange?: ((status: string | null) => void) | null
 		onDelete?: (() => void) | null
 		/**
 		 * Vue morceau : la prise se situe par sa session, qui devient son titre (en lien),
@@ -105,9 +105,11 @@
 	}
 
 	const QUALITY_OPTIONS = ['À revoir', 'Moyen', 'Bon', 'Référence']
+	// Valeur du `<select>` pour une prise pas encore évaluée (`status` NULL).
+	const NO_QUALITY = ''
 
-
-	function presetQuality(q: string) {
+	function presetQuality(q: string | null) {
+		if (q === null) return NO_QUALITY
 		const normalized = q.trim().toLocaleLowerCase('fr-FR')
 		return QUALITY_OPTIONS.find((option) => option.toLocaleLowerCase('fr-FR') === normalized)
 			?? ({ en_cours: 'À revoir', au_point: 'Bon', repertoire: 'Référence' }[normalized] ?? null)
@@ -150,6 +152,11 @@
 		}
 	}
 
+	function openQualityFromMenu() {
+		menuOpen = false
+		openQuality()
+	}
+
 	function openPublicShare() {
 		menuOpen = false
 		shareOpen = true
@@ -165,7 +172,7 @@
 
 	async function openQuality() {
 		editingQuality = true
-		customDraft = presetQuality(recording.status) ? null : recording.status
+		customDraft = presetQuality(recording.status) !== null ? null : recording.status
 		qualityError = null
 		await tick()
 		selectField?.focus()
@@ -177,9 +184,9 @@
 		qualityError = null
 	}
 
-	async function saveQuality(status: string) {
-		const value = status.trim()
-		if (!value) { qualityError = 'Saisis une qualité.'; return }
+	async function saveQuality(status: string | null) {
+		const value = status === null ? null : status.trim()
+		if (value === '') { qualityError = 'Saisis une qualité.'; return }
 		if (value === recording.status) { closeQuality(); return }
 
 		saving = true
@@ -206,9 +213,9 @@
 
 	function chooseQuality(e: Event) {
 		const value = (e.currentTarget as HTMLSelectElement).value
-		if (value === 'custom') { customDraft = presetQuality(recording.status) ? '' : recording.status; return }
+		if (value === 'custom') { customDraft = presetQuality(recording.status) !== null ? '' : recording.status; return }
 		customDraft = null
-		saveQuality(value)
+		saveQuality(value === NO_QUALITY ? null : value)
 	}
 </script>
 
@@ -262,6 +269,7 @@
 					onchange={chooseQuality}
 					onkeydown={(e) => { if (e.key === 'Escape') closeQuality() }}
 				>
+					<option value={NO_QUALITY}>Sans qualité</option>
 					{#each QUALITY_OPTIONS as option}
 						<option value={option}>{option}</option>
 					{/each}
@@ -287,13 +295,21 @@
 					<Icon name="close" size="0.8rem" label="Annuler" />
 				</button>
 			</span>
-		{:else if editableQuality}
+		{:else if editableQuality && recording.status}
 			<button
 				class="badge badge-quality-{qualityClass(recording.status)} quality-pill"
 				onclick={openQuality}
 				title="Changer la qualité de la prise"
 			>{recording.status}</button>
-		{:else}
+		{:else if editableQuality}
+			<!-- Une prise neuve n'est pas évaluée : rien à lire, donc pas de pastille, mais
+			     de quoi la noter — comme « + 📝 ». Sous 640 px, le menu ⋮ s'en charge. -->
+			<button
+				class="chip chip-add quality-add row-quiet"
+				onclick={openQuality}
+				title="Donner une qualité à la prise"
+			><Icon name="plus" size="0.7rem" />Qualité</button>
+		{:else if recording.status}
 			<span class="badge badge-quality-{qualityClass(recording.status)}">{recording.status}</span>
 		{/if}
 
@@ -431,6 +447,11 @@
 					</a>
 					<button class="menu-item" role="menuitem" onclick={openPlaylist}>
 						Ajouter à une playlist
+					</button>
+				{/if}
+				{#if editableQuality}
+					<button class="menu-item" role="menuitem" onclick={openQualityFromMenu}>
+						{recording.status ? 'Changer la qualité' : 'Donner une qualité'}
 					</button>
 				{/if}
 				<a href="/recording/{recording.id}#notes" class="menu-item" role="menuitem">
@@ -674,7 +695,8 @@
 		   portée de Svelte — d'où `:global`. Le passer sous `.row-actions` lui donne la
 		   spécificité qu'il faut pour battre le `display` que portent `.chip` et `.btn` :
 		   la classe de portée que Svelte ajoute compte comme une classe de plus. */
-		.row-actions :global(.row-wide-only) { display: none; }
+		.row-actions :global(.row-wide-only),
+		.row-tags .quality-add { display: none; }
 		.row-menu { display: inline-flex; }
 		.drawer-action { min-height: 44px; }
 	}

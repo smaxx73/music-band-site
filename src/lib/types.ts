@@ -226,7 +226,7 @@ export type Recording = {
 	/** Nom du fichier audio tel que déposé. NULL pour les prises antérieures à la migration 023. */
 	source_file_name: string | null
 	duration_s: number | null
-	status: string  // qualité libre : 'À revoir' | 'Moyen' | 'Bon' | 'Référence' | texte court
+	status: string | null  // qualité libre : 'À revoir' | 'Moyen' | 'Bon' | 'Référence' | texte court ; NULL = pas encore évaluée
 	notes: string | null
 	uploaded_by: string
 	uploaded_by_user_id: number | null
