@@ -27,6 +27,7 @@ src/
 │   │   ├── song-covers.ts # pochettes de morceau : dépôt (recadrage ffmpeg), lecture, retrait
 │   │   ├── score-documents.ts # feuilles de répétition : validation, accès, droit de suppression
 │   │   ├── session-photos.ts # photo de bandeau d'une session : dépôt (recadrage ffmpeg), lecture, retrait
+│   │   ├── members.ts     # page d'un membre : fiche dans le groupe actif, activité récente
 │   │   ├── avatars.ts     # photo de profil : dépôt (recadrage ffmpeg), retrait, lecture selon
 │   │   │                  #   le partage d'un groupe, versions d'un lot de comptes (fil)
 │   │   ├── places.ts      # lieux du groupe (/group) : liste, ajout, modification (renommage propagé), retrait
@@ -111,6 +112,7 @@ src/
 │   ├── perso/+page.svelte         # espace personnel (hors groupe)
 │   ├── perso/[id]/+page.svelte    # un enregistrement perso
 │   ├── posts/[id]/+page.svelte    # une publication + ses commentaires
+│   ├── members/[id]/+page.svelte  # un membre du groupe actif : fiche et activité
 │   ├── fil/+page.svelte           # fil d'actualité du groupe actif
 │   ├── ecoute/[token]/            # écoute publique sans compte (page + fichier audio)
 │   └── api/               # voir src/routes/api/CLAUDE.md

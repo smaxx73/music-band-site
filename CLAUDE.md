@@ -120,6 +120,8 @@ NODE_ENV=production
   `readNotificationPrefs` (`src/lib/notification-prefs.ts`) : une clé absente vaut « tout ».
   Elles filtrent le fan-out de `notifyGroup`, jamais les mentions. Seul le membre les écrit,
   via `setMemberNotificationPrefs`
+- `/members/[id]` n'a pas de groupe propriétaire unique : sa bascule de groupe passe par
+  `retargetActiveGroupToMember`, pas par `retargetActiveGroup`
 - Une prise peut n'avoir qu'une vidéo YouTube, sans fichier : tout code qui touche à `AUDIO_DIR`,
   au lecteur audio partagé ou aux playlists vérifie `file_path IS NOT NULL`. Voir « Prises vidéo
   YouTube » dans docs/features.md
@@ -174,6 +176,8 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
                     mot de passe
 /plus               ce que la barre d'onglets (téléphone) et le rail (tablette) ne portent pas :
                     sections secondaires (fil en tête), autres groupes, compte, pages légales
+/members/[id]       un membre du groupe actif : photo, instruments, ses prises, commentaires,
+                    publications et indisponibilités à venir dans ce groupe
 /group              infos + membres du groupe actif (consultation pour tout membre,
                     gestion des membres, du nom, du logo et des liens pour l'admin du groupe)
 /admin/users        gestion des comptes

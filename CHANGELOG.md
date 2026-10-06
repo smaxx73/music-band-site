@@ -21,6 +21,9 @@ Migrations à appliquer, dans l'ordre : `046_user_profile.sql`, `047_notificatio
 - **Instruments par groupe** : chacun dit, depuis son profil, ce qu'il joue dans chacun de
   ses groupes (liste usuelle proposée, saisie libre). Ils s'affichent sous son nom dans
   `/group`
+- **Page d'un membre** (`/members/[id]`) : photo, instruments, et ce qu'il a fait dans le
+  groupe — dernières prises, commentaires, publications, indisponibilités à venir. On y
+  arrive par son nom dans `/group`, le fil et les commentaires
 - **Préférences de notification**, par groupe, depuis le profil (ou la roue dentée de la
   cloche) : commentaires « tous » / « ce qui me concerne » / « aucun », et un interrupteur
   par autre type. Tout reste activé par défaut ; les mentions parviennent toujours

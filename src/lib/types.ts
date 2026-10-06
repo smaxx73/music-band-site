@@ -334,6 +334,8 @@ export type CommentWithReactions = Comment &
 		 * commentaire que l'écran vient de créer ou de modifier : c'est alors le sien.
 		 */
 		author_avatar_version?: number | null
+		/** L'auteur est encore membre du groupe de la discussion : son nom mène à sa page. */
+		author_is_member?: boolean
 	}
 
 export type Playlist = {

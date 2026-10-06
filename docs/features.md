@@ -1561,6 +1561,30 @@ Un membre n'était qu'un nom et ses initiales. Il peut se montrer, et dire ce qu
 - « Mes groupes » porte aussi, groupe par groupe, les **préférences de notification** —
   voir « Notifications d'activité »
 
+## Page d'un membre (`/members/[id]`)
+
+Qui est qui, et qui a fait quoi, dans le groupe actif.
+
+- **En-tête** : photo, nom affiché, `@pseudo` (celui des mentions), rôle dans le groupe,
+  ancienneté dans le groupe, instruments, et les chiffres non nuls — prises déposées,
+  commentaires, sessions créées, publications. « Modifier mon profil » sur la sienne
+- **Ce qu'il a fait dans le groupe actif**, le plus récent d'abord : ses 8 dernières
+  prises déposées (écoutables dans la barre du bas), ses 8 derniers commentaires (chacun
+  mène à lui-même, au repère de la prise), ses publications, ses indisponibilités à venir
+  (déjà visibles dans l'agenda). Rien de ses autres groupes, rien de son espace perso hors
+  de ce qu'il a publié (`src/lib/server/members.ts`)
+- **Pas de présence aux sessions** : les participants d'une session sont du texte libre
+  (`sessions.members`), pas des comptes, et un rapprochement par nom se tromperait dès
+  qu'un membre change de nom affiché ou qu'un participant est tapé autrement
+- **Membres du groupe actif seulement** : un compte qui n'en est pas répond `404`. Un lien
+  vers un membre qui partage un **autre** de ses groupes bascule vers le premier groupe
+  commun (`retargetActiveGroupToMember`, `src/lib/server/group-scope.ts`), comme tout
+  permalien. Changer de groupe depuis la page ramène à `/group`
+- **On y arrive** par les noms : membres de `/group`, auteur d'une carte du fil (pas d'une
+  carte de commentaires à plusieurs voix), auteur d'un commentaire. Un ancien membre n'a
+  pas de lien — le serveur dit pour chaque commentaire si son auteur est encore membre du
+  groupe de la discussion (`author_is_member`, `commentsWithReactions`)
+
 ## Logo et réseaux du groupe (`/group`)
 
 - **Logo** : PNG, JPEG, WebP ou GIF, 2 Mo maximum, stocké en base (`group_logos`) pour suivre

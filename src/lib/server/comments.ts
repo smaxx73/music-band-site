@@ -17,6 +17,11 @@ export function commentsWithReactions(thread: CommentThread, userId: number) {
 			c.id, c.recording_id, c.setlist_id, c.post_id, COALESCE(MAX(u.display_name), c.author) AS author,
 			c.author_user_id, c.content, c.timestamp_s, c.created_at, c.edited_at,
 			MAX(${AVATAR_VERSION_SQL}) AS author_avatar_version,
+			-- Un ancien membre n'a plus de page : son nom reste du texte.
+			EXISTS (
+				SELECT 1 FROM user_groups ug
+				WHERE ug.user_id = c.author_user_id AND ug.group_id = ${threadGroupId(thread)}
+			) AS author_is_member,
 			COUNT(cr.user_id) FILTER (WHERE cr.value = 1)::int       AS up_count,
 			COUNT(cr.user_id) FILTER (WHERE cr.value = -1)::int      AS down_count,
 			COALESCE(
@@ -41,6 +46,18 @@ export function commentsWithReactions(thread: CommentThread, userId: number) {
 		GROUP BY c.id
 		ORDER BY c.created_at ASC
 	`
+}
+
+/** Groupe de la cible, en sous-requête : c'est elle qui dit à quel groupe appartient la discussion. */
+function threadGroupId(thread: CommentThread) {
+	switch (thread.kind) {
+		case 'recording':
+			return sql`(SELECT s.group_id FROM recordings r JOIN sessions s ON s.id = r.session_id WHERE r.id = ${thread.id})`
+		case 'setlist':
+			return sql`(SELECT group_id FROM setlists WHERE id = ${thread.id})`
+		case 'post':
+			return sql`(SELECT group_id FROM posts WHERE id = ${thread.id})`
+	}
 }
 
 /** Compteurs d'un seul commentaire, après écriture d'une réaction. */

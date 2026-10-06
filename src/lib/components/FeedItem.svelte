@@ -28,6 +28,14 @@
 	/** Une carte de commentaires montre la fin de la discussion ; le reste se lit sur place. */
 	const COMMENTS_SHOWN = 5
 
+	// Un seul auteur, encore membre : son nom mène à sa page. Une carte de commentaires à
+	// plusieurs voix n'a pas de page à elle.
+	const authorPage = $derived.by(() => {
+		if (item.kind === 'comments' && item.authors.length > 1) return null
+		const id = item.author_user_id
+		return id !== null && members.some((m) => m.id === id) ? `/members/${id}` : null
+	})
+
 	// Ce que l'auteur a fait, dit comme une phrase : c'est la ligne qu'on lit en premier.
 	const action = $derived.by(() => {
 		switch (item.kind) {
@@ -118,7 +126,10 @@
 	<header class="card-head">
 		<Avatar userId={item.author_user_id} name={item.author} version={item.author_avatar_version} size="2.2rem" />
 		<div class="head-text">
-			<p class="head-line"><strong>{authorLabel}</strong> {action}</p>
+			<p class="head-line">
+				{#if authorPage}<a class="author-link" href={authorPage}><strong>{authorLabel}</strong></a>{:else}<strong>{authorLabel}</strong>{/if}
+				{action}
+			</p>
 			<a class="head-time" href={href} title={formatDateTimeFull(item.at)}>{formatDateTime(item.at)}</a>
 		</div>
 	</header>
@@ -296,6 +307,8 @@
 	.card-head { display: flex; align-items: center; gap: 0.65rem; }
 
 	.head-text { min-width: 0; }
+	.author-link { color: inherit; text-decoration: none; }
+	.author-link:hover { text-decoration: underline; }
 	.head-line { margin: 0; font-size: var(--text-sm); overflow-wrap: anywhere; }
 	.head-time { font-size: var(--text-xs); color: var(--color-text-muted); text-decoration: none; }
 	.head-time:hover { text-decoration: underline; }

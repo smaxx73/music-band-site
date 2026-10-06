@@ -100,6 +100,13 @@
 		return comment.author_avatar_version ?? null
 	}
 
+	// Le sien, on l'est forcément ; celui d'un autre, le serveur dit s'il est encore membre.
+	function authorPage(comment: CommentWithReactions): string | null {
+		if (comment.author_user_id === null) return null
+		const isMember = comment.author_user_id === page.data.user?.id || comment.author_is_member
+		return isMember ? `/members/${comment.author_user_id}` : null
+	}
+
 	function reactionState(comment: CommentWithReactions): ReactionState {
 		return (
 			overrides[comment.id] ?? {
@@ -327,7 +334,11 @@
 					version={authorAvatarVersion(comment)}
 					size={compact ? '1.3rem' : '1.6rem'}
 				/>
-				<strong>{comment.author}</strong>
+				{#if authorPage(comment)}
+					<a class="author-link" href={authorPage(comment)}><strong>{comment.author}</strong></a>
+				{:else}
+					<strong>{comment.author}</strong>
+				{/if}
 				{#if comment.timestamp_s !== null && comment.timestamp_s !== undefined}
 					{#if onSeek}
 						<button class="timestamp-link" title="Écouter à partir de {formatTime(comment.timestamp_s)}" onclick={() => onSeek?.(comment.timestamp_s as number)}>
@@ -542,6 +553,9 @@
 	.compact .comment {
 		padding: 0.5rem 0.7rem;
 	}
+
+	.author-link { color: inherit; text-decoration: none; }
+	.author-link:hover { text-decoration: underline; }
 
 	.comment-header {
 		display: flex;

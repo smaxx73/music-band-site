@@ -105,6 +105,34 @@ export async function retargetActiveGroup(
 	const group = user.groups.find((g) => g.id === groupId)
 	if (!group) return
 
+	switchActiveGroup(group, request)
+}
+
+/**
+ * Même rattrapage pour la page d'un membre (`/members/[id]`). Un membre n'appartient pas
+ * à un seul groupe : on bascule vers le premier groupe que l'on partage avec lui (dans
+ * l'ordre de la barre de groupes), et seulement s'il n'est pas dans le groupe actif.
+ * Aucun groupe en commun : rien, l'appelant répond 404.
+ */
+export async function retargetActiveGroupToMember(
+	user: LinkUser,
+	request: LinkRequest,
+	memberId: number
+): Promise<void> {
+	const rows = await sql<{ group_id: number }[]>`
+		SELECT group_id FROM user_groups WHERE user_id = ${memberId}
+	`
+	const memberGroups = new Set(rows.map((row) => Number(row.group_id)))
+	if (user.current_group_id !== null && memberGroups.has(user.current_group_id)) return
+
+	const group = user.groups.find((g) => memberGroups.has(g.id))
+	if (!group) return
+
+	switchActiveGroup(group, request)
+}
+
+/** Rejoue la requête dans `group` — ou, sur une requête de données, l'explique. Ne revient pas. */
+function switchActiveGroup(group: { id: number; name: string }, request: LinkRequest): never {
 	if (request.isDataRequest) {
 		error(409, {
 			message: `Ce contenu appartient à « ${group.name} », un autre de vos groupes.`,

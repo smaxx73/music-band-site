@@ -102,7 +102,7 @@
 			href: '/plus',
 			label: 'Plus',
 			icon: 'grid',
-			section: ['/plus', '/fil', '/agenda', '/playlists', '/setlists', '/perso', '/posts', '/group', '/profile', '/admin'],
+			section: ['/plus', '/fil', '/agenda', '/playlists', '/setlists', '/perso', '/posts', '/group', '/members', '/profile', '/admin'],
 		},
 	]
 </script>

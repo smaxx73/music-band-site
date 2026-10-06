@@ -198,7 +198,7 @@
 										<div class="member">
 											<Avatar userId={m.id} name={m.display_name} version={m.avatar_version} size="2.25rem" />
 											<div class="member-text">
-												<span>{m.display_name}</span>
+												<a class="member-link" href="/members/{m.id}">{m.display_name}</a>
 												{#if m.instruments?.length}
 													<span class="member-instruments">{m.instruments.join(' · ')}</span>
 												{:else if m.id === data.user?.id}
@@ -428,6 +428,8 @@
 
 	.member { display: flex; align-items: center; gap: 0.65rem; }
 	.member-text { display: flex; flex-direction: column; min-width: 0; }
+	.member-link { color: inherit; text-decoration: none; }
+	.member-link:hover { text-decoration: underline; }
 	.member-instruments { font-size: var(--text-xs); color: var(--color-text-secondary); font-weight: 400; }
 	.member-instruments-empty { color: var(--color-text-muted); }
 
