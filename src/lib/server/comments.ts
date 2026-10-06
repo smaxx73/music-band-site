@@ -1,5 +1,6 @@
 import sql from '$lib/server/db'
 import { getPost } from '$lib/server/posts'
+import { AVATAR_VERSION_SQL } from '$lib/server/avatars'
 import { postPlayable, postTitle } from '$lib/types'
 import type { CommentThread, CommentWithReactions, ReactionSummary } from '$lib/types'
 
@@ -15,6 +16,7 @@ export function commentsWithReactions(thread: CommentThread, userId: number) {
 		SELECT
 			c.id, c.recording_id, c.setlist_id, c.post_id, COALESCE(MAX(u.display_name), c.author) AS author,
 			c.author_user_id, c.content, c.timestamp_s, c.created_at, c.edited_at,
+			MAX(${AVATAR_VERSION_SQL}) AS author_avatar_version,
 			COUNT(cr.user_id) FILTER (WHERE cr.value = 1)::int       AS up_count,
 			COUNT(cr.user_id) FILTER (WHERE cr.value = -1)::int      AS down_count,
 			COALESCE(
@@ -28,6 +30,7 @@ export function commentsWithReactions(thread: CommentThread, userId: number) {
 			MAX(cr.value) FILTER (WHERE cr.user_id = ${userId})::int AS my_reaction
 		FROM comments c
 		LEFT JOIN users u ON u.id = c.author_user_id
+		LEFT JOIN user_avatars ua ON ua.user_id = c.author_user_id
 		LEFT JOIN comment_reactions cr ON cr.comment_id = c.id
 		LEFT JOIN users reactor ON reactor.id = cr.user_id
 		WHERE ${thread.kind === 'recording'

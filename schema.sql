@@ -65,7 +65,21 @@ CREATE TABLE user_groups (
                                              -- suppression du contenu d'autrui). Attribué par le
                                              -- superadmin uniquement — voir src/lib/types.ts.
     joined_at   TIMESTAMPTZ DEFAULT now(),
+    instruments TEXT[] NOT NULL DEFAULT '{}', -- ce que le membre joue dans CE groupe (migration 046) ;
+                                             -- saisi par lui seul, normalisé par src/lib/instruments.ts
     PRIMARY KEY (user_id, group_id)
+);
+
+-- Photo de profil (migration 046). En base, comme une pochette : elle suit le compte dans
+-- pg_dump et part avec lui. L'original n'est pas gardé, seulement deux JPEG carrés.
+-- Visible du membre, des membres de ses groupes et des admins globaux — voir
+-- src/lib/server/avatars.ts.
+CREATE TABLE user_avatars (
+    user_id     INTEGER PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+    image       BYTEA NOT NULL,              -- JPEG carré 256 px (profil)
+    thumbnail   BYTEA NOT NULL,              -- JPEG carré 96 px (barre du haut, fil, commentaires)
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+                                             -- sert aussi de version dans l'URL, pour le cache
 );
 
 CREATE TABLE songs (

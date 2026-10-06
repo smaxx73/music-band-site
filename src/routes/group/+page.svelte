@@ -10,6 +10,7 @@
 		type GroupLinkField
 	} from '$lib/types'
 	import Icon from '$lib/components/Icon.svelte'
+	import Avatar from '$lib/components/Avatar.svelte'
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
 	import { createSubmitConfirm } from '$lib/confirm-submit.svelte'
 	import { groupRoleChangeRequest, removeMemberRequest } from '$lib/group-roles'
@@ -193,7 +194,19 @@
 						<tbody>
 							{#each data.members as m}
 								<tr>
-									<td class="name">{m.display_name}</td>
+									<td class="name">
+										<div class="member">
+											<Avatar userId={m.id} name={m.display_name} version={m.avatar_version} size="2.25rem" />
+											<div class="member-text">
+												<span>{m.display_name}</span>
+												{#if m.instruments?.length}
+													<span class="member-instruments">{m.instruments.join(' · ')}</span>
+												{:else if m.id === data.user?.id}
+													<a href="/profile" class="member-instruments member-instruments-empty">Dire ce que vous jouez</a>
+												{/if}
+											</div>
+										</div>
+									</td>
 									<td data-label="Groupe">
 										{#if data.canAssignAdmin}
 											<!-- Seul le superadmin peut attribuer ou retirer le rôle d'admin de groupe. -->
@@ -412,6 +425,11 @@
 
 <style>
 	h1 { font-size: var(--text-xl); margin: 0 0 2rem; }
+
+	.member { display: flex; align-items: center; gap: 0.65rem; }
+	.member-text { display: flex; flex-direction: column; min-width: 0; }
+	.member-instruments { font-size: var(--text-xs); color: var(--color-text-secondary); font-weight: 400; }
+	.member-instruments-empty { color: var(--color-text-muted); }
 
 	.section > .message-error,
 	.section > .message-ok { margin-top: 0.5rem; }

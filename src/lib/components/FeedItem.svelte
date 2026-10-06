@@ -6,6 +6,7 @@
 	import RecordingPlaybackActions from '$lib/components/RecordingPlaybackActions.svelte'
 	import YouTubeEmbed from '$lib/components/YouTubeEmbed.svelte'
 	import Icon from '$lib/components/Icon.svelte'
+	import Avatar from '$lib/components/Avatar.svelte'
 	import type { MentionMember } from '$lib/components/MentionTextarea.svelte'
 	import { formatTimecode } from '$lib/youtube'
 	import { commentParts } from '$lib/comment-content'
@@ -26,15 +27,6 @@
 	const SONG_PILLS_SHOWN = 8
 	/** Une carte de commentaires montre la fin de la discussion ; le reste se lit sur place. */
 	const COMMENTS_SHOWN = 5
-
-	const initials = $derived(
-		item.author
-			.split(/\s+/)
-			.map((part) => part[0] ?? '')
-			.join('')
-			.slice(0, 2)
-			.toUpperCase()
-	)
 
 	// Ce que l'auteur a fait, dit comme une phrase : c'est la ligne qu'on lit en premier.
 	const action = $derived.by(() => {
@@ -124,7 +116,7 @@
 
 <article class="feed-card">
 	<header class="card-head">
-		<span class="avatar" aria-hidden="true">{initials}</span>
+		<Avatar userId={item.author_user_id} name={item.author} version={item.author_avatar_version} size="2.2rem" />
 		<div class="head-text">
 			<p class="head-line"><strong>{authorLabel}</strong> {action}</p>
 			<a class="head-time" href={href} title={formatDateTimeFull(item.at)}>{formatDateTime(item.at)}</a>
@@ -302,19 +294,6 @@
 	}
 
 	.card-head { display: flex; align-items: center; gap: 0.65rem; }
-
-	.avatar {
-		flex-shrink: 0;
-		display: grid;
-		place-items: center;
-		width: 2.2rem;
-		height: 2.2rem;
-		border-radius: 50%;
-		background: var(--color-accent-light);
-		color: var(--color-accent);
-		font-size: var(--text-xs);
-		font-weight: 700;
-	}
 
 	.head-text { min-width: 0; }
 	.head-line { margin: 0; font-size: var(--text-sm); overflow-wrap: anywhere; }

@@ -26,7 +26,7 @@
 <ul>
 	<li>
 		<strong>Compte</strong> : pseudo, prénom et nom (facultatifs), format d'affichage du nom,
-		mot de passe (conservé uniquement sous forme d'empreinte chiffrée, jamais en clair), rôle,
+		photo de profil et instruments joués dans chaque groupe (facultatifs), mot de passe (conservé uniquement sous forme d'empreinte chiffrée, jamais en clair), rôle,
 		groupes dont vous êtes membre. Les comptes sont créés par un administrateur : il n'y a pas
 		d'inscription libre.
 	</li>
@@ -34,8 +34,8 @@
 		<strong>Contenus que vous déposez</strong> : enregistrements audio (et nom du fichier
 		d'origine), liens vers des vidéos YouTube, commentaires, réactions, publications, notes,
 		sessions (dont les noms des participants saisis), morceaux, playlists, setlists, images
-		(logo du groupe, pochettes de morceaux, photos de session). Pochettes et photos de session
-		sont réencodées à l'envoi : leurs métadonnées (EXIF, dont la position GPS d'une photo) ne
+		(logo du groupe, pochettes de morceaux, photos de session). Pochettes, photos de session
+		et photos de profil sont réencodées à l'envoi : leurs métadonnées (EXIF, dont la position GPS d'une photo) ne
 		sont pas conservées.
 	</li>
 	<li>
@@ -72,7 +72,8 @@
 	<li>
 		Les <strong>membres de chacun de vos groupes</strong> voient ce que vous y déposez, ainsi
 		que votre nom affiché. Les membres des groupes auxquels vous appartenez voient vos
-		indisponibilités d'agenda.
+		indisponibilités d'agenda et votre photo de profil ; ceux d'un groupe voient les
+		instruments que vous y avez indiqués.
 	</li>
 	<li>
 		Les <strong>administrateurs</strong> de la plateforme gèrent les comptes et les groupes.
@@ -176,7 +177,8 @@
 <p>
 	Vous disposez d'un droit d'accès, de rectification, d'effacement, de limitation,
 	d'opposition et de portabilité sur vos données. Vous pouvez modifier vous-même votre pseudo,
-	vos nom et prénom et votre mot de passe depuis votre <a href="/profile">profil</a>, et
+	vos nom et prénom, votre photo, vos instruments et votre mot de passe depuis votre
+	<a href="/profile">profil</a>, et
 	supprimer vos enregistrements, publications, sessions et setlists depuis l'application.
 	Pour toute autre demande (copie de vos données, suppression d'un commentaire ou du
 	compte…), écrivez à <a href="mailto:{publisher.email}">{publisher.email}</a> ; une réponse vous sera apportée dans un délai d'un mois.

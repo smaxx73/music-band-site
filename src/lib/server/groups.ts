@@ -13,6 +13,7 @@ import {
 	type RoleBearer
 } from '$lib/types'
 import { detectImageMime, imageRequestTooLarge, type ImageMime } from './images'
+import { MAX_INSTRUMENT_LENGTH, MAX_INSTRUMENTS, normalizeInstruments } from '$lib/instruments'
 
 // Les mêmes opérations sont exposées par les form actions (/group, /admin/groups/[id])
 // et par les routes API. Elles vivent ici pour que les règles de droits ne soient
@@ -178,6 +179,29 @@ export async function removeGroupMember(
 	if (!deleted) return fail(404, 'Membre introuvable.')
 
 	return { ok: true, value: deleted }
+}
+
+/**
+ * Ce que le membre joue dans ce groupe. Lui seul le dit, depuis son profil : pas de
+ * `actor`, l'appelant passe `locals.user.id` — personne n'écrit les instruments d'un autre.
+ */
+export async function setMemberInstruments(
+	userId: number,
+	groupId: number,
+	raw: readonly unknown[]
+): Promise<GroupOpResult<{ instruments: string[] }>> {
+	const instruments = normalizeInstruments(raw)
+	if (!instruments) {
+		return fail(400, `${MAX_INSTRUMENTS} instruments au plus, de ${MAX_INSTRUMENT_LENGTH} caractères chacun.`)
+	}
+
+	const [row] = await sql<{ instruments: string[] }[]>`
+		UPDATE user_groups SET instruments = ${instruments}
+		WHERE user_id = ${userId} AND group_id = ${groupId}
+		RETURNING instruments
+	`
+	if (!row) return fail(404, 'Groupe introuvable.')
+	return { ok: true, value: row }
 }
 
 // ─── Identité du groupe : liens et logo ───────────────────────────────────
@@ -550,7 +574,7 @@ export async function exportGroup(
 			// Jamais password_hash : l'archive peut circuler hors de l'application.
 			sql`
 				SELECT u.id, u.nickname, u.display_name, u.role AS global_role,
-				       ug.role AS group_role, ug.joined_at
+				       ug.role AS group_role, ug.joined_at, ug.instruments
 				FROM user_groups ug JOIN users u ON u.id = ug.user_id
 				WHERE ug.group_id = ${groupId} ORDER BY u.display_name
 			`,

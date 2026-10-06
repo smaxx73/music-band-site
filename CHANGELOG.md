@@ -13,6 +13,15 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+Migration à appliquer : `046_user_profile.sql`.
+
+- **Photo de profil** : déposée depuis `/profile`, recadrée en carré. Elle remplace les
+  initiales dans la barre du haut, la barre latérale, le fil, les commentaires et la liste
+  des membres. Visible des seuls membres de ses groupes (et des admins)
+- **Instruments par groupe** : chacun dit, depuis son profil, ce qu'il joue dans chacun de
+  ses groupes (liste usuelle proposée, saisie libre). Ils s'affichent sous son nom dans
+  `/group`
+
 ## [1.5.4] — 2026-10-05
 
 Aucune migration à appliquer.

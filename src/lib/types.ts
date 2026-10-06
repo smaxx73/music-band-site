@@ -164,6 +164,11 @@ export function groupLogoThumbnailUrl(groupId: number, version: number): string 
 	return `/api/groups/${groupId}/logo?v=${version}&size=thumb`
 }
 
+/** Photo de profil d'un membre : 256 px en `full`, 96 px en vignette. Même principe de version. */
+export function avatarUrl(userId: number, version: number, size: 'full' | 'thumb' = 'thumb'): string {
+	return `/api/users/${userId}/avatar?v=${version}${size === 'thumb' ? '&size=thumb' : ''}`
+}
+
 /** Image d'aperçu par défaut, quand le groupe n'a pas de logo : 512 px, ~25 Ko. */
 export const DEFAULT_SHARE_IMAGE = '/brand/bandstash-og.jpg'
 
@@ -322,7 +327,14 @@ export type ReactionSummary = {
 }
 
 // Commentaire enrichi des compteurs, des identités des votants et de la réaction courante.
-export type CommentWithReactions = Comment & ReactionSummary
+export type CommentWithReactions = Comment &
+	ReactionSummary & {
+		/**
+		 * Version de la photo de l'auteur (`avatarUrl`), `null` sans photo. Absente d'un
+		 * commentaire que l'écran vient de créer ou de modifier : c'est alors le sien.
+		 */
+		author_avatar_version?: number | null
+	}
 
 export type Playlist = {
 	id: number
@@ -733,6 +745,10 @@ type FeedBase = {
 	/** Horodatage ISO, pour l'affichage — le curseur, lui, garde la précision de Postgres. */
 	at: string
 	author: string
+	/** Compte de l'auteur, `null` pour un contenu antérieur à la migration 018. */
+	author_user_id: number | null
+	/** Version de sa photo de profil (`avatarUrl`), `null` sans photo. */
+	author_avatar_version: number | null
 }
 
 export type FeedItem =

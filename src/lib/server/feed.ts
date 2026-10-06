@@ -2,6 +2,7 @@ import sql from './db'
 import { commentsWithReactions } from './comments'
 import { listPostsByIds, postReactions } from './posts'
 import { listSetlistsByIds } from './setlists'
+import { avatarVersions } from './avatars'
 import type { FeedComment, FeedCommentTarget, FeedItem, FeedPage, FeedRecording, ReactionSummary } from '$lib/types'
 
 /**
@@ -55,6 +56,9 @@ export function parseFeedCursor(raw: string | null): Cursor | null | 'invalid' {
 }
 
 type FeedRow = { kind: FeedItem['kind']; ref_id: number; ids: number[] | null; ts: string; at: string; key: string }
+
+// Omit distribué sur chaque variante : sur l'union entière, il ne garderait que les champs communs.
+type WithoutAvatar<T> = T extends unknown ? Omit<T, 'author_avatar_version'> : never
 
 const NO_REACTION: ReactionSummary = { up_count: 0, down_count: 0, up_reactors: [], down_reactors: [], my_reaction: null }
 
@@ -139,7 +143,9 @@ export async function loadFeed(
 	const recordingById = new Map(recordings.map((r) => [r.id, r]))
 	const commentById = new Map(comments.map((c) => [c.id, c]))
 
-	const items: FeedItem[] = []
+	// La photo de l'auteur s'ajoute une fois les cartes construites : une seule requête
+	// pour toute la page, quelle que soit la source de chaque carte.
+	const items: WithoutAvatar<FeedItem>[] = []
 	for (const row of page) {
 		const base = { key: row.key, at: row.at }
 		switch (row.kind) {
@@ -147,7 +153,7 @@ export async function loadFeed(
 				const post = posts.find((p) => p.id === row.ref_id)
 				if (!post) break
 				items.push({
-					...base, kind: 'post', author: post.author, post,
+					...base, kind: 'post', author: post.author, author_user_id: post.author_user_id, post,
 					reactions: reactions.get(post.id) ?? NO_REACTION,
 					comments: commentsByPost.get(post.id) ?? []
 				})
@@ -156,8 +162,8 @@ export async function loadFeed(
 			case 'session': {
 				const s = sessions.find((x) => x.id === row.ref_id)
 				if (!s) break
-				const { author, ...session } = s
-				items.push({ ...base, kind: 'session', author, session })
+				const { author, author_user_id, ...session } = s
+				items.push({ ...base, kind: 'session', author, author_user_id, session })
 				break
 			}
 			case 'recordings': {
@@ -165,10 +171,10 @@ export async function loadFeed(
 				const first = batch[0]
 				if (!first) break
 				items.push({
-					...base, kind: 'recordings', author: first.author,
+					...base, kind: 'recordings', author: first.author, author_user_id: first.author_user_id,
 					session: { id: first.session_id, date: first.session_date, type: first.session_type, title: first.session_title },
 					recordings: batch.map(
-						({ author: _a, session_id: _s, session_date: _d, session_type: _t, session_title: _st, ...rec }) => rec
+						({ author: _a, author_user_id: _u, session_id: _s, session_date: _d, session_type: _t, session_title: _st, ...rec }) => rec
 					)
 				})
 				break
@@ -177,7 +183,7 @@ export async function loadFeed(
 				const s = setlists.find((x) => x.id === row.ref_id)
 				if (!s) break
 				items.push({
-					...base, kind: 'setlist', author: s.created_by,
+					...base, kind: 'setlist', author: s.created_by, author_user_id: s.created_by_user_id,
 					setlist: {
 						id: s.id, name: s.name, description: s.description, song_count: s.song_count,
 						total_duration_s: s.total_duration_s, missing_duration_count: s.missing_duration_count,
@@ -190,8 +196,8 @@ export async function loadFeed(
 			case 'playlist': {
 				const p = playlists.find((x) => x.id === row.ref_id)
 				if (!p) break
-				const { author, ...playlist } = p
-				items.push({ ...base, kind: 'playlist', author, playlist })
+				const { author, author_user_id, ...playlist } = p
+				items.push({ ...base, kind: 'playlist', author, author_user_id, playlist })
 				break
 			}
 			case 'comments': {
@@ -202,6 +208,7 @@ export async function loadFeed(
 				const authors = [...new Set(batch.map((c) => c.author).reverse())]
 				items.push({
 					...base, kind: 'comments', author: authors[0], authors,
+					author_user_id: batch[batch.length - 1].author_user_id,
 					target: commentTarget(first),
 					comments: batch.map(({ id, author, content, timestamp_s, at }) => ({ id, author, content, timestamp_s, at }))
 				})
@@ -210,7 +217,16 @@ export async function loadFeed(
 		}
 	}
 
-	return { items, next }
+	const versions = await avatarVersions(items.map((item) => item.author_user_id))
+	return {
+		items: items.map(
+			(item) => ({
+				...item,
+				author_avatar_version: item.author_user_id === null ? null : (versions.get(item.author_user_id) ?? null)
+			}) as FeedItem
+		),
+		next
+	}
 }
 
 // La date d'une session repasse en texte : sérialisée en JSON, une date à minuit locale
@@ -219,11 +235,11 @@ function loadSessions(ids: number[], groupId: number) {
 	if (ids.length === 0) return Promise.resolve([])
 	return sql<{
 		id: number; date: string; type: string; title: string | null; location: string | null
-		author: string; song_titles: string[]; recording_count: number
+		author: string; author_user_id: number | null; song_titles: string[]; recording_count: number
 	}[]>`
 		SELECT
 			s.id, s.date::text AS date, s.type, s.title, s.location,
-			COALESCE(MAX(u.display_name), s.created_by) AS author,
+			COALESCE(MAX(u.display_name), s.created_by) AS author, s.created_by_user_id AS author_user_id,
 			COALESCE(ARRAY_AGG(DISTINCT so.title) FILTER (WHERE so.title IS NOT NULL), ARRAY[]::TEXT[]) AS song_titles,
 			COUNT(r.id)::int AS recording_count
 		FROM sessions s
@@ -237,6 +253,7 @@ function loadSessions(ids: number[], groupId: number) {
 
 type RecordingRow = FeedRecording & {
 	author: string
+	author_user_id: number | null
 	session_id: number
 	session_date: string
 	session_type: string
@@ -251,7 +268,7 @@ function loadRecordings(ids: number[], groupId: number) {
 			r.file_path IS NOT NULL        AS has_audio,
 			r.youtube_video_id IS NOT NULL AS has_video,
 			(SELECT COUNT(*)::int FROM comments c WHERE c.recording_id = r.id) AS comment_count,
-			COALESCE(u.display_name, r.uploaded_by) AS author,
+			COALESCE(u.display_name, r.uploaded_by) AS author, r.uploaded_by_user_id AS author_user_id,
 			s.id AS session_id, s.date::text AS session_date, s.type AS session_type, s.title AS session_title
 		FROM recordings r
 		JOIN sessions s ON s.id = r.session_id
@@ -263,10 +280,13 @@ function loadRecordings(ids: number[], groupId: number) {
 
 function loadPlaylists(ids: number[], groupId: number) {
 	if (ids.length === 0) return Promise.resolve([])
-	return sql<{ id: number; name: string; description: string | null; author: string; item_count: number }[]>`
+	return sql<{
+		id: number; name: string; description: string | null; author: string; author_user_id: number | null
+		item_count: number
+	}[]>`
 		SELECT
 			p.id, p.name, p.description,
-			COALESCE(MAX(u.display_name), p.created_by) AS author,
+			COALESCE(MAX(u.display_name), p.created_by) AS author, p.created_by_user_id AS author_user_id,
 			COUNT(pi.id)::int AS item_count
 		FROM playlists p
 		LEFT JOIN users u           ON u.id = p.created_by_user_id
@@ -277,6 +297,7 @@ function loadPlaylists(ids: number[], groupId: number) {
 }
 
 type CommentRow = FeedComment & {
+	author_user_id: number | null
 	recording_id: number | null; song_title: string | null; take: number | null
 	session_id: number | null; session_date: string | null; session_type: string | null; session_title: string | null
 	setlist_id: number | null; setlist_name: string | null
@@ -299,7 +320,7 @@ function loadComments(ids: number[], groupId: number) {
 	if (ids.length === 0) return Promise.resolve([] as CommentRow[])
 	return sql<CommentRow[]>`
 		SELECT
-			c.id, COALESCE(u.display_name, c.author) AS author, c.content, c.timestamp_s,
+			c.id, COALESCE(u.display_name, c.author) AS author, c.author_user_id, c.content, c.timestamp_s,
 			to_char(c.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS at,
 			r.id AS recording_id, so.title AS song_title, r.take,
 			s.id AS session_id, s.date::text AS session_date, s.type AS session_type, s.title AS session_title,

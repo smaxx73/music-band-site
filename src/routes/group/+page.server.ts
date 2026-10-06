@@ -19,6 +19,7 @@ import { canAssignGroupAdmin, canManageGroup, isAdmin } from '$lib/types'
 import { createGroupPlace, deleteGroupPlace, listGroupPlaces, updateGroupPlace } from '$lib/server/places'
 import { parsePlaceAddress } from '$lib/places'
 import { loginRedirect } from '$lib/redirect'
+import { AVATAR_VERSION_SQL } from '$lib/server/avatars'
 
 // Portée sur le groupe actif. Consultation pour tout membre ; gestion des membres,
 // du nom et modération pour l'admin du groupe — l'administration transverse
@@ -62,10 +63,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const members = await sql`
 		SELECT
-			u.id, u.display_name, ug.role AS group_role, ug.joined_at
+			u.id, u.display_name, ug.role AS group_role, ug.joined_at, ug.instruments,
+			${AVATAR_VERSION_SQL} AS avatar_version
 			${canSeeGlobalRole ? sql`, u.role AS global_role` : sql``}
 		FROM user_groups ug
 		JOIN users u ON u.id = ug.user_id
+		LEFT JOIN user_avatars ua ON ua.user_id = u.id
 		WHERE ug.group_id = ${groupId}
 		ORDER BY u.display_name
 	`

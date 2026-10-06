@@ -111,6 +111,11 @@ NODE_ENV=production
   fichiers d'une prise s'effacent par `removeRecordingFiles` (`src/lib/server/storage.ts`),
   jamais par un `unlink(audioPath(id))` qui laisserait l'original. Tout passe par
   `src/lib/server/audio-enhance.ts`. Voir « Amélioration du son d'une prise » dans docs/features.md
+- La photo de profil (`user_avatars`) n'est ni publique ni groupe-scopée : la voient le
+  compte, les membres d'un de ses groupes et les admins globaux. Passer par
+  `src/lib/server/avatars.ts`, l'afficher par `Avatar.svelte`. Les instruments vivent sur
+  l'appartenance (`user_groups.instruments`) et seul le membre les écrit, via
+  `setMemberInstruments`. Voir « Profil d'un membre » dans docs/features.md
 - Une prise peut n'avoir qu'une vidéo YouTube, sans fichier : tout code qui touche à `AUDIO_DIR`,
   au lecteur audio partagé ou aux playlists vérifie `file_path IS NOT NULL`. Voir « Prises vidéo
   YouTube » dans docs/features.md
@@ -161,7 +166,7 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
 /upload             formulaire d'upload (fichier audio ou vidéo YouTube)
 /record             enregistrement en direct (micro, interface audio), classé après coup
 /decoupe/[id]       découpe automatique d'un enregistrement long sur les blancs
-/profile            infos du compte connecté + changement de mot de passe
+/profile            infos du compte connecté : photo, instruments par groupe, mot de passe
 /plus               ce que la barre d'onglets (téléphone) et le rail (tablette) ne portent pas :
                     sections secondaires (fil en tête), autres groupes, compte, pages légales
 /group              infos + membres du groupe actif (consultation pour tout membre,

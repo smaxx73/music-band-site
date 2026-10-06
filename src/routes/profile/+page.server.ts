@@ -4,6 +4,8 @@ import sql from '$lib/server/db'
 import { hashPassword, signCookie, verifyPassword } from '$lib/server/auth'
 import { authSecret } from '$lib/server/config'
 import { loginRedirect } from '$lib/redirect'
+import { avatarRequestTooLarge, removeUserAvatar, setUserAvatar } from '$lib/server/avatars'
+import { setMemberInstruments } from '$lib/server/groups'
 
 const DISPLAY_NAME_FORMATS = [
 	'nickname',
@@ -18,8 +20,15 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const [account] = await sql<{ created_at: Date }[]>`
 		SELECT created_at FROM users WHERE id = ${locals.user.id}
 	`
+	// Ce que le membre joue, groupe par groupe — dans l'ordre de `locals.user.groups`.
+	const instruments = await sql<{ group_id: number; instruments: string[] }[]>`
+		SELECT group_id, instruments FROM user_groups WHERE user_id = ${locals.user.id}
+	`
 
-	return { created_at: account?.created_at ?? null }
+	return {
+		created_at: account?.created_at ?? null,
+		instruments: Object.fromEntries(instruments.map((row) => [row.group_id, row.instruments])) as Record<number, string[]>
+	}
 }
 
 export const actions: Actions = {
@@ -58,6 +67,36 @@ export const actions: Actions = {
 		})
 
 		return { action: 'updateProfile', success: true }
+	},
+
+	// Photo et instruments : le compte connecté seul, l'identifiant vient de la session.
+	uploadAvatar: async ({ request, locals }) => {
+		if (!locals.user) error(401, 'Non autorisé')
+		if (avatarRequestTooLarge(request)) {
+			return fail(413, { action: 'avatar', error: "L'image ne peut pas dépasser 8 Mo." })
+		}
+		const data = await request.formData()
+		const result = await setUserAvatar(locals.user.id, data.get('avatar'))
+		if (!result.ok) return fail(result.status, { action: 'avatar', error: result.error })
+		return { action: 'avatar', success: true }
+	},
+
+	removeAvatar: async ({ locals }) => {
+		if (!locals.user) error(401, 'Non autorisé')
+		const result = await removeUserAvatar(locals.user.id)
+		if (!result.ok) return fail(result.status, { action: 'avatar', error: result.error })
+		return { action: 'avatar', success: true }
+	},
+
+	updateInstruments: async ({ request, locals }) => {
+		if (!locals.user) error(401, 'Non autorisé')
+		const data = await request.formData()
+		const groupId = parseInt(data.get('group_id') as string)
+		if (isNaN(groupId)) return fail(400, { action: 'instruments', groupId: null, error: 'Groupe invalide.' })
+
+		const result = await setMemberInstruments(locals.user.id, groupId, data.getAll('instrument'))
+		if (!result.ok) return fail(result.status, { action: 'instruments', groupId, error: result.error })
+		return { action: 'instruments', groupId, success: true }
 	},
 
 	changePassword: async ({ request, locals }) => {

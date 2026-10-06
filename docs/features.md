@@ -1513,7 +1513,8 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 
 - Consultation pour tout membre : informations du groupe, compteurs (dont le nombre exact de
   prises, vidéos seules signalées, et l'espace disque de leurs pistes audio), logo, liens vers les
-  réseaux du groupe (ouverts dans un nouvel onglet), liste des membres avec leur rôle dans le groupe,
+  réseaux du groupe (ouverts dans un nouvel onglet), liste des membres avec leur photo, leurs
+  instruments dans ce groupe et leur rôle (voir « Profil d'un membre »),
   lieux du groupe (voir « Lieux et adresses »)
 - Le rôle **global** d'un membre (`users.role`) n'est affiché qu'aux admins globaux, et n'est
   pas sélectionné en base sinon — le masquer côté client le laisserait dans le payload
@@ -1527,6 +1528,36 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
   ni promouvoir un membre, ni retirer un autre admin de groupe (ce qui l'empêche aussi de se
   retirer lui-même)
 - Le dernier membre d'un groupe ne peut pas être retiré : le contenu deviendrait inatteignable
+
+## Profil d'un membre (`/profile`)
+
+Un membre n'était qu'un nom et ses initiales. Il peut se montrer, et dire ce qu'il joue.
+
+- **Photo de profil**, déposée par le membre lui-même : choisir un fichier suffit, il part
+  aussitôt. « Retirer » sans confirmation : les initiales reviennent, et la photo se
+  redépose. PNG, JPEG, WebP ou GIF, **8 Mo** au plus, format lu dans les octets, SVG refusé
+- **Recadrée en carré au centre** et réencodée par ffmpeg en deux JPEG : 256 px (profil),
+  96 px (partout ailleurs). L'original n'est pas gardé, ni ses métadonnées (EXIF, position GPS)
+- En base (`user_avatars`, migration 046), comme une pochette : elle suit le compte dans
+  `pg_dump` et part avec lui. Elle n'entre pas dans l'archive JSON d'un groupe
+- **Visible** du membre, des membres d'un de ses groupes et des admins globaux — pas
+  publique, et pas limitée au groupe actif : un compte appartient à plusieurs groupes.
+  Servie par `GET /api/users/[id]/avatar` (`?size=thumb`, `?v=` pour un cache long) ; un
+  compte hors de portée répond `404`, comme une photo absente (`src/lib/server/avatars.ts`)
+- **Où elle paraît** (`Avatar.svelte`) : barre du haut, barre latérale, profil, membres de
+  `/group`, cartes du fil, commentaires. Sans photo, ou si l'image ne charge pas, les
+  initiales. Les participants d'une session restent du texte : pas de photo
+- **Instruments, par groupe** (`user_groups.instruments`, migration 046) : on tient la basse
+  dans l'un et on chante dans l'autre. Section « Mes groupes » du profil, un groupe à la
+  fois, en vignettes (`InstrumentsInput.svelte`) : une liste usuelle proposée sans être
+  imposée, saisie libre. **8 au plus**, 40 caractères chacun ; doublons écartés sans casse,
+  l'orthographe de la liste reprise (« batterie » → « Batterie ») — `normalizeInstruments`,
+  `src/lib/instruments.ts`, partagé par l'écran et le serveur
+- **Le membre seul** écrit ses instruments (`setMemberInstruments`, `src/lib/server/groups.ts`,
+  l'identifiant venant de la session) ; ni l'admin du groupe, ni un admin global. Ils se
+  lisent sous son nom dans les membres de `/group`, où un membre qui n'a rien dit se voit
+  proposer de le faire. Ils partent avec l'appartenance, et entrent dans l'archive JSON
+- Pas de notification : un profil n'annonce pas de contenu
 
 ## Logo et réseaux du groupe (`/group`)
 

@@ -17,6 +17,8 @@ declare global {
 				display_name_format: 'nickname' | 'first_name' | 'first_name_last_initial' | 'first_name_last_name'
 				display_name: string
 				role: 'user' | 'admin' | 'superadmin'
+				/** Version de la photo de profil (`avatarUrl`), `null` sans photo. */
+				avatar_version: number | null
 				current_group_id: number | null
 				groups: { id: number; name: string; role: 'admin' | 'member'; logo_version: number | null }[]
 			} | null
@@ -30,6 +32,8 @@ declare global {
 				display_name_format: 'nickname' | 'first_name' | 'first_name_last_initial' | 'first_name_last_name'
 				display_name: string
 				role: 'user' | 'admin' | 'superadmin'
+				/** Version de la photo de profil (`avatarUrl`), `null` sans photo. */
+				avatar_version: number | null
 				current_group_id: number | null
 				groups: { id: number; name: string; role: 'admin' | 'member'; logo_version: number | null }[]
 			} | null

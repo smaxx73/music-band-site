@@ -5,6 +5,7 @@ import sql from '$lib/server/db'
 import { authSecret } from '$lib/server/config'
 import { setActiveGroupCookie } from '$lib/server/group-scope'
 import { measurePendingRecordings } from '$lib/server/audio-enhance'
+import { AVATAR_VERSION_SQL } from '$lib/server/avatars'
 
 /** Laisse le serveur démarrer et servir ses premières pages avant de mesurer. */
 const BACKFILL_DELAY_MS = 60_000
@@ -33,10 +34,13 @@ export const handle: Handle = async ({ event, resolve }) => {
 				display_name_format: 'nickname' | 'first_name' | 'first_name_last_initial' | 'first_name_last_name'
 				display_name: string
 				role: 'user' | 'admin' | 'superadmin'
+				avatar_version: number | null
 			}[]>`
-				SELECT id, nickname, first_name, last_name, display_name_format, display_name, role
-				FROM users
-				WHERE ${userId ? sql`id = ${Number(userId)}` : sql`nickname = ${session}`} AND active = true
+				SELECT u.id, u.nickname, u.first_name, u.last_name, u.display_name_format, u.display_name, u.role,
+				       ${AVATAR_VERSION_SQL} AS avatar_version
+				FROM users u
+				LEFT JOIN user_avatars ua ON ua.user_id = u.id
+				WHERE ${userId ? sql`u.id = ${Number(userId)}` : sql`u.nickname = ${session}`} AND u.active = true
 			`
 			if (user) {
 				const groups = await sql<{ id: number; name: string; role: 'admin' | 'member'; logo_version: number | null }[]>`

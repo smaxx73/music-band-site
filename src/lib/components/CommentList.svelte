@@ -7,6 +7,7 @@
 	import { commentParts, commentVideos } from '$lib/comment-content'
 	import YouTubeEmbed from '$lib/components/YouTubeEmbed.svelte'
 	import Icon from '$lib/components/Icon.svelte'
+	import Avatar from '$lib/components/Avatar.svelte'
 	import type { CommentThread, CommentWithReactions, ReactionValue } from '$lib/types'
 
 	type ReactionState = {
@@ -90,6 +91,14 @@
 	let pending = $state<Record<number, boolean>>({})
 	let reactionError = $state<Record<number, string>>({})
 	let visibleReactors = $state<{ commentId: number; value: ReactionValue } | null>(null)
+
+	// Ses propres commentaires prennent la photo de la session : à jour même sur un
+	// commentaire qu'on vient d'écrire, dont la réponse de l'API ne porte pas la version.
+	function authorAvatarVersion(comment: CommentWithReactions): number | null {
+		const me = page.data.user
+		if (me && comment.author_user_id === me.id) return me.avatar_version
+		return comment.author_avatar_version ?? null
+	}
 
 	function reactionState(comment: CommentWithReactions): ReactionState {
 		return (
@@ -312,6 +321,12 @@
 			bind:this={commentEls[comment.id]}
 		>
 			<div class="comment-header">
+				<Avatar
+					userId={comment.author_user_id}
+					name={comment.author}
+					version={authorAvatarVersion(comment)}
+					size={compact ? '1.3rem' : '1.6rem'}
+				/>
 				<strong>{comment.author}</strong>
 				{#if comment.timestamp_s !== null && comment.timestamp_s !== undefined}
 					{#if onSeek}

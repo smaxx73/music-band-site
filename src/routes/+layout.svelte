@@ -9,6 +9,7 @@
 	import GroupSwitcher from '$lib/components/GroupSwitcher.svelte'
 	import AddMenu from '$lib/components/AddMenu.svelte'
 	import Icon from '$lib/components/Icon.svelte'
+	import Avatar from '$lib/components/Avatar.svelte'
 	import LegalLinks from '$lib/components/LegalLinks.svelte'
 	import { APP_VERSION } from '$lib/version'
 	import type { IconName } from '$lib/icons'
@@ -68,15 +69,6 @@
 
 	const currentGroup = $derived(
 		data.user?.groups.find((g) => g.id === data.user?.current_group_id)
-	)
-
-	const userInitials = $derived(
-		data.user?.display_name
-			.split(' ')
-			.map((n) => n[0])
-			.join('')
-			.slice(0, 2)
-			.toUpperCase() ?? ''
 	)
 
 	type NavItem = { href: string; label: string; short: string; icon: IconName }
@@ -170,7 +162,7 @@
 				class:active={isActive('/profile')}
 				aria-current={ariaCurrent('/profile')}
 				title="{data.user.display_name} — mon profil"
-			>{userInitials}</a>
+			><Avatar userId={data.user.id} name={data.user.display_name} version={data.user.avatar_version} size="27px" /></a>
 		</header>
 
 		<div class="app-body">
@@ -212,7 +204,7 @@
 
 						<div class="sidebar-account">
 							<a href="/profile" class="sidebar-user" class:active={isActive('/profile')} aria-current={ariaCurrent('/profile')}>
-								<div class="sidebar-avatar">{userInitials}</div>
+								<span class="sidebar-avatar"><Avatar userId={data.user.id} name={data.user.display_name} version={data.user.avatar_version} size="21px" /></span>
 								<span class="sidebar-username">{data.user.display_name}</span>
 							</a>
 							<form method="POST" action="/logout">
@@ -339,13 +331,7 @@
 		width: 30px;
 		height: 30px;
 		border-radius: 50%;
-		background: var(--color-accent-light);
-		color: var(--color-accent);
 		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 0.7rem;
-		font-weight: 700;
 		flex-shrink: 0;
 		border: 1.5px solid var(--color-accent);
 		text-decoration: none;
@@ -490,14 +476,10 @@
 		height: 24px;
 		border-radius: 50%;
 		border: 1.5px solid var(--color-mid);
-		background: transparent;
 		display: flex;
-		align-items: center;
-		justify-content: center;
-		font-size: 0.6rem;
-		font-weight: 700;
-		color: var(--color-mid);
 		flex-shrink: 0;
+		--avatar-bg: transparent;
+		--avatar-fg: var(--color-mid);
 	}
 
 	.sidebar-username {

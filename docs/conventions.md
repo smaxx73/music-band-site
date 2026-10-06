@@ -27,6 +27,8 @@ src/
 │   │   ├── song-covers.ts # pochettes de morceau : dépôt (recadrage ffmpeg), lecture, retrait
 │   │   ├── score-documents.ts # feuilles de répétition : validation, accès, droit de suppression
 │   │   ├── session-photos.ts # photo de bandeau d'une session : dépôt (recadrage ffmpeg), lecture, retrait
+│   │   ├── avatars.ts     # photo de profil : dépôt (recadrage ffmpeg), retrait, lecture selon
+│   │   │                  #   le partage d'un groupe, versions d'un lot de comptes (fil)
 │   │   ├── places.ts      # lieux du groupe (/group) : liste, ajout, modification (renommage propagé), retrait
 │   │   ├── addresses.ts   # Base Adresse Nationale : recherche d'une adresse pour un lieu
 │   │   ├── images.ts      # images déposées : format lu dans les octets, taille de requête
@@ -48,6 +50,8 @@ src/
 │       ├── RecordingRow.svelte     # une prise en piste de tracklist (vues session et morceau) ;
 │       │                          #   porte le menu ⋮ de la prise et l'état « en lecture »
 │       ├── SongCover.svelte       # pochette d'un morceau : l'image déposée, sinon un dégradé
+│       ├── Avatar.svelte          # pastille d'un membre : sa photo de profil, sinon ses initiales
+│       ├── InstrumentsInput.svelte # instruments joués dans un groupe, en vignettes (profil)
 │       ├── SongFields.svelte      # champs de la fiche d'un morceau (ajout, tableau de /songs,
 │       │                          #   édition sur la page du morceau)
 │       ├── SongCoverEditor.svelte # déposer, remplacer, retirer la pochette (page du morceau)

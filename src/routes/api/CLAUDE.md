@@ -74,6 +74,7 @@ api/groups/[id]/logo/+server.ts
 api/groups/[id]/members/+server.ts
 api/groups/[id]/members/[userId]/+server.ts
 api/groups/switch/+server.ts
+api/users/[id]/avatar/+server.ts
 ```
 
 ## Auth
@@ -164,6 +165,14 @@ la retire (`DELETE`) ; `PATCH` (`{ veil }`) règle l'intensité du voile sombre,
 95 (`parseSessionPhotoVeil`, `src/lib/session-photo.ts`), sans changer la version de l'image ;
 `GET` la sert aux mêmes membres (`?v=` pour un cache long). Une session d'un autre groupe
 répond `404`. Passer par `src/lib/server/session-photos.ts`.
+
+La **photo de profil** (`GET /api/users/[id]/avatar`) n'est pas groupe-scopée : un compte
+appartient à plusieurs groupes. La voient le compte lui-même, ceux qui partagent un de ses
+groupes et les admins globaux ; hors de cette portée, `404`, comme une photo absente.
+`?size=thumb` sert la vignette 96 px, `?v=` un cache long. Le dépôt et le retrait ne sont
+pas des routes API : ce sont des actions de `/profile` (`uploadAvatar`, `removeAvatar`), sur
+le seul compte connecté, comme `updateInstruments` pour les instruments d'un groupe.
+Passer par `src/lib/server/avatars.ts`.
 
 Les **lieux** (`api/places/`) sont groupe-scopés. Le lieu d'une session ou d'un événement
 reste un texte (`location`) : l'étiquette d'un lieu du groupe (`group_places`, comparée sans
