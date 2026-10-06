@@ -60,6 +60,36 @@ recoupent **pas** les mots de l'écran.
     que de rester sur le formulaire : c'est juste après l'ajout qu'on commente la prise.
     Idem pour une prise vidéo YouTube. Une découpe, elle, mène à `/decoupe/[id]`
 
+### Envoi par lots
+
+Une répétition enregistrée morceau par morceau au téléphone donne dix fichiers : les
+verser un par un, formulaire compris, décourage de les verser tous.
+
+- Le champ fichier de `/upload` en accepte **plusieurs d'un coup**. Chacun devient une
+  prise de la même session ; le formulaire liste alors les fichiers
+  (`UploadBatch.svelte`), chacun avec **son morceau**, deviné d'après son nom comme pour
+  un fichier seul, et « + Nouveau morceau… » sur place
+- **Rangés par date d'enregistrement** (`lastModified`), et envoyés dans cet ordre : deux
+  fichiers du même morceau se numérotent dans l'ordre où ils ont été joués. La session
+  proposée est celle du jour du premier fichier
+- Un fichier sans morceau bloque l'envoi ; « Nommer plus tard » donne à chacun le sien
+  (« À nommer — … » à l'heure du fichier), comme dans la découpe. Un par fichier, pas un
+  pour tous
+- **Un fichier après l'autre**, chacun par `POST /api/upload` comme un envoi seul :
+  conversion, doublon, notification. **Rien de neuf côté serveur.** La conversion est la
+  partie coûteuse : le serveur ne gagnerait rien à en mener plusieurs de front
+- Un échec n'arrête pas la série : le fichier le dit, et « Réessayer » ne renvoie que ceux
+  qui ont échoué, dans la même session — une session créée à la volée n'est créée qu'une
+  fois. Un doublon est signalé avec la prise existante, et n'est pas renvoyé. Tant que des
+  prises de la série sont créées, la session ne se change plus
+- Tout est passé : l'écran mène à la **session**, où les prises se lisent rangées par
+  morceau. Sinon il reste, avec le bilan (« 4 prises ajoutées · 1 déjà présente ») et le
+  lien vers la session
+- Fermer l'onglet pendant l'envoi demande confirmation ; naviguer dans l'application, non :
+  les fichiers restants partent quand même
+- Ramené à un seul fichier avant l'envoi, on retrouve le formulaire simple. Pas de lot en
+  mode « À découper sur les blancs » (un fichier, un écran de découpe) ni en vidéo YouTube
+
 ## Son d'un seul côté (canal muet)
 
 Un micro branché sur l'entrée 1 d'une carte son, l'entrée 2 restée vide : le fichier est

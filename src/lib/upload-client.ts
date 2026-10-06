@@ -97,3 +97,26 @@ export async function createSession(session: NewSession): Promise<number> {
 	if (!res.ok) throw new Error(json.error ?? 'Erreur création session.')
 	return json.id
 }
+
+/**
+ * Un fichier d'un envoi par lots (`/upload`, plusieurs fichiers choisis d'un coup) : il
+ * devient une prise de la session, rattachée à son propre morceau. Les fichiers partent
+ * un par un, chacun par `POST /api/upload` comme un envoi seul.
+ */
+export type BatchItem = {
+	key: number
+	file: File
+	songId: string
+	/** Morceau deviné d'après le nom du fichier : l'écran le dit tant qu'on n'y touche pas. */
+	proposedSong: string
+	status: 'pending' | 'sending' | 'converting' | 'done' | 'duplicate' | 'error'
+	progress: number
+	recording?: { id: number; take: number }
+	duplicate?: DuplicateInfo
+	error?: string
+}
+
+/** Envoyé, ou déjà là : un fichier qu'un nouvel essai n'a pas à renvoyer. */
+export function batchItemSettled(item: BatchItem): boolean {
+	return item.status === 'done' || item.status === 'duplicate'
+}

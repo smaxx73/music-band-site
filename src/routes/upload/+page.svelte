@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { SESSION_TYPES, sessionTypeLabel } from '$lib/types'
 	import type { PageData } from './$types'
-	import { afterNavigate, goto } from '$app/navigation'
+	import { onDestroy } from 'svelte'
+	import { afterNavigate, goto, invalidateAll } from '$app/navigation'
 	import { backLinkFrom, type BackLink } from '$lib/back-link'
 	import { formatDateOnly, localDateOnly, sessionOfDay } from '$lib/date'
 	import SongDetails from '$lib/components/SongDetails.svelte'
@@ -11,10 +12,18 @@
 	import Icon from '$lib/components/Icon.svelte'
 	import SongSelect from '$lib/components/SongSelect.svelte'
 	import PendingImports from '$lib/components/PendingImports.svelte'
-	import { sortedWithSong } from '$lib/songs'
+	import UploadBatch from '$lib/components/UploadBatch.svelte'
+	import { createSong, placeholderSongTitle, sortedWithSong } from '$lib/songs'
 	import { songFromFileName } from '$lib/song-match'
 	import { parseYouTubeVideoId } from '$lib/youtube'
-	import { createSession, DuplicateError, sendAudioFile, type DuplicateInfo } from '$lib/upload-client'
+	import {
+		batchItemSettled,
+		createSession,
+		DuplicateError,
+		sendAudioFile,
+		type BatchItem,
+		type DuplicateInfo
+	} from '$lib/upload-client'
 
 	let { data }: { data: PageData } = $props()
 
@@ -90,8 +99,29 @@
 	// Remontée par le lecteur d'aperçu : YouTube ne la donne pas au serveur sans clé d'API.
 	let videoDurationS = $state(0)
 
-	const isSplit = $derived(source === 'audio' && multiTake)
-	const sourceReady = $derived(source === 'audio' ? !!file : !!videoId)
+	// Plusieurs fichiers choisis d'un coup : chacun devient une prise de la session, avec
+	// son propre morceau. Une répétition enregistrée morceau par morceau au téléphone se
+	// verse ainsi en une fois, au lieu d'un aller-retour par fichier.
+	let batch = $state<BatchItem[]>([])
+	let nextBatchKey = 0
+	const isBatch = $derived(source === 'audio' && batch.length > 0)
+	const batchPending = $derived(batch.filter((item) => !batchItemSettled(item)))
+	const batchUnassigned = $derived(batchPending.filter((item) => !item.songId).length)
+	const batchFailed = $derived(batch.filter((item) => item.status === 'error').length)
+	const batchDone = $derived(batch.filter((item) => item.status === 'done').length)
+	const batchDuplicates = $derived(batch.filter((item) => item.status === 'duplicate').length)
+	const batchSent = $derived(batch.some(batchItemSettled) || batchFailed > 0)
+	// Session de la série : celle des prises déjà créées, pour que les suivantes et les
+	// nouveaux essais les y rejoignent.
+	let batchSessionId = $state<number | null>(null)
+	let batchRun = $state({ done: 0, total: 0 })
+	// La page quittée pendant l'envoi, les fichiers restants partent quand même : seule la
+	// redirection finale n'a plus lieu d'être.
+	let destroyed = false
+	onDestroy(() => (destroyed = true))
+
+	const isSplit = $derived(source === 'audio' && multiTake && !isBatch)
+	const sourceReady = $derived(source === 'audio' ? !!file || batchPending.length > 0 : !!videoId)
 
 	let uploading = $state(false)
 	let progress = $state(0)
@@ -110,18 +140,133 @@
 	 * Son nom, quand on l'a renommé, désigne souvent le morceau.
 	 */
 	function pickFile(input: HTMLInputElement) {
-		file = input.files?.[0] ?? null
+		const picked = Array.from(input.files ?? [])
+		if (picked.length > 1) { pickBatch(picked); return }
+		batch = []
+		batchSessionId = null
+		file = picked[0] ?? null
 		if (!file) return
-		const recordedAt = new Date(file.lastModified)
+		proposeSession(new Date(file.lastModified))
+		if (selectedSong === '' || selectedSong === proposedSong) {
+			const named = songFromFileName(file.name, songs)
+			selectedSong = proposedSong = named ? String(named.id) : ''
+		}
+	}
+
+	function proposeSession(recordedAt: Date) {
 		if (!newDate) newDate = localDateOnly(recordedAt)
 		if (selectedSession === '' || selectedSession === proposedSession) {
 			const daySession = sessionOfDay(sessions, recordedAt)
 			selectedSession = proposedSession = daySession ? String(daySession.id) : ''
 		}
-		if (selectedSong === '' || selectedSong === proposedSong) {
-			const named = songFromFileName(file.name, songs)
-			selectedSong = proposedSong = named ? String(named.id) : ''
+	}
+
+	/**
+	 * Une nouvelle sélection remplace la précédente, comme le champ fichier lui-même.
+	 * Rangés par date d'enregistrement : deux fichiers du même morceau se numérotent
+	 * dans l'ordre où ils ont été joués, pas dans celui du sélecteur de fichiers.
+	 */
+	function pickBatch(picked: File[]) {
+		file = null
+		batchSessionId = null
+		const ordered = [...picked].sort((a, b) => a.lastModified - b.lastModified)
+		batch = ordered.map((f) => {
+			const named = songFromFileName(f.name, songs)
+			const songId = named ? String(named.id) : ''
+			return { key: nextBatchKey++, file: f, songId, proposedSong: songId, status: 'pending', progress: 0 }
+		})
+		// Le premier fichier date le début de la répétition.
+		proposeSession(new Date(ordered[0].lastModified))
+	}
+
+	/** Revenu à un seul fichier avant tout envoi, on retrouve le formulaire simple. */
+	function removeBatchItem(key: number) {
+		batch = batch.filter((item) => item.key !== key)
+		if (batch.length === 1 && !batchSent) {
+			const [last] = batch
+			file = last.file
+			selectedSong = last.songId
+			proposedSong = last.proposedSong
+			batch = []
 		}
+	}
+
+	/**
+	 * Comme « Nommer plus tard » de la découpe : chaque fichier sans morceau reçoit le sien,
+	 * « À nommer — … » à l'heure du fichier. Un par fichier, pas un pour tous : regrouper
+	 * à tort serait plus pénible à défaire que renommer.
+	 */
+	let naming = $state(false)
+	async function nameBatchLater() {
+		if (naming) return
+		naming = true
+		error = null
+		try {
+			for (const item of batchPending) {
+				if (item.songId) continue
+				const result = await createSong(
+					placeholderSongTitle(new Date(item.file.lastModified), songs.map((s) => s.title))
+				)
+				if (!result.ok) { error = result.error; return }
+				songs = sortedWithSong(songs, result.song)
+				item.songId = String(result.song.id)
+			}
+		} finally {
+			naming = false
+		}
+	}
+
+	/**
+	 * Un fichier après l'autre : la conversion est la partie coûteuse, et le serveur n'en
+	 * gagnerait rien à en mener plusieurs de front. Un échec n'arrête pas la série, il se
+	 * réessaie ensuite seul ; un doublon est simplement signalé.
+	 */
+	async function submitBatch() {
+		if (batchUnassigned > 0) { error = 'Chaque fichier doit être rattaché à un morceau.'; return }
+
+		uploading = true
+		let sessionId: number | null = batchSessionId
+		try {
+			sessionId ??= await resolveSessionId()
+			if (sessionId === null) return
+			batchSessionId = sessionId
+
+			const queue = [...batchPending]
+			batchRun = { done: 0, total: queue.length }
+			for (const item of queue) {
+				item.status = 'sending'
+				item.progress = 0
+				item.error = undefined
+				try {
+					const created = await sendAudioFile<{ id: number; take: number }>(
+						'/api/upload',
+						item.file,
+						{ session_id: String(sessionId), song_id: item.songId },
+						(p) => {
+							item.progress = p
+							if (p >= 100) item.status = 'converting'
+						}
+					)
+					item.recording = { id: created.id, take: created.take }
+					item.status = 'done'
+				} catch (err) {
+					if (err instanceof DuplicateError) {
+						item.duplicate = err.duplicate
+						item.status = 'duplicate'
+					} else {
+						item.error = err instanceof Error ? err.message : 'Erreur inattendue.'
+						item.status = 'error'
+					}
+				}
+				batchRun.done++
+			}
+		} finally {
+			uploading = false
+		}
+
+		// Tout est passé : la session montre les prises rangées par morceau. Sinon on reste,
+		// pour lire ce qui a échoué ou existait déjà.
+		if (!destroyed && batch.every((item) => item.status === 'done')) await goto(`/sessions/${sessionId}`)
 	}
 
 	function formatDate(d: string | Date) {
@@ -138,6 +283,8 @@
 		error = null
 		duplicate = null
 		progress = 0
+
+		if (isBatch) { await submitBatch(); return }
 
 		if (!isSplit && !selectedSong) { error = 'Sélectionne un morceau.'; return }
 		if (source === 'audio' && !file) { error = 'Sélectionne un fichier audio.'; return }
@@ -190,13 +337,18 @@
 		if (!newDate) { error = 'Saisis la date de la session.'; return null }
 
 		try {
-			return await createSession({
+			const sessionId = await createSession({
 				date: newDate,
 				type: newType,
 				title: newTitle.trim() || undefined,
 				location: newLocation.trim() || undefined,
 				location_coords: newLocation.trim() ? newCoords : null
 			})
+			// La session existe désormais : un nouvel essai après un échec doit la reprendre,
+			// pas en créer une seconde.
+			await invalidateAll()
+			selectedSession = String(sessionId)
+			return sessionId
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Erreur création session.'
 			return null
@@ -236,6 +388,9 @@
 	<title>Uploader une prise</title>
 </svelte:head>
 
+<!-- Un onglet fermé coupe l'envoi en cours ; une navigation dans l'application, non. -->
+<svelte:window onbeforeunload={(e) => { if (uploading) e.preventDefault() }} />
+
 <main class="page page-narrow">
 	<nav class="breadcrumb">
 		<a href={back.href} onclick={(e) => { if (back.fromHistory) { e.preventDefault(); history.back() } }}>{back.label}</a> /
@@ -269,7 +424,8 @@
 			<legend>Session</legend>
 			<label class="form-label">
 				Sélectionner une session
-				<select class="form-input" bind:value={selectedSession} required disabled={uploading}>
+				<!-- Des prises de la série y sont déjà : les suivantes les rejoignent. -->
+				<select class="form-input" bind:value={selectedSession} required disabled={uploading || batchDone > 0}>
 					<option value="" disabled>— Choisir —</option>
 					<option value="new">+ Nouvelle session</option>
 					{#each sessions as s}
@@ -309,6 +465,10 @@
 			{#if isSplit}
 				<p class="hint">
 					Chaque segment détecté recevra son propre morceau à l'écran suivant.
+				</p>
+			{:else if isBatch}
+				<p class="hint">
+					Chaque fichier reçoit son propre morceau, dans la liste des fichiers ci-dessous.
 				</p>
 			{:else}
 				<SongSelect
@@ -403,14 +563,36 @@
 				<input
 					type="file"
 					accept={acceptedAudioFiles}
+					multiple={!multiTake}
 					disabled={uploading}
 					onchange={(e) => pickFile(e.currentTarget as HTMLInputElement)}
 				/>
 			</label>
 			{#if file}
 				<p class="hint">{file.name} — {(file.size / 1024 / 1024).toFixed(1)} Mo</p>
+			{:else if !isBatch && !multiTake}
+				<p class="hint">Plusieurs fichiers d'un coup : chacun devient une prise de la session.</p>
 			{/if}
 
+			{#if isBatch}
+				<UploadBatch
+					bind:items={batch}
+					{songs}
+					oncreate={(song) => (songs = sortedWithSong(songs, song))}
+					onremove={removeBatchItem}
+					disabled={uploading || naming}
+				/>
+				{#if batchUnassigned > 0}
+					<div class="batch-unassigned">
+						<p class="hint">
+							{batchUnassigned} fichier{batchUnassigned > 1 ? 's' : ''} sans morceau — choisis-le ou retire le fichier.
+						</p>
+						<button type="button" class="btn btn-secondary btn-sm" onclick={nameBatchLater} disabled={naming || uploading}>
+							{naming ? 'Création…' : 'Nommer plus tard'}
+						</button>
+					</div>
+				{/if}
+			{:else}
 			<label class="check-label">
 				<input type="checkbox" bind:checked={multiTake} disabled={uploading} />
 				<span>
@@ -421,6 +603,7 @@
 					</span>
 				</span>
 			</label>
+			{/if}
 			{/if}
 		</fieldset>
 
@@ -440,6 +623,36 @@
 			</p>
 		{/if}
 
+		{#if isBatch && batchSent && !uploading}
+			<p class="batch-summary" role="status">
+				{[
+					batchDone ? `${batchDone} prise${batchDone > 1 ? 's' : ''} ajoutée${batchDone > 1 ? 's' : ''}` : null,
+					batchDuplicates ? `${batchDuplicates} déjà présente${batchDuplicates > 1 ? 's' : ''}` : null,
+					batchFailed ? `${batchFailed} en échec` : null
+				].filter(Boolean).join(' · ')}.
+				{#if batchSessionId && batchDone > 0}<a href="/sessions/{batchSessionId}">Voir la session →</a>{/if}
+			</p>
+		{/if}
+
+		{#if isBatch && batchPending.length === 0}
+			{#if batchSessionId}
+				<a class="btn btn-primary btn-lg submit-btn" href="/sessions/{batchSessionId}">Voir la session</a>
+			{/if}
+		{:else if isBatch}
+			<button
+				type="submit"
+				class="btn btn-primary btn-lg submit-btn"
+				disabled={uploading || naming || !selectedSession || batchUnassigned > 0}
+			>
+				{#if uploading}
+					Envoi {batchRun.done + 1} / {batchRun.total}…
+				{:else if batchFailed > 0}
+					Réessayer {batchPending.length} fichier{batchPending.length > 1 ? 's' : ''}
+				{:else}
+					Uploader {batchPending.length} fichier{batchPending.length > 1 ? 's' : ''}
+				{/if}
+			</button>
+		{:else}
 		<button
 			type="submit"
 			class="btn btn-primary btn-lg submit-btn"
@@ -455,6 +668,7 @@
 				Uploader
 			{/if}
 		</button>
+		{/if}
 	</form>
 
 	<!-- Fichiers longs encore conservés : reprendre une découpe sans renvoyer l'original -->
@@ -558,4 +772,21 @@
 	}
 
 	.submit-btn { align-self: flex-start; }
+
+	.batch-unassigned {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+		margin-top: 0.6rem;
+	}
+
+	.batch-unassigned .hint { margin: 0; }
+
+	.batch-summary {
+		margin: 0;
+		font-size: var(--text-sm);
+		color: var(--color-text-secondary);
+	}
 </style>

@@ -27,6 +27,10 @@ Migrations à appliquer, dans l'ordre : `046_user_profile.sql`, `047_notificatio
 - **Préférences de notification**, par groupe, depuis le profil (ou la roue dentée de la
   cloche) : commentaires « tous » / « ce qui me concerne » / « aucun », et un interrupteur
   par autre type. Tout reste activé par défaut ; les mentions parviennent toujours
+- **Envoi par lots** : `/upload` accepte plusieurs fichiers d'un coup, chacun devenant une
+  prise de la session avec son propre morceau (deviné d'après le nom du fichier, ou
+  « Nommer plus tard »). Envoyés un par un dans l'ordre d'enregistrement ; un échec se
+  réessaie seul, un doublon est signalé
 
 ## [1.5.4] — 2026-10-05
 

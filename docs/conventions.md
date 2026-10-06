@@ -80,6 +80,7 @@ src/
 │       ├── ClassifyDialog.svelte  # classer un enregistrement perso en prise (session + morceau)
 │       ├── AudioEnhanceDialog.svelte # améliorer le son d'une prise : mesure, chaîne, écoute comparée
 │       ├── PendingImports.svelte  # fichiers encore en transit : reprendre ou refaire une découpe
+│       ├── UploadBatch.svelte     # envoi par lots sur /upload : un fichier par ligne, son morceau, son état
 │       ├── ShareLinkDialog.svelte # liens d'écoute publics d'un enregistrement : créer, révoquer
 │       ├── ShareMenu.svelte       # bouton « Partager » d'une prise : lien pour le groupe, lien public
 │       ├── PostReactions.svelte   # pouces 👍/👎 d'une publication (fil et page de la publication)
