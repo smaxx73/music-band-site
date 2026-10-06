@@ -1558,6 +1558,8 @@ Un membre n'était qu'un nom et ses initiales. Il peut se montrer, et dire ce qu
   lisent sous son nom dans les membres de `/group`, où un membre qui n'a rien dit se voit
   proposer de le faire. Ils partent avec l'appartenance, et entrent dans l'archive JSON
 - Pas de notification : un profil n'annonce pas de contenu
+- « Mes groupes » porte aussi, groupe par groupe, les **préférences de notification** —
+  voir « Notifications d'activité »
 
 ## Logo et réseaux du groupe (`/group`)
 
@@ -1635,8 +1637,25 @@ Un membre n'était qu'un nom et ses initiales. Il peut se montrer, et dire ce qu
   s'arrête au-dessus de la barre d'onglets et la page derrière lui est voilée et figée.
   Toucher le voile ferme le panneau sans activer ce qui est dessous ; même règle pour le
   panneau de « + Ajouter » (`Menu.svelte`)
-- Une notification est créée pour **chaque membre du groupe sauf l'auteur de l'action**, au
-  moment de l'action (`src/lib/server/notifications.ts` → `notifyGroup`)
+- Une notification est créée pour **chaque membre du groupe qui la veut, sauf l'auteur de
+  l'action**, au moment de l'action (`src/lib/server/notifications.ts` → `notifyGroup`)
+- **Préférences, par groupe** (`user_groups.notification_prefs`, migration 047), réglées
+  dans « Mes groupes » du profil ; la roue dentée de la cloche y mène
+  (`/profile#notifications-<id>`, le réglage s'ouvre d'emblée) :
+  - **Commentaires** : « Tous » (par défaut), « Ce qui me concerne » — sur ce qu'on a déposé
+    ou créé (prise, setlist, publication) et dans les discussions où l'on a déjà écrit —, ou
+    « Aucun ». C'est le seul type à trois niveaux : tout le groupe commente tout, et c'est
+    ce qui fait le plus de bruit
+  - Un interrupteur pour chacun des autres : prises, sessions, playlists, setlists,
+    publications, agenda. Tous activés par défaut
+  - **Les mentions ne se règlent pas** : qui écrit `@pseudo` s'attend à être lu, et les
+    couper retirerait aux autres le seul moyen sûr d'attirer l'attention
+  - Par groupe plutôt que pour le compte : on suit de près le groupe où l'on joue chaque
+    semaine, et de plus loin un autre. Objet vide en base = tout, comme avant : une clé
+    absente vaut sa valeur par défaut (`src/lib/notification-prefs.ts`)
+  - Le filtre est **dans le fan-out** (`wantedBy`) : rien à changer chez les appelants. Le
+    fil d'actualité, lui, montre toujours tout
+  - Ne vaut que pour la suite : les notifications déjà écrites restent
 - Sept déclencheurs, un par création : prise uploadée (`recording`), commentaire (`comment`),
   session (`session`), playlist (`playlist`), setlist (`setlist`), publication (`post`),
   événement d'agenda (`agenda`, indisponibilité comprise). Une session crée déjà sa notification : l'événement

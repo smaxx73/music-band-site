@@ -116,6 +116,10 @@ NODE_ENV=production
   `src/lib/server/avatars.ts`, l'afficher par `Avatar.svelte`. Les instruments vivent sur
   l'appartenance (`user_groups.instruments`) et seul le membre les écrit, via
   `setMemberInstruments`. Voir « Profil d'un membre » dans docs/features.md
+- Les préférences de notification (`user_groups.notification_prefs`) se lisent par
+  `readNotificationPrefs` (`src/lib/notification-prefs.ts`) : une clé absente vaut « tout ».
+  Elles filtrent le fan-out de `notifyGroup`, jamais les mentions. Seul le membre les écrit,
+  via `setMemberNotificationPrefs`
 - Une prise peut n'avoir qu'une vidéo YouTube, sans fichier : tout code qui touche à `AUDIO_DIR`,
   au lecteur audio partagé ou aux playlists vérifie `file_path IS NOT NULL`. Voir « Prises vidéo
   YouTube » dans docs/features.md
@@ -166,7 +170,8 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
 /upload             formulaire d'upload (fichier audio ou vidéo YouTube)
 /record             enregistrement en direct (micro, interface audio), classé après coup
 /decoupe/[id]       découpe automatique d'un enregistrement long sur les blancs
-/profile            infos du compte connecté : photo, instruments par groupe, mot de passe
+/profile            infos du compte connecté : photo, instruments et notifications par groupe,
+                    mot de passe
 /plus               ce que la barre d'onglets (téléphone) et le rail (tablette) ne portent pas :
                     sections secondaires (fil en tête), autres groupes, compte, pages légales
 /group              infos + membres du groupe actif (consultation pour tout membre,
@@ -193,7 +198,8 @@ La navigation change avec la largeur — barre latérale (ordinateur), rail d'ic
 par « + Ajouter ». Voir « Navigation » dans docs/features.md.
 
 Les notifications d'activité n'ont pas de route : elles vivent dans la cloche de la barre
-du haut, alimentée par `src/lib/server/notifications.ts`. Voir « Notifications d'activité »
+du haut, alimentée par `src/lib/server/notifications.ts`, et se règlent par groupe dans
+`/profile`. Voir « Notifications d'activité »
 dans docs/features.md.
 
 ## Non implémenté — ne pas inventer

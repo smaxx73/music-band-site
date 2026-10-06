@@ -14,6 +14,7 @@ import {
 } from '$lib/types'
 import { detectImageMime, imageRequestTooLarge, type ImageMime } from './images'
 import { MAX_INSTRUMENT_LENGTH, MAX_INSTRUMENTS, normalizeInstruments } from '$lib/instruments'
+import { readNotificationPrefs, type NotificationPrefs } from '$lib/notification-prefs'
 
 // Les mêmes opérations sont exposées par les form actions (/group, /admin/groups/[id])
 // et par les routes API. Elles vivent ici pour que les règles de droits ne soient
@@ -202,6 +203,24 @@ export async function setMemberInstruments(
 	`
 	if (!row) return fail(404, 'Groupe introuvable.')
 	return { ok: true, value: row }
+}
+
+/**
+ * Ce qui parvient au membre de ce groupe (`notifyGroup` en tient compte). Comme les
+ * instruments, lui seul le règle : l'appelant passe `locals.user.id`.
+ */
+export async function setMemberNotificationPrefs(
+	userId: number,
+	groupId: number,
+	prefs: NotificationPrefs
+): Promise<GroupOpResult<{ notification_prefs: NotificationPrefs }>> {
+	const [row] = await sql<{ notification_prefs: unknown }[]>`
+		UPDATE user_groups SET notification_prefs = ${sql.json(prefs)}
+		WHERE user_id = ${userId} AND group_id = ${groupId}
+		RETURNING notification_prefs
+	`
+	if (!row) return fail(404, 'Groupe introuvable.')
+	return { ok: true, value: { notification_prefs: readNotificationPrefs(row.notification_prefs) } }
 }
 
 // ─── Identité du groupe : liens et logo ───────────────────────────────────

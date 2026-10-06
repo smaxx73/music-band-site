@@ -1,10 +1,14 @@
 import sql from './db'
 import type { ActivityNotification, NotificationType } from '$lib/types'
 import { mentionCandidates } from '$lib/mentions'
+import { TOGGLE_TYPES } from '$lib/notification-prefs'
 
 // Les notifications sont écrites par fan-out : une ligne par destinataire au moment
 // de l'action. C'est ce qui rend possible les actions du menu (lu / non lu / tout lu),
 // qui supposent un état de lecture propre à chaque membre.
+//
+// Chaque membre choisit, par groupe, ce qui lui parvient (`user_groups.notification_prefs`) :
+// le filtre est dans le fan-out (`wantedBy`). Les mentions passent toujours.
 //
 // Règle d'or : notifier ne doit jamais faire échouer l'action notifiée. Toutes les
 // écritures passent par `notifyGroup` ou `notifyMentions`, qui avalent leurs erreurs
@@ -41,7 +45,55 @@ function truncate(value: string | null | undefined): string | null {
 }
 
 /**
- * Notifie tous les membres du groupe, sauf l'auteur de l'action et `excludeUserIds`
+ * Condition sur `ug` (la ligne user_groups du destinataire) : ses préférences veulent-elles
+ * cette notification ? Une clé absente vaut « oui » — `DEFAULT_NOTIFICATION_PREFS`, que
+ * les COALESCE reproduisent. Évaluée dans le fan-out même : pas de lecture préalable des
+ * préférences, et rien à changer chez les appelants.
+ */
+function wantedBy(input: NotifyInput) {
+	if (input.type === 'comment') {
+		return sql`(CASE COALESCE(ug.notification_prefs->>'comment', 'all')
+			WHEN 'all'  THEN true
+			WHEN 'none' THEN false
+			ELSE ${involvedIn(input)}
+		END)`
+	}
+	if ((TOGGLE_TYPES as readonly string[]).includes(input.type)) {
+		return sql`COALESCE((ug.notification_prefs->>${input.type})::boolean, true)`
+	}
+	return sql`true`
+}
+
+/**
+ * « Ce qui me concerne » pour un commentaire : le destinataire a déposé ou créé la cible
+ * (prise, setlist, publication), ou il y a déjà commenté. Le commentaire qui notifie est
+ * déjà en base, mais il est de l'auteur, qui ne se notifie jamais.
+ */
+function involvedIn(input: NotifyInput) {
+	if (input.recordingId) {
+		return sql`(
+			EXISTS (SELECT 1 FROM recordings r WHERE r.id = ${input.recordingId} AND r.uploaded_by_user_id = ug.user_id)
+			OR EXISTS (SELECT 1 FROM comments c WHERE c.recording_id = ${input.recordingId} AND c.author_user_id = ug.user_id)
+		)`
+	}
+	if (input.setlistId) {
+		return sql`(
+			EXISTS (SELECT 1 FROM setlists s WHERE s.id = ${input.setlistId} AND s.created_by_user_id = ug.user_id)
+			OR EXISTS (SELECT 1 FROM comments c WHERE c.setlist_id = ${input.setlistId} AND c.author_user_id = ug.user_id)
+		)`
+	}
+	if (input.postId) {
+		return sql`(
+			EXISTS (SELECT 1 FROM posts p WHERE p.id = ${input.postId} AND p.author_user_id = ug.user_id)
+			OR EXISTS (SELECT 1 FROM comments c WHERE c.post_id = ${input.postId} AND c.author_user_id = ug.user_id)
+		)`
+	}
+	return sql`false`
+}
+
+/**
+ * Notifie les membres du groupe qui le veulent (`wantedBy`), sauf l'auteur de l'action
+ * et `excludeUserIds`
  * (déjà prévenus autrement, par exemple par une mention).
  * Ne lève jamais : une notification perdue est moins grave qu'un upload refusé.
  */
@@ -69,6 +121,7 @@ export async function notifyGroup(input: NotifyInput, excludeUserIds: number[] =
 			FROM user_groups ug
 			WHERE ug.group_id = ${input.groupId} AND ug.user_id <> ${input.actor.id}
 			  AND NOT (ug.user_id = ANY(${sql.array(excludeUserIds, INT4_OID)}))
+			  AND ${wantedBy(input)}
 		`
 	} catch (err) {
 		console.error('[notifications]', err)

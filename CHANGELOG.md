@@ -13,7 +13,7 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
-Migration à appliquer : `046_user_profile.sql`.
+Migrations à appliquer, dans l'ordre : `046_user_profile.sql`, `047_notification_prefs.sql`.
 
 - **Photo de profil** : déposée depuis `/profile`, recadrée en carré. Elle remplace les
   initiales dans la barre du haut, la barre latérale, le fil, les commentaires et la liste
@@ -21,6 +21,9 @@ Migration à appliquer : `046_user_profile.sql`.
 - **Instruments par groupe** : chacun dit, depuis son profil, ce qu'il joue dans chacun de
   ses groupes (liste usuelle proposée, saisie libre). Ils s'affichent sous son nom dans
   `/group`
+- **Préférences de notification**, par groupe, depuis le profil (ou la roue dentée de la
+  cloche) : commentaires « tous » / « ce qui me concerne » / « aucun », et un interrupteur
+  par autre type. Tout reste activé par défaut ; les mentions parviennent toujours
 
 ## [1.5.4] — 2026-10-05
 

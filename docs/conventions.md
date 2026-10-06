@@ -33,7 +33,7 @@ src/
 │   │   ├── addresses.ts   # Base Adresse Nationale : recherche d'une adresse pour un lieu
 │   │   ├── images.ts      # images déposées : format lu dans les octets, taille de requête
 │   │   ├── deezer.ts      # catalogue Deezer : recherche d'une reprise, détail, pochette d'album
-│   │   └── notifications.ts # écriture (fan-out) et lecture des notifications
+│   │   └── notifications.ts # écriture (fan-out, filtré par les préférences) et lecture
 	│   └── components/
 	│       ├── ConfirmDialog.svelte   # confirmation réutilisable, selon le niveau de risque
 │       ├── Menu.svelte            # menu déroulant (bouton + panneau) : partage, ⋮ d'une prise,

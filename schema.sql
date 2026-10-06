@@ -67,6 +67,10 @@ CREATE TABLE user_groups (
     joined_at   TIMESTAMPTZ DEFAULT now(),
     instruments TEXT[] NOT NULL DEFAULT '{}', -- ce que le membre joue dans CE groupe (migration 046) ;
                                              -- saisi par lui seul, normalisé par src/lib/instruments.ts
+    notification_prefs JSONB NOT NULL DEFAULT '{}',
+                                             -- ce qui lui parvient de CE groupe (migration 047) ;
+                                             -- clé absente = valeur par défaut, voir
+                                             -- src/lib/notification-prefs.ts
     PRIMARY KEY (user_id, group_id)
 );
 

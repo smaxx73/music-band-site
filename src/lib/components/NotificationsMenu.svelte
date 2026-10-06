@@ -190,6 +190,13 @@
 
 		<div class="notif-head">
 			<strong>Notifications</strong>
+			<!-- Ce qui parvient se règle groupe par groupe, sur le profil. -->
+			<a
+				class="notif-settings"
+				href="/profile#notifications-{groupId}"
+				title="Régler mes notifications"
+				aria-label="Régler mes notifications"
+			><Icon name="settings" size="0.95rem" /></a>
 			<button
 				class="notif-mark-all"
 				onclick={markAllRead}
@@ -354,6 +361,18 @@
 		max-height: min(60vh, 380px);
 		overflow-y: auto;
 	}
+
+	.notif-settings {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 28px;
+		height: 28px;
+		margin-left: auto;
+		border-radius: var(--radius-sm);
+		color: var(--color-text-muted);
+	}
+	.notif-settings:hover { background: var(--color-bg-muted); color: var(--color-text); }
 
 	.notif-feed {
 		display: flex;
@@ -537,7 +556,19 @@
 		.notif-link { padding: 0.7rem 0.2rem 0.75rem 0.9rem; gap: 0.7rem; }
 		.notif-dot { width: 44px; font-size: 0.7rem; }
 
-		.notif-feed {
+		.notif-settings {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 28px;
+		height: 28px;
+		margin-left: auto;
+		border-radius: var(--radius-sm);
+		color: var(--color-text-muted);
+	}
+	.notif-settings:hover { background: var(--color-bg-muted); color: var(--color-text); }
+
+	.notif-feed {
 			min-height: 48px;
 			font-size: var(--text-sm);
 		}

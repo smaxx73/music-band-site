@@ -26,7 +26,8 @@
 <ul>
 	<li>
 		<strong>Compte</strong> : pseudo, prénom et nom (facultatifs), format d'affichage du nom,
-		photo de profil et instruments joués dans chaque groupe (facultatifs), mot de passe (conservé uniquement sous forme d'empreinte chiffrée, jamais en clair), rôle,
+		photo de profil et instruments joués dans chaque groupe (facultatifs), préférences de
+		notification, mot de passe (conservé uniquement sous forme d'empreinte chiffrée, jamais en clair), rôle,
 		groupes dont vous êtes membre. Les comptes sont créés par un administrateur : il n'y a pas
 		d'inscription libre.
 	</li>

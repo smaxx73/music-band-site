@@ -5,6 +5,15 @@
 	import Icon from '$lib/components/Icon.svelte'
 	import Avatar from '$lib/components/Avatar.svelte'
 	import InstrumentsInput from '$lib/components/InstrumentsInput.svelte'
+	import { tick } from 'svelte'
+	import { afterNavigate } from '$app/navigation'
+	import {
+		COMMENT_LEVELS,
+		DEFAULT_NOTIFICATION_PREFS,
+		TOGGLE_LABELS,
+		TOGGLE_TYPES,
+		summarizeNotificationPrefs
+	} from '$lib/notification-prefs'
 
 	let { data, form }: { data: PageData; form: ActionData } = $props()
 
@@ -14,14 +23,24 @@
 	let avatarBusy = $state(false)
 	let avatarError = $state<string | null>(null)
 
-	// Un seul groupe en édition à la fois ; le brouillon part de ce qui est enregistré.
-	let editingInstrumentsFor = $state<number | null>(null)
+	// Un seul réglage de groupe ouvert à la fois ; le brouillon part de ce qui est enregistré.
+	let editing = $state<{ groupId: number; part: 'instruments' | 'notifications' } | null>(null)
 	let instrumentsDraft = $state<string[]>([])
 
 	function editInstruments(groupId: number) {
 		instrumentsDraft = [...(data.instruments[groupId] ?? [])]
-		editingInstrumentsFor = groupId
+		editing = { groupId, part: 'instruments' }
 	}
+
+	// La cloche mène ici (`#notifications-<id>`) : le réglage visé s'ouvre d'emblée,
+	// y compris quand on est déjà sur le profil.
+	afterNavigate(({ to }) => {
+		const id = Number(to?.url.hash.match(/^#notifications-(\d+)$/)?.[1])
+		if (id && data.user?.groups.some((g) => g.id === id)) {
+			editing = { groupId: id, part: 'notifications' }
+			tick().then(() => document.getElementById(`groupe-${id}`)?.scrollIntoView({ block: 'start' }))
+		}
+	})
 
 	let changingPassword = $state(false)
 	let passwordFormEl = $state<HTMLFormElement>()
@@ -220,8 +239,8 @@
 		</dl>
 	</section>
 
-	<!-- Ce que le membre joue, groupe par groupe : on tient la basse dans l'un et on chante
-	     dans l'autre. Les autres membres le lisent sur /group. -->
+	<!-- Groupe par groupe : ce que le membre y joue (on tient la basse dans l'un et on
+	     chante dans l'autre, les autres le lisent sur /group), et ce qui lui en parvient. -->
 	<section class="section">
 		<h2 class="section-title">Mes groupes</h2>
 		{#if !data.user?.groups.length}
@@ -230,54 +249,117 @@
 			<ul class="group-list">
 				{#each data.user.groups as g (g.id)}
 					{@const instruments = data.instruments[g.id] ?? []}
-					<li class="group-item">
+					{@const prefs = data.notificationPrefs[g.id] ?? DEFAULT_NOTIFICATION_PREFS}
+					{@const editingHere = editing?.groupId === g.id ? editing.part : null}
+					<li class="group-item" id="groupe-{g.id}">
 						<div class="group-head">
 							<span class="group-name">{g.name}</span>
 							<span class="badge badge-group-{g.role}">{GROUP_ROLE_LABELS[g.role] ?? g.role}</span>
-							{#if editingInstrumentsFor !== g.id}
-								<button
-									type="button"
-									class="btn btn-ghost btn-sm btn-icon group-edit"
-									onclick={() => editInstruments(g.id)}
-									aria-label="Modifier mes instruments dans {g.name}"
-									title="Modifier mes instruments"
-								>
-									<Icon name="pencil" />
-								</button>
-							{/if}
 						</div>
 
-						{#if editingInstrumentsFor === g.id}
-							<form
-								method="POST"
-								action="?/updateInstruments"
-								class="instruments-form"
-								use:enhance={() => {
-									return async ({ result, update }) => {
-										await update({ reset: false })
-										if (result.type === 'success') editingInstrumentsFor = null
-									}
-								}}
-							>
-								<input type="hidden" name="group_id" value={g.id} />
-								<InstrumentsInput bind:instruments={instrumentsDraft} label="Mes instruments dans {g.name}" />
-								{#if form?.action === 'instruments' && form.groupId === g.id && form.error}
-									<p class="message-error">{form.error}</p>
-								{/if}
-								<div class="form-actions">
-									<button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
-									<button type="button" class="btn btn-secondary btn-sm" onclick={() => (editingInstrumentsFor = null)}>
-										Annuler
+						<dl class="group-settings">
+							<dt>Instruments</dt>
+							<dd>
+								{#if editingHere === 'instruments'}
+									<form
+										method="POST"
+										action="?/updateInstruments"
+										class="group-form"
+										use:enhance={() => {
+											return async ({ result, update }) => {
+												await update({ reset: false })
+												if (result.type === 'success') editing = null
+											}
+										}}
+									>
+										<input type="hidden" name="group_id" value={g.id} />
+										<InstrumentsInput bind:instruments={instrumentsDraft} label="Mes instruments dans {g.name}" />
+										{#if form?.action === 'instruments' && form.groupId === g.id && form.error}
+											<p class="message-error">{form.error}</p>
+										{/if}
+										<div class="form-actions">
+											<button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+											<button type="button" class="btn btn-secondary btn-sm" onclick={() => (editing = null)}>Annuler</button>
+										</div>
+									</form>
+								{:else}
+									<span class="setting-value" class:muted={!instruments.length}>
+										{instruments.length ? instruments.join(' · ') : 'Non renseignés'}
+									</span>
+									<button
+										type="button"
+										class="btn btn-ghost btn-sm btn-icon"
+										onclick={() => editInstruments(g.id)}
+										aria-label="Modifier mes instruments dans {g.name}"
+										title="Modifier mes instruments"
+									>
+										<Icon name="pencil" />
 									</button>
-								</div>
-							</form>
-						{:else if instruments.length}
-							<p class="instruments">{instruments.join(' · ')}</p>
-						{:else}
-							<button type="button" class="btn-link instruments-empty" onclick={() => editInstruments(g.id)}>
-								Dire ce que vous y jouez
-							</button>
-						{/if}
+								{/if}
+							</dd>
+
+							<dt id="notifications-{g.id}">Notifications</dt>
+							<dd>
+								{#if editingHere === 'notifications'}
+									<form
+										method="POST"
+										action="?/updateNotificationPrefs"
+										class="group-form"
+										use:enhance={() => {
+											return async ({ result, update }) => {
+												await update({ reset: false })
+												if (result.type === 'success') editing = null
+											}
+										}}
+									>
+										<input type="hidden" name="group_id" value={g.id} />
+										<fieldset class="prefs-fieldset">
+											<legend>Commentaires</legend>
+											{#each COMMENT_LEVELS as level (level.value)}
+												<label class="pref-option">
+													<input type="radio" name="comment" value={level.value} checked={prefs.comment === level.value} />
+													<span>
+														{level.label}
+														<span class="form-hint">{level.hint}</span>
+													</span>
+												</label>
+											{/each}
+										</fieldset>
+										<fieldset class="prefs-fieldset">
+											<legend>Autres nouveautés</legend>
+											{#each TOGGLE_TYPES as type (type)}
+												<label class="pref-option">
+													<input type="checkbox" name={type} checked={prefs[type]} />
+													<span>{TOGGLE_LABELS[type]}</span>
+												</label>
+											{/each}
+										</fieldset>
+										<p class="form-hint">
+											Une mention (@{data.user?.nickname}) vous parvient toujours. Le fil
+											d'actualité, lui, montre tout.
+										</p>
+										{#if form?.action === 'notifications' && form.groupId === g.id && form.error}
+											<p class="message-error">{form.error}</p>
+										{/if}
+										<div class="form-actions">
+											<button type="submit" class="btn btn-primary btn-sm">Enregistrer</button>
+											<button type="button" class="btn btn-secondary btn-sm" onclick={() => (editing = null)}>Annuler</button>
+										</div>
+									</form>
+								{:else}
+									<span class="setting-value">{summarizeNotificationPrefs(prefs)}</span>
+									<button
+										type="button"
+										class="btn btn-ghost btn-sm btn-icon"
+										onclick={() => (editing = { groupId: g.id, part: 'notifications' })}
+										aria-label="Régler mes notifications de {g.name}"
+										title="Régler mes notifications"
+									>
+										<Icon name="pencil" />
+									</button>
+								{/if}
+							</dd>
+						</dl>
 					</li>
 				{/each}
 			</ul>
@@ -419,17 +501,68 @@
 	.group-item:last-child { border-bottom: none; }
 	.group-head { display: flex; align-items: center; gap: 0.5rem; }
 	.group-name { font-weight: 600; }
-	.group-edit { margin-left: auto; }
-	.instruments { margin: 0.35rem 0 0; color: var(--color-text-secondary); font-size: var(--text-sm); }
-	.instruments-empty { margin-top: 0.35rem; font-size: var(--text-sm); }
-	.instruments-form {
+
+	/* Libellé à gauche, valeur et crayon à droite ; replié en pile sur téléphone. */
+	.group-settings {
+		display: grid;
+		grid-template-columns: 7.5rem 1fr;
+		align-items: start;
+		gap: 0.35rem 0.75rem;
+		margin: 0.5rem 0 0;
+	}
+	.group-settings dt {
+		font-size: var(--text-sm);
+		color: var(--color-text-muted);
+		padding-top: 0.3rem;
+	}
+	.group-settings dd {
+		margin: 0;
+		display: flex;
+		align-items: center;
+		gap: 0.25rem;
+		min-width: 0;
+	}
+	.setting-value { font-size: var(--text-sm); color: var(--color-text-secondary); }
+	.setting-value.muted { color: var(--color-text-muted); }
+	@media (max-width: 640px) {
+		.group-settings { grid-template-columns: 1fr; gap: 0.1rem; }
+		.group-settings dd { margin-bottom: 0.4rem; }
+	}
+
+	.group-form {
 		display: flex;
 		flex-direction: column;
 		gap: 0.6rem;
+		width: 100%;
 		max-width: 420px;
-		margin-top: 0.6rem;
+		padding-top: 0.15rem;
 	}
-	.instruments-form .message-error { margin: 0; }
+	.group-form .message-error,
+	.group-form > .form-hint { margin: 0; }
+
+	.prefs-fieldset {
+		border: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+		gap: 0.35rem;
+	}
+	.prefs-fieldset legend {
+		padding: 0;
+		margin-bottom: 0.3rem;
+		font-size: var(--text-sm);
+		font-weight: 600;
+	}
+	.pref-option {
+		display: flex;
+		align-items: flex-start;
+		gap: 0.5rem;
+		font-size: var(--text-sm);
+		cursor: pointer;
+	}
+	.pref-option input { margin-top: 0.2rem; }
+	.pref-option .form-hint { display: block; margin: 0; }
 
 	.muted { color: var(--color-text-muted); font-size: var(--text-sm); }
 

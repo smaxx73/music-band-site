@@ -5,7 +5,8 @@ import { hashPassword, signCookie, verifyPassword } from '$lib/server/auth'
 import { authSecret } from '$lib/server/config'
 import { loginRedirect } from '$lib/redirect'
 import { avatarRequestTooLarge, removeUserAvatar, setUserAvatar } from '$lib/server/avatars'
-import { setMemberInstruments } from '$lib/server/groups'
+import { setMemberInstruments, setMemberNotificationPrefs } from '$lib/server/groups'
+import { parseNotificationPrefsForm, readNotificationPrefs, type NotificationPrefs } from '$lib/notification-prefs'
 
 const DISPLAY_NAME_FORMATS = [
 	'nickname',
@@ -20,14 +21,17 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const [account] = await sql<{ created_at: Date }[]>`
 		SELECT created_at FROM users WHERE id = ${locals.user.id}
 	`
-	// Ce que le membre joue, groupe par groupe — dans l'ordre de `locals.user.groups`.
-	const instruments = await sql<{ group_id: number; instruments: string[] }[]>`
-		SELECT group_id, instruments FROM user_groups WHERE user_id = ${locals.user.id}
+	// Instruments et préférences de notification, groupe par groupe.
+	const memberships = await sql<{ group_id: number; instruments: string[]; notification_prefs: unknown }[]>`
+		SELECT group_id, instruments, notification_prefs FROM user_groups WHERE user_id = ${locals.user.id}
 	`
 
 	return {
 		created_at: account?.created_at ?? null,
-		instruments: Object.fromEntries(instruments.map((row) => [row.group_id, row.instruments])) as Record<number, string[]>
+		instruments: Object.fromEntries(memberships.map((row) => [row.group_id, row.instruments])) as Record<number, string[]>,
+		notificationPrefs: Object.fromEntries(
+			memberships.map((row) => [row.group_id, readNotificationPrefs(row.notification_prefs)])
+		) as Record<number, NotificationPrefs>
 	}
 }
 
@@ -97,6 +101,20 @@ export const actions: Actions = {
 		const result = await setMemberInstruments(locals.user.id, groupId, data.getAll('instrument'))
 		if (!result.ok) return fail(result.status, { action: 'instruments', groupId, error: result.error })
 		return { action: 'instruments', groupId, success: true }
+	},
+
+	updateNotificationPrefs: async ({ request, locals }) => {
+		if (!locals.user) error(401, 'Non autorisé')
+		const data = await request.formData()
+		const groupId = parseInt(data.get('group_id') as string)
+		if (isNaN(groupId)) return fail(400, { action: 'notifications', groupId: null, error: 'Groupe invalide.' })
+
+		const prefs = parseNotificationPrefsForm(data)
+		if (!prefs) return fail(400, { action: 'notifications', groupId, error: 'Choix des commentaires invalide.' })
+
+		const result = await setMemberNotificationPrefs(locals.user.id, groupId, prefs)
+		if (!result.ok) return fail(result.status, { action: 'notifications', groupId, error: result.error })
+		return { action: 'notifications', groupId, success: true }
 	},
 
 	changePassword: async ({ request, locals }) => {
