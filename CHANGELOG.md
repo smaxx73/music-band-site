@@ -11,6 +11,20 @@ pour une bibliothèque :
 Chaque version liste les migrations qu'elle apporte : ce sont elles qu'il faut appliquer
 en montant de version (voir `deploy.md`).
 
+## [1.7.0] — 2026-10-06
+
+Migration à appliquer : `048_recording_quality_unset.sql`.
+
+- **Prises en série** sur `/record` : une prise terminée propose « Prise suivante », qui la
+  garde et lance aussitôt la suivante, micro resté ouvert sur la même entrée. Les prises
+  de la série se nomment pendant qu'on enregistre (chacune propose le morceau de la
+  précédente), puis partent d'un coup dans la même session, comme un envoi par lots. Une
+  série interrompue se récupère d'un bloc depuis la copie de secours
+- **Une prise neuve n'a plus de qualité** : elle naissait « À revoir », sans que personne
+  l'ait choisi. Pas de pastille tant qu'elle n'est pas évaluée, « + Qualité » pour en
+  donner une, « Sans qualité » pour la retirer. Les « À revoir » existants sont vidés par
+  la migration : rien ne distinguait les rares choisis exprès
+
 ## [1.6.0] — 2026-10-06
 
 Migrations à appliquer, dans l'ordre : `046_user_profile.sql`, `047_notification_prefs.sql`.
