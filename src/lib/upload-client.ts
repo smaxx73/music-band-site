@@ -1,4 +1,5 @@
 import type { AudioTrim } from '$lib/types'
+import { createSong, placeholderSongTitle, type CreatedSong } from '$lib/songs'
 
 /**
  * Envoi d'un fichier audio depuis le navigateur, partagé par `/upload` (fichier choisi)
@@ -99,16 +100,25 @@ export async function createSession(session: NewSession): Promise<number> {
 }
 
 /**
- * Un fichier d'un envoi par lots (`/upload`, plusieurs fichiers choisis d'un coup) : il
- * devient une prise de la session, rattachée à son propre morceau. Les fichiers partent
- * un par un, chacun par `POST /api/upload` comme un envoi seul.
+ * Un fichier d'un envoi par lots — plusieurs fichiers choisis d'un coup sur `/upload`, ou
+ * une série de prises enregistrées d'affilée sur `/record` : il devient une prise de la
+ * session, rattachée à son propre morceau. Les fichiers partent un par un, chacun par
+ * `POST /api/upload` comme un envoi seul.
  */
 export type BatchItem = {
 	key: number
 	file: File
 	songId: string
-	/** Morceau deviné d'après le nom du fichier : l'écran le dit tant qu'on n'y touche pas. */
+	/** Morceau proposé : l'écran le dit tant qu'on n'y touche pas. */
 	proposedSong: string
+	/** D'où vient la proposition : le nom du fichier, ou la prise d'avant dans une série. */
+	proposedFrom?: 'file' | 'previous'
+	/** Pour une prise enregistrée sur place, à la place du nom de fichier généré. */
+	label?: string
+	durationS?: number
+	trim?: AudioTrim | null
+	/** Réécoute dans la liste : retrouver quel morceau c'était. */
+	previewUrl?: string
 	status: 'pending' | 'sending' | 'converting' | 'done' | 'duplicate' | 'error'
 	progress: number
 	recording?: { id: number; take: number }
@@ -119,4 +129,66 @@ export type BatchItem = {
 /** Envoyé, ou déjà là : un fichier qu'un nouvel essai n'a pas à renvoyer. */
 export function batchItemSettled(item: BatchItem): boolean {
 	return item.status === 'done' || item.status === 'duplicate'
+}
+
+/**
+ * Un fichier après l'autre : la conversion est la partie coûteuse, et le serveur n'en
+ * gagnerait rien à en mener plusieurs de front. Un échec n'arrête pas la série, il se
+ * réessaie ensuite seul ; un doublon est simplement signalé. Les éléments sont modifiés
+ * sur place : passés depuis un `$state`, l'écran suit leur progression.
+ */
+export async function sendBatchItems(
+	items: BatchItem[],
+	sessionId: number,
+	onSettled?: (item: BatchItem) => void
+): Promise<void> {
+	for (const item of items) {
+		item.status = 'sending'
+		item.progress = 0
+		item.error = undefined
+		try {
+			const created = await sendAudioFile<{ id: number; take: number }>(
+				'/api/upload',
+				item.file,
+				{ session_id: String(sessionId), song_id: item.songId, ...trimFields(item.trim ?? null) },
+				(p) => {
+					item.progress = p
+					if (p >= 100) item.status = 'converting'
+				}
+			)
+			item.recording = { id: created.id, take: created.take }
+			item.status = 'done'
+		} catch (err) {
+			if (err instanceof DuplicateError) {
+				item.duplicate = err.duplicate
+				item.status = 'duplicate'
+			} else {
+				item.error = err instanceof Error ? err.message : 'Erreur inattendue.'
+				item.status = 'error'
+			}
+		}
+		onSettled?.(item)
+	}
+}
+
+/**
+ * Comme « Nommer plus tard » de la découpe : chaque fichier sans morceau reçoit le sien,
+ * « À nommer — … » à l'heure du fichier. Un par fichier, pas un pour tous : regrouper
+ * à tort serait plus pénible à défaire que renommer. Rend l'erreur à afficher, ou null.
+ */
+export async function nameBatchItemsLater(
+	items: BatchItem[],
+	songTitles: string[],
+	oncreate: (song: CreatedSong) => void
+): Promise<string | null> {
+	const taken = [...songTitles]
+	for (const item of items) {
+		if (item.songId) continue
+		const result = await createSong(placeholderSongTitle(new Date(item.file.lastModified), taken))
+		if (!result.ok) return result.error
+		taken.push(result.song.title)
+		oncreate(result.song)
+		item.songId = String(result.song.id)
+	}
+	return null
 }

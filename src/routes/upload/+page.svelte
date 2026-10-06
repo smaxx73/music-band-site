@@ -13,14 +13,16 @@
 	import SongSelect from '$lib/components/SongSelect.svelte'
 	import PendingImports from '$lib/components/PendingImports.svelte'
 	import UploadBatch from '$lib/components/UploadBatch.svelte'
-	import { createSong, placeholderSongTitle, sortedWithSong } from '$lib/songs'
+	import { sortedWithSong } from '$lib/songs'
 	import { songFromFileName } from '$lib/song-match'
 	import { parseYouTubeVideoId } from '$lib/youtube'
 	import {
 		batchItemSettled,
 		createSession,
 		DuplicateError,
+		nameBatchItemsLater,
 		sendAudioFile,
+		sendBatchItems,
 		type BatchItem,
 		type DuplicateInfo
 	} from '$lib/upload-client'
@@ -173,7 +175,7 @@
 		batch = ordered.map((f) => {
 			const named = songFromFileName(f.name, songs)
 			const songId = named ? String(named.id) : ''
-			return { key: nextBatchKey++, file: f, songId, proposedSong: songId, status: 'pending', progress: 0 }
+			return { key: nextBatchKey++, file: f, songId, proposedSong: songId, proposedFrom: 'file', status: 'pending', progress: 0 }
 		})
 		// Le premier fichier date le début de la répétition.
 		proposeSession(new Date(ordered[0].lastModified))
@@ -191,36 +193,22 @@
 		}
 	}
 
-	/**
-	 * Comme « Nommer plus tard » de la découpe : chaque fichier sans morceau reçoit le sien,
-	 * « À nommer — … » à l'heure du fichier. Un par fichier, pas un pour tous : regrouper
-	 * à tort serait plus pénible à défaire que renommer.
-	 */
 	let naming = $state(false)
 	async function nameBatchLater() {
 		if (naming) return
 		naming = true
 		error = null
 		try {
-			for (const item of batchPending) {
-				if (item.songId) continue
-				const result = await createSong(
-					placeholderSongTitle(new Date(item.file.lastModified), songs.map((s) => s.title))
-				)
-				if (!result.ok) { error = result.error; return }
-				songs = sortedWithSong(songs, result.song)
-				item.songId = String(result.song.id)
-			}
+			error = await nameBatchItemsLater(
+				batchPending,
+				songs.map((s) => s.title),
+				(song) => (songs = sortedWithSong(songs, song))
+			)
 		} finally {
 			naming = false
 		}
 	}
 
-	/**
-	 * Un fichier après l'autre : la conversion est la partie coûteuse, et le serveur n'en
-	 * gagnerait rien à en mener plusieurs de front. Un échec n'arrête pas la série, il se
-	 * réessaie ensuite seul ; un doublon est simplement signalé.
-	 */
 	async function submitBatch() {
 		if (batchUnassigned > 0) { error = 'Chaque fichier doit être rattaché à un morceau.'; return }
 
@@ -233,33 +221,7 @@
 
 			const queue = [...batchPending]
 			batchRun = { done: 0, total: queue.length }
-			for (const item of queue) {
-				item.status = 'sending'
-				item.progress = 0
-				item.error = undefined
-				try {
-					const created = await sendAudioFile<{ id: number; take: number }>(
-						'/api/upload',
-						item.file,
-						{ session_id: String(sessionId), song_id: item.songId },
-						(p) => {
-							item.progress = p
-							if (p >= 100) item.status = 'converting'
-						}
-					)
-					item.recording = { id: created.id, take: created.take }
-					item.status = 'done'
-				} catch (err) {
-					if (err instanceof DuplicateError) {
-						item.duplicate = err.duplicate
-						item.status = 'duplicate'
-					} else {
-						item.error = err instanceof Error ? err.message : 'Erreur inattendue.'
-						item.status = 'error'
-					}
-				}
-				batchRun.done++
-			}
+			await sendBatchItems(queue, sessionId, () => batchRun.done++)
 		} finally {
 			uploading = false
 		}

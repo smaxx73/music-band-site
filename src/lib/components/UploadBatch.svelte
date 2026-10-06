@@ -26,6 +26,21 @@
 	function recordedAt(file: File) {
 		return new Date(file.lastModified).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })
 	}
+
+	function formatDuration(seconds: number) {
+		const total = Math.round(seconds)
+		return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
+	}
+
+	/** Ce que la ligne dit du fichier : sa durée retenue s'il est enregistré sur place. */
+	function meta(item: BatchItem) {
+		const kept = item.trim ? item.trim.endS - item.trim.startS : item.durationS
+		return [
+			kept !== undefined ? `${formatDuration(kept)}${item.trim ? ' recadrée' : ''}` : null,
+			`${(item.file.size / 1024 / 1024).toFixed(1)} Mo`,
+			item.label ? null : recordedAt(item.file)
+		].filter(Boolean).join(' · ')
+	}
 </script>
 
 <ol class="batch">
@@ -33,20 +48,23 @@
 		<li class="batch-item" class:done={item.status === 'done'} class:failed={item.status === 'error'}>
 			<div class="batch-head">
 				<span class="batch-index">{i + 1}</span>
-				<span class="batch-name" title={item.file.name}>{item.file.name}</span>
-				<span class="batch-meta">
-					{(item.file.size / 1024 / 1024).toFixed(1)} Mo · {recordedAt(item.file)}
-				</span>
+				<span class="batch-name" title={item.label ?? item.file.name}>{item.label ?? item.file.name}</span>
+				<span class="batch-meta">{meta(item)}</span>
 				{#if !batchItemSettled(item)}
 					<button
 						type="button"
 						class="btn-link btn-link-muted"
 						onclick={() => onremove(item.key)}
 						disabled={disabled}
-						aria-label="Retirer {item.file.name}"
+						aria-label="Retirer {item.label ?? item.file.name}"
 					>Retirer</button>
 				{/if}
 			</div>
+
+			{#if item.previewUrl && !batchItemSettled(item)}
+				<!-- Le fichier entier, recadrage compris : on réécoute pour reconnaître le morceau. -->
+				<audio class="batch-audio" controls preload="none" src={item.previewUrl}></audio>
+			{/if}
 
 			{#if item.status === 'done' && item.recording}
 				<p class="message-ok">
@@ -64,7 +82,7 @@
 					{songs}
 					bind:value={item.songId}
 					{oncreate}
-					ariaLabel="Morceau de {item.file.name}"
+					ariaLabel="Morceau de {item.label ?? item.file.name}"
 					placeholderAt={new Date(item.file.lastModified)}
 					required
 					disabled={disabled}
@@ -79,7 +97,9 @@
 				{:else if item.status === 'error'}
 					<p class="message-error">{item.error}</p>
 				{:else if item.proposedSong !== '' && item.songId === item.proposedSong}
-					<p class="hint">Proposé d'après le nom du fichier.</p>
+					<p class="hint">
+						{item.proposedFrom === 'previous' ? 'Même morceau que la prise précédente.' : "Proposé d'après le nom du fichier."}
+					</p>
 				{/if}
 			{/if}
 		</li>
@@ -139,6 +159,8 @@
 		font-size: var(--text-xs);
 		font-variant-numeric: tabular-nums;
 	}
+
+	.batch-audio { width: 100%; height: 36px; }
 
 	.batch-duplicate {
 		margin: 0;

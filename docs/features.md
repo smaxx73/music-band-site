@@ -89,6 +89,8 @@ verser un par un, formulaire compris, décourage de les verser tous.
   les fichiers restants partent quand même
 - Ramené à un seul fichier avant l'envoi, on retrouve le formulaire simple. Pas de lot en
   mode « À découper sur les blancs » (un fichier, un écran de découpe) ni en vidéo YouTube
+- Le même envoi sert aux **prises en série** de `/record` (`sendBatchItems`,
+  `nameBatchItemsLater`, `src/lib/upload-client.ts`) — voir « Prises en série »
 
 ## Son d'un seul côté (canal muet)
 
@@ -325,14 +327,55 @@ au milieu de la salle, ou l'interface audio branchée au PC.
   l'onglet : un téléphone qui se verrouille coupe le micro. L'écran dit quand le navigateur
   ne le permet pas
 - **Copie de secours** dans IndexedDB, un bloc toutes les 5 s (`src/lib/recording-store.ts`) :
-  un onglet qui plante ou un envoi qui échoue ne perd pas l'heure enregistrée. `/upload`
-  propose alors de récupérer l'enregistrement non envoyé. La copie n'est effacée qu'une fois
-  le fichier accepté par le serveur. Indisponible en navigation privée, et l'écran le dit
+  un onglet qui plante ou un envoi qui échoue ne perd pas l'heure enregistrée.
+  L'enregistreur propose alors de récupérer l'enregistrement non envoyé, et le tableau de
+  bord le signale (« À toi »). Chaque copie n'est effacée qu'une fois **son** fichier
+  accepté par le serveur, ou jeté : les autres prises d'une série attendent encore le leur.
+  Indisponible en navigation privée, et l'écran le dit
 - Quitter la page pendant l'enregistrement demande confirmation ; le formulaire de
   classement n'apparaît qu'une fois l'enregistrement terminé
 - « Enregistrer » est la première entrée du menu **+ Ajouter** (voir « Navigation ») :
   c'est au téléphone, en répétition, qu'on lance un enregistrement — et sur ordinateur,
   interface audio branchée
+
+### Prises en série
+
+En répétition, on enregistre souvent plusieurs prises d'affilée en s'arrêtant entre deux :
+on discute, on s'accorde, on refait le pont. Sortir de `/record` après chaque prise,
+rouvrir le micro, rechoisir l'entrée et attendre la conversion cassait le rythme.
+
+- Une prise terminée propose **« Prise suivante »**, avant le recadrage : elle rejoint la
+  série et l'enregistrement de la suivante **démarre aussitôt**. Un seul toucher entre deux
+  morceaux. Dans le groupe seulement (`onkeep` d'`AudioRecorder.svelte`, passé seulement
+  avec un groupe actif) : une idée jouée seul va dans l'espace perso une à
+  une, ou se découpe
+- **Le micro reste ouvert** entre les prises, avec l'entrée choisie — sans série, il se
+  ferme à la fin d'un enregistrement, comme avant. S'il tombe entre-temps (écran verrouillé,
+  interface débranchée), « Prise suivante » le rouvre
+- La série s'affiche sous l'enregistreur, **y compris pendant l'enregistrement de la
+  suivante** : on nomme les prises entre deux morceaux. Même liste que l'envoi par lots
+  (`UploadBatch.svelte`) : une ligne par prise (« Enregistrée à 14:05 », durée retenue,
+  réécoute), son morceau, « + Nouveau morceau… », « Nommer plus tard »
+- **La prise suivante propose le morceau de la précédente** (« Même morceau que la prise
+  précédente ») : on rejoue souvent le même. La première garde celui choisi dans le
+  formulaire simple, s'il l'était
+- La dernière prise terminée fait partie de la série dès qu'elle s'affiche : on l'envoie
+  avec les autres sans en enregistrer une de plus. Son recadrage suit la série ; celui
+  des précédentes est figé quand on passe à la suivante
+- **Rien ne part avant « Envoyer »**, désactivé tant qu'une prise s'enregistre : tout va
+  dans la même session, une prise après l'autre par `POST /api/upload`, comme un envoi par
+  lots — échecs à réessayer, doublons signalés, session verrouillée dès qu'une prise y est,
+  puis direction la session. **Rien de neuf côté serveur.** Envoyer au fil de l'eau a été
+  écarté : au téléphone, l'envoi disputerait réseau et batterie à la captation
+- Retirer une prise de la série demande confirmation (`warning`) : elle n'existe encore
+  que dans ce navigateur. Celle qu'affiche l'enregistreur passe par son « Recommencer »
+- **Une série interrompue** (onglet fermé, plantage) se récupère d'un bloc : chaque prise
+  reprend sa place, dans l'ordre où elle a été jouée, et la session du jour est proposée.
+  Ailleurs (`/perso`, publication), l'enregistreur renvoie vers « Enregistrer » plutôt que
+  de n'en récupérer qu'une
+- Laisser tourner l'enregistreur une heure puis découper sur les blancs reste la réponse
+  quand on ne veut pas toucher au téléphone ; la série, quand on veut garder seulement ce
+  qu'on a décidé d'enregistrer
 
 ## Découpe automatique d'un enregistrement (`/decoupe/[id]`)
 

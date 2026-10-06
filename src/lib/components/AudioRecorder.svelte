@@ -7,8 +7,9 @@
 		appendChunk,
 		assembleTake,
 		beginTake,
-		clearTakes,
-		findPendingTake,
+		deleteTakes,
+		findPendingTakes,
+		type RecordedTake,
 		type StoredTake
 	} from '$lib/recording-store'
 
@@ -21,7 +22,8 @@
 		disabled = false,
 		onchange,
 		ontrimchange,
-		onbusychange
+		onbusychange,
+		onkeep
 	}: {
 		disabled?: boolean
 		/** Enregistrement prêt à envoyer (et sa durée), ou `null` quand il est écarté. */
@@ -30,6 +32,12 @@
 		ontrimchange?: (trim: AudioTrim | null) => void
 		/** Vrai tant qu'un enregistrement est en cours : la page ne doit pas démonter le composant. */
 		onbusychange?: (busy: boolean) => void
+		/**
+		 * Mode série : la prise terminée est confiée à la page, qui l'enverra avec les
+		 * autres, et la suivante démarre aussitôt, micro resté ouvert. Absent, une seule
+		 * prise à la fois.
+		 */
+		onkeep?: (take: RecordedTake) => void
 	} = $props()
 
 	// Aligné sur MAX_UPLOAD_SIZE (src/lib/server/upload-stream.ts) : au-delà, le serveur
@@ -58,7 +66,11 @@
 	let level = $state(0) // crête lissée, 0..1
 	let clipping = $state(false)
 
-	let pending = $state<StoredTake | null>(null)
+	// Restés dans la copie de secours, du plus ancien au plus récent : une série en laisse
+	// plusieurs.
+	let pending = $state<StoredTake[]>([])
+	const pendingDurationS = $derived(pending.reduce((sum, t) => sum + t.durationS, 0))
+	const pendingSizeBytes = $derived(pending.reduce((sum, t) => sum + t.sizeBytes, 0))
 	let pendingLoaded = $state(false)
 	let pendingBusy = $state(false)
 	let backupOk = $state(true)
@@ -66,6 +78,8 @@
 
 	let previewUrl = $state<string | null>(null)
 	let resultFile = $state<File | null>(null)
+	// La prise conservée derrière le résultat : « Recommencer » efface sa copie de secours.
+	let resultTake: StoredTake | null = null
 	let trimDuration = $state(0)
 	let trimStart = $state(0)
 	let trimEnd = $state(0)
@@ -103,7 +117,7 @@
 
 	// Ce que la confirmation en cours abandonnerait : l'enregistrement qui tourne, ou
 	// celui qui vient de se terminer.
-	let confirming = $state<'recording' | 'result' | null>(null)
+	let confirming = $state<'recording' | 'result' | 'pending' | null>(null)
 
 	const supported =
 		typeof navigator !== 'undefined' &&
@@ -115,7 +129,7 @@
 
 	onMount(async () => {
 		try {
-			pending = await findPendingTake()
+			pending = await findPendingTakes()
 		} catch {
 			// Pas de stockage local : rien à reprendre, l'enregistrement marchera sans secours.
 		} finally {
@@ -217,6 +231,9 @@
 			error = "L'entrée audio a été débranchée avant le début de l'enregistrement."
 			phase = 'idle'
 			releaseInput()
+		} else if (phase === 'done') {
+			// Le résultat reste : la prise suivante rouvrira l'entrée.
+			releaseInput()
 		} else {
 			phase = 'idle'
 			releaseInput()
@@ -283,7 +300,7 @@
 	}
 
 	async function start() {
-		if (!stream || phase !== 'armed' || pending) return
+		if (!stream || phase !== 'armed' || pending.length) return
 		phase = 'starting'
 		error = null
 		warning = null
@@ -291,11 +308,6 @@
 
 		const mimeType = pickMimeType()
 		backupOk = true
-		try {
-			await clearTakes()
-		} catch {
-			backupOk = false
-		}
 		if (phase !== 'starting' || destroyed) return
 		if (!stream?.active) {
 			phase = 'idle'
@@ -331,6 +343,7 @@
 				}
 			}
 			if (phase !== 'starting' || destroyed || !stream?.active) {
+				if (backupOk) deleteTakes([take.id]).catch(() => {})
 				recorder = null
 				take = null
 				if (!destroyed && phase === 'starting') {
@@ -348,11 +361,11 @@
 			}
 			recorder.start(TIMESLICE_MS)
 		} catch {
+			if (take) deleteTakes([take.id]).catch(() => {})
 			recorder = null
 			take = null
 			phase = stream ? 'armed' : 'idle'
 			error = "Impossible de démarrer l'enregistrement audio."
-			clearTakes().catch(() => {})
 			return
 		}
 
@@ -439,13 +452,14 @@
 
 	/** Remet l'enregistreur au point de départ, micro ouvert s'il l'est resté. */
 	function discardRecording() {
+		// Seule la prise jetée part : celles d'une série attendent encore leur envoi.
+		if (take) deleteTakes([take.id]).catch(() => {})
 		cancelling = false
 		chunks = []
 		take = null
 		seq = 0
 		resetProgress()
 		phase = stream ? 'armed' : 'idle'
-		clearTakes().catch(() => {})
 		onchange(null, 0)
 	}
 
@@ -464,6 +478,8 @@
 		}
 		elapsedS = elapsedBeforeSegment
 		if (!take || chunks.length === 0) {
+			if (take) deleteTakes([take.id]).catch(() => {})
+			take = null
 			phase = stream ? 'armed' : 'idle'
 			if (!error) error = 'Aucun son n’a été enregistré. Réessaie.'
 			return
@@ -497,6 +513,7 @@
 		// Daté du début de la captation, pas de sa relecture : une copie de secours
 		// reprise le lendemain doit encore se classer dans la session de la veille.
 		resultFile = new File([blob], fileName(t), { type: t.mimeType, lastModified: t.startedAt })
+		resultTake = t
 		trimDuration = durationS
 		trimStart = 0
 		trimEnd = durationS
@@ -505,8 +522,9 @@
 		sizeBytes = blob.size
 		elapsedS = durationS
 		phase = 'done'
-		// Le micro n'a plus à rester ouvert : le voyant d'enregistrement du système s'éteint.
-		releaseInput()
+		// Le micro n'a plus à rester ouvert, et le voyant d'enregistrement du système
+		// s'éteint — sauf en série, où la prise suivante doit partir d'un toucher.
+		if (!onkeep) releaseInput()
 		onchange(resultFile, durationS)
 	}
 
@@ -515,6 +533,7 @@
 		if (previewUrl) URL.revokeObjectURL(previewUrl)
 		previewUrl = null
 		resultFile = null
+		resultTake = null
 		ontrimchange?.(null)
 		onchange(null, 0)
 	}
@@ -522,22 +541,73 @@
 	async function restart() {
 		if (phase !== 'done') return
 		confirming = null
-		phase = 'arming'
+		const discarded = resultTake
 		discardResult()
 		resetProgress()
-		await clearTakes().catch(() => {})
-		await arm()
+		if (discarded) deleteTakes([discarded.id]).catch(() => {})
+		if (stream?.active) phase = 'armed'
+		else await arm()
+	}
+
+	/**
+	 * La prise rejoint la série et la suivante démarre aussitôt : entre deux morceaux, un
+	 * seul toucher. La copie de secours de la prise confiée reste, jusqu'à son envoi.
+	 */
+	async function keepAndNext() {
+		if (phase !== 'done' || !resultFile || !resultTake || !onkeep) return
+		stopPreview()
+		onkeep({
+			id: resultTake.id,
+			file: resultFile,
+			durationS: trimDuration,
+			trim: hasTrim ? { startS: trimStart, endS: trimEnd } : null
+		})
+		// Elle n'est plus à nous : la jeter d'ici ne doit plus effacer sa copie.
+		resultTake = null
+		discardResult()
+		resetProgress()
+		if (stream?.active) phase = 'armed'
+		else {
+			await arm()
+			// `arm()` a changé la phase pendant l'attente : TypeScript ne le voit pas.
+			if ((phase as Phase) !== 'armed') return
+		}
+		await start()
+	}
+
+	/** Pour la page : retirer la prise affichée passe par la même confirmation que « Recommencer ». */
+	export function requestDiscard() {
+		if (phase === 'done') requestCancel('result')
 	}
 
 	async function recoverPending() {
-		if (!pending || pendingBusy) return
+		if (!pending.length || pendingBusy) return
+		if (pending.length > 1 && !onkeep) return
 		pendingBusy = true
 		try {
-			const blob = await assembleTake(pending)
-			if (!blob.size) throw new Error('vide')
-			const t = pending
-			pending = null
-			setResult(blob, t, t.durationS)
+			if (pending.length === 1) {
+				const [t] = pending
+				const blob = await assembleTake(t)
+				if (!blob.size) throw new Error('vide')
+				pending = []
+				setResult(blob, t, t.durationS)
+				return
+			}
+			// Une série interrompue : chaque prise retrouve sa place dans la liste, dans
+			// l'ordre où elle a été jouée. Une prise illisible reste conservée.
+			const unreadable: StoredTake[] = []
+			for (const t of pending) {
+				const blob = await assembleTake(t).catch(() => null)
+				if (!blob?.size) { unreadable.push(t); continue }
+				onkeep?.({
+					id: t.id,
+					file: new File([blob], fileName(t), { type: t.mimeType, lastModified: t.startedAt }),
+					durationS: t.durationS,
+					trim: null
+				})
+			}
+			pending = unreadable
+			if (unreadable.length) error = "Une partie des enregistrements conservés n'a pas pu être relue : elle reste proposée ci-dessous."
 		} catch {
 			error = "L'enregistrement conservé n'a pas pu être relu."
 		} finally {
@@ -545,11 +615,18 @@
 		}
 	}
 
+	function requestDropPending() {
+		if (pendingDurationS >= CONFIRM_CANCEL_ABOVE_S) confirming = 'pending'
+		else dropPending()
+	}
+
 	async function dropPending() {
+		confirming = null
 		if (pendingBusy) return
 		pendingBusy = true
-		pending = null
-		await clearTakes().catch(() => {})
+		const ids = pending.map((t) => t.id)
+		pending = []
+		await deleteTakes(ids).catch(() => {})
 		pendingBusy = false
 	}
 
@@ -796,17 +873,31 @@
 			Safari 14.3+), sur une page en HTTPS.
 		</p>
 	{:else}
-		{#if pending && phase !== 'recording' && phase !== 'paused'}
+		{#if pending.length && phase !== 'recording' && phase !== 'paused'}
 			<div class="pending">
-				<p>
-					Un enregistrement du <strong>{formatWhen(pending.startedAt)}</strong>
-					({formatElapsed(pending.durationS)}, {formatSize(pending.sizeBytes)}) n'a pas été envoyé.
-				</p>
+				{#if pending.length === 1}
+					<p>
+						Un enregistrement du <strong>{formatWhen(pending[0].startedAt)}</strong>
+						({formatElapsed(pending[0].durationS)}, {formatSize(pending[0].sizeBytes)}) n'a pas été envoyé.
+					</p>
+				{:else}
+					<p>
+						<strong>{pending.length} prises</strong> enregistrées à partir du
+						<strong>{formatWhen(pending[0].startedAt)}</strong>
+						({formatElapsed(pendingDurationS)}, {formatSize(pendingSizeBytes)}) n'ont pas été envoyées.
+					</p>
+					{#if !onkeep}
+						<!-- Seule la page « Enregistrer », dans un groupe, sait envoyer une série. -->
+						<p class="hint">Récupère-les depuis <a href="/record">Enregistrer</a>, dans le groupe où elles ont été jouées.</p>
+					{/if}
+				{/if}
 				<div class="row">
-					<button type="button" class="btn btn-secondary btn-sm" onclick={recoverPending} disabled={disabled || pendingBusy}>
-						Récupérer
-					</button>
-					<button type="button" class="btn btn-ghost btn-sm" onclick={dropPending} disabled={disabled || pendingBusy}>
+					{#if pending.length === 1 || onkeep}
+						<button type="button" class="btn btn-secondary btn-sm" onclick={recoverPending} disabled={disabled || pendingBusy}>
+							{pending.length > 1 ? 'Les récupérer' : 'Récupérer'}
+						</button>
+					{/if}
+					<button type="button" class="btn btn-ghost btn-sm" onclick={requestDropPending} disabled={disabled || pendingBusy}>
 						Supprimer
 					</button>
 				</div>
@@ -822,7 +913,7 @@
 				type="button"
 				class="btn btn-primary start-btn"
 				onclick={() => arm()}
-				disabled={disabled || phase === 'arming' || !pendingLoaded || !!pending}
+				disabled={disabled || phase === 'arming' || !pendingLoaded || pending.length > 0}
 			>
 				<Icon name="mic" />
 				{phase === 'arming' ? 'Ouverture du micro…' : 'Activer le micro'}
@@ -841,6 +932,16 @@
 					<Icon name="check" />
 					Enregistrement prêt — {formatElapsed(elapsedS)} · {formatSize(sizeBytes)}
 				</p>
+				{#if onkeep}
+					<!-- Entre deux morceaux, le geste attendu : il passe avant le recadrage. -->
+					<button type="button" class="btn btn-primary start-btn" onclick={keepAndNext} {disabled}>
+						<span class="rec-dot"></span> Prise suivante
+					</button>
+					<p class="hint">
+						Celle-ci rejoint la série, et l'enregistrement de la suivante démarre aussitôt.
+						Les morceaux se choisissent quand tu veux, tout part à la fin.
+					</p>
+				{/if}
 				{#if previewUrl}
 					<!-- Pas de contrôles natifs : leur ▶ rejouait tout le fichier, sélection ignorée,
 					     sur une barre de progression sans rapport avec les poignées. -->
@@ -979,13 +1080,17 @@
 <ConfirmDialog
 	open={confirming !== null}
 	level="warning"
-	title={confirming === 'result' ? 'Recommencer ?' : "Annuler l'enregistrement ?"}
+	title={confirming === 'result' ? 'Recommencer ?' : confirming === 'pending' ? 'Supprimer ?' : "Annuler l'enregistrement ?"}
 	message={confirming === 'result'
 		? `L'enregistrement de ${formatElapsed(elapsedS)} sera perdu, et le micro rouvert pour un nouveau.`
-		: `Les ${formatElapsed(elapsedS)} enregistrées seront perdues. Le micro reste ouvert pour recommencer.`}
-	confirmLabel={confirming === 'result' ? 'Recommencer' : "Annuler l'enregistrement"}
-	cancelLabel={confirming === 'result' ? 'Garder' : "Continuer l'enregistrement"}
-	onConfirm={() => (confirming === 'result' ? restart() : cancelRecording())}
+		: confirming === 'pending'
+			? pending.length > 1
+				? `Les ${pending.length} prises non envoyées (${formatElapsed(pendingDurationS)}) seront perdues.`
+				: `L'enregistrement non envoyé de ${formatElapsed(pendingDurationS)} sera perdu.`
+			: `Les ${formatElapsed(elapsedS)} enregistrées seront perdues. Le micro reste ouvert pour recommencer.`}
+	confirmLabel={confirming === 'result' ? 'Recommencer' : confirming === 'pending' ? 'Supprimer' : "Annuler l'enregistrement"}
+	cancelLabel={confirming === 'result' || confirming === 'pending' ? 'Garder' : "Continuer l'enregistrement"}
+	onConfirm={() => (confirming === 'result' ? restart() : confirming === 'pending' ? dropPending() : cancelRecording())}
 	onCancel={() => (confirming = null)}
 />
 
@@ -1105,7 +1210,8 @@
 	.start-btn .rec-dot { box-shadow: 0 0 0 2px #fff; }
 
 	@media (max-width: 640px) {
-		.recorder > .start-btn { align-self: stretch; }
+		.recorder > .start-btn,
+		.result .start-btn { align-self: stretch; justify-content: center; }
 		/* Les commandes passent sous le chrono et se partagent la largeur. */
 		.buttons { flex-basis: 100%; margin-left: 0; }
 		.buttons .btn { flex: 1; justify-content: center; min-height: 48px; }

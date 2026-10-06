@@ -4,12 +4,15 @@
  * Une répétition s'enregistre sur une heure ou deux : un onglet qui plante, un
  * téléphone qui s'éteint ou un envoi qui échoue ne doivent pas tout emporter. Chaque
  * bloc livré par `MediaRecorder` est écrit ici au fil de l'eau, et l'enregistrement
- * n'est effacé qu'une fois la prise créée sur le serveur.
+ * n'est effacé qu'une fois la prise créée sur le serveur. Plusieurs peuvent attendre
+ * ensemble : une série de prises enregistrées d'affilée, envoyée à la fin.
  *
  * Tout est « au mieux » : navigation privée, quota plein ou Safari capricieux peuvent
  * refuser l'écriture. L'enregistrement continue alors en mémoire seule, et
  * l'appelant le dit à l'écran.
  */
+
+import type { AudioTrim } from '$lib/types'
 
 const DB_NAME = 'band-recorder'
 const DB_VERSION = 1
@@ -21,6 +24,15 @@ export type StoredTake = {
 	/** Durée d'enregistrement effective (hors pauses), mise à jour à chaque bloc. */
 	durationS: number
 	sizeBytes: number
+}
+
+/** Une prise terminée que l'enregistreur confie à la série, sans l'envoyer. */
+export type RecordedTake = {
+	id: number
+	file: File
+	durationS: number
+	/** Bornes choisies à l'écoute ; null garde tout l'audio. */
+	trim: AudioTrim | null
 }
 
 type StoredChunk = { takeId: number; seq: number; data: Blob }
@@ -97,8 +109,11 @@ async function writeChunk(take: StoredTake, seq: number, data: Blob): Promise<vo
 	}
 }
 
-/** L'enregistrement le plus récent resté en attente, s'il en existe un. */
-export async function findPendingTake(): Promise<StoredTake | null> {
+/**
+ * Les enregistrements restés en attente, du plus ancien au plus récent. Une série de
+ * prises enregistrées d'affilée en laisse plusieurs : chacune attend son envoi.
+ */
+export async function findPendingTakes(): Promise<StoredTake[]> {
 	await mutations
 	const db = await openDb()
 	const tx = db.transaction('takes', 'readonly')
@@ -109,8 +124,7 @@ export async function findPendingTake(): Promise<StoredTake | null> {
 		db.close()
 	}
 	const takes = (req.result as StoredTake[]).filter((t) => t.sizeBytes > 0)
-	takes.sort((a, b) => b.startedAt - a.startedAt)
-	return takes[0] ?? null
+	return takes.sort((a, b) => a.startedAt - b.startedAt)
 }
 
 /** Recolle les blocs dans l'ordre : concaténés, ils forment un fichier WebM/MP4 valide. */
@@ -131,7 +145,7 @@ export async function assembleTake(take: StoredTake): Promise<Blob> {
 	)
 }
 
-/** Efface tous les enregistrements conservés : un seul est proposé à la reprise. */
+/** Efface tous les enregistrements conservés. */
 export function clearTakes(): Promise<void> {
 	return enqueueMutation(clearStoredTakes)
 }
@@ -146,4 +160,35 @@ async function clearStoredTakes(): Promise<void> {
 	} finally {
 		db.close()
 	}
+}
+
+/**
+ * Efface les seuls enregistrements désignés : envoyés, ou jetés. Les autres prises d'une
+ * série attendent encore le leur, et doivent survivre à un plantage d'ici là.
+ */
+export function deleteTakes(ids: number[]): Promise<void> {
+	if (!ids.length) return Promise.resolve()
+	return enqueueMutation(() => deleteStoredTakes(ids))
+}
+
+async function deleteStoredTakes(ids: number[]): Promise<void> {
+	const db = await openDb()
+	const tx = db.transaction(['takes', 'chunks'], 'readwrite')
+	for (const id of ids) {
+		tx.objectStore('takes').delete(id)
+		tx.objectStore('chunks').delete(chunkRange(id))
+	}
+	try {
+		await done(tx)
+	} finally {
+		db.close()
+	}
+}
+
+/**
+ * L'identifiant de copie de secours d'un fichier issu de l'enregistreur : le fichier est
+ * daté du début de la captation, qui sert aussi de clé à la prise conservée.
+ */
+export function takeIdOf(file: File): number {
+	return file.lastModified
 }

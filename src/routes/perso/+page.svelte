@@ -10,7 +10,7 @@
 	import ClassifyDialog from '$lib/components/ClassifyDialog.svelte'
 	import PendingImports from '$lib/components/PendingImports.svelte'
 	import Icon from '$lib/components/Icon.svelte'
-	import { clearTakes } from '$lib/recording-store'
+	import { deleteTakes, takeIdOf } from '$lib/recording-store'
 	import { sendAudioFile, splitUrl, trimFields } from '$lib/upload-client'
 	import type { AudioTrim } from '$lib/types'
 	import { formatDurationLong, type PostType } from '$lib/types'
@@ -104,7 +104,7 @@
 					{ destination: 'perso', ...(source === 'record' ? trimFields(audioTrim) : {}) },
 					(p) => (progress = p)
 				)
-				if (source === 'record') await clearTakes().catch(() => {})
+				if (source === 'record') await deleteTakes([takeIdOf(file)]).catch(() => {})
 				await goto(splitUrl(audioImport.id, title))
 				return
 			}
@@ -116,7 +116,7 @@
 				(p) => (progress = p)
 			)
 			// Le serveur a le fichier : la copie de secours de l'enregistreur n'a plus lieu d'être.
-			if (source === 'record') await clearTakes().catch(() => {})
+			if (source === 'record') await deleteTakes([takeIdOf(file)]).catch(() => {})
 			// Ce qu'on vient d'enregistrer est presque toujours à classer : `?classer`
 			// ouvre la question tout de suite, sans l'imposer.
 			await goto(source === 'record' && currentGroup ? `/perso/${created.id}?classer` : `/perso/${created.id}`)

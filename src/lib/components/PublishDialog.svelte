@@ -2,7 +2,7 @@
 	import Modal from '$lib/components/Modal.svelte'
 	import AudioRecorder from '$lib/components/AudioRecorder.svelte'
 	import Icon from '$lib/components/Icon.svelte'
-	import { clearTakes } from '$lib/recording-store'
+	import { deleteTakes, takeIdOf } from '$lib/recording-store'
 	import { sendAudioFile, trimFields } from '$lib/upload-client'
 	import type { AudioTrim } from '$lib/types'
 	import type { PostType } from '$lib/types'
@@ -123,7 +123,7 @@
 				(p) => (progress = p)
 			)
 			// Le serveur a le fichier : la copie de secours de l'enregistreur n'a plus lieu d'être.
-			if (source === 'record') await clearTakes().catch(() => {})
+			if (source === 'record') await deleteTakes([takeIdOf(audio)]).catch(() => {})
 			return { id: created.id, title: created.title, published_here: false, has_audio: true }
 		} finally {
 			progress = null

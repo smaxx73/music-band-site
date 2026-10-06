@@ -9,7 +9,7 @@
 	import PlayAllButton from '$lib/components/PlayAllButton.svelte'
 	import type { IconName } from '$lib/icons'
 	import type { PlayerTrack } from '$lib/player.svelte'
-	import { findPendingTake } from '$lib/recording-store'
+	import { findPendingTakes } from '$lib/recording-store'
 	import {
 		formatDurationLong,
 		postKindLabel,
@@ -61,7 +61,7 @@
 
 	// Un enregistrement resté dans la copie de secours n'existe que dans ce navigateur :
 	// c'est le seul « à toi » que le serveur ne peut pas connaître.
-	let pendingTake = $state(false)
+	let pendingTakes = $state(0)
 
 	// Le tableau de bord reste à jour lorsqu’on le laisse ouvert ou qu’on y revient.
 	onMount(() => {
@@ -69,8 +69,8 @@
 			if (localStorage.getItem(ACTIVITY_VIEW_KEY) === 'comments') activityView = 'comments'
 		} catch { /* Stockage refusé : la vue par défaut suffit. */ }
 
-		findPendingTake()
-			.then((take) => { pendingTake = take !== null })
+		findPendingTakes()
+			.then((takes) => { pendingTakes = takes.length })
 			.catch(() => { /* Pas de stockage local (navigation privée) : rien à reprendre. */ })
 
 		let refreshing = false
@@ -186,7 +186,8 @@
 	type Todo = { href: string; icon: IconName; label: string }
 	const todos = $derived.by(() => {
 		const list: Todo[] = []
-		if (pendingTake) list.push({ href: '/record', icon: 'mic', label: 'Un enregistrement n’a pas été envoyé' })
+		if (pendingTakes === 1) list.push({ href: '/record', icon: 'mic', label: 'Un enregistrement n’a pas été envoyé' })
+		else if (pendingTakes > 1) list.push({ href: '/record', icon: 'mic', label: `${pendingTakes} prises enregistrées n’ont pas été envoyées` })
 		if (pendingImportCount > 0) {
 			list.push({
 				href: hasGroup ? '/upload' : '/perso',
