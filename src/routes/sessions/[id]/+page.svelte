@@ -335,19 +335,26 @@
 	{/if}
 
 	<!-- Morceaux & prises -->
+	{#if groups.length > 1}
+		<nav class="song-toc" aria-label="Morceaux de la session">
+			{#each groups as group}
+				<button class="song-toc-pill" onclick={() => scrollToSong(group.song.id)}>
+					{group.song.title}
+					<span class="song-toc-count">{group.recordings.length}</span>
+				</button>
+			{/each}
+		</nav>
+	{/if}
+
+	<!-- Avant la liste, pas après : sous une session de vingt prises, il fallait tout faire
+	     défiler pour le trouver. Même place et même poids que sur la page d'un morceau. -->
+	<div class="list-actions">
+		<a href="/upload?session_id={session.id}" class="btn btn-primary"><Icon name="plus" /> Ajouter une prise</a>
+	</div>
+
 	{#if groups.length === 0}
-		<p class="empty">Aucune prise pour cette session. <a href="/upload?session_id={session.id}">Uploader →</a></p>
+		<p class="empty">Aucune prise pour cette session.</p>
 	{:else}
-		{#if groups.length > 1}
-			<nav class="song-toc" aria-label="Morceaux de la session">
-				{#each groups as group}
-					<button class="song-toc-pill" onclick={() => scrollToSong(group.song.id)}>
-						{group.song.title}
-						<span class="song-toc-count">{group.recordings.length}</span>
-					</button>
-				{/each}
-			</nav>
-		{/if}
 
 		{#each groups as group}
 			<section class="song-section" id={songAnchor(group.song.id)}>
@@ -390,9 +397,6 @@
 		{/each}
 	{/if}
 
-	<div class="footer-actions">
-		<a href="/upload?session_id={session.id}" class="btn btn-primary"><Icon name="plus" /> Ajouter une prise</a>
-	</div>
 	{#if deleteError}
 		<p class="message-error" style="margin-top: 0.5rem;">{deleteError}</p>
 	{/if}
@@ -474,6 +478,8 @@
 		color: var(--color-text-muted);
 	}
 
+	.list-actions { margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 0.6rem; }
+
 	.song-section {
 		margin-bottom: 2rem;
 		scroll-margin-top: 1rem;
@@ -512,8 +518,6 @@
 		font-variant-numeric: tabular-nums;
 	}
 
-	.footer-actions { margin-top: 2rem; display: flex; gap: 0.75rem; align-items: center; }
-
 	/* Même signal visuel que l'action « Uploader » de la navigation. */
 
 	/* Les prises se replient toutes seules (voir RecordingRow) : il ne reste ici que
@@ -530,7 +534,7 @@
 
 		.session-nav > * { flex: 1; }
 		.agenda-restore { align-items: stretch; }
+		.list-actions > * { flex: 1 1 auto; }
 
-		.footer-actions > * { flex: 1; }
 	}
 </style>

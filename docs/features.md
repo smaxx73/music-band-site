@@ -654,7 +654,10 @@ rapide d'une session dans `/upload`, `/record` et au classement d'un enregistrem
   hors de l'écran. Elles se lisent sur la page du morceau, sur la prise et en playlist
 - **Photo de bandeau** : voir « Photo de bandeau d'une session » plus bas
 - Ajout d'une prise oubliée à une session passée : autorisé. « + Ajouter une prise » ouvre
-  `/upload?session_id=` avec la session déjà sélectionnée (ignoré si hors du groupe actif)
+  `/upload?session_id=` avec la session déjà sélectionnée (ignoré si hors du groupe actif).
+  Le bouton est au-dessus de la liste des prises (sous le sommaire des morceaux), pas en
+  pied de page : sous une session de vingt prises, il fallait tout faire défiler pour le
+  voir. Même place et même poids (`btn-primary`) que sur la page d'un morceau
 - Une prise est une **piste de tracklist**, pas une ligne de tableau (`RecordingRow.svelte`,
   partagé avec la vue morceau) : sans cadre, un fond au survol. Colonne de tête pour le
   numéro, puis « Prise n » — lien vers le lecteur complet — avec la provenance en gris
@@ -820,7 +823,9 @@ note, 💬 s'il y a des commentaires — plus l'écoute, et un menu ⋮ recueill
 - Le compteur de commentaires déplie la liste des commentaires de la prise, sans ouvrir le
   lecteur — mêmes 5 derniers qu'en vue session, avec le renvoi vers le lecteur au-delà
 - Même menu ⋮ qu'en vue session — voir « Menu d'une prise » plus haut
-- **« Ajouter à une setlist »** en bas de page, à côté de « + Ajouter une prise ». Une setlist
+- **« + Ajouter une prise » et « Ajouter à une setlist »** au-dessus de la liste des prises,
+  pas en pied de page : sous un morceau très enregistré, il fallait tout faire défiler pour
+  les trouver. Au téléphone, ils restent côte à côte tant qu'ils tiennent. Une setlist
   programme des **morceaux**, pas des prises : l'action appartient donc à la page du morceau,
   là où les lignes de prises portent celle des playlists. Même sélecteur que pour une playlist
   (`AddToSetlistButton.svelte`) : les setlists qui programment déjà le morceau sont marquées,

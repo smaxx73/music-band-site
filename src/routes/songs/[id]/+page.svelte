@@ -233,6 +233,20 @@
 		<SongDetails lyrics={song.lyrics} musicNotes={song.music_notes} />
 	{/if}
 
+	<!-- Avant la liste, pas après : sous un morceau de trente prises, il fallait tout
+	     faire défiler pour les trouver. -->
+	<div class="list-actions">
+		<a href="/upload?song_id={song.id}" class="btn btn-primary"><Icon name="plus" /> Ajouter une prise</a>
+		<!-- Une setlist programme des morceaux, pas des prises : l'action appartient donc à
+		     la page du morceau, pas aux lignes de prises qui portent celle des playlists. -->
+		<AddToSetlistButton
+			songId={song.id}
+			songStatus={song.status}
+			label="Ajouter à une setlist"
+			buttonClass="btn btn-secondary"
+		/>
+	</div>
+
 	{#if recordings.length === 0}
 		<p class="empty">Aucune prise pour ce morceau.</p>
 	{:else}
@@ -251,18 +265,6 @@
 			{/each}
 		</div>
 	{/if}
-
-	<div class="footer-actions">
-		<a href="/upload?song_id={song.id}" class="btn btn-primary"><Icon name="plus" /> Ajouter une prise</a>
-		<!-- Une setlist programme des morceaux, pas des prises : l'action appartient donc à
-		     la page du morceau, pas aux lignes de prises qui portent celle des playlists. -->
-		<AddToSetlistButton
-			songId={song.id}
-			songStatus={song.status}
-			label="Ajouter à une setlist"
-			buttonClass="btn btn-secondary"
-		/>
-	</div>
 
 	<ConfirmDialog
 		open={ask.pending !== null}
@@ -309,7 +311,7 @@
 
 	.message-error { margin: 0 0 1rem; }
 
-	.footer-actions { margin-top: 2rem; display: flex; flex-wrap: wrap; gap: 0.6rem; }
+	.list-actions { margin-bottom: 1.25rem; display: flex; flex-wrap: wrap; gap: 0.6rem; }
 
 
 	/* Les prises se replient toutes seules (voir RecordingRow) : il ne reste ici que
@@ -317,6 +319,7 @@
 	@media (max-width: 640px) {
 
 		/* La modale du sélecteur est en `position: fixed` : elle reste hors de ce flux. */
-		.footer-actions { flex-direction: column; align-items: stretch; }
+		/* Côte à côte tant qu'ils tiennent : empilés, ils repoussaient les prises sous l'écran. */
+		.list-actions > :global(*) { flex: 1 1 auto; }
 	}
 </style>

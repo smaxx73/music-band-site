@@ -14,6 +14,7 @@
 	import CommentsPanel from '$lib/components/CommentsPanel.svelte'
 	import Modal from '$lib/components/Modal.svelte'
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
+	import Icon from '$lib/components/Icon.svelte'
 	import type { MentionMember } from '$lib/components/MentionTextarea.svelte'
 	import type { CommentWithReactions } from '$lib/types'
 
@@ -330,7 +331,7 @@
 					<h2>Programme</h2>
 					{@render programMeta()}
 					<button type="button" class="btn btn-secondary btn-sm add-btn" onclick={openAddModal}>
-						+ Ajouter des morceaux
+						<Icon name="plus" /> Ajouter des morceaux
 					</button>
 				</div>
 				{@render durationHint()}

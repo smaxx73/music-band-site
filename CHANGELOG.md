@@ -11,6 +11,18 @@ pour une bibliothèque :
 Chaque version liste les migrations qu'elle apporte : ce sont elles qu'il faut appliquer
 en montant de version (voir `deploy.md`).
 
+## [1.7.2] — 2026-10-07
+
+Aucune migration.
+
+- **Un seul mode édition sur la page d'une session** : « Modifier », dans l'en-tête, ouvre
+  la fiche de la session et donne en même temps aux prises leur bouton de suppression.
+  « Modifier les prises », en pied de page, disparaît. « Supprimer la session » passe au
+  bout des boutons du formulaire, comme « Supprimer le morceau » sur la page d'un morceau
+- **« + Ajouter une prise » au-dessus de la liste**, sur la page d'une session comme sur
+  celle d'un morceau (avec « Ajouter à une setlist ») : en pied de page, il fallait faire
+  défiler toutes les prises pour le trouver
+
 ## [1.7.1] — 2026-10-07
 
 Aucune migration.
