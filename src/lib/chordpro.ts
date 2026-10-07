@@ -55,6 +55,22 @@ function collapseEmpty<T extends { kind: string }>(lines: T[]): T[] {
 	return lines.filter((line, index) => line.kind !== 'empty' || (index > 0 && lines[index - 1].kind !== 'empty'))
 }
 
+export type ChartSection<T> = { heading: string | null; lines: T[] }
+
+/**
+ * Les lignes rangées sous leur titre de section. À l'impression, une section se garde
+ * d'un tenant quand elle tient sur une page, et son titre ne reste jamais seul en bas.
+ */
+export function chartSections<T extends { kind: string; label?: string }>(lines: T[]): ChartSection<T>[] {
+	const sections: ChartSection<T>[] = []
+	for (const line of lines) {
+		if (line.kind === 'section') sections.push({ heading: line.label ?? '', lines: [] })
+		else if (sections.length) sections[sections.length - 1].lines.push(line)
+		else sections.push({ heading: null, lines: [line] })
+	}
+	return sections
+}
+
 /**
  * Les paroles seules. Une ligne qui ne portait que des accords disparaît ; des accords
  * écrits sans crochets (« Intro : D G A ») ne se distinguent pas du texte et restent.

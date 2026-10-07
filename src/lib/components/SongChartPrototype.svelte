@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, tick, untrack, type Snippet } from 'svelte'
 	import { strFromU8, unzipSync } from 'fflate'
-	import { chordProTitle, chordRows, lyricLines, parseChordPro, type SheetView } from '$lib/chordpro'
+	import { chartSections, chordProTitle, chordRows, lyricLines, parseChordPro, type SheetView } from '$lib/chordpro'
 	import { moveAbcPitch } from '$lib/abc-editor'
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
 	import Icon from '$lib/components/Icon.svelte'
@@ -191,6 +191,12 @@ K:D
 	const hasChords = $derived(blocks.some((block) => block.type === 'chordpro' && getChords(blockContent[block.id] ?? '').length > 0))
 	const effectiveView = $derived<SheetView>(hasChords ? sheetView : 'all')
 	const canTranspose = $derived(blocks.some((block) => block.type === 'notation' || getChords(blockContent[block.id] ?? '').length > 0))
+	// À l'écran, les sélecteurs disent comment la feuille est lue ; sur papier, rien ne le
+	// dirait : une feuille transposée imprimée passerait pour la tonalité d'origine.
+	const printSettings = $derived([
+		readTranspose ? `Transposée de ${readTranspose > 0 ? '+' : '−'}${Math.abs(readTranspose)} demi-ton${Math.abs(readTranspose) > 1 ? 's' : ''}` : null,
+		effectiveView === 'lyrics' ? 'Paroles seules' : effectiveView === 'chords' ? 'Accords seuls' : null
+	].filter(Boolean).join(' · '))
 
 	// Ne jamais laisser l'import asynchrone du moteur de gravure interrompre
 	// l'hydratation Svelte : l'éditeur de blocs reste utilisable même si ABC échoue.
@@ -951,26 +957,41 @@ K:D
 			{#if !contentRepeatsBlockLabel(block, blockContent[block.id] ?? '')}<div class="caption"><strong>{block.label || 'Sans titre'}</strong></div>{/if}
 			{#if block.type === 'chordpro' && view === 'lyrics'}
 				<div class="chart">
-					{#each lyricLines(blockContent[block.id] ?? '') as line}
-						{#if line.kind === 'section'}<h3>{line.label}</h3>
-						{:else if line.kind === 'lyrics'}<p class="chart-line lyrics-line">{line.text}</p>
-						{:else}<div class="space"></div>{/if}
+					{#each chartSections(lyricLines(blockContent[block.id] ?? '')) as section}
+						<div class="chart-section">
+							{#if section.heading !== null}<h3>{section.heading}</h3>{/if}
+							{#each section.lines as line}
+								{#if line.kind === 'lyrics'}<p class="chart-line lyrics-line">{line.text}</p>
+								{:else}<div class="space"></div>{/if}
+							{/each}
+						</div>
 					{/each}
 				</div>
 			{:else if block.type === 'chordpro' && view === 'chords'}
 				<div class="chart">
-					{#each chordRows(blockContent[block.id] ?? '') as row}
-						{#if row.kind === 'section'}<h3>{row.label}</h3>
-						{:else if row.kind === 'chords'}<p class="chord-row">{#each row.chords as chord}<span class="chord-cell">{transposed(chord, readTranspose)}</span>{/each}{#if row.repeat > 1}<span class="chord-repeat" aria-label="{row.repeat} fois">×{row.repeat}</span>{/if}</p>
-						{:else}<div class="space"></div>{/if}
+					{#each chartSections(chordRows(blockContent[block.id] ?? '')) as section}
+						<div class="chart-section">
+							{#if section.heading !== null}<h3>{section.heading}</h3>{/if}
+							{#each section.lines as row}
+								{#if row.kind === 'chords'}<p class="chord-row">{#each row.chords as chord}<span class="chord-cell">{transposed(chord, readTranspose)}</span>{/each}{#if row.repeat > 1}<span class="chord-repeat" aria-label="{row.repeat} fois">×{row.repeat}</span>{/if}</p>
+								{:else}<div class="space"></div>{/if}
+							{/each}
+						</div>
 					{/each}
 				</div>
 			{:else if block.type === 'chordpro'}
 				<div class="chart">
-					{#each parseChordPro(blockContent[block.id] ?? '') as line}
-						{#if line.kind === 'section'}<h3>{line.label}</h3>
-						{:else if line.kind === 'line'}<p class="chart-line">{#each tokens(line.source) as token}<span class="token"><span class="chord">{token.chord ? transposed(token.chord, reading ? readTranspose : block.id === selectedId ? transpose : 0) : ' '}</span><span class="lyric">{token.text || ' '}</span></span>{/each}</p>
-						{:else}<div class="space"></div>{/if}
+					{#each chartSections(parseChordPro(blockContent[block.id] ?? '')) as section}
+						<div class="chart-section">
+							{#if section.heading !== null}<h3>{section.heading}</h3>{/if}
+							{#each section.lines as line}
+								{#if line.kind === 'line'}
+									{@const lineTokens = tokens(line.source)}
+									<!-- Sur papier, une ligne sans accord ne garde pas sa rangée d'accords vide (@media print). -->
+									<p class="chart-line" class:unchorded={!lineTokens.some((token) => token.chord)}>{#each lineTokens as token}<span class="token"><span class="chord">{token.chord ? transposed(token.chord, reading ? readTranspose : block.id === selectedId ? transpose : 0) : ' '}</span><span class="lyric">{token.text || ' '}</span></span>{/each}</p>
+								{:else}<div class="space"></div>{/if}
+							{/each}
+						</div>
 					{/each}
 				</div>
 			{:else}
@@ -1030,6 +1051,7 @@ K:D
 				<p class="eyebrow">Feuille de répétition</p>
 				<h1>{documentTitle}</h1>
 				{#if updatedLabel && documentUpdatedAt}<p class="sheet-updated" title="Modifiée le {formatDateTimeFull(documentUpdatedAt)}">Modifiée {updatedLabel}</p>{/if}
+				{#if printSettings}<p class="print-settings">{printSettings}</p>{/if}
 			</div>
 			<div class="page-actions">
 				{#if documentId}
@@ -1177,7 +1199,7 @@ K:D
 	input, select { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .4rem .5rem; color: var(--color-text); background: var(--color-bg); font: inherit; text-transform: none; letter-spacing: normal; }
 
 	/* Lecture : la feuille seule, dans une colonne de lecture. */
-	.sheet-header h1 { margin-top: .15rem; } .sheet-updated { margin-top: .2rem; color: var(--color-text-muted); font-size: var(--text-xs); } .read-transpose { display: flex; align-items: center; gap: .4rem; color: var(--color-text-secondary); font-size: var(--text-sm); } .read-transpose select { padding: .3rem .4rem; }
+	.sheet-header h1 { margin-top: .15rem; } .sheet-updated { margin-top: .2rem; color: var(--color-text-muted); font-size: var(--text-xs); } .print-settings { display: none; } .read-transpose { display: flex; align-items: center; gap: .4rem; color: var(--color-text-secondary); font-size: var(--text-sm); } .read-transpose select { padding: .3rem .4rem; }
 	.sheet .message-error, .sheet > .abc-error { margin-bottom: 1rem; }
 	.sheet-body { border: 1px solid var(--color-border-light); border-radius: var(--radius-lg); background: var(--color-bg); overflow: hidden; } .sheet-body .rendered { padding: 1rem 1.25rem; } .sheet-body .rendered:last-child { border-bottom: 0; } .sheet-body .chart-line { font-size: var(--text-base); }
 	.sheet-empty { display: grid; gap: .75rem; justify-items: start; padding: 1.25rem; border: 1px dashed var(--color-border); border-radius: var(--radius-lg); color: var(--color-text-secondary); font-size: var(--text-sm); line-height: 1.5; } .sheet-empty p { max-width: 40rem; }
@@ -1231,17 +1253,20 @@ K:D
 	.preview { min-width: 0; background: var(--color-bg); } .preview-heading h2 { margin-top: .2rem; font-size: var(--text-lg); } .preview-heading > div > p:last-child { margin-top: .1rem; color: var(--color-text-muted); font-size: var(--text-xs); } .preview-tabs { display: flex; border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow: hidden; } .preview-tabs button { border: 0; border-right: 1px solid var(--color-border); padding: .3rem .45rem; color: var(--color-text-secondary); background: var(--color-bg); font: var(--text-xs) inherit; cursor: pointer; } .preview-tabs button:last-child { border-right: 0; } .preview-tabs button.active { color: var(--color-bg); background: var(--color-primary); } .plain-text { margin: 0; padding: 1rem; min-height: 24rem; overflow: auto; color: var(--color-text); background: var(--color-bg-subtle); font: var(--text-xs)/1.55 ui-monospace, monospace; white-space: pre-wrap; }
 
 	/* Blocs mis en forme, en lecture comme dans l'aperçu. */
-	.rendered { padding: .8rem 1rem; border-bottom: 1px solid var(--color-border-light); } .caption { display: flex; gap: .45rem; align-items: baseline; margin-bottom: .55rem; } .caption strong { font-size: var(--text-sm); } .chart h3 { margin: .65rem 0 .3rem; color: var(--color-accent-dark); font-size: var(--text-sm); text-transform: uppercase; letter-spacing: .06em; } .chart h3:first-child { margin-top: 0; } .chart-line { min-height: 2.65rem; white-space: pre-wrap; line-height: 1.35; } .token { display: inline-flex; flex-direction: column; vertical-align: bottom; } .chord { min-height: 1.2rem; color: var(--color-accent-dark); font: 700 var(--text-xs)/1.15 ui-monospace, monospace; } .lyric { min-height: 1.35rem; white-space: pre-wrap; } .space { height: .55rem; } .chart-line.lyrics-line { min-height: 0; margin: .15rem 0; }
+	.rendered { padding: .8rem 1rem; border-bottom: 1px solid var(--color-border-light); } .caption { display: flex; gap: .45rem; align-items: baseline; margin-bottom: .55rem; } .caption strong { font-size: var(--text-sm); } .chart h3 { margin: .65rem 0 .3rem; color: var(--color-accent-dark); font-size: var(--text-sm); text-transform: uppercase; letter-spacing: .06em; } .chart-section:first-child > h3:first-child { margin-top: 0; } .chart-line { min-height: 2.65rem; white-space: pre-wrap; line-height: 1.35; } .token { display: inline-flex; flex-direction: column; vertical-align: bottom; } .chord { min-height: 1.2rem; color: var(--color-accent-dark); font: 700 var(--text-xs)/1.15 ui-monospace, monospace; } .lyric { min-height: 1.35rem; white-space: pre-wrap; } .space { height: .55rem; } .chart-line.lyrics-line { min-height: 0; margin: .15rem 0; }
 	.chord-row { display: flex; flex-wrap: wrap; align-items: baseline; margin: .2rem 0; font-size: var(--text-base); } /* Largeur fixe : les accords s'alignent d'une rangée à l'autre, comme sur une grille. */
 	.chord-cell { min-width: 4ch; padding-right: 1.5ch; color: var(--color-accent-dark); font: 700 1em/1.45 ui-monospace, monospace; } .chord-repeat { color: var(--color-text-muted); font-size: .85em; font-weight: 600; }
 	 .score-scroll-hint { display: none; } .abc-output :global(.print-score-caption) { display: none; } .abc-output { overflow-x: auto; } .abc-output :global(svg) { max-width: 100%; height: auto; } .abc-error { margin-bottom: .5rem; color: var(--color-error); font-size: var(--text-sm); } .load-error { margin: .75rem 1rem 0; }
 	@media (max-width: 1050px) { .workspace { grid-template-columns: minmax(245px, 280px) 1fr; } .preview { grid-column: 1 / -1; border-top: 1px solid var(--color-border-light); } .preview .rendered { max-width: 760px; margin: auto; } } @media (max-width: 650px) { .score-scroll-hint { display: block; margin-bottom: .3rem; color: var(--color-text-muted); font-size: var(--text-xs); } .abc-output { overflow-x: auto; touch-action: pan-x; } .abc-output :global(> div) { min-width: 600px; overflow: visible !important; } .abc-output :global(svg) { max-width: none; min-width: 600px; } .workspace { grid-template-columns: 1fr; } .block-list, .editor-panel { border-right: 0; border-bottom: 1px solid var(--color-border-light); } .blocks, .add-buttons { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sheet-body .rendered { padding: .8rem; } }
 
-	@page { size: A4; margin: 12mm; }
+	/* Sans marge de page, le navigateur n'a plus où imprimer ses en-tête et pied de page
+	   (date, titre de l'onglet, URL) : la marge passe dans la feuille, et `clone` la répète
+	   en haut et en bas de chaque page plutôt qu'au début et à la fin du document seulement. */
+	@page { size: A4; margin: 0; }
 	@media print {
 		:global(.app-top-bar), :global(.app-sidebar), :global(.breadcrumb), :global(.mini-player), :global(.group-switch-banner), :global(.no-group-banner) { display: none !important; }
 		:global(.app-body), :global(.app-content) { display: block !important; margin: 0 !important; padding: 0 !important; background: #fff !important; }
-		.composer, .sheet { max-width: none; margin: 0; padding: 0; color: #000; }
+		.composer, .sheet { box-sizing: border-box; max-width: none; margin: 0; padding: 12mm 14mm; color: #000; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
 		.composer-header, .document-tools, .block-list, .editor-panel, .preview-tabs, .load-error, .score-scroll-hint, .sheet-header .page-actions, .sheet-header .eyebrow { display: none !important; }
 		.sheet-header { margin-bottom: 0; padding: 0 0 5mm; border-bottom: 1px solid #222; } .sheet-header h1 { font-size: 16pt; }
 		.sheet-body { border: 0; border-radius: 0; overflow: visible; background: #fff; } .sheet-body .rendered { padding: 5mm 0; }
@@ -1254,8 +1279,16 @@ K:D
 		.rendered.notation > .caption { display: none; }
 		.caption { margin-bottom: 3mm; break-after: avoid; }
 		.chart-line, .chart h3, .abc-output :global(svg) { break-inside: avoid; page-break-inside: avoid; }
-		.chart h3 { color: #000; }
+		.chart h3 { color: #000; break-after: avoid; page-break-after: avoid; }
 		.chord, .chord-cell { color: #000; }
+		.print-settings { display: block; margin-top: 1mm; font-size: 9pt; font-weight: 700; }
+		.sheet-updated { font-size: 9pt; }
+		/* En points : un accord à 9 pt (le --text-xs de l'écran) se lit mal à bout de bras. */
+		.rendered .chart-line, .rendered .chord-row { font-size: 12pt; } .chord { font-size: 10pt; } .chart h3, .caption strong { font-size: 10pt; }
+		/* Une section qui tient sur une page n'est pas coupée : un refrain à cheval sur deux
+		   feuilles se lit mal au pupitre. Plus longue qu'une page, elle se coupe quand même. */
+		.chart-section { break-inside: avoid; page-break-inside: avoid; }
+		.chart-line.unchorded { min-height: 0; } .chart-line.unchorded .chord { display: none; }
 		.abc-output { overflow: visible; }
 		.abc-output :global(.print-score-caption) { display: block; margin-bottom: 3mm; font-weight: 700; font-size: 10pt; }
 		.abc-output :global(> div) { display: block; min-width: 0; overflow: visible !important; break-inside: avoid; }

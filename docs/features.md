@@ -918,7 +918,23 @@ morceau (`score_documents.song_id` unique), au groupe : tout membre la crée et 
     n'en font qu'une, suivie de « ×2 ». ChordPro ne dit pas où tombent les mesures : on
     garde l'ordre des accords, pas leur place dans la phrase. Les mini-partitions restent
   - Un bloc à qui la vue ne laisse rien disparaît, titre compris
-- **Imprimer / PDF** imprime la vue de lecture, jamais les sources
+- **Imprimer / PDF** imprime la vue de lecture, jamais les sources. La mise en page papier
+  diffère de l'écran sur quelques points :
+  - **Une section n'est pas coupée** entre deux pages quand elle tient sur une page, et son
+    titre ne reste jamais seul en bas (`chartSections`, `src/lib/chordpro.ts`). Plus longue
+    qu'une page, elle se coupe quand même
+  - **Une ligne sans accord** ne garde pas la rangée d'accords vide qui l'aligne à l'écran :
+    un couplet sans accords en prenait deux fois la hauteur
+  - **Tailles en points** : paroles 12 pt, accords 10 pt — les accords à la taille de l'écran
+    (9 pt) se lisaient mal à bout de bras
+  - **La transposition et la vue** (« Transposée de +2 demi-tons · Paroles seules ») sont
+    écrites sous le titre : rien d'autre ne dirait sur papier qu'une feuille n'est pas dans
+    sa tonalité d'origine
+  - **Ni date, ni URL, ni titre d'onglet** : la page n'a pas de marge (`@page { margin: 0 }`),
+    donc pas de place pour l'en-tête et le pied de page du navigateur, qui ne s'impriment pas.
+    La marge est portée par la feuille, et répétée sur chaque page
+    (`box-decoration-break: clone`). Pas de numéro de page : il faudrait une marge de page,
+    où le navigateur remettrait les siens
 - **Pupitre** (action principale de la lecture) : la feuille seule, en plein écran, pour
   une tablette posée sur le pupitre ou un écran au bout de la salle. Ni navigation, ni
   barre du haut, ni mini-lecteur ; une colonne qui défile. L'écran est **gardé allumé**
