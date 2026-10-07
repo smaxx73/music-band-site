@@ -61,7 +61,7 @@
 
 	// ─── Filtrage / tri (côté client : la liste complète est déjà chargée) ───
 	type SongRow = Song & { take_count: number; cover_version: number | null }
-	type SortKey = 'title' | 'take_count' | 'status'
+	type SortKey = 'title' | 'take_count' | 'status' | 'release_year'
 
 	let search = $state('')
 	// Pas un statut : les morceaux créés à la volée au classement d'une prise, sous un
@@ -83,14 +83,29 @@
 		return counts
 	})
 
+	// Le nombre de prises est plus parlant en décroissant par défaut ; le reste, dans
+	// l'ordre de lecture (A → Z, du plus ancien au plus récent).
+	function defaultSortAsc(key: SortKey): boolean {
+		return key !== 'take_count'
+	}
+
 	function toggleSort(key: SortKey) {
 		if (sortKey === key) sortAsc = !sortAsc
 		else {
 			sortKey = key
-			// Le nombre de prises est plus parlant en décroissant par défaut
-			sortAsc = key !== 'take_count'
+			sortAsc = defaultSortAsc(key)
 		}
 	}
+
+	// Le sens se dit dans les mots du critère : « croissant » ne dit pas si l'on voit
+	// d'abord les morceaux anciens ou récents.
+	const SORT_DIRECTION_LABELS: Record<SortKey, [asc: string, desc: string]> = {
+		title: ['De A à Z', 'De Z à A'],
+		take_count: ['Le moins de prises d’abord', 'Le plus de prises d’abord'],
+		status: ['Statut croissant', 'Statut décroissant'],
+		release_year: ['Les plus anciens d’abord', 'Les plus récents d’abord']
+	}
+	const sortDirectionLabel = $derived(SORT_DIRECTION_LABELS[sortKey][sortAsc ? 0 : 1])
 
 	// La colonne triée porte une flèche du jeu d'icônes : les flèches typographiques
 	// n'ont ni la même graisse ni la même hauteur d'une plateforme à l'autre.
@@ -120,6 +135,14 @@
 				const diff = a.take_count - b.take_count
 				return diff !== 0 ? diff * dir : a.title.localeCompare(b.title, 'fr')
 			}
+			if (sortKey === 'release_year') {
+				// Sans année, le morceau reste en fin de liste dans les deux sens : le
+				// placer en tête d'un tri décroissant cacherait les années connues.
+				if (a.release_year === b.release_year) return a.title.localeCompare(b.title, 'fr')
+				if (a.release_year === null) return 1
+				if (b.release_year === null) return -1
+				return (a.release_year - b.release_year) * dir
+			}
 			if (sortKey === 'status') {
 				const diff = a.status.localeCompare(b.status, 'fr')
 				return diff !== 0 ? diff * dir : a.title.localeCompare(b.title, 'fr')
@@ -129,10 +152,11 @@
 	})
 
 	// En lecture, pas d'en-têtes de colonnes à cliquer : le tri se choisit dans la barre
-	// de filtres, avec le sens le plus parlant pour chaque critère.
+	// de filtres, avec le sens le plus parlant pour chaque critère, que le bouton voisin
+	// inverse.
 	function chooseSort(key: SortKey) {
 		sortKey = key
-		sortAsc = key !== 'take_count'
+		sortAsc = defaultSortAsc(key)
 	}
 
 	const totalTakes = $derived(allSongs.reduce((n, s) => n + s.take_count, 0))
@@ -224,8 +248,10 @@
 						>À nommer <span class="pill-count">{statusCounts[PLACEHOLDER_FILTER]}</span></button>
 					{/if}
 				</div>
-				{#if !editMode}
-					<label class="sort-field">
+				<!-- Présent dans les deux modes : le tableau n'a pas de colonne pour l'année,
+				     seul ce sélecteur permet d'y trier par elle. -->
+				<div class="sort-field">
+					<label class="sort-choice">
 						<span class="sort-label">Trier</span>
 						<select
 							class="form-input sort-select"
@@ -233,11 +259,21 @@
 							onchange={(e) => chooseSort((e.currentTarget as HTMLSelectElement).value as SortKey)}
 						>
 							<option value="title">Titre</option>
+							<option value="release_year">Année de composition</option>
 							<option value="take_count">Nombre de prises</option>
 							<option value="status">Statut</option>
 						</select>
 					</label>
-				{/if}
+					<button
+						type="button"
+						class="btn btn-ghost btn-sm btn-icon"
+						aria-label="{sortDirectionLabel} — inverser l'ordre"
+						title="{sortDirectionLabel} — inverser l'ordre"
+						onclick={() => (sortAsc = !sortAsc)}
+					>
+						<Icon name={sortAsc ? 'arrow-up' : 'arrow-down'} size="0.9rem" />
+					</button>
+				</div>
 			</div>
 
 			{#if isFiltered && visibleSongs.length > 0}
@@ -449,8 +485,14 @@
 	.sort-field {
 		display: inline-flex;
 		align-items: center;
-		gap: 0.4rem;
+		gap: 0.25rem;
 		margin-left: auto;
+	}
+
+	.sort-choice {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
 	}
 
 	.sort-label {

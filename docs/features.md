@@ -1555,9 +1555,14 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
   commun (visuel fixe `IconCover.svelte`, une note sur fond orange, comme pour une
   playlist ; nombre de morceaux, au répertoire, prises), puis une ligne par morceau (`SongListRow.svelte`) — pochette, titre,
   compositeur / reprise / année, statut, tonalité, nombre de prises. Toute la ligne mène au
-  morceau ; le tri se choisit dans la barre de filtres. « Modifier » passe au **tableau**
-  (mode édition) : colonnes triables, édition sur place, suppression. « Ajouter » ouvre la
-  création dans les deux modes
+  morceau. « Modifier » passe au **tableau** (mode édition) : colonnes triables, édition
+  sur place, suppression. « Ajouter » ouvre la création dans les deux modes
+- **Tri**, dans la barre de filtres des deux modes : titre, année de composition (ou de
+  sortie pour une reprise), nombre de prises, statut. Chaque critère part dans son sens le
+  plus parlant (A → Z, du plus ancien au plus récent, le plus de prises d'abord), et la
+  flèche voisine l'inverse ; son infobulle dit le sens dans les mots du critère. Un
+  morceau sans année reste en fin de liste dans les deux sens. Le sélecteur reste en mode
+  édition : le tableau n'a pas de colonne pour l'année
 - Filtre « À nommer » et étiquette sur les morceaux créés à la volée sous un titre
   provisoire — voir « Morceau absent du référentiel »
 - Chaque ligne porte **« Setlist »**, dans les deux modes — au survol à la souris en
