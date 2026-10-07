@@ -11,6 +11,18 @@ pour une bibliothèque :
 Chaque version liste les migrations qu'elle apporte : ce sont elles qu'il faut appliquer
 en montant de version (voir `deploy.md`).
 
+## [1.9.1] — 2026-10-07
+
+Aucune migration.
+
+- **Version imprimée d'une feuille de répétition** plus lisible : une section (couplet,
+  refrain) n'est plus coupée entre deux pages quand elle tient sur une, et son titre ne
+  reste plus seul en bas de page ; une ligne sans accord ne garde plus sa rangée d'accords
+  vide ; accords et paroles en points (10 et 12 pt). La transposition et la vue choisies
+  (« Transposée de +2 demi-tons · Paroles seules ») sont écrites sous le titre
+- **Ni date, ni URL, ni titre d'onglet** en tête et en pied de la feuille imprimée : la
+  page n'a plus de marge où le navigateur les imprimait, la feuille porte la sienne
+
 ## [1.9.0] — 2026-10-07
 
 Migration à appliquer : `049_score_document_editor.sql`.
