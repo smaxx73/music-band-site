@@ -43,7 +43,9 @@
 		stats = null,
 		photo = null,
 		place = null,
-		actions: outerActions
+		editing = $bindable(false),
+		actions: outerActions,
+		dangerActions
 	}: {
 		session: SessionData
 		/** Membres du groupe actif, proposés comme participants. */
@@ -58,11 +60,14 @@
 		/** Adresse rattachée au lieu de la session (`group_places`), s'il y en a une. */
 		/** Lieu du groupe que désigne le lieu de la session (`group_places`), s'il y en a un. */
 		place?: GroupPlace | null
+		/** Mode édition, lié par la page : il vaut aussi pour ses prises. */
+		editing?: boolean
 		/** Commandes de l'en-tête, à côté de « Modifier » (le ▶ de la session). */
 		actions?: Snippet
+		/** Action destructrice, au bout des boutons du formulaire (supprimer la session). */
+		dangerActions?: Snippet
 	} = $props()
 
-	let editing = $state(false)
 	let editDate = $state('')
 	let editType = $state<SessionType>('repetition')
 	let editTitle = $state('')
@@ -291,6 +296,10 @@
 				<button type="button" class="btn btn-ghost" onclick={cancelEditSession} disabled={busy}>
 					Annuler
 				</button>
+				{#if dangerActions}
+					<!-- S'écarte des deux autres : on ne la touche pas en visant « Annuler ». -->
+					<span class="danger-actions">{@render dangerActions()}</span>
+				{/if}
 			</div>
 		</form>
 	{:else}
@@ -351,7 +360,10 @@
 
 	.form-actions {
 		display: flex;
+		flex-wrap: wrap;
 		gap: 0.5rem;
 		align-items: center;
 	}
+
+	.danger-actions { margin-left: auto; }
 </style>

@@ -184,10 +184,17 @@
 		}))
 	}
 
+	// Un seul mode édition : « Modifier » ouvre la fiche de la session et donne en même
+	// temps aux prises leur bouton de suppression.
 	let editMode = $state(false)
 	let deletingRecordingId = $state<number | null>(null)
 	let deleting = $state(false)
 	let deleteError = $state<string | null>(null)
+	let sessionDeleteError = $state<string | null>(null)
+	// Quitter l'édition oublie un échec de suppression : il ne doit pas réapparaître à la suivante.
+	$effect(() => {
+		if (!editMode) sessionDeleteError = null
+	})
 
 	// Une seule confirmation pour les deux suppressions de la page.
 	let pendingDelete = $state<
@@ -252,14 +259,14 @@
 
 	async function deleteSession() {
 		deleting = true
-		deleteError = null
+		sessionDeleteError = null
 		try {
 			const res = await fetch(`/api/sessions/${session.id}`, { method: 'DELETE' })
 			const json = await res.json()
-			if (!res.ok) { deleteError = json.error ?? 'Erreur.'; return }
+			if (!res.ok) { sessionDeleteError = json.error ?? 'Erreur.'; return }
 			window.location.href = '/sessions'
 		} catch {
-			deleteError = 'Erreur réseau.'
+			sessionDeleteError = 'Erreur réseau.'
 		} finally {
 			deleting = false
 		}
@@ -297,8 +304,9 @@
 	<SessionEditor
 		session={session}
 		groupMembers={data.groupMembers as string[]}
+		bind:editing={editMode}
 		saving={sessionSaving}
-		error={sessionError}
+		error={sessionError ?? sessionDeleteError}
 		onSave={saveSession}
 		stats={sessionStats}
 		photo={data.photo}
@@ -306,6 +314,13 @@
 	>
 		{#snippet actions()}
 			<PlayAllButton tracks={sessionTracks} label="Écouter toute la session à la suite" />
+		{/snippet}
+		{#snippet dangerActions()}
+			{#if canDeleteSession}
+				<button type="button" class="btn btn-danger" onclick={() => (pendingDelete = { kind: 'session' })} disabled={deleting}>
+					{deleting ? 'Suppression…' : 'Supprimer la session'}
+				</button>
+			{/if}
 		{/snippet}
 	</SessionEditor>
 
@@ -377,14 +392,6 @@
 
 	<div class="footer-actions">
 		<a href="/upload?session_id={session.id}" class="btn btn-primary"><Icon name="plus" /> Ajouter une prise</a>
-		<button class="btn btn-secondary" onclick={() => { editMode = !editMode }}>
-			{editMode ? 'Terminer' : 'Modifier les prises'}
-		</button>
-		{#if canDeleteSession}
-		<button class="btn btn-danger" onclick={() => (pendingDelete = { kind: 'session' })} disabled={deleting}>
-			{deleting ? 'Suppression…' : 'Supprimer la session'}
-		</button>
-		{/if}
 	</div>
 	{#if deleteError}
 		<p class="message-error" style="margin-top: 0.5rem;">{deleteError}</p>
@@ -524,11 +531,6 @@
 		.session-nav > * { flex: 1; }
 		.agenda-restore { align-items: stretch; }
 
-		.footer-actions {
-			flex-wrap: wrap;
-			gap: 0.5rem;
-		}
-
-		.footer-actions > * { flex: 1 1 45%; }
+		.footer-actions > * { flex: 1; }
 	}
 </style>

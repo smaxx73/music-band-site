@@ -774,7 +774,18 @@ note, 💬 s'il y a des commentaires — plus l'écoute, et un menu ⋮ recueill
 - Le groupe de commandes **ne se scinde jamais** : il rejoint le rang de l'identité quand il
   y tient, et bascule d'un bloc au rang suivant sinon. Flexbox coupe les lignes avant de
   rétrécir, donc l'identité n'est jamais écrasée pour garder les boutons à côté
-- Mode édition : suppression de prise ; le numéro reste global au morceau et n'est pas renuméroté
+- **Un seul mode édition**, ouvert par « Modifier » dans l'en-tête : la fiche de la session
+  (date, type, titre, lieu, présents, notes, photo) s'ouvre sous le bandeau, et les prises
+  prennent en même temps leur bouton de suppression. Deux boutons « Modifier » sur la même
+  page — l'un pour la session, l'autre pour ses prises — laissaient deviner lequel faisait
+  quoi. « Enregistrer » ou « Annuler » en sort
+- Supprimer une prise, en mode édition, demande toujours une **confirmation `danger`**,
+  qui nomme ce qui part avec elle. Une fois confirmée, la suppression ne passe pas par
+  « Enregistrer », qui ne vaut que pour la fiche : « Annuler » ne rend pas une prise supprimée.
+  Le numéro reste global au morceau et n'est pas renuméroté
+- « Supprimer la session » est au bout des boutons du formulaire d'édition, à l'écart
+  d'« Annuler », comme « Supprimer le morceau » sur la page d'un morceau : hors édition,
+  rien de destructeur sur la page
 - Suppression d'une prise : réservée à celui qui l'a uploadée et aux admins du groupe.
   Le bouton n'apparaît pas aux autres membres, et l'API répond `403`
 - Suppression d'une session : réservée à son créateur et aux admins du groupe.
