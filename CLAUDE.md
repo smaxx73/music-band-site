@@ -163,7 +163,8 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
 /sessions/[id]      détail session → morceaux groupés → prises
 /songs              liste + gestion du référentiel de morceaux (tout membre du groupe actif)
 /songs/[id]         historique d'un morceau toutes sessions confondues + modification de sa fiche
-/songs/[id]/partition  feuille de répétition du morceau : lecture, « Modifier » pour l'atelier
+/songs/[id]/partition  feuille de répétition du morceau : lecture, pupitre plein écran,
+                    « Modifier » pour l'atelier
 /recording/[id]     lecteur waveform + commentaires (`?t=1:23` ouvre au repère,
                     `#comment-<id>` cible un commentaire)
 /playlists/[id]     lecture en continu d'une playlist

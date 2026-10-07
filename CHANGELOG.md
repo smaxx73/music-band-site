@@ -11,6 +11,19 @@ pour une bibliothèque :
 Chaque version liste les migrations qu'elle apporte : ce sont elles qu'il faut appliquer
 en montant de version (voir `deploy.md`).
 
+## [1.8.0] — 2026-10-07
+
+Aucune migration.
+
+- **Pupitre pour la feuille de répétition** : « Pupitre », sur `/songs/[id]/partition`,
+  affiche la feuille seule en plein écran, avec l'écran gardé allumé. Le texte s'agrandit
+  (A− / A+) pour se lire de loin, la feuille défile seule (Espace pour lancer ou arrêter),
+  et les flèches ou une pédale de tourne-page Bluetooth tournent la page. Si le morceau a
+  une durée de référence, le défilement s'y cale par défaut : la feuille arrive en bas
+  quand le morceau finit ; − / + l'ajustent. Un thème sombre, pour la scène, suit le
+  réglage du système tant qu'on ne l'a pas choisi. Taille, vitesse manuelle et thème sont
+  gardés dans le navigateur
+
 ## [1.7.2] — 2026-10-07
 
 Aucune migration.

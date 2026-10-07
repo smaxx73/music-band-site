@@ -10,7 +10,7 @@ export const load: PageServerLoad = async ({ locals, params, url, cookies, isDat
 	const id = validId(params.id)
 	if (!id) error(400, 'Morceau invalide')
 	const [song] = await sql`
-		SELECT id, title, lyrics, music_notes FROM songs
+		SELECT id, title, lyrics, music_notes, reference_duration_s FROM songs
 		WHERE id = ${id} AND group_id = ${locals.user.current_group_id}
 	`
 	if (!song) {
@@ -51,7 +51,8 @@ export const load: PageServerLoad = async ({ locals, params, url, cookies, isDat
 			id: song.id as number,
 			title: song.title as string,
 			lyrics: song.lyrics as string | null,
-			music_notes: song.music_notes as string | null
+			music_notes: song.music_notes as string | null,
+			reference_duration_s: song.reference_duration_s as number | null
 		},
 		sheet
 	}

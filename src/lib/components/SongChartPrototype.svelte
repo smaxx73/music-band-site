@@ -6,6 +6,7 @@
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import type { ConfirmRequest } from '$lib/confirm-submit.svelte'
+	import { formatTimecode } from '$lib/youtube'
 
 	type BlockType = 'chordpro' | 'notation'
 	type Block = { id: number; type: BlockType; label: string }
@@ -30,6 +31,7 @@
 		songTitle = 'Nouvelle feuille de répétition',
 		songLyrics = null,
 		songMusicNotes = null,
+		songDuration = null,
 		initialSheet = null,
 		breadcrumb
 	}: {
@@ -38,6 +40,8 @@
 		/** Paroles et accords de la fiche du morceau : une feuille neuve en part. */
 		songLyrics?: string | null
 		songMusicNotes?: string | null
+		/** Durée de référence du morceau, en secondes : le pupitre défile à son rythme. */
+		songDuration?: number | null
 		/** Feuille du morceau déjà enregistrée, chargée avec la page. */
 		initialSheet?: Sheet | null
 		breadcrumb?: Snippet
@@ -107,6 +111,30 @@ K:D
 	let mode = $state<'read' | 'edit'>(untrack(() => songId ? 'read' : 'edit'))
 	// Transposition de lecture : ne touche pas la feuille, sert à qui joue avec un capo.
 	let readTranspose = $state(0)
+
+	// Pupitre : la feuille seule, en plein écran, posée à un mètre sur une tablette.
+	// Taille et vitesse sont des paliers : on règle d'un toucher, mains sur l'instrument.
+	const STAGE_SCALES = [1, 1.25, 1.5, 1.75, 2, 2.5, 3]
+	// Pixels par seconde à la taille 1 : le défilement grossit avec le texte, pour que
+	// zoomer ne change pas le nombre de lignes lues à la minute.
+	const STAGE_SPEEDS = [6, 9, 12, 16, 21, 27, 35, 45]
+	const STAGE_PREFS_KEY = 'sheet-stage'
+	let stage = $state(false)
+	let stageEl = $state<HTMLElement>()
+	let stageScroller = $state<HTMLElement>()
+	let scaleIndex = $state(1)
+	let speedIndex = $state(2)
+	// Vitesse déduite de la durée du morceau : la feuille arrive en bas quand il finit.
+	let autoSpeed = $state(false)
+	// Une feuille blanche éblouit sur une scène ou dans une salle sombre. Suit le réglage
+	// du système tant qu'on n'a pas choisi.
+	let stageDark = $state(false)
+	let scrolling = $state(false)
+	let stageWakeLockOk = $state(true)
+	let stageWakeLock: WakeLockSentinel | null = null
+	// Un doigt posé sur la feuille la retient : le défilement ne lutte pas contre lui.
+	let stageHeld = false
+	const stageScale = $derived(STAGE_SCALES[scaleIndex])
 	let documentId = $state<number | null>(untrack(() => initialSheet?.id ?? null))
 	let documentTitle = $state(untrack(() => initialSheet?.title ?? songTitle))
 	let documents = $state<{ id: number; title: string }[]>([])
@@ -152,9 +180,46 @@ K:D
 		void loadAbc()
 		// La feuille d'un morceau arrive avec la page ; seules les feuilles libres se listent.
 		if (!songId) void loadDocuments()
+		loadStagePrefs()
 		const warnBeforeLeaving = (event: BeforeUnloadEvent) => { if (dirty) event.preventDefault() }
+		// Sortir du plein écran par le navigateur (Échap, geste) referme le pupitre.
+		const onFullscreenChange = () => { if (stage && !document.fullscreenElement) closeStage() }
+		// Le verrou d'écran tombe quand l'onglet passe en arrière-plan : on le reprend au retour.
+		const onVisibility = () => { if (stage && document.visibilityState === 'visible') void acquireStageWakeLock() }
 		window.addEventListener('beforeunload', warnBeforeLeaving)
-		return () => window.removeEventListener('beforeunload', warnBeforeLeaving)
+		document.addEventListener('fullscreenchange', onFullscreenChange)
+		document.addEventListener('visibilitychange', onVisibility)
+		return () => {
+			window.removeEventListener('beforeunload', warnBeforeLeaving)
+			document.removeEventListener('fullscreenchange', onFullscreenChange)
+			document.removeEventListener('visibilitychange', onVisibility)
+			if (stage) closeStage()
+		}
+	})
+
+	$effect(() => {
+		if (!scrolling) return
+		let frame = 0
+		let last = 0
+		let carry = 0
+		const step = (time: number) => {
+			const scroller = stageScroller
+			if (!scroller) return
+			// Borné : après une suspension de l'onglet, la feuille ne saute pas d'un écran.
+			const elapsed = last ? Math.min(time - last, 100) / 1000 : 0
+			last = time
+			if (stageHeld) carry = 0
+			else {
+				// scrollTop s'arrondit : on cumule les fractions pour garder une vitesse juste.
+				carry += scrollRate(scroller) * elapsed
+				const whole = Math.floor(carry)
+				if (whole) { scroller.scrollTop += whole; carry -= whole }
+			}
+			if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1) { scrolling = false; return }
+			frame = requestAnimationFrame(step)
+		}
+		frame = requestAnimationFrame(step)
+		return () => cancelAnimationFrame(frame)
 	})
 
 	$effect(() => {
@@ -458,7 +523,10 @@ K:D
 				responsive: 'resize', oneSvgPerLine: true, add_classes: true, staffwidth: 650, paddingtop: 8, paddingbottom: 8,
 				// En lecture, la partition suit la transposition des accords ; l'aperçu
 				// d'édition montre toujours la source telle qu'elle est.
-				visualTranspose: mode === 'read' ? readTranspose : 0
+				visualTranspose: mode === 'read' ? readTranspose : 0,
+				// La gravure prend la couleur du texte : elle suit le thème sombre du pupitre
+				// sans être redessinée.
+				foregroundColor: 'currentColor'
 			})
 			const firstSystem = target.firstElementChild
 			const block = blocks.find((item) => item.id === blockId)
@@ -516,6 +584,126 @@ K:D
 		if (!renderAbc && !notationLoadError) await loadAbc()
 		await tick()
 		window.print()
+	}
+
+	function loadStagePrefs() {
+		try {
+			stageDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
+			const prefs = JSON.parse(localStorage.getItem(STAGE_PREFS_KEY) ?? '{}') as { scale?: unknown; speed?: unknown; dark?: unknown }
+			if (typeof prefs.dark === 'boolean') stageDark = prefs.dark
+			if (Number.isInteger(prefs.scale) && STAGE_SCALES[prefs.scale as number] !== undefined) scaleIndex = prefs.scale as number
+			if (Number.isInteger(prefs.speed) && STAGE_SPEEDS[prefs.speed as number] !== undefined) speedIndex = prefs.speed as number
+		} catch { /* navigation privée : les réglages par défaut suffisent */ }
+	}
+
+	// La distance au pupitre est celle du musicien, pas de la feuille : un réglage pour toutes.
+	function saveStagePrefs() {
+		try { localStorage.setItem(STAGE_PREFS_KEY, JSON.stringify({ scale: scaleIndex, speed: speedIndex, dark: stageDark })) } catch { /* idem */ }
+	}
+
+	async function acquireStageWakeLock() {
+		if (!('wakeLock' in navigator)) { stageWakeLockOk = false; return }
+		try {
+			stageWakeLock = await navigator.wakeLock.request('screen')
+			stageWakeLockOk = true
+		} catch { stageWakeLockOk = false }
+	}
+
+	async function openStage() {
+		stage = true
+		scrolling = false
+		// Par défaut à chaque ouverture : une vitesse choisie à la main vaut pour une
+		// interprétation, la durée de référence pour le morceau.
+		autoSpeed = Boolean(songDuration)
+		await tick()
+		stageScroller?.focus({ preventScroll: true })
+		void acquireStageWakeLock()
+		// Sans plein écran (iPhone), le pupitre couvre quand même toute la fenêtre.
+		try { await stageEl?.requestFullscreen?.() } catch { /* refusé : la superposition suffit */ }
+	}
+
+	function closeStage() {
+		stage = false
+		scrolling = false
+		stageWakeLock?.release().catch(() => {})
+		stageWakeLock = null
+		if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+	}
+
+	function toggleDark() {
+		stageDark = !stageDark
+		saveStagePrefs()
+	}
+
+	function zoom(direction: -1 | 1) {
+		scaleIndex = Math.min(STAGE_SCALES.length - 1, Math.max(0, scaleIndex + direction))
+		saveStagePrefs()
+	}
+
+	// Pixels par seconde. En automatique, toute la feuille défile sur la durée du morceau ;
+	// relue à chaque image, elle suit une gravure ABC arrivée en retard ou un zoom.
+	function scrollRate(scroller: HTMLElement) {
+		if (autoSpeed && songDuration) return Math.max(0, scroller.scrollHeight - scroller.clientHeight) / songDuration
+		return STAGE_SPEEDS[speedIndex] * stageScale
+	}
+
+	function changeSpeed(direction: -1 | 1) {
+		if (autoSpeed && stageScroller) {
+			// Quitter l'automatique pour le palier juste au-dessus ou au-dessous de lui : le
+			// groupe joue un peu plus vite ou plus lentement que la référence.
+			const rate = scrollRate(stageScroller)
+			const levels = STAGE_SPEEDS.map((speed) => speed * stageScale)
+			const index = direction === 1 ? levels.findIndex((level) => level > rate) : levels.findLastIndex((level) => level < rate)
+			speedIndex = index === -1 ? (direction === 1 ? levels.length - 1 : 0) : index
+			autoSpeed = false
+		} else {
+			speedIndex = Math.min(STAGE_SPEEDS.length - 1, Math.max(0, speedIndex + direction))
+		}
+		saveStagePrefs()
+	}
+
+	function toggleScroll() {
+		const scroller = stageScroller
+		// Relancé en bas de la feuille, le défilement repart du début : c'est le morceau suivant.
+		if (!scrolling && scroller && scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1) scroller.scrollTop = 0
+		scrolling = !scrolling
+	}
+
+	// Écouteurs passifs : retenir le défilement ne doit pas retarder le geste du doigt.
+	function holdOnTouch(node: HTMLElement) {
+		const hold = () => { stageHeld = true }
+		const release = () => { stageHeld = false }
+		node.addEventListener('touchstart', hold, { passive: true })
+		node.addEventListener('touchend', release)
+		node.addEventListener('touchcancel', release)
+		return {
+			destroy: () => {
+				node.removeEventListener('touchstart', hold)
+				node.removeEventListener('touchend', release)
+				node.removeEventListener('touchcancel', release)
+				stageHeld = false
+			}
+		}
+	}
+
+	// Une page ne recouvre pas tout l'écran : la dernière ligne lue reste en haut.
+	function turnPage(direction: -1 | 1) {
+		stageScroller?.scrollBy({ top: direction * stageScroller.clientHeight * 0.85, behavior: 'smooth' })
+	}
+
+	// Les pédales de tourne-page Bluetooth envoient des flèches ou PageDown/PageUp.
+	function onStageKeydown(event: KeyboardEvent) {
+		if (!stage || event.altKey || event.ctrlKey || event.metaKey) return
+		if (event.key === 'Escape') { event.preventDefault(); closeStage(); return }
+		const target = event.target as HTMLElement
+		if (target.closest('select, input, textarea')) return
+		if (event.key === ' ') {
+			if (target.closest('button')) return
+			event.preventDefault(); toggleScroll()
+		} else if (event.key === 'ArrowRight' || event.key === 'PageDown') { event.preventDefault(); turnPage(1) }
+		else if (event.key === 'ArrowLeft' || event.key === 'PageUp') { event.preventDefault(); turnPage(-1) }
+		else if (event.key === '+' || event.key === '=') zoom(1)
+		else if (event.key === '-') zoom(-1)
 	}
 
 	function plainTextDocument() {
@@ -660,7 +848,46 @@ K:D
 	{/each}
 {/snippet}
 
-{#if mode === 'read'}
+<svelte:window onkeydown={onStageKeydown} />
+
+{#if stage}
+	<!-- Remplace la page de lecture plutôt que de s'y superposer : un bloc ABC n'a qu'un
+	     conteneur de gravure à la fois (abcTargets). -->
+	<div class="stage" class:stage-dark={stageDark} bind:this={stageEl} style:--stage-scale={stageScale} role="dialog" aria-modal="true" aria-label="Pupitre — {documentTitle}">
+		<div class="stage-bar">
+			<button class="btn btn-ghost btn-sm" onclick={closeStage} title="Échap"><Icon name="close" /> Quitter</button>
+			<strong class="stage-title">{documentTitle}</strong>
+			<div class="stage-controls">
+				<div class="stage-group" role="group" aria-label="Taille du texte">
+					<button class="btn btn-secondary btn-sm" onclick={() => zoom(-1)} disabled={scaleIndex === 0} aria-label="Réduire le texte" title="Réduire le texte (−)">A−</button>
+					<button class="btn btn-secondary btn-sm" onclick={() => zoom(1)} disabled={scaleIndex === STAGE_SCALES.length - 1} aria-label="Agrandir le texte" title="Agrandir le texte (+)">A+</button>
+					<button class="btn btn-secondary btn-sm stage-toggle" onclick={toggleDark} aria-pressed={stageDark} title="Texte clair sur fond sombre">Sombre</button>
+				</div>
+				{#if canTranspose}
+					<label class="read-transpose">Transposer <select bind:value={readTranspose}>{@render transposeOptions()}</select></label>
+				{/if}
+				<div class="stage-group" role="group" aria-label="Défilement automatique">
+					<button class="btn btn-primary btn-sm stage-play" onclick={toggleScroll} aria-pressed={scrolling} title="Espace"><Icon name={scrolling ? 'pause' : 'play'} /> {scrolling ? 'Pause' : 'Défiler'}</button>
+					{#if songDuration}
+						<button class="btn btn-secondary btn-sm stage-auto" onclick={() => { autoSpeed = true }} aria-pressed={autoSpeed} title="Défiler sur la durée de référence du morceau ({formatTimecode(songDuration)})">Auto</button>
+					{/if}
+					<button class="btn btn-secondary btn-sm" onclick={() => changeSpeed(-1)} disabled={!autoSpeed && speedIndex === 0} aria-label="Défiler plus lentement" title="Plus lent">−</button>
+					<span class="stage-speed" aria-live="polite">{#if autoSpeed && songDuration}<span title="Toute la feuille défile en {formatTimecode(songDuration)}, la durée de référence du morceau">{formatTimecode(songDuration)}</span>{:else}Vitesse {speedIndex + 1}{/if}</span>
+					<button class="btn btn-secondary btn-sm" onclick={() => changeSpeed(1)} disabled={!autoSpeed && speedIndex === STAGE_SPEEDS.length - 1} aria-label="Défiler plus vite" title="Plus vite">+</button>
+				</div>
+			</div>
+		</div>
+		{#if !stageWakeLockOk}<p class="stage-note">Ce navigateur ne permet pas de garder l’écran allumé : il peut se mettre en veille pendant la lecture.</p>{/if}
+		<div
+			class="stage-scroll"
+			bind:this={stageScroller}
+			tabindex="-1"
+			use:holdOnTouch
+		>
+			<div class="stage-sheet">{@render renderedBlocks(true)}</div>
+		</div>
+	</div>
+{:else if mode === 'read'}
 	<main class="page page-wide sheet">
 		{@render breadcrumb?.()}
 		<header class="page-header sheet-header">
@@ -676,7 +903,8 @@ K:D
 						</label>
 					{/if}
 					<button class="btn btn-secondary" onclick={printDocument}><Icon name="download" /> Imprimer / PDF</button>
-					<button class="btn btn-primary" onclick={startEditing}><Icon name="pencil" /> Modifier</button>
+					<button class="btn btn-secondary" onclick={startEditing}><Icon name="pencil" /> Modifier</button>
+					<button class="btn btn-primary" onclick={openStage}><Icon name="fullscreen" /> Pupitre</button>
 				{/if}
 				{#if !songId}<button class="btn btn-secondary" onclick={newDocument}><Icon name="plus" /> Nouvelle feuille</button>{/if}
 			</div>
@@ -806,6 +1034,43 @@ K:D
 	.sheet .message-error, .sheet > .abc-error { margin-bottom: 1rem; }
 	.sheet-body { border: 1px solid var(--color-border-light); border-radius: var(--radius-lg); background: var(--color-bg); overflow: hidden; } .sheet-body .rendered { padding: 1rem 1.25rem; } .sheet-body .rendered:last-child { border-bottom: 0; } .sheet-body .chart-line { font-size: var(--text-base); }
 	.sheet-empty { display: grid; gap: .75rem; justify-items: start; padding: 1.25rem; border: 1px dashed var(--color-border); border-radius: var(--radius-lg); color: var(--color-text-secondary); font-size: var(--text-sm); line-height: 1.5; } .sheet-empty p { max-width: 40rem; }
+
+	/* Pupitre : la feuille seule, en plein écran, à lire de loin. Au-dessus de toute
+	   l'application, barre du haut et mini-lecteur compris. */
+	.stage { position: fixed; inset: 0; z-index: 200; display: flex; flex-direction: column; background: var(--color-bg); color: var(--color-text); }
+	.stage-bar { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; padding: .5rem 1rem; border-bottom: 1px solid var(--color-border-light); background: var(--color-bg-subtle); }
+	.stage-title { flex: 1 1 8rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-base); }
+	.stage-controls, .stage-group { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem .75rem; } .stage-group { gap: .3rem; }
+	.stage-play { min-width: 6.5rem; justify-content: center; }
+	.stage-toggle[aria-pressed='true'], .stage-auto[aria-pressed='true'] { border-color: var(--color-accent); color: var(--color-accent-dark); background: var(--color-accent-light); }
+	.stage-speed { min-width: 5rem; text-align: center; color: var(--color-text-secondary); font-size: var(--text-sm); font-variant-numeric: tabular-nums; }
+	.stage-note { padding: .35rem 1rem; color: var(--color-warning-text); background: var(--color-warning-bg); font-size: var(--text-xs); }
+	/* Thème sombre : les tokens redéfinis sur le seul pupitre, que boutons, champs, accords
+	   et gravure ABC (currentColor) suivent sans règle de plus. */
+	.stage-dark {
+		color-scheme: dark;
+		--color-bg: #1E1D1B; --color-bg-subtle: #262522; --color-bg-muted: #36342F;
+		--color-border: #57534C; --color-border-light: #3D3B37; --color-border-input: #57534C;
+		--color-text: #ECE8E0; --color-text-secondary: #B8B2A8; --color-text-muted: var(--color-mid);
+		--color-accent-dark: #F2926D; /* accords et sections : l'orange foncé ne se lit pas sur fond sombre */
+		--color-accent-light: #4A2B20;
+		--color-primary: #ECE8E0; --color-primary-hover: #FFFFFF;
+		--color-warning-bg: #3A3118; --color-warning-text: #E9D49A;
+	}
+	/* .btn-primary écrit son texte en blanc : sur le bouton clair du thème sombre, il passe au fond. */
+	.stage-dark .stage-play { color: var(--color-bg); }
+	.stage-scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; outline: none; }
+	/* La colonne s'élargit avec le texte, et la gravure ABC (responsive) grossit avec elle.
+	   La marge basse laisse la fin du morceau remonter à hauteur d'yeux. */
+	.stage-sheet { box-sizing: border-box; width: 100%; max-width: calc(46rem * var(--stage-scale)); margin: 0 auto; padding: 1.5rem 1.25rem 50vh; }
+	.stage .rendered { padding: 1rem 0; }
+	/* Seul écart aux paliers de taille : c'est le musicien qui la choisit, selon sa distance
+	   à l'écran. Les paliers restent la base, le multiplicateur vient du réglage. */
+	.stage .chart-line { min-height: 2.65em; font-size: calc(var(--text-lg) * var(--stage-scale)); }
+	.stage .chord { min-height: 1.2em; font-size: .8em; }
+	.stage .lyric { min-height: 1.35em; }
+	.stage .space { height: calc(.55rem * var(--stage-scale)); }
+	.stage .chart h3, .stage .caption strong { font-size: calc(var(--text-sm) * var(--stage-scale)); }
 
 	/* Édition : l'atelier en trois colonnes. */
 	.composer { max-width: 1400px; margin: 2rem auto 4rem; padding: 0 1rem; color: var(--color-text); } .composer-header h1 { margin-top: .15rem; }

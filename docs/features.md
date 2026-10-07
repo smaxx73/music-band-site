@@ -895,6 +895,37 @@ morceau (`score_documents.song_id` unique), au groupe : tout membre la crée et 
   d'abcjs), pour l'écran comme pour l'impression, sans toucher la feuille enregistrée. Pour
   réécrire les accords d'un bloc, c'est « Appliquer au bloc » en édition
 - **Imprimer / PDF** imprime la vue de lecture, jamais les sources
+- **Pupitre** (action principale de la lecture) : la feuille seule, en plein écran, pour
+  une tablette posée sur le pupitre ou un écran au bout de la salle. Ni navigation, ni
+  barre du haut, ni mini-lecteur ; une colonne qui défile. L'écran est **gardé allumé**
+  (Wake Lock, comme à l'enregistrement, et l'écran dit quand le navigateur ne le permet
+  pas). Sans plein écran (iPhone), le pupitre couvre quand même toute la fenêtre.
+  « Quitter », Échap ou la sortie du plein écran par le navigateur le referment
+  - **Taille du texte** (A− / A+, ou `-` / `+`) : sept paliers de ×1 à ×3, appliqués aux
+    tailles de la lecture. La colonne s'élargit avec le texte, et les mini-partitions
+    grossissent avec elle. C'est la seule taille de texte réglable de l'application : elle
+    dépend de la distance du musicien à l'écran, pas de la feuille
+  - **Défilement automatique** (« Défiler », ou Espace). Quand le morceau a une **durée de
+    référence** (`songs.reference_duration_s`), la vitesse en est déduite par défaut
+    (« Auto ») : toute la feuille défile sur cette durée, et arrive en bas quand le
+    morceau finit. Recalculée à chaque image, elle suit le zoom et une gravure ABC arrivée
+    en retard. − / + quittent l'automatique pour le palier juste au-dessous ou au-dessus —
+    le groupe joue rarement au chrono de la référence —, « Auto » y revient, et chaque
+    ouverture du pupitre y revient aussi. Sans durée, huit vitesses manuelles, qui suivent
+    la taille du texte : zoomer ne change pas le nombre de lignes lues à la minute. Un doigt
+    posé sur la feuille la retient, et le défilement reprend dès qu'on le lève ; arrivé en
+    bas, il s'arrête, et relancé il repart du début. Une marge basse d'une demi-page laisse
+    la fin du morceau remonter à hauteur d'yeux
+  - **Tourner la page** au clavier : → / PageDown, ← / PageUp, d'un écran moins une
+    marge, pour garder la dernière ligne lue. C'est ce qu'envoient les pédales de
+    tourne-page Bluetooth
+  - **Thème sombre** (« Sombre ») : texte clair sur fond sombre, pour une scène ou une salle
+    peu éclairée, où une feuille blanche éblouit. Il suit le réglage du système tant qu'on
+    ne l'a pas choisi. Propre au pupitre — l'application n'a pas de thème sombre : ce sont
+    les tokens de couleur redéfinis sur le pupitre seul, et la gravure ABC prend la couleur
+    du texte (`foregroundColor: 'currentColor'`)
+  - La transposition de lecture s'y règle aussi ; la taille, la vitesse manuelle et le
+    thème sont gardés dans le navigateur, pour toutes les feuilles
 - Une feuille est une suite de **blocs** : « Paroles et accords » en ChordPro (accords
   entre crochets dans le texte, sections par directives `{comment: …}`,
   `{start_of_chorus}`…), ou **mini-partition** en ABC — saisie note à note, source ABC,

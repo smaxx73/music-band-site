@@ -11,6 +11,7 @@
 		songTitle={data.song.title}
 		songLyrics={data.song.lyrics}
 		songMusicNotes={data.song.music_notes}
+		songDuration={data.song.reference_duration_s}
 		initialSheet={data.sheet}
 	>
 		{#snippet breadcrumb()}
