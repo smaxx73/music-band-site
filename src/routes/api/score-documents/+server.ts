@@ -31,11 +31,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		if (!song) return json({ error: 'Morceau introuvable' }, { status: 404 })
 	}
 	const [document] = await sql`
-		INSERT INTO score_documents (user_id, song_id, title, manifest, contents)
-		VALUES (${locals.user.id}, ${payload.song_id}, ${payload.title}, ${sql.json(payload.manifest)}, ${sql.json(payload.contents)})
+		INSERT INTO score_documents (user_id, updated_by_user_id, song_id, title, manifest, contents)
+		VALUES (${locals.user.id}, ${locals.user.id}, ${payload.song_id}, ${payload.title}, ${sql.json(payload.manifest)}, ${sql.json(payload.contents)})
 		ON CONFLICT (song_id) DO NOTHING
 		RETURNING id, title, updated_at
 	`
 	if (!document) return json({ error: 'Ce morceau possède déjà une partition. Recharge la page.' }, { status: 409 })
-	return json({ document }, { status: 201 })
+	return json({ document: { ...document, updated_by: locals.user.display_name } }, { status: 201 })
 }

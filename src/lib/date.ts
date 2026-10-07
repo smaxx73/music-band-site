@@ -83,6 +83,18 @@ export function formatDateTimeFull(value: DateValue, locale = 'fr-FR') {
 }
 
 /**
+ * Moment d'une modification, à lire après « Modifiée » : « aujourd'hui à 14:05 »,
+ * « hier à 09:12 », « le 17 sept. à 12:35 ». Le jour proche en toutes lettres, comme
+ * ailleurs : il dit d'emblée si c'est la version d'avant ou d'après la répétition.
+ */
+export function formatModifiedAt(value: DateValue, locale = 'fr-FR') {
+	const date = toDate(value)
+	if (!date) return ''
+	const near = nearDayLabel(localDateOnly(date))
+	return `${near ? near.toLowerCase() : `le ${dateLabel(date, locale)}`} à ${timeLabel(date, locale)}`
+}
+
+/**
  * Jour civil d'un instant dans le fuseau de l'appareil (« 2026-10-02 ») : c'est le jour
  * vécu par qui enregistre, là où `toISOString` donnerait celui de Greenwich.
  */

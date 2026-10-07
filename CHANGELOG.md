@@ -13,13 +13,20 @@ en montant de version (voir `deploy.md`).
 
 ## [1.9.0] — 2026-10-07
 
-Aucune migration.
+Migration à appliquer : `049_score_document_editor.sql`.
 
 - **Paroles seules ou accords seuls** sur une feuille de répétition : « Afficher : Tout /
   Paroles / Accords », en lecture comme au pupitre, et l'impression suit. En paroles, les
   accords et les mini-partitions disparaissent ; en accords, une rangée d'accords par
   ligne, alignés en colonnes, les rangées répétées regroupées (« ×2 »). Le choix est gardé
   dans le navigateur
+- **Dernière modification** d'une feuille de répétition, sous son titre et sur la version
+  imprimée : « Modifiée aujourd'hui à 14:05 par Julie ». L'auteur de la modification est
+  enregistré à partir de cette version (migration 049) : les feuilles plus anciennes
+  n'affichent que la date jusqu'à leur prochain enregistrement
+- **Raccourcis de saisie ChordPro** dans l'éditeur d'une feuille : Couplet, Refrain, Pont,
+  Rappel du refrain, Titre de section et [Accord] insèrent la directive, ou entourent les
+  lignes sélectionnées. Ctrl+Z les défait
 
 ## [1.8.0] — 2026-10-07
 

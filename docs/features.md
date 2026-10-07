@@ -894,6 +894,15 @@ morceau (`score_documents.song_id` unique), au groupe : tout membre la crée et 
 - **Transposer** en lecture décale les accords **et** les mini-partitions (`visualTranspose`
   d'abcjs), pour l'écran comme pour l'impression, sans toucher la feuille enregistrée. Pour
   réécrire les accords d'un bloc, c'est « Appliquer au bloc » en édition
+- **Dernière modification** sous le titre : « Modifiée aujourd'hui à 14:05 par Julie »,
+  « hier à 09:12 », « le 17 sept. à 12:35 » (`formatModifiedAt`, `src/lib/date.ts`), la
+  date complète au survol ; en édition, l'aperçu dit « Enregistrée … ». Tout membre
+  modifie la feuille : la date seule ne dit pas à qui demander ce qui a changé. Moment et
+  auteur sont posés à chaque enregistrement (`updated_at`, `updated_by_user_id`, migration
+  049), le nom relu dans `users` comme pour un commentaire. Une feuille antérieure à la
+  migration, ou dont l'auteur de la modification a supprimé son compte, n'affiche que la
+  date : l'auteur de la feuille n'est pas forcément le dernier à l'avoir modifiée. La
+  ligne s'imprime aussi : une feuille papier dit de quelle version elle date
 - **Afficher : Tout / Paroles / Accords**, en lecture comme au pupitre : chacun lit sa part,
   le chanteur sans les accords, le guitariste sans les paroles. Un filtre d'affichage
   (`lyricLines`, `chordRows`, `src/lib/chordpro.ts`) : la feuille enregistrée ne change
@@ -945,6 +954,22 @@ morceau (`score_documents.song_id` unique), au groupe : tout membre la crée et 
   entre crochets dans le texte, sections par directives `{comment: …}`,
   `{start_of_chorus}`…), ou **mini-partition** en ABC — saisie note à note, source ABC,
   ou import MusicXML/MXL dont l'original est conservé (`score_originals`)
+- **Raccourcis de saisie ChordPro**, au-dessus de la source d'un bloc « Paroles et
+  accords » : Couplet, Refrain, Pont (`{start_of_verse}` … `{end_of_verse}`, etc.), Rappel
+  du refrain (`{chorus}`), Titre de section (`{comment: …}`, « Intro » sélectionné pour
+  être remplacé à la frappe) et `[Accord]`. Au téléphone surtout, accolades et crochets
+  sont sous deux niveaux de clavier. Seules les directives que le rendu distingue ont le
+  leur : tablature et grille s'afficheraient comme du texte
+  - Avec une sélection, une section **entoure les lignes entières** touchées ; `[Accord]`
+    entoure le texte sélectionné. Sans sélection, une directive se pose **sur sa propre
+    ligne** — au début de la ligne si le curseur y est, après elle sinon : elle ne coupe
+    jamais une ligne de paroles ni une autre directive. Une section vide s'ouvre curseur
+    dedans
+  - Ctrl/⌘+Z défait un raccourci comme une frappe (`insertText`), y compris un accord de
+    la palette. Le bouton ne prend pas le focus : le clavier du téléphone reste ouvert
+  - Pas de raccourci clavier : Ctrl+Alt est AltGr sur un clavier français Windows — celui
+    qui tape `[` et `{` —, Option tape des caractères sur Mac, et les combinaisons
+    restantes sont prises par le navigateur
 - **Fiche et feuille.** La fiche du morceau garde ses deux champs libres, « Paroles » et
   « Accords / infos musicales » (`songs.lyrics`, `songs.music_notes`) : ce sont eux que
   reprennent la page d'une prise, la playlist en cours de lecture et l'envoi d'une prise.

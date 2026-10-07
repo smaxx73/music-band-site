@@ -459,7 +459,10 @@ CREATE TABLE score_documents (
     manifest JSONB NOT NULL DEFAULT '[]'::jsonb,
     contents JSONB NOT NULL DEFAULT '{}'::jsonb,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL
+                                             -- dernier à l'avoir enregistrée (migration 049) ;
+                                             -- NULL pour une feuille antérieure, ou compte disparu
 );
 CREATE TABLE score_originals (
     document_id INTEGER NOT NULL REFERENCES score_documents(id) ON DELETE CASCADE,

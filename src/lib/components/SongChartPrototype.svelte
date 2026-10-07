@@ -7,6 +7,7 @@
 	import Icon from '$lib/components/Icon.svelte'
 	import type { ConfirmRequest } from '$lib/confirm-submit.svelte'
 	import { formatTimecode } from '$lib/youtube'
+	import { formatDateTimeFull, formatModifiedAt } from '$lib/date'
 
 	type BlockType = 'chordpro' | 'notation'
 	type Block = { id: number; type: BlockType; label: string }
@@ -22,6 +23,8 @@
 		title: string
 		manifest: Block[]
 		contents: Record<string, string>
+		updated_at: Date | string
+		updated_by: string | null
 		can_delete: boolean
 		originals: { block_id: number; file_name: string; format: 'musicxml' | 'mxl'; warning: string | null }[]
 	}
@@ -140,6 +143,15 @@ K:D
 	const stageScale = $derived(STAGE_SCALES[scaleIndex])
 	let documentId = $state<number | null>(untrack(() => initialSheet?.id ?? null))
 	let documentTitle = $state(untrack(() => initialSheet?.title ?? songTitle))
+	// Dernier enregistrement : dit si la feuille a bougé depuis la dernière répétition.
+	let documentUpdatedAt = $state<Date | string | null>(untrack(() => initialSheet?.updated_at ?? null))
+	// Et par qui : tout membre du groupe la modifie. Inconnu pour une feuille antérieure à
+	// la migration 049, ou si son compte a disparu.
+	let documentUpdatedBy = $state<string | null>(untrack(() => initialSheet?.updated_by ?? null))
+	// « aujourd'hui à 14:05 par Julie », après « Modifiée » (lecture) ou « Enregistrée » (atelier).
+	const updatedLabel = $derived(documentId && documentUpdatedAt
+		? `${formatModifiedAt(documentUpdatedAt)}${documentUpdatedBy ? ` par ${documentUpdatedBy}` : ''}`
+		: null)
 	let documents = $state<{ id: number; title: string }[]>([])
 	// Décidé par le serveur (canDeleteScoreDocument) : auteur ou admin du groupe.
 	let canDelete = $state(untrack(() => initialSheet?.can_delete === true))
@@ -359,7 +371,7 @@ K:D
 
 	function resetToStart() {
 		const start = startingSheet()
-		documentId = null; canDelete = false; documentTitle = songTitle
+		documentId = null; canDelete = false; documentTitle = songTitle; documentUpdatedAt = null; documentUpdatedBy = null
 		blocks = start.blocks; blockContent = start.contents; notationAssets = {}
 		selectedId = start.blocks[0]?.id ?? 1; selectedNoteIndex = null; transpose = 0
 	}
@@ -382,6 +394,8 @@ K:D
 			const { document, originals } = await apiJson(await fetch(`/api/score-documents/${id}`))
 			documentId = document.id
 			documentTitle = document.title
+			documentUpdatedAt = document.updated_at
+			documentUpdatedBy = document.updated_by ?? null
 			canDelete = document.can_delete === true
 			blocks = document.manifest
 			blockContent = document.contents
@@ -435,6 +449,8 @@ K:D
 			// Une feuille qu'on vient de créer est à soi.
 			if (method === 'POST') canDelete = true
 			documentId = response.document.id
+			documentUpdatedAt = response.document.updated_at
+			documentUpdatedBy = response.document.updated_by ?? null
 			for (const [key, asset] of Object.entries(notationAssets)) {
 				if (!asset.file) continue
 				const data = new FormData()
@@ -836,11 +852,84 @@ K:D
 		transpose = 0
 	}
 
-	async function insertChord(chord: string) {
-		if (!editor || !selected) return
-		const start = editor.selectionStart, end = editor.selectionEnd, insert = `[${chord}]`
-		updateSource(`${selectedSource.slice(0, start)}${insert}${selectedSource.slice(end)}`)
-		await tick(); editor.focus(); editor.setSelectionRange(start + insert.length, start + insert.length)
+	/**
+	 * Remplace `from`–`to` par `text` dans la source, puis sélectionne `caret` (relatif au
+	 * texte inséré). `insertText` passe par l'historique du navigateur : Ctrl+Z défait un
+	 * raccourci comme une frappe, là où réécrire la valeur effacerait tout l'historique.
+	 */
+	function insertInEditor(text: string, from: number, to: number, caret: [number, number] = [text.length, text.length]) {
+		if (!editor) return
+		editor.focus()
+		editor.setSelectionRange(from, to)
+		if (!document.execCommand('insertText', false, text)) {
+			editor.setRangeText(text, from, to, 'end')
+			updateSource(editor.value)
+		}
+		editor.setSelectionRange(from + caret[0], from + caret[1])
+	}
+
+	function insertChord(chord: string) {
+		if (!editor) return
+		insertInEditor(`[${chord}]`, editor.selectionStart, editor.selectionEnd)
+	}
+
+	// Les directives qui se tapent mal, au téléphone surtout, où accolades et crochets
+	// sont sous deux niveaux de clavier. Seulement celles que le rendu distingue.
+	const SECTION_SNIPPETS = [
+		{ name: 'verse', label: 'Couplet' },
+		{ name: 'chorus', label: 'Refrain' },
+		{ name: 'bridge', label: 'Pont' }
+	] as const
+
+	// Une directive tient une ligne entière : posée au curseur, elle couperait une ligne de
+	// paroles en deux, ou une autre directive. Début de ligne s'il y est, fin sinon.
+	function lineBoundary(value: string, at: number) {
+		if (at === 0 || value[at - 1] === '\n') return at
+		const end = value.indexOf('\n', at)
+		return end === -1 ? value.length : end
+	}
+
+	// Les lignes sélectionnées sont entourées en entier ; sans sélection, une section vide
+	// s'ouvre sur sa propre ligne, curseur dedans.
+	function wrapSection(name: (typeof SECTION_SNIPPETS)[number]['name']) {
+		if (!editor) return
+		const value = editor.value
+		const open = `{start_of_${name}}`, close = `{end_of_${name}}`
+		const { selectionStart, selectionEnd } = editor
+		if (selectionStart !== selectionEnd) {
+			const from = value.lastIndexOf('\n', selectionStart - 1) + 1
+			// Une sélection qui finit en début de ligne n'emporte pas la ligne suivante.
+			const lastLineEnd = value.indexOf('\n', value[selectionEnd - 1] === '\n' ? selectionEnd - 1 : selectionEnd)
+			const to = lastLineEnd === -1 ? value.length : lastLineEnd
+			insertInEditor(`${open}\n${value.slice(from, to)}\n${close}`, from, to)
+			return
+		}
+		const at = lineBoundary(value, selectionStart)
+		const before = at > 0 && value[at - 1] !== '\n' ? '\n' : ''
+		const after = at < value.length && value[at] !== '\n' ? '\n' : ''
+		const caret = before.length + open.length + 1
+		insertInEditor(`${before}${open}\n\n${close}${after}`, at, at, [caret, caret])
+	}
+
+	// Une directive d'une ligne (titre de section, rappel du refrain), posée sur sa propre
+	// ligne ; `placeholder` est sélectionné, pour être remplacé à la frappe.
+	function insertDirective(directive: string, placeholder = '') {
+		if (!editor) return
+		const value = editor.value
+		const at = lineBoundary(value, editor.selectionStart)
+		const before = at > 0 && value[at - 1] !== '\n' ? '\n' : ''
+		const after = at < value.length && value[at] !== '\n' ? '\n' : ''
+		const text = placeholder ? `${before}{${directive}: ${placeholder}}${after}` : `${before}{${directive}}${after}`
+		const start = placeholder ? before.length + directive.length + 3 : text.length - after.length
+		insertInEditor(text, at, at, [start, start + placeholder.length])
+	}
+
+	// Sans sélection, des crochets vides, curseur entre les deux ; avec, l'accord sélectionné.
+	function insertChordBrackets() {
+		if (!editor) return
+		const { selectionStart, selectionEnd, value } = editor
+		const chord = value.slice(selectionStart, selectionEnd)
+		insertInEditor(`[${chord}]`, selectionStart, selectionEnd, chord ? undefined : [1, 1])
 	}
 </script>
 
@@ -940,6 +1029,7 @@ K:D
 			<div>
 				<p class="eyebrow">Feuille de répétition</p>
 				<h1>{documentTitle}</h1>
+				{#if updatedLabel && documentUpdatedAt}<p class="sheet-updated" title="Modifiée le {formatDateTimeFull(documentUpdatedAt)}">Modifiée {updatedLabel}</p>{/if}
 			</div>
 			<div class="page-actions">
 				{#if documentId}
@@ -1028,6 +1118,16 @@ K:D
 					<label>Nom du bloc <input value={selected.label} oninput={(event) => updateBlock({ label: event.currentTarget.value })} /></label>
 					{#if selected.type === 'chordpro'}
 						<div class="tools"><label>Transposer l’aperçu <select bind:value={transpose}>{@render transposeOptions()}</select></label><button class="btn btn-primary btn-sm" onclick={applyTranspose} disabled={!transpose}>Appliquer au bloc</button></div>
+						<!-- mousedown sans défaut : le clic garde le focus, et le clavier du téléphone, dans la zone de texte. -->
+						<div class="syntax-tools" role="toolbar" aria-label="Insérer dans la source ChordPro">
+							<span>Insérer</span>
+							{#each SECTION_SNIPPETS as snippet}
+								<button type="button" onmousedown={(event) => event.preventDefault()} onclick={() => wrapSection(snippet.name)} title={`{start_of_${snippet.name}} … {end_of_${snippet.name}} — entoure les lignes sélectionnées`}>{snippet.label}</button>
+							{/each}
+							<button type="button" onmousedown={(event) => event.preventDefault()} onclick={() => insertDirective('chorus')} title={'{chorus} — rappelle le refrain sans le réécrire'}>Rappel du refrain</button>
+							<button type="button" onmousedown={(event) => event.preventDefault()} onclick={() => insertDirective('comment', 'Intro')} title={'{comment: …} — un titre de section libre : intro, solo, fin'}>Titre de section</button>
+							<button type="button" class="syntax-chord" onmousedown={(event) => event.preventDefault()} onclick={insertChordBrackets} title="[…] — un accord à l’endroit du curseur, ou autour de la sélection">[Accord]</button>
+						</div>
 						<textarea bind:this={editor} value={selectedSource} oninput={(event) => updateSource(event.currentTarget.value)} spellcheck="false" aria-label="Source ChordPro" placeholder={'{comment: Couplet}\n[C]Les paroles, avec les [G]accords entre crochets'}></textarea>
 						<div class="chords">{#each chords as chord}<button onclick={() => insertChord(chord)}>{chord}</button>{/each}</div>
 					{:else}
@@ -1048,7 +1148,7 @@ K:D
 			</section>
 
 			<section class="preview" aria-live="polite">
-				<div class="preview-heading"><div><p class="eyebrow">Aperçu</p><h2>{documentTitle}</h2><p>{dirty ? 'Modifications non enregistrées' : 'Enregistré'}</p></div><div class="preview-tabs"><button class:active={previewMode === 'rendered'} onclick={() => previewMode = 'rendered'} aria-pressed={previewMode === 'rendered'}>Mis en forme</button><button class:active={previewMode === 'text'} onclick={() => previewMode = 'text'} aria-pressed={previewMode === 'text'}>Texte brut</button></div></div>
+				<div class="preview-heading"><div><p class="eyebrow">Aperçu</p><h2>{documentTitle}</h2><p>{dirty ? 'Modifications non enregistrées' : updatedLabel ? `Enregistrée ${updatedLabel}` : 'Enregistré'}</p></div><div class="preview-tabs"><button class:active={previewMode === 'rendered'} onclick={() => previewMode = 'rendered'} aria-pressed={previewMode === 'rendered'}>Mis en forme</button><button class:active={previewMode === 'text'} onclick={() => previewMode = 'text'} aria-pressed={previewMode === 'text'}>Texte brut</button></div></div>
 				{#if notationLoadError}<p class="abc-error load-error">{notationLoadError}</p>{/if}
 				{#if previewMode === 'text'}
 					<pre class="plain-text">{plainTextDocument()}</pre>
@@ -1077,7 +1177,7 @@ K:D
 	input, select { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .4rem .5rem; color: var(--color-text); background: var(--color-bg); font: inherit; text-transform: none; letter-spacing: normal; }
 
 	/* Lecture : la feuille seule, dans une colonne de lecture. */
-	.sheet-header h1 { margin-top: .15rem; } .read-transpose { display: flex; align-items: center; gap: .4rem; color: var(--color-text-secondary); font-size: var(--text-sm); } .read-transpose select { padding: .3rem .4rem; }
+	.sheet-header h1 { margin-top: .15rem; } .sheet-updated { margin-top: .2rem; color: var(--color-text-muted); font-size: var(--text-xs); } .read-transpose { display: flex; align-items: center; gap: .4rem; color: var(--color-text-secondary); font-size: var(--text-sm); } .read-transpose select { padding: .3rem .4rem; }
 	.sheet .message-error, .sheet > .abc-error { margin-bottom: 1rem; }
 	.sheet-body { border: 1px solid var(--color-border-light); border-radius: var(--radius-lg); background: var(--color-bg); overflow: hidden; } .sheet-body .rendered { padding: 1rem 1.25rem; } .sheet-body .rendered:last-child { border-bottom: 0; } .sheet-body .chart-line { font-size: var(--text-base); }
 	.sheet-empty { display: grid; gap: .75rem; justify-items: start; padding: 1.25rem; border: 1px dashed var(--color-border); border-radius: var(--radius-lg); color: var(--color-text-secondary); font-size: var(--text-sm); line-height: 1.5; } .sheet-empty p { max-width: 40rem; }
@@ -1126,6 +1226,7 @@ K:D
 	.document-tools { display: flex; flex-wrap: wrap; gap: .75rem; align-items: end; margin-bottom: 1rem; } .document-tools label { display: grid; gap: .25rem; color: var(--color-text-secondary); font-size: var(--text-sm); } .document-tools input { min-width: 16rem; } .notation-editor { padding: .8rem 1rem; } .notation-meta, .note-controls, .note-palette { display: flex; flex-wrap: wrap; gap: .4rem; align-items: end; margin-bottom: .7rem; } .notation-meta label, .note-controls label { display: grid; gap: .25rem; font-size: var(--text-xs); } .notation-meta input { width: 5rem; } .notation-editor .hint { margin: 0 0 .7rem; } .note-list { display: flex; flex-wrap: wrap; gap: .3rem; padding: .5rem; min-height: 2.5rem; border: 1px solid var(--color-border-light); border-radius: var(--radius-sm); margin-bottom: .7rem; } .note-list button, .note-palette button { min-width: 2rem; border: 1px solid var(--color-border); border-radius: var(--radius-sm); background: var(--color-bg); color: var(--color-text); padding: .3rem; cursor: pointer; } .note-list button.active { border-color: var(--color-accent); color: var(--color-accent-dark); } .notation-editor details summary { cursor: pointer; color: var(--color-accent-dark); font-size: var(--text-sm); } .notation-editor textarea.abc-source-editor { box-sizing: border-box; width: 100%; min-height: 14rem; margin: .6rem 0 0; } .workspace { display: grid; grid-template-columns: minmax(270px, 300px) minmax(300px, .85fr) minmax(350px, 1.15fr); align-items: start; border: 1px solid var(--color-border-light); border-radius: var(--radius-lg); background: var(--color-bg); overflow: hidden; } .block-list { padding: .75rem; border-right: 1px solid var(--color-border-light); background: var(--color-bg-subtle); } .list-heading { display: flex; justify-content: space-between; padding: .25rem .25rem .7rem; } .list-heading span { color: var(--color-text-muted); }
 	.blocks { display: grid; gap: .35rem; } .block-card { display: grid; grid-template-columns: 1.3rem 1.45rem minmax(0, 1fr); gap: .4rem; align-items: center; width: 100%; padding: .55rem .45rem; border: 1px solid transparent; border-radius: var(--radius-sm); color: var(--color-text); background: transparent; text-align: left; cursor: pointer; } .block-card:hover { background: var(--color-bg); } .block-card.selected { border-color: var(--color-accent); background: var(--color-bg); } .order { color: var(--color-text-muted); font: var(--text-xs) ui-monospace, monospace; text-align: center; } .icon { color: var(--color-accent-dark); font-weight: 700; } .block-copy { min-width: 0; } .block-card strong, .block-card small { display: block; overflow-wrap: anywhere; } .block-card strong { font-size: var(--text-sm); line-height: 1.3; } .block-card small { margin-top: .12rem; color: var(--color-text-muted); font-size: var(--text-xs); line-height: 1.3; } .add-buttons { display: grid; gap: .45rem; margin-top: 1rem; } .add-buttons .btn { justify-content: flex-start; white-space: normal; text-align: left; } .import-button { border-style: dashed; color: var(--color-accent-dark); } .file-input { display: none; } .import-error { margin: .7rem .15rem 0; color: var(--color-error); font-size: var(--text-xs); line-height: 1.4; }
 	.editor-panel { min-width: 0; border-right: 1px solid var(--color-border-light); } .editor-heading, .preview-heading { display: flex; justify-content: space-between; gap: .75rem; align-items: flex-start; padding: 1rem; border-bottom: 1px solid var(--color-border-light); } .actions { display: flex; gap: .35rem; } .editor-panel > label { display: grid; gap: .3rem; padding: .8rem 1rem .4rem; color: var(--color-text-secondary); font-size: var(--text-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+	.syntax-tools { display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; padding: 0 1rem .5rem; color: var(--color-text-secondary); font-size: var(--text-xs); } .syntax-tools button { border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .25rem .5rem; color: var(--color-text); background: var(--color-bg); font: inherit; cursor: pointer; } .syntax-tools button:hover { background: var(--color-bg-subtle); } .syntax-tools .syntax-chord { color: var(--color-accent-dark); font-family: ui-monospace, monospace; font-weight: 700; }
 	.tools { display: flex; align-items: center; gap: .55rem; padding: .35rem 1rem .65rem; color: var(--color-text-secondary); font-size: var(--text-xs); } .tools label { display: flex; align-items: center; gap: .4rem; } textarea { display: block; box-sizing: border-box; width: calc(100% - 2rem); min-height: 20rem; margin: .2rem 1rem .8rem; resize: vertical; border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: .7rem; color: var(--color-text); background: var(--color-bg-subtle); font: var(--text-sm)/1.55 ui-monospace, monospace; } .chords { display: flex; flex-wrap: wrap; gap: .35rem; padding: 0 1rem 1rem; } .chords button { border: 1px solid var(--color-border); color: var(--color-accent-dark); background: var(--color-bg); padding: .2rem .45rem; border-radius: var(--radius-pill); font: 600 var(--text-xs)/1.2 ui-monospace, monospace; cursor: pointer; } .chords button:hover { background: var(--color-bg-subtle); } .hint, .conversion-warning { margin: 0 1rem 1rem; color: var(--color-text-muted); font-size: var(--text-sm); line-height: 1.45; } .original-file { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .5rem; margin: 0 1rem .55rem; padding: .6rem; border: 1px solid var(--color-border-light); border-radius: var(--radius-sm); color: var(--color-text-secondary); font-size: var(--text-sm); } .original-file strong { color: var(--color-text); } .conversion-warning { color: var(--color-warning-text); }
 	.preview { min-width: 0; background: var(--color-bg); } .preview-heading h2 { margin-top: .2rem; font-size: var(--text-lg); } .preview-heading > div > p:last-child { margin-top: .1rem; color: var(--color-text-muted); font-size: var(--text-xs); } .preview-tabs { display: flex; border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow: hidden; } .preview-tabs button { border: 0; border-right: 1px solid var(--color-border); padding: .3rem .45rem; color: var(--color-text-secondary); background: var(--color-bg); font: var(--text-xs) inherit; cursor: pointer; } .preview-tabs button:last-child { border-right: 0; } .preview-tabs button.active { color: var(--color-bg); background: var(--color-primary); } .plain-text { margin: 0; padding: 1rem; min-height: 24rem; overflow: auto; color: var(--color-text); background: var(--color-bg-subtle); font: var(--text-xs)/1.55 ui-monospace, monospace; white-space: pre-wrap; }
 
