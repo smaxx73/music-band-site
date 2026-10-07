@@ -11,6 +11,16 @@ pour une bibliothèque :
 Chaque version liste les migrations qu'elle apporte : ce sont elles qu'il faut appliquer
 en montant de version (voir `deploy.md`).
 
+## [1.7.1] — 2026-10-07
+
+Aucune migration.
+
+- **Tri des morceaux** sur `/songs` : par année de composition (ou de sortie pour une
+  reprise), en plus du titre, du nombre de prises et du statut. Une flèche à côté du
+  sélecteur inverse le sens, quel que soit le critère ; un morceau sans année reste en fin
+  de liste. Le sélecteur est aussi proposé en mode édition, dont le tableau n'a pas de
+  colonne pour l'année
+
 ## [1.7.0] — 2026-10-06
 
 Migration à appliquer : `048_recording_quality_unset.sql`.
