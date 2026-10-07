@@ -11,6 +11,16 @@ pour une bibliothèque :
 Chaque version liste les migrations qu'elle apporte : ce sont elles qu'il faut appliquer
 en montant de version (voir `deploy.md`).
 
+## [1.9.0] — 2026-10-07
+
+Aucune migration.
+
+- **Paroles seules ou accords seuls** sur une feuille de répétition : « Afficher : Tout /
+  Paroles / Accords », en lecture comme au pupitre, et l'impression suit. En paroles, les
+  accords et les mini-partitions disparaissent ; en accords, une rangée d'accords par
+  ligne, alignés en colonnes, les rangées répétées regroupées (« ×2 »). Le choix est gardé
+  dans le navigateur
+
 ## [1.8.0] — 2026-10-07
 
 Aucune migration.

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, tick, untrack, type Snippet } from 'svelte'
 	import { strFromU8, unzipSync } from 'fflate'
-	import { chordProTitle, parseChordPro } from '$lib/chordpro'
+	import { chordProTitle, chordRows, lyricLines, parseChordPro, type SheetView } from '$lib/chordpro'
 	import { moveAbcPitch } from '$lib/abc-editor'
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
 	import Icon from '$lib/components/Icon.svelte'
@@ -111,6 +111,9 @@ K:D
 	let mode = $state<'read' | 'edit'>(untrack(() => songId ? 'read' : 'edit'))
 	// Transposition de lecture : ne touche pas la feuille, sert à qui joue avec un capo.
 	let readTranspose = $state(0)
+	// Part de la feuille affichée en lecture : le chanteur n'a que faire des accords, le
+	// guitariste des paroles. Réglage du lecteur, gardé dans son navigateur.
+	let sheetView = $state<SheetView>('all')
 
 	// Pupitre : la feuille seule, en plein écran, posée à un mètre sur une tablette.
 	// Taille et vitesse sont des paliers : on règle d'un toucher, mains sur l'instrument.
@@ -171,6 +174,10 @@ K:D
 	const chords = $derived(selected?.type === 'chordpro' ? getChords(selectedSource) : [])
 	const notationTokens = $derived(selected?.type === 'notation' ? getNotationTokens(selectedSource) : [])
 	const dirty = $derived(snapshot() !== savedSnapshot || Object.values(notationAssets).some((asset) => asset.file))
+	// Sans accord entre crochets, il n'y a rien à séparer : un réglage resté d'une autre
+	// feuille ne doit rien masquer ici.
+	const hasChords = $derived(blocks.some((block) => block.type === 'chordpro' && getChords(blockContent[block.id] ?? '').length > 0))
+	const effectiveView = $derived<SheetView>(hasChords ? sheetView : 'all')
 	const canTranspose = $derived(blocks.some((block) => block.type === 'notation' || getChords(blockContent[block.id] ?? '').length > 0))
 
 	// Ne jamais laisser l'import asynchrone du moteur de gravure interrompre
@@ -589,8 +596,9 @@ K:D
 	function loadStagePrefs() {
 		try {
 			stageDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
-			const prefs = JSON.parse(localStorage.getItem(STAGE_PREFS_KEY) ?? '{}') as { scale?: unknown; speed?: unknown; dark?: unknown }
+			const prefs = JSON.parse(localStorage.getItem(STAGE_PREFS_KEY) ?? '{}') as { scale?: unknown; speed?: unknown; dark?: unknown; view?: unknown }
 			if (typeof prefs.dark === 'boolean') stageDark = prefs.dark
+			if (prefs.view === 'lyrics' || prefs.view === 'chords') sheetView = prefs.view
 			if (Number.isInteger(prefs.scale) && STAGE_SCALES[prefs.scale as number] !== undefined) scaleIndex = prefs.scale as number
 			if (Number.isInteger(prefs.speed) && STAGE_SPEEDS[prefs.speed as number] !== undefined) speedIndex = prefs.speed as number
 		} catch { /* navigation privée : les réglages par défaut suffisent */ }
@@ -598,7 +606,7 @@ K:D
 
 	// La distance au pupitre est celle du musicien, pas de la feuille : un réglage pour toutes.
 	function saveStagePrefs() {
-		try { localStorage.setItem(STAGE_PREFS_KEY, JSON.stringify({ scale: scaleIndex, speed: speedIndex, dark: stageDark })) } catch { /* idem */ }
+		try { localStorage.setItem(STAGE_PREFS_KEY, JSON.stringify({ scale: scaleIndex, speed: speedIndex, dark: stageDark, view: sheetView })) } catch { /* idem */ }
 	}
 
 	async function acquireStageWakeLock() {
@@ -628,6 +636,20 @@ K:D
 		stageWakeLock?.release().catch(() => {})
 		stageWakeLock = null
 		if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+	}
+
+	function changeView(view: string) {
+		sheetView = view === 'lyrics' || view === 'chords' ? view : 'all'
+		saveStagePrefs()
+	}
+
+	// Un bloc à qui la vue n'a rien laissé à lire disparaît, titre compris : en paroles,
+	// les mini-partitions (presque toujours instrumentales) et les grilles d'accords.
+	function shownInView(block: Block, view: SheetView) {
+		if (view === 'all') return true
+		if (block.type === 'notation') return view === 'chords'
+		const source = blockContent[block.id] ?? ''
+		return view === 'lyrics' ? lyricLines(source).some((line) => line.kind === 'lyrics') : chordRows(source).some((row) => row.kind === 'chords')
 	}
 
 	function toggleDark() {
@@ -822,16 +844,39 @@ K:D
 	}
 </script>
 
+{#snippet viewSelect()}
+	<label class="read-transpose" title="Pour la lecture et l’impression : la feuille enregistrée ne change pas">
+		Afficher <select value={sheetView} onchange={(event) => changeView(event.currentTarget.value)}><option value="all">Tout</option><option value="lyrics">Paroles</option><option value="chords">Accords</option></select>
+	</label>
+{/snippet}
+
 {#snippet transposeOptions()}
 	{#each [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5] as step}<option value={step}>{step > 0 ? `+${step}` : step < 0 ? `−${-step}` : '0'}</option>{/each}
 {/snippet}
 
 <!-- Les blocs mis en forme, communs à la lecture et à l'aperçu d'édition. -->
 {#snippet renderedBlocks(reading: boolean)}
-	{#each blocks as block (block.id)}
+	{@const view = reading ? effectiveView : 'all'}
+	{#each blocks.filter((block) => shownInView(block, view)) as block (block.id)}
 		<section class="rendered" class:notation={block.type === 'notation'}>
 			{#if !contentRepeatsBlockLabel(block, blockContent[block.id] ?? '')}<div class="caption"><strong>{block.label || 'Sans titre'}</strong></div>{/if}
-			{#if block.type === 'chordpro'}
+			{#if block.type === 'chordpro' && view === 'lyrics'}
+				<div class="chart">
+					{#each lyricLines(blockContent[block.id] ?? '') as line}
+						{#if line.kind === 'section'}<h3>{line.label}</h3>
+						{:else if line.kind === 'lyrics'}<p class="chart-line lyrics-line">{line.text}</p>
+						{:else}<div class="space"></div>{/if}
+					{/each}
+				</div>
+			{:else if block.type === 'chordpro' && view === 'chords'}
+				<div class="chart">
+					{#each chordRows(blockContent[block.id] ?? '') as row}
+						{#if row.kind === 'section'}<h3>{row.label}</h3>
+						{:else if row.kind === 'chords'}<p class="chord-row">{#each row.chords as chord}<span class="chord-cell">{transposed(chord, readTranspose)}</span>{/each}{#if row.repeat > 1}<span class="chord-repeat" aria-label="{row.repeat} fois">×{row.repeat}</span>{/if}</p>
+						{:else}<div class="space"></div>{/if}
+					{/each}
+				</div>
+			{:else if block.type === 'chordpro'}
 				<div class="chart">
 					{#each parseChordPro(blockContent[block.id] ?? '') as line}
 						{#if line.kind === 'section'}<h3>{line.label}</h3>
@@ -863,6 +908,7 @@ K:D
 					<button class="btn btn-secondary btn-sm" onclick={() => zoom(1)} disabled={scaleIndex === STAGE_SCALES.length - 1} aria-label="Agrandir le texte" title="Agrandir le texte (+)">A+</button>
 					<button class="btn btn-secondary btn-sm stage-toggle" onclick={toggleDark} aria-pressed={stageDark} title="Texte clair sur fond sombre">Sombre</button>
 				</div>
+				{#if hasChords}{@render viewSelect()}{/if}
 				{#if canTranspose}
 					<label class="read-transpose">Transposer <select bind:value={readTranspose}>{@render transposeOptions()}</select></label>
 				{/if}
@@ -897,6 +943,7 @@ K:D
 			</div>
 			<div class="page-actions">
 				{#if documentId}
+					{#if hasChords}{@render viewSelect()}{/if}
 					{#if canTranspose}
 						<label class="read-transpose" title="Pour la lecture et l’impression : la feuille enregistrée ne change pas">
 							Transposer <select bind:value={readTranspose}>{@render transposeOptions()}</select>
@@ -1068,6 +1115,8 @@ K:D
 	   à l'écran. Les paliers restent la base, le multiplicateur vient du réglage. */
 	.stage .chart-line { min-height: 2.65em; font-size: calc(var(--text-lg) * var(--stage-scale)); }
 	.stage .chord { min-height: 1.2em; font-size: .8em; }
+	.stage .chord-row { font-size: calc(var(--text-lg) * var(--stage-scale)); }
+	.stage .chart-line.lyrics-line { min-height: 0; }
 	.stage .lyric { min-height: 1.35em; }
 	.stage .space { height: calc(.55rem * var(--stage-scale)); }
 	.stage .chart h3, .stage .caption strong { font-size: calc(var(--text-sm) * var(--stage-scale)); }
@@ -1081,7 +1130,10 @@ K:D
 	.preview { min-width: 0; background: var(--color-bg); } .preview-heading h2 { margin-top: .2rem; font-size: var(--text-lg); } .preview-heading > div > p:last-child { margin-top: .1rem; color: var(--color-text-muted); font-size: var(--text-xs); } .preview-tabs { display: flex; border: 1px solid var(--color-border); border-radius: var(--radius-sm); overflow: hidden; } .preview-tabs button { border: 0; border-right: 1px solid var(--color-border); padding: .3rem .45rem; color: var(--color-text-secondary); background: var(--color-bg); font: var(--text-xs) inherit; cursor: pointer; } .preview-tabs button:last-child { border-right: 0; } .preview-tabs button.active { color: var(--color-bg); background: var(--color-primary); } .plain-text { margin: 0; padding: 1rem; min-height: 24rem; overflow: auto; color: var(--color-text); background: var(--color-bg-subtle); font: var(--text-xs)/1.55 ui-monospace, monospace; white-space: pre-wrap; }
 
 	/* Blocs mis en forme, en lecture comme dans l'aperçu. */
-	.rendered { padding: .8rem 1rem; border-bottom: 1px solid var(--color-border-light); } .caption { display: flex; gap: .45rem; align-items: baseline; margin-bottom: .55rem; } .caption strong { font-size: var(--text-sm); } .chart h3 { margin: .65rem 0 .3rem; color: var(--color-accent-dark); font-size: var(--text-sm); text-transform: uppercase; letter-spacing: .06em; } .chart h3:first-child { margin-top: 0; } .chart-line { min-height: 2.65rem; white-space: pre-wrap; line-height: 1.35; } .token { display: inline-flex; flex-direction: column; vertical-align: bottom; } .chord { min-height: 1.2rem; color: var(--color-accent-dark); font: 700 var(--text-xs)/1.15 ui-monospace, monospace; } .lyric { min-height: 1.35rem; white-space: pre-wrap; } .space { height: .55rem; } .score-scroll-hint { display: none; } .abc-output :global(.print-score-caption) { display: none; } .abc-output { overflow-x: auto; } .abc-output :global(svg) { max-width: 100%; height: auto; } .abc-error { margin-bottom: .5rem; color: var(--color-error); font-size: var(--text-sm); } .load-error { margin: .75rem 1rem 0; }
+	.rendered { padding: .8rem 1rem; border-bottom: 1px solid var(--color-border-light); } .caption { display: flex; gap: .45rem; align-items: baseline; margin-bottom: .55rem; } .caption strong { font-size: var(--text-sm); } .chart h3 { margin: .65rem 0 .3rem; color: var(--color-accent-dark); font-size: var(--text-sm); text-transform: uppercase; letter-spacing: .06em; } .chart h3:first-child { margin-top: 0; } .chart-line { min-height: 2.65rem; white-space: pre-wrap; line-height: 1.35; } .token { display: inline-flex; flex-direction: column; vertical-align: bottom; } .chord { min-height: 1.2rem; color: var(--color-accent-dark); font: 700 var(--text-xs)/1.15 ui-monospace, monospace; } .lyric { min-height: 1.35rem; white-space: pre-wrap; } .space { height: .55rem; } .chart-line.lyrics-line { min-height: 0; margin: .15rem 0; }
+	.chord-row { display: flex; flex-wrap: wrap; align-items: baseline; margin: .2rem 0; font-size: var(--text-base); } /* Largeur fixe : les accords s'alignent d'une rangée à l'autre, comme sur une grille. */
+	.chord-cell { min-width: 4ch; padding-right: 1.5ch; color: var(--color-accent-dark); font: 700 1em/1.45 ui-monospace, monospace; } .chord-repeat { color: var(--color-text-muted); font-size: .85em; font-weight: 600; }
+	 .score-scroll-hint { display: none; } .abc-output :global(.print-score-caption) { display: none; } .abc-output { overflow-x: auto; } .abc-output :global(svg) { max-width: 100%; height: auto; } .abc-error { margin-bottom: .5rem; color: var(--color-error); font-size: var(--text-sm); } .load-error { margin: .75rem 1rem 0; }
 	@media (max-width: 1050px) { .workspace { grid-template-columns: minmax(245px, 280px) 1fr; } .preview { grid-column: 1 / -1; border-top: 1px solid var(--color-border-light); } .preview .rendered { max-width: 760px; margin: auto; } } @media (max-width: 650px) { .score-scroll-hint { display: block; margin-bottom: .3rem; color: var(--color-text-muted); font-size: var(--text-xs); } .abc-output { overflow-x: auto; touch-action: pan-x; } .abc-output :global(> div) { min-width: 600px; overflow: visible !important; } .abc-output :global(svg) { max-width: none; min-width: 600px; } .workspace { grid-template-columns: 1fr; } .block-list, .editor-panel { border-right: 0; border-bottom: 1px solid var(--color-border-light); } .blocks, .add-buttons { grid-template-columns: repeat(2, minmax(0, 1fr)); } .sheet-body .rendered { padding: .8rem; } }
 
 	@page { size: A4; margin: 12mm; }
@@ -1102,7 +1154,7 @@ K:D
 		.caption { margin-bottom: 3mm; break-after: avoid; }
 		.chart-line, .chart h3, .abc-output :global(svg) { break-inside: avoid; page-break-inside: avoid; }
 		.chart h3 { color: #000; }
-		.chord { color: #000; }
+		.chord, .chord-cell { color: #000; }
 		.abc-output { overflow: visible; }
 		.abc-output :global(.print-score-caption) { display: block; margin-bottom: 3mm; font-weight: 700; font-size: 10pt; }
 		.abc-output :global(> div) { display: block; min-width: 0; overflow: visible !important; break-inside: avoid; }

@@ -894,6 +894,21 @@ morceau (`score_documents.song_id` unique), au groupe : tout membre la crée et 
 - **Transposer** en lecture décale les accords **et** les mini-partitions (`visualTranspose`
   d'abcjs), pour l'écran comme pour l'impression, sans toucher la feuille enregistrée. Pour
   réécrire les accords d'un bloc, c'est « Appliquer au bloc » en édition
+- **Afficher : Tout / Paroles / Accords**, en lecture comme au pupitre : chacun lit sa part,
+  le chanteur sans les accords, le guitariste sans les paroles. Un filtre d'affichage
+  (`lyricLines`, `chordRows`, `src/lib/chordpro.ts`) : la feuille enregistrée ne change
+  pas, la transposition s'applique, et l'impression suit — on imprime les paroles seules
+  au chanteur. Le choix est gardé dans le navigateur, pour toutes les feuilles ; il ne se
+  propose que sur une feuille qui a des accords entre crochets
+  - **Paroles** : les accords retirés, les sections gardées. Une ligne qui ne portait que
+    des accords disparaît, et les **mini-partitions** aussi — presque toujours des passages
+    instrumentaux. Des accords écrits sans crochets (« Intro : D G A », fréquent dans les
+    infos musicales reprises de la fiche) ne se distinguent pas du texte et restent
+  - **Accords** : une rangée d'accords par ligne de paroles, en colonnes de largeur fixe
+    pour qu'ils s'alignent d'une rangée à l'autre. Les rangées identiques qui se suivent
+    n'en font qu'une, suivie de « ×2 ». ChordPro ne dit pas où tombent les mesures : on
+    garde l'ordre des accords, pas leur place dans la phrase. Les mini-partitions restent
+  - Un bloc à qui la vue ne laisse rien disparaît, titre compris
 - **Imprimer / PDF** imprime la vue de lecture, jamais les sources
 - **Pupitre** (action principale de la lecture) : la feuille seule, en plein écran, pour
   une tablette posée sur le pupitre ou un écran au bout de la salle. Ni navigation, ni
@@ -924,8 +939,8 @@ morceau (`score_documents.song_id` unique), au groupe : tout membre la crée et 
     ne l'a pas choisi. Propre au pupitre — l'application n'a pas de thème sombre : ce sont
     les tokens de couleur redéfinis sur le pupitre seul, et la gravure ABC prend la couleur
     du texte (`foregroundColor: 'currentColor'`)
-  - La transposition de lecture s'y règle aussi ; la taille, la vitesse manuelle et le
-    thème sont gardés dans le navigateur, pour toutes les feuilles
+  - La transposition et le choix « Afficher » s'y règlent aussi ; la taille, la vitesse
+    manuelle et le thème sont gardés dans le navigateur, pour toutes les feuilles
 - Une feuille est une suite de **blocs** : « Paroles et accords » en ChordPro (accords
   entre crochets dans le texte, sections par directives `{comment: …}`,
   `{start_of_chorus}`…), ou **mini-partition** en ABC — saisie note à note, source ABC,
