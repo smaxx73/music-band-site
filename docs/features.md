@@ -657,8 +657,8 @@ rapide d'une session dans `/upload`, `/record` et au classement d'un enregistrem
   `/upload?session_id=` avec la session déjà sélectionnée (ignoré si hors du groupe actif)
 - Une prise est une **piste de tracklist**, pas une ligne de tableau (`RecordingRow.svelte`,
   partagé avec la vue morceau) : sans cadre, un fond au survol. Colonne de tête pour le
-  numéro, puis « Prise n » avec la provenance en gris dessous (fichier, déposant), les
-  pastilles (qualité, note, commentaires), les commandes, et la **durée calée à droite** en
+  numéro, puis « Prise n » — lien vers le lecteur complet — avec la provenance en gris
+  dessous (fichier, déposant), les pastilles (qualité, note, commentaires), les commandes, et la **durée calée à droite** en
   chiffres alignés. Elle ne redevient une carte que dépliée, pour que le tiroir des
   commentaires ait des bords à rejoindre. La grille se replie sur la largeur de la ligne
   (requête de conteneur) : ligne étroite, les pastilles passent sous le titre — jamais de
@@ -742,8 +742,11 @@ manque pas, rien n'a à être caché.
 
 **À la souris** (`@media (hover: hover) and (pointer: fine)`, pas une largeur), la ligne se
 lit comme une piste de streaming : le numéro devient ▶ au survol et remplace le bouton ▶ de
-droite, et ce qui s'écrit ou s'ouvre ailleurs (« + 📝 », « + 💬 », lecteur complet,
-playlist, partage) ne paraît qu'au survol ou au focus clavier. **Au doigt**, rien de tout cela : un
+droite, et ce qui s'écrit ou s'ouvre ailleurs (« + 📝 », « + 💬 », playlist, partage) ne
+paraît qu'au survol ou au focus clavier. Le **lecteur complet** fait exception : c'est
+l'accès principal à la prise, pas une commande secondaire. Son bouton (icône forme
+d'onde, pas la flèche « externe », qui promettait un autre site) reste visible, en
+dernier contre la durée, et « Prise n » y mène aussi, comme le titre du mini-lecteur. **Au doigt**, rien de tout cela : un
 `:hover` collant demanderait deux touchers pour lancer la lecture. Le numéro reste un
 numéro et le ▶ un vrai bouton, à toutes les largeurs — tablette en paysage comprise.
 
@@ -789,8 +792,8 @@ note, 💬 s'il y a des commentaires — plus l'écoute, et un menu ⋮ recueill
   les prises dans l'ordre de la page (les plus récentes d'abord)
 - **À plat**, sans intertitre de session : chaque prise se **titre par sa session** (date,
   en lien vers elle), avec « Prise n · lieu · déposant » dessous — comme une piste de
-  playlist se titre par son morceau. Le nom du fichier déposé passe en infobulle ; il se
-  lit en vue session
+  playlist se titre par son morceau. « Prise n » y mène au lecteur complet. Le nom du
+  fichier déposé passe en infobulle ; il se lit en vue session
 - **La fiche du morceau s'y modifie** : « Modifier » dans l'en-tête, comme sur une session,
   ouvre sous l'en-tête le même formulaire que le tableau de `/songs` (`SongFields.svelte`,
   recherche Deezer comprise) — titre, compositeur, tonalité, statut, reprise, année,
@@ -1254,7 +1257,8 @@ distincte des commentaires, qui sont datés et signés.
   ferait croire que la page parle de lui —, nombre de prises, durée et auteur
 - **Deux modes.** Par défaut, la playlist **se lit** : des pistes comme les prises d'une
   session (`PlaylistTrackRow.svelte`, même colonne de tête `TrackLead.svelte`), avec morceau,
-  prise, date, lieu, note de playlist, qualité et durée. « Modifier » passe en **mode
+  prise, date, lieu, note de playlist, qualité et durée. « Prise n » et le bouton forme
+  d'onde, toujours visible, mènent au lecteur complet. « Modifier » passe en **mode
   édition** (`PlaylistQueue.svelte`) : réordonner, retirer, ajouter des prises. Un geste de
   lecture ne doit rien déplacer par mégarde
 - Lecture en continu **par le mini-lecteur** : le ▶ de l'en-tête enchaîne la playlist dans

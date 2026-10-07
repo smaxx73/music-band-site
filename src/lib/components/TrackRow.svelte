@@ -9,7 +9,9 @@
 	// Classes que le contenu peut poser, et que la ligne interprète :
 	// - `row-quiet` : commande secondaire, qui ne paraît qu'au survol à la souris ;
 	// - `row-play`  : bouton ▶ de droite, remplacé à la souris par celui de la tête
-	//   (`TrackLead`) quand la piste a de l'audio.
+	//   (`TrackLead`) quand la piste a de l'audio ;
+	// - `row-link`  : lien posé dans le titre ou la ligne de dessous, qui garde la
+	//   couleur du texte et ne se souligne qu'au survol.
 	let {
 		current = false,
 		hasAudio = false,
@@ -131,6 +133,10 @@
 
 	.track-title { font-weight: 600; font-size: var(--text-base); }
 	.current .track-title { color: var(--color-accent); }
+
+	.track-body :global(.row-link) { color: inherit; text-decoration: none; }
+	.track-body :global(.row-link:hover) { text-decoration: underline; }
+	.track-meta :global(.row-link:hover) { color: var(--color-text); }
 
 	.track-meta {
 		font-size: var(--text-xs);

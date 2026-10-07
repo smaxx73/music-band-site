@@ -51,8 +51,10 @@
 
 {#snippet title()}{item.song_title}{/snippet}
 
+<!-- « Prise n » mène au lecteur complet, comme en vue morceau : le titre, lui, est
+     le morceau. -->
 {#snippet meta()}
-	Prise {item.take} · {formatDateOnly(item.session_date, { day: 'numeric', month: 'short', year: 'numeric' })}
+	<a class="row-link" href="/recording/{item.recording_id}">Prise {item.take}</a> · {formatDateOnly(item.session_date, { day: 'numeric', month: 'short', year: 'numeric' })}
 	{#if item.session_location} · {item.session_location}{/if}
 {/snippet}
 
@@ -65,10 +67,10 @@
 {#snippet actions()}
 	<a
 		href="/recording/{item.recording_id}"
-		class="btn btn-ghost btn-sm btn-icon row-quiet"
+		class="btn btn-ghost btn-sm btn-icon"
 		title="Ouvrir le lecteur complet"
 		aria-label="Ouvrir le lecteur complet"
-	><Icon name="external" /></a>
+	><Icon name="waveform" /></a>
 	<button
 		class="btn btn-secondary btn-sm btn-icon row-play"
 		onclick={onToggle}

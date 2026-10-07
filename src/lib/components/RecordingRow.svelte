@@ -230,13 +230,15 @@
 {/snippet}
 
 <!-- Le numéro de la colonne de tête s'efface au survol et pendant la lecture : le titre
-     le porte donc aussi, ou la session qui situe la prise en vue morceau. -->
+     le porte donc aussi, ou la session qui situe la prise en vue morceau.
+     « Prise n » mène au lecteur complet, comme le titre du mini-lecteur : c'est là
+     qu'on clique d'instinct. En vue morceau, le titre reste la session. -->
 {#snippet title()}
 	{#if hasVideo}<Icon name="video" size="0.85rem" label="Prise vidéo" />{/if}
 	{#if session}
-		<a class="title-link" href="/sessions/{session.id}">{session.label}</a>
+		<a class="row-link" href="/sessions/{session.id}">{session.label}</a>
 	{:else}
-		Prise {recording.take}
+		<a class="row-link" href="/recording/{recording.id}">Prise {recording.take}</a>
 	{/if}
 {/snippet}
 
@@ -244,7 +246,7 @@
 	{#if session}
 		<!-- Le nom du fichier se lit en vue session ; ici, il vaut son infobulle. -->
 		<span title={sourceTitle}>
-			Prise {recording.take}{#if session.location} · {session.location}{/if} · {recording.uploaded_by}
+			<a class="row-link" href="/recording/{recording.id}">Prise {recording.take}</a>{#if session.location} · {session.location}{/if} · {recording.uploaded_by}
 		</span>
 	{:else}
 		<span
@@ -358,7 +360,8 @@
 	<div class="row-actions">
 		<!-- `.row-quiet` : ce qui s'écrit ou s'ouvre ailleurs. À la souris, ça ne paraît
 		     qu'au survol de la ligne, comme les actions d'une piste de streaming. Sous
-		     640 px, `.row-wide-only` le retire et le menu ⋮ le recueille. -->
+		     640 px, `.row-wide-only` le retire et le menu ⋮ le recueille. Le lecteur
+		     complet n'en est pas : c'est l'accès principal à la prise, il reste visible. -->
 		{#if !recording.notes}
 			<a
 				href="/recording/{recording.id}#notes"
@@ -372,17 +375,6 @@
 				class="chip chip-add row-wide-only row-quiet"
 				title="Ajouter un commentaire dans le lecteur complet"
 			><Icon name="plus" size="0.7rem" /><Icon name="comment" size="0.85rem" /></a>
-		{/if}
-
-		{#if recording.file_path}
-			<a
-				href="/recording/{recording.id}"
-				class="btn btn-ghost btn-sm btn-icon row-wide-only row-quiet"
-				title="Ouvrir le lecteur complet"
-				aria-label="Ouvrir le lecteur complet"
-			>
-				<Icon name="external" />
-			</a>
 		{/if}
 
 		<!-- Même instance des deux côtés : le bouton porte la modale, et l'entrée de
@@ -408,6 +400,19 @@
 			showCount={false}
 			onOpenPublic={() => (shareOpen = true)}
 		/>
+
+		<!-- En dernier, contre la durée : au repos, les commandes au survol gardent leur
+		     place, et il flotterait sinon au milieu d'un vide. -->
+		{#if recording.file_path}
+			<a
+				href="/recording/{recording.id}"
+				class="btn btn-ghost btn-sm btn-icon row-wide-only"
+				title="Ouvrir le lecteur complet"
+				aria-label="Ouvrir le lecteur complet"
+			>
+				<Icon name="waveform" />
+			</a>
+		{/if}
 
 		<span class="row-play">
 			<RecordingPlaybackActions
@@ -537,13 +542,6 @@
 	/* La grille, le repli, le survol et l'état « en cours » sont ceux de `TrackRow`,
 	   communs à toutes les pistes. Il ne reste ici que ce qui est propre à une prise :
 	   qualité, pastilles, menu ⋮, note. */
-	.title-link {
-		color: inherit;
-		text-decoration: none;
-	}
-
-	.title-link:hover { text-decoration: underline; }
-
 	.row-tags {
 		display: flex;
 		align-items: center;
