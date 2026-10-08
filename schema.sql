@@ -98,6 +98,9 @@ CREATE TABLE songs (
     original_artist       TEXT,              -- artiste/groupe d'origine : renseigné = reprise,
                                              -- NULL = composition du groupe (distinct de `composer`)
     reference_duration_s  INTEGER,           -- durée cible/de référence, en secondes
+    tempo_bpm   INTEGER CHECK (tempo_bpm BETWEEN 20 AND 300),
+                                             -- tempo de référence (migration 050) ; donne le
+                                             -- clic de la feuille de répétition
     lyrics      TEXT,
     music_notes TEXT,                        -- accords, structure, tempo, remarques musicales
     status      TEXT DEFAULT 'en_apprentissage',

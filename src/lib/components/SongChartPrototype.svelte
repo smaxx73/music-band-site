@@ -4,6 +4,8 @@
 	import { chartSections, chordProTitle, chordRows, lyricLines, parseChordPro, type SheetView } from '$lib/chordpro'
 	import { moveAbcPitch } from '$lib/abc-editor'
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
+	import MetronomeControl from '$lib/components/Metronome.svelte'
+	import { Metronome } from '$lib/metronome.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import type { ConfirmRequest } from '$lib/confirm-submit.svelte'
 	import { formatTimecode } from '$lib/youtube'
@@ -35,6 +37,7 @@
 		songLyrics = null,
 		songMusicNotes = null,
 		songDuration = null,
+		songTempo = null,
 		initialSheet = null,
 		breadcrumb
 	}: {
@@ -45,6 +48,8 @@
 		songMusicNotes?: string | null
 		/** Durée de référence du morceau, en secondes : le pupitre défile à son rythme. */
 		songDuration?: number | null
+		/** Tempo de référence du morceau (BPM) : la feuille propose un clic à ce tempo. */
+		songTempo?: number | null
 		/** Feuille du morceau déjà enregistrée, chargée avec la page. */
 		initialSheet?: Sheet | null
 		breadcrumb?: Snippet
@@ -141,6 +146,8 @@ K:D
 	// Un doigt posé sur la feuille la retient : le défilement ne lutte pas contre lui.
 	let stageHeld = false
 	const stageScale = $derived(STAGE_SCALES[scaleIndex])
+	// Un seul clic pour la lecture et le pupitre : ouvrir le pupitre ne le coupe pas.
+	const metronome = untrack(() => songTempo ? new Metronome(songTempo) : null)
 	let documentId = $state<number | null>(untrack(() => initialSheet?.id ?? null))
 	let documentTitle = $state(untrack(() => initialSheet?.title ?? songTitle))
 	// Dernier enregistrement : dit si la feuille a bougé depuis la dernière répétition.
@@ -219,7 +226,13 @@ K:D
 			document.removeEventListener('fullscreenchange', onFullscreenChange)
 			document.removeEventListener('visibilitychange', onVisibility)
 			if (stage) closeStage()
+			metronome?.destroy()
 		}
+	})
+
+	// L'atelier ne montre pas le clic : il ne doit pas y battre sans moyen de l'arrêter.
+	$effect(() => {
+		if (mode === 'edit') untrack(() => metronome?.stop())
 	})
 
 	$effect(() => {
@@ -1022,6 +1035,7 @@ K:D
 				{#if canTranspose}
 					<label class="read-transpose">Transposer <select bind:value={readTranspose}>{@render transposeOptions()}</select></label>
 				{/if}
+				{#if metronome}<MetronomeControl {metronome} small />{/if}
 				<div class="stage-group" role="group" aria-label="Défilement automatique">
 					<button class="btn btn-primary btn-sm stage-play" onclick={toggleScroll} aria-pressed={scrolling} title="Espace"><Icon name={scrolling ? 'pause' : 'play'} /> {scrolling ? 'Pause' : 'Défiler'}</button>
 					{#if songDuration}
@@ -1061,6 +1075,7 @@ K:D
 							Transposer <select bind:value={readTranspose}>{@render transposeOptions()}</select>
 						</label>
 					{/if}
+					{#if metronome}<MetronomeControl {metronome} />{/if}
 					<button class="btn btn-secondary" onclick={printDocument}><Icon name="download" /> Imprimer / PDF</button>
 					<button class="btn btn-secondary" onclick={startEditing}><Icon name="pencil" /> Modifier</button>
 					<button class="btn btn-primary" onclick={openStage}><Icon name="fullscreen" /> Pupitre</button>

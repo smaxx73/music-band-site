@@ -14,6 +14,13 @@ export const SONG_STATUS_LABELS: Record<string, string> = {
 }
 
 /**
+ * Tempo de référence (`songs.tempo_bpm`) : ce qu'un métronome joue utilement. En deçà ou
+ * au-delà, c'est une faute de frappe — la base porte la même borne.
+ */
+export const TEMPO_MIN_BPM = 20
+export const TEMPO_MAX_BPM = 300
+
+/**
  * Crédit d'un morceau, comme sur un album : l'interprète d'abord — le groupe, qui le
  * joue, reprise ou non —, puis l'origine : « reprise de Stevie Wonder », « écrit par
  * Julie ». Une reprise est un morceau qui a un artiste original ; sans lui, c'est une

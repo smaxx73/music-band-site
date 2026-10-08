@@ -194,6 +194,7 @@ export type Song = {
 	release_year: number | null
 	original_artist: string | null
 	reference_duration_s: number | null
+	tempo_bpm: number | null
 	lyrics: string | null
 	music_notes: string | null
 	status: SongStatus

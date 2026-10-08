@@ -16,6 +16,7 @@
 		original_artist: string | null
 		release_year: number | null
 		reference_duration_s: number | null
+		tempo_bpm: number | null
 		lyrics: string | null
 		music_notes: string | null
 	}
@@ -157,6 +158,19 @@
 				placeholder="mm:ss"
 			/>
 		</label>
+		<!-- Donne le clic de la feuille de répétition. -->
+		<label class="form-label tempo">
+			Tempo (BPM)
+			<input
+				class="form-input"
+				type="text"
+				inputmode="numeric"
+				name="tempo_bpm"
+				value={song?.tempo_bpm ?? ''}
+				placeholder="ex : 120"
+				maxlength="3"
+			/>
+		</label>
 	</div>
 	<details class="optional-details" open={Boolean(song?.lyrics || song?.music_notes)}>
 		<summary>Paroles et accords <span class="optional-hint">(optionnel)</span></summary>
@@ -206,7 +220,7 @@
 
 	.fields-row {
 		display: grid;
-		grid-template-columns: 110px 175px 130px 110px;
+		grid-template-columns: 110px 175px 130px 110px 100px;
 		/* Un libellé sur deux lignes (« Durée de référence ») ne décale pas son champ. */
 		align-items: end;
 		gap: 0.65rem;

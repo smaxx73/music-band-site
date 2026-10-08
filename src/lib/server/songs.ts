@@ -1,5 +1,6 @@
 import sql from '$lib/server/db'
 import { setSongCoverFromCatalog } from '$lib/server/song-covers'
+import { TEMPO_MAX_BPM, TEMPO_MIN_BPM } from '$lib/songs'
 
 export type SongDeleteResult = { ok: true } | { ok: false; status: number; error: string }
 
@@ -40,6 +41,7 @@ export type SongFormFields = {
 	original_artist: string | null
 	release_year: number | null
 	reference_duration_s: number | null
+	tempo_bpm: number | null
 	lyrics: string | null
 	music_notes: string | null
 }
@@ -64,6 +66,15 @@ function parseDuration(raw: string | null): number | null | typeof INVALID {
 	return INVALID
 }
 
+/** "120" (BPM, entier, borné) ; vide → null. */
+function parseTempo(raw: string | null): number | null | typeof INVALID {
+	const trimmed = raw?.trim()
+	if (!trimmed) return null
+	if (!/^\d+$/.test(trimmed)) return INVALID
+	const bpm = Number(trimmed)
+	return bpm >= TEMPO_MIN_BPM && bpm <= TEMPO_MAX_BPM ? bpm : INVALID
+}
+
 /**
  * Fiche d'un morceau telle que l'envoie le formulaire (`SongFields.svelte`), de /songs
  * comme de la page du morceau : les deux appliquent ainsi les mêmes règles.
@@ -78,6 +89,8 @@ export function parseSongForm(data: FormData): { ok: true; fields: SongFormField
 	if (release_year === INVALID) return { ok: false, error: 'Année de sortie invalide (AAAA).' }
 	const reference_duration_s = parseDuration(data.get('reference_duration') as string | null)
 	if (reference_duration_s === INVALID) return { ok: false, error: 'Durée de référence invalide (mm:ss).' }
+	const tempo_bpm = parseTempo(data.get('tempo_bpm') as string | null)
+	if (tempo_bpm === INVALID) return { ok: false, error: `Tempo invalide (BPM, de ${TEMPO_MIN_BPM} à ${TEMPO_MAX_BPM}).` }
 	// Une reprise se reconnaît à son artiste original : sans lui, rien ne la distinguerait
 	// d'une composition du groupe. Une composition n'en a jamais, même resté d'une saisie.
 	const origin = data.get('origin')
@@ -93,6 +106,7 @@ export function parseSongForm(data: FormData): { ok: true; fields: SongFormField
 			original_artist,
 			release_year,
 			reference_duration_s,
+			tempo_bpm,
 			lyrics: text('lyrics'),
 			music_notes: text('music_notes')
 		}
@@ -118,6 +132,7 @@ export async function updateSong(
 				release_year = ${f.release_year},
 				original_artist = ${f.original_artist},
 				reference_duration_s = ${f.reference_duration_s},
+				tempo_bpm = ${f.tempo_bpm},
 				lyrics = ${f.lyrics},
 				music_notes = ${f.music_notes},
 				status = ${f.status}

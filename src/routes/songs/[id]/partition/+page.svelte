@@ -12,6 +12,7 @@
 		songLyrics={data.song.lyrics}
 		songMusicNotes={data.song.music_notes}
 		songDuration={data.song.reference_duration_s}
+		songTempo={data.song.tempo_bpm}
 		initialSheet={data.sheet}
 	>
 		{#snippet breadcrumb()}

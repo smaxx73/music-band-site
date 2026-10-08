@@ -935,6 +935,19 @@ morceau (`score_documents.song_id` unique), au groupe : tout membre la crée et 
     La marge est portée par la feuille, et répétée sur chaque page
     (`box-decoration-break: clone`). Pas de numéro de page : il faudrait une marge de page,
     où le navigateur remettrait les siens
+- **Clic** au tempo du morceau, quand sa fiche a un **tempo de référence**
+  (`songs.tempo_bpm`, migration 050, 20 à 300 BPM) : un bouton « Clic 96 BPM » en lecture
+  et au pupitre, rien sans tempo (`Metronome.svelte`, moteur `src/lib/metronome.svelte.ts`).
+  Un **témoin** dans le bouton s'allume à chaque battement, pour qui ne l'entend pas par-dessus
+  le groupe ou joue au casque. Au repos, ce seul bouton ; en jouant seulement, − / + règlent
+  le tempo d'un BPM et « ↺ 96 » ramène à celui de la fiche — le groupe joue rarement au
+  tempo exact, et s'en écarter ne modifie pas la fiche
+  - Les clics sont posés sur l'horloge de l'audio (Web Audio), pas sur une minuterie, qui
+    dériverait à l'oreille ; le témoin suit la même horloge, latence de sortie comprise.
+    Onglet en arrière-plan, ils sont posés plus loin d'avance pour ne pas bégayer
+  - Un seul clic pour la lecture et le pupitre : ouvrir le pupitre ne le coupe pas.
+    « Modifier » l'arrête. Pas de temps fort : la fiche ne dit pas la mesure, et un
+    accent sur le mauvais temps gênerait plus qu'un clic égal
 - **Pupitre** (action principale de la lecture) : la feuille seule, en plein écran, pour
   une tablette posée sur le pupitre ou un écran au bout de la salle. Ni navigation, ni
   barre du haut, ni mini-lecteur ; une colonne qui défile. L'écran est **gardé allumé**
@@ -1637,7 +1650,8 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 ## Référentiel de morceaux (`/songs`)
 
 - Géré par tout membre du groupe actif (pas réservé aux admins) — scope toujours par `current_group_id`
-- Ajout : titre (unique dans le groupe), tonalité, statut, année, durée de référence
+- Ajout : titre (unique dans le groupe), tonalité, statut, année, durée de référence,
+  tempo en BPM (le clic de la feuille de répétition)
 - **Composition du groupe ou reprise**, choisi en tête du formulaire (`SongFields.svelte`) :
   c'est ce qui dit quoi écrire où. Pas de colonne en base — une reprise est un morceau qui
   a un artiste original (`original_artist`) :

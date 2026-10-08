@@ -44,6 +44,7 @@
 		id: number; title: string; composer: string | null
 		key: string | null; release_year: number | null
 		original_artist: string | null; reference_duration_s: number | null
+		tempo_bpm: number | null
 		lyrics: string | null
 		music_notes: string | null; status: string
 		cover_version: number | null
@@ -134,8 +135,12 @@
 			{#if credit.detail}· {credit.detail}{/if}
 			{#if song.release_year}<span class="year">({song.release_year})</span>{/if}
 		</p>
-		{#if song.reference_duration_s}
-			<p class="ref-duration">Durée de référence : {formatDuration(song.reference_duration_s)}</p>
+		{#if song.reference_duration_s || song.tempo_bpm}
+			<p class="ref-duration">
+				{#if song.reference_duration_s}Durée de référence : {formatDuration(song.reference_duration_s)}{/if}
+				{#if song.reference_duration_s && song.tempo_bpm}·{/if}
+				{#if song.tempo_bpm}{song.tempo_bpm} BPM{/if}
+			</p>
 		{/if}
 		{#snippet actions()}
 			{#if !editing}

@@ -96,6 +96,8 @@ src/
 │       ├── SessionPhotoField.svelte # photo de bandeau en édition de session : remplacer, retirer, voile
 │       ├── SongChartPrototype.svelte # feuille de répétition : lecture, et atelier de blocs
 │       │                          #   ChordPro / ABC en édition
+│       ├── Metronome.svelte       # clic au tempo du morceau et son témoin (feuille de
+│       │                          #   répétition) ; moteur : src/lib/metronome.svelte.ts
 │       └── SongDetails.svelte     # paroles et notes musicales
 ├── routes/
 │   ├── +layout.svelte     # layout global + vérif auth

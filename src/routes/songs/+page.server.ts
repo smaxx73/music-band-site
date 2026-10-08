@@ -42,7 +42,7 @@ export const actions: Actions = {
 			const [song] = await sql<{ id: number }[]>`
 				INSERT INTO songs (
 					group_id, title, composer, key, release_year, original_artist,
-					reference_duration_s, lyrics, music_notes, status
+					reference_duration_s, tempo_bpm, lyrics, music_notes, status
 				)
 				VALUES (
 					${locals.user.current_group_id},
@@ -52,6 +52,7 @@ export const actions: Actions = {
 					${f.release_year},
 					${f.original_artist},
 					${f.reference_duration_s},
+					${f.tempo_bpm},
 					${f.lyrics},
 					${f.music_notes},
 					${f.status}
