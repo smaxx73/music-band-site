@@ -137,14 +137,17 @@
 
 	onDestroy(() => {
 		destroyed = true
+		// Le rendu serveur exécute aussi ce hook : sans navigateur il n'y a rien à libérer,
+		// et `cancelAnimationFrame` n'existe pas dans Node.
+		if (typeof window === 'undefined') return
 		if (recorder && recorder.state !== 'inactive') recorder.stop()
 		releaseInput()
 		stopTimer()
 		releaseWakeLock()
 		cancelAnimationFrame(previewRaf)
 		if (previewUrl) URL.revokeObjectURL(previewUrl)
-		if (typeof window !== 'undefined') window.removeEventListener('beforeunload', onBeforeUnload)
-		if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', onVisibility)
+		window.removeEventListener('beforeunload', onBeforeUnload)
+		document.removeEventListener('visibilitychange', onVisibility)
 	})
 
 	// ─── Entrée audio ──────────────────────────────────────────────────────
