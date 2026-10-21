@@ -327,7 +327,7 @@
 			initialType={publishType}
 			initialRecordingId={publishRecordingId}
 			onClose={() => (publishOpen = false)}
-			onPublished={(postId) => goto(`/posts/${postId}`)}
+			onPublished={(postId) => { publishOpen = false; goto(`/posts/${postId}`) }}
 		/>
 	{/if}
 </main>

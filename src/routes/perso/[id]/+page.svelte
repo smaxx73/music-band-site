@@ -238,7 +238,7 @@
 			recordings={[{ id: recording.id, title: recording.title, published_here: publishedHere, has_audio: recording.file_path !== null }]}
 			initialRecordingId={recording.id}
 			onClose={() => (publishOpen = false)}
-			onPublished={(postId) => goto(`/posts/${postId}`)}
+			onPublished={(postId) => { publishOpen = false; goto(`/posts/${postId}`) }}
 		/>
 	{/if}
 
