@@ -23,6 +23,15 @@
 	// la lecture en cours et un formulaire entamé, c'est au membre de choisir son moment.
 	let updateNoticeDismissed = $state(false)
 
+	// Les non lues des autres groupes : rendues avec la page, puis sondées comme la cloche.
+	// Une nouvelle valeur du serveur (navigation) reprend la main.
+	let polledUnread = $state<{ from: unknown; value: Record<number, number> } | null>(null)
+	const unreadByGroup = $derived(
+		polledUnread && polledUnread.from === data.unread_by_group
+			? polledUnread.value
+			: (data.unread_by_group ?? {})
+	)
+
 	// Le cookie du groupe est commun aux onglets. Au retour dans cet onglet, on
 	// recharge l'ensemble de la page si un autre onglet l'a changé.
 	onMount(() => {
@@ -46,10 +55,25 @@
 		function checkUpdate() {
 			if (document.visibilityState === 'visible' && !updated.current) updated.check()
 		}
+		async function refreshGroupUnread() {
+			if (!data.user || data.user.groups.length < 2 || document.visibilityState !== 'visible') return
+			try {
+				const res = await fetch('/api/notifications?limit=1', { cache: 'no-store' })
+				if (!res.ok) return
+				const { unread_by_group } = await res.json()
+				polledUnread = { from: data.unread_by_group, value: unread_by_group }
+			} catch {
+				// Hors ligne : la pastille garde sa valeur jusqu'au prochain tour.
+			}
+		}
+		const unreadTimer = setInterval(refreshGroupUnread, 60_000)
+		document.addEventListener('visibilitychange', refreshGroupUnread)
 		window.addEventListener('focus', checkActiveGroup)
 		document.addEventListener('visibilitychange', checkActiveGroup)
 		document.addEventListener('visibilitychange', checkUpdate)
 		return () => {
+			clearInterval(unreadTimer)
+			document.removeEventListener('visibilitychange', refreshGroupUnread)
 			window.removeEventListener('focus', checkActiveGroup)
 			document.removeEventListener('visibilitychange', checkActiveGroup)
 			document.removeEventListener('visibilitychange', checkUpdate)
@@ -143,7 +167,7 @@
 			<!-- Au téléphone, la barre latérale n'existe plus : le groupe actif prend la
 			     place du logo, à gauche de la barre du haut. -->
 			<div class="bar-group">
-				<GroupSwitcher groups={data.user.groups} currentGroupId={data.user.current_group_id} variant="bar" />
+				<GroupSwitcher groups={data.user.groups} currentGroupId={data.user.current_group_id} {unreadByGroup} variant="bar" />
 			</div>
 			<div class="top-spacer"></div>
 			{#if data.user.current_group_id}
@@ -170,7 +194,7 @@
 			     masquée, remplacée par la barre d'onglets du bas. -->
 			<nav class="app-sidebar" aria-label="Navigation principale">
 				<div class="sidebar-group">
-					<GroupSwitcher groups={data.user.groups} currentGroupId={data.user.current_group_id} variant="sidebar" />
+					<GroupSwitcher groups={data.user.groups} currentGroupId={data.user.current_group_id} {unreadByGroup} variant="sidebar" />
 				</div>
 				<div class="sidebar-add">
 					<AddMenu variant="sidebar" hasGroup={!!data.user.current_group_id} />

@@ -1904,8 +1904,10 @@ Qui est qui, et qui a fait quoi, dans le groupe actif.
   notification comme lue ou non lue (pastille à droite de la ligne), tout marquer comme lu.
   Ouvrir une notification la marque lue puis navigue vers la page concernée. Une
   notification de commentaire mène au commentaire lui-même (`#comment-<id>`), mis en
-  évidence. Pas de temps réel : une page ouverte ne voit pas arriver les commentaires des
-  autres, mais ouvrir la notification **recharge ses données** même si l'on y est déjà
+  évidence. Pas de temps réel : les commentaires d'une page de prise, de setlist ou de
+  publication se rechargent toutes les 30 s et au retour dans l'onglet (`CommentsPanel`, onglet
+  visible seulement ; le brouillon n'est jamais touché, et le fil, lui, ne se sonde pas).
+  Ouvrir la notification **recharge** de plus **ses données** même si l'on y est déjà
   (`invalidateAll`), sans couper la lecture ni la saisie en cours. En pied de
   menu, « Tout le fil d'actualité » mène à `/fil` : on ouvre la cloche pour savoir « quoi de
   neuf », et le fil en est la réponse complète
@@ -1915,6 +1917,10 @@ Qui est qui, et qui a fait quoi, dans le groupe actif.
   `playlist_id`, `setlist_id`, `post_id` en `ON DELETE CASCADE`) plutôt que de pointer vers une page supprimée
 - La pastille est comptée côté serveur dans `+layout.server.ts` — juste dès le premier rendu —
   puis rafraîchie par le menu toutes les 60 s tant qu'il reste fermé
+- **Autres groupes** : un point sur le sélecteur de groupe et, dans son menu, le nombre de
+  non lues en face de chaque groupe non ouvert (`unreadByGroup`, `notifications.ts`). Compté
+  avec la page, puis sondé toutes les 60 s dans `+layout.svelte` avec la réponse de
+  `GET /api/notifications` (`unread_by_group`), onglet visible et plusieurs groupes seulement
 - Le menu est lié au groupe pour lequel il a été rendu : recréé à chaque bascule, et si un
   autre onglet a changé de groupe (cookie commun), l'API répond `409` et l'onglet se resynchronise
 - Aucune purge : la table grandit indéfiniment, à traiter quand le volume le justifiera

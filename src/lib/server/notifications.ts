@@ -219,6 +219,17 @@ export async function unreadCount(userId: number, groupId: number | null): Promi
 	return row?.count ?? 0
 }
 
+/** Non lues par groupe, pour signaler dans le sélecteur ceux où l'on n'est pas. */
+export async function unreadByGroup(userId: number): Promise<Record<number, number>> {
+	const rows = await sql<{ group_id: number; count: number }[]>`
+		SELECT group_id, COUNT(*)::int AS count
+		FROM notifications
+		WHERE user_id = ${userId} AND read_at IS NULL
+		GROUP BY group_id
+	`
+	return Object.fromEntries(rows.map((r) => [r.group_id, r.count]))
+}
+
 /**
  * Le groupe actif vit dans un cookie partagé par tous les onglets : un onglet resté sur
  * le groupe A interrogerait sinon l'API pour le groupe B, basculé ailleurs, et afficherait

@@ -1,6 +1,6 @@
 import type { LayoutServerLoad } from './$types'
 import { redirect } from '@sveltejs/kit'
-import { unreadCount } from '$lib/server/notifications'
+import { unreadCount, unreadByGroup } from '$lib/server/notifications'
 import { loginRedirect } from '$lib/redirect'
 
 // "/" (hors connexion) et "/accueil" (toujours) servent la page d'accueil publique —
@@ -40,5 +40,9 @@ export const load: LayoutServerLoad = async ({ locals, url, cookies }) => {
 		? await unreadCount(locals.user.id, locals.user.current_group_id)
 		: 0
 
-	return { user: locals.user, unread_notifications, group_switched_to }
+	// Seulement avec plusieurs groupes : sinon le sélecteur n'a rien à signaler.
+	const unread_by_group =
+		locals.user && locals.user.groups.length > 1 ? await unreadByGroup(locals.user.id) : {}
+
+	return { user: locals.user, unread_notifications, unread_by_group, group_switched_to }
 }

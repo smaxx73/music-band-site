@@ -13,10 +13,13 @@
 	let {
 		groups,
 		currentGroupId,
+		unreadByGroup = {},
 		variant
 	}: {
 		groups: Group[]
 		currentGroupId: number | null
+		/** Notifications non lues par id de groupe. */
+		unreadByGroup?: Record<number, number>
 		/** `sidebar` : nom et mention « Groupe actif » ; `bar` : nom seul, barre du haut. */
 		variant: 'sidebar' | 'bar'
 	} = $props()
@@ -26,6 +29,10 @@
 	let error = $state<string | null>(null)
 
 	const current = $derived(groups.find((g) => g.id === currentGroupId))
+	// Ce que le groupe actif a de non lu est déjà sur la cloche : seuls les autres comptent.
+	const otherUnread = $derived(
+		groups.reduce((n, g) => (g.id === currentGroupId ? n : n + (unreadByGroup[g.id] ?? 0)), 0)
+	)
 
 	function initials(name: string) {
 		return name
@@ -69,6 +76,7 @@
 		{#if variant === 'sidebar'}<span class="gs-sub">Groupe actif</span>{/if}
 	</span>
 	{#if withChevron}
+		{#if otherUnread > 0}<span class="gs-dot" aria-hidden="true"></span>{/if}
 		<Icon name={variant === 'sidebar' ? 'chevrons-up-down' : 'chevron-down'} class="gs-chevron" size="1rem" />
 	{/if}
 {/snippet}
@@ -87,7 +95,7 @@
 				{...menu}
 				type="button"
 				class="gs-trigger gs-trigger-{variant}"
-				aria-label="Groupe actif : {current.name}. Changer de groupe"
+				aria-label="Groupe actif : {current.name}. Changer de groupe{otherUnread > 0 ? '. Notifications non lues dans un autre groupe' : ''}"
 				aria-busy={switching}
 			>
 				{@render identity(current, true)}
@@ -106,6 +114,11 @@
 			>
 				{@render badge(group)}
 				<span class="gs-option">{group.name}</span>
+				{#if group.id !== currentGroupId && unreadByGroup[group.id]}
+					<span class="gs-unread" aria-label="{unreadByGroup[group.id]} non lues">
+						{unreadByGroup[group.id] > 99 ? '99+' : unreadByGroup[group.id]}
+					</span>
+				{/if}
 				{#if group.id === currentGroupId}<Icon name="check" size="1rem" class="gs-check" />{/if}
 			</button>
 		{/each}
@@ -202,6 +215,27 @@
 		width: 26px;
 		height: 26px;
 		box-shadow: inset 0 0 0 1px var(--color-border-light);
+	}
+
+	/* Pastille d'un groupe non ouvert : sur le déclencheur un simple point, dans le menu le compte. */
+	.gs-dot {
+		width: 9px;
+		height: 9px;
+		flex-shrink: 0;
+		border-radius: 50%;
+		background: var(--color-accent);
+	}
+
+	.gs-unread {
+		min-width: 1.35rem;
+		padding: 0.05rem 0.4rem;
+		border-radius: 999px;
+		background: var(--color-accent-dark);
+		color: #fff;
+		font-size: var(--text-2xs);
+		font-weight: 700;
+		line-height: 1.4;
+		text-align: center;
 	}
 
 	.gs-head {

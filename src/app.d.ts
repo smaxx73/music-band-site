@@ -38,6 +38,7 @@ declare global {
 				groups: { id: number; name: string; role: 'admin' | 'member'; logo_version: number | null }[]
 			} | null
 			unread_notifications?: number
+			unread_by_group?: Record<number, number>
 		}
 		// interface PageState {}
 		// interface Platform {}

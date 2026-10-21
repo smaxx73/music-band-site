@@ -107,6 +107,33 @@
 		input?.focus()
 	})
 
+	// Sondage discret, comme la cloche : sans temps réel, c'est ce qui fait arriver les
+	// commentaires des autres pendant qu'on réécoute. Pas sous une carte du fil, qui se
+	// recharge avec la page. Le brouillon n'est jamais touché : seule la liste change.
+	async function refreshComments() {
+		if (inline || submitting || document.visibilityState !== 'visible') return
+		try {
+			const res = await fetch(`/api/comments?${threadParam(thread)}=${thread.id}`, { cache: 'no-store' })
+			if (!res.ok) return
+			const fresh = (await res.json()) as CommentWithReactions[]
+			if (submitting || JSON.stringify(fresh) === JSON.stringify(displayComments)) return
+			displayComments = fresh
+			onCommentsChange(fresh)
+		} catch {
+			// Hors ligne : la liste reste telle quelle jusqu'au prochain tour.
+		}
+	}
+
+	$effect(() => {
+		if (inline) return
+		const timer = setInterval(refreshComments, 30_000)
+		document.addEventListener('visibilitychange', refreshComments)
+		return () => {
+			clearInterval(timer)
+			document.removeEventListener('visibilitychange', refreshComments)
+		}
+	})
+
 	function formatTime(s: number) {
 		if (!isFinite(s)) return '0:00'
 		const m = Math.floor(s / 60)

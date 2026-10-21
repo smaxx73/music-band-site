@@ -1,10 +1,10 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
-import { isStaleGroup, listNotifications, markAllRead, unreadCount } from '$lib/server/notifications'
+import { isStaleGroup, listNotifications, markAllRead, unreadByGroup, unreadCount } from '$lib/server/notifications'
 
 const STALE_GROUP = { error: 'Le groupe actif a changé.' }
 
-// GET /api/notifications?unread=1&limit=20&group_id= → { items, unread_count }
+// GET /api/notifications?unread=1&limit=20&group_id= → { items, unread_count, unread_by_group }
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
 	const groupId = locals.user.current_group_id
@@ -18,17 +18,19 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		return json({ error: 'limit invalide.' }, { status: 400 })
 	}
 
-	const [items, unread_count] = await Promise.all([
+	const [items, unread_count, unread_by_group] = await Promise.all([
 		listNotifications(locals.user.id, groupId, {
 			unreadOnly,
 			limit: rawLimit === null ? undefined : parseInt(rawLimit)
 		}),
 		// Toujours le total non lu du groupe, même quand la liste est filtrée :
 		// c'est lui que la pastille du menu affiche.
-		unreadCount(locals.user.id, groupId)
+		unreadCount(locals.user.id, groupId),
+		// Pour le sélecteur de groupe : ce qui attend dans les groupes non ouverts.
+		unreadByGroup(locals.user.id)
 	])
 
-	return json({ items, unread_count })
+	return json({ items, unread_count, unread_by_group })
 }
 
 // PATCH /api/notifications?group_id= { read: true } → tout marquer comme lu dans le groupe actif
