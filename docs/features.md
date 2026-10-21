@@ -322,7 +322,10 @@ au milieu de la salle, ou l'interface audio branchée au PC.
   secours effacée, et le micro reste ouvert pour repartir — annuler n'est pas quitter
   l'écran. Au-delà de 5 s, une confirmation `warning` nomme la durée perdue ;
   l'enregistrement continue pendant la question, pour que « non » ne coûte rien. Même
-  confirmation sur « Recommencer », qui jette un enregistrement déjà terminé
+  confirmation sur « Jeter et recommencer », qui jette un enregistrement déjà terminé : placé
+  sous le résumé « Enregistrement prêt » (avant le recadrage), doublé d'un « Annuler » à côté
+  de l'envoi dans le formulaire de classement. Une annulation le dit (« Enregistrement annulé.
+  Le micro reste ouvert »)
 - **Écran gardé allumé** (Wake Lock) pendant l'enregistrement, repris au retour sur
   l'onglet : un téléphone qui se verrouille coupe le micro. L'écran dit quand le navigateur
   ne le permet pas
@@ -368,7 +371,7 @@ rouvrir le micro, rechoisir l'entrée et attendre la conversion cassait le rythm
   puis direction la session. **Rien de neuf côté serveur.** Envoyer au fil de l'eau a été
   écarté : au téléphone, l'envoi disputerait réseau et batterie à la captation
 - Retirer une prise de la série demande confirmation (`warning`) : elle n'existe encore
-  que dans ce navigateur. Celle qu'affiche l'enregistreur passe par son « Recommencer »
+  que dans ce navigateur. Celle qu'affiche l'enregistreur passe par son « Jeter et recommencer »
 - **Une série interrompue** (onglet fermé, plantage) se récupère d'un bloc : chaque prise
   reprend sa place, dans l'ordre où elle a été jouée, et la session du jour est proposée.
   Ailleurs (`/perso`, publication), l'enregistreur renvoie vers « Enregistrer » plutôt que

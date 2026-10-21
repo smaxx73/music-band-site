@@ -602,6 +602,7 @@
 				</p>
 			{/if}
 
+			<div class="submit-row">
 			<button
 				type="submit"
 				class="btn btn-primary btn-lg submit-btn"
@@ -618,6 +619,10 @@
 					Envoyer la prise
 				{/if}
 			</button>
+				<button type="button" class="btn btn-secondary btn-lg" onclick={() => recorderRef?.requestDiscard()} disabled={uploading}>
+					Annuler
+				</button>
+			</div>
 		</form>
 	{/if}
 </main>
@@ -733,6 +738,7 @@
 	}
 
 	.submit-btn { align-self: flex-start; }
+	.submit-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
 
 	.series-unassigned {
 		display: flex;

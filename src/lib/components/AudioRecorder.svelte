@@ -57,6 +57,8 @@
 	let phase = $state<Phase>('idle')
 	let error = $state<string | null>(null)
 	let warning = $state<string | null>(null)
+	// Dit qu'une annulation a bien eu lieu : l'écran revient sinon au point de départ sans un mot.
+	let notice = $state<string | null>(null)
 
 	let devices = $state<MediaDeviceInfo[]>([])
 	let deviceId = $state('')
@@ -300,6 +302,7 @@
 	}
 
 	async function start() {
+		notice = null
 		if (!stream || phase !== 'armed' || pending.length) return
 		phase = 'starting'
 		error = null
@@ -455,6 +458,7 @@
 		// Seule la prise jetée part : celles d'une série attendent encore leur envoi.
 		if (take) deleteTakes([take.id]).catch(() => {})
 		cancelling = false
+		notice = 'Enregistrement annulé. Le micro reste ouvert : tu peux repartir.'
 		chunks = []
 		take = null
 		seq = 0
@@ -545,6 +549,7 @@
 		discardResult()
 		resetProgress()
 		if (discarded) deleteTakes([discarded.id]).catch(() => {})
+		notice = 'Enregistrement jeté. Le micro reste ouvert : tu peux repartir.'
 		if (stream?.active) phase = 'armed'
 		else await arm()
 	}
@@ -932,6 +937,10 @@
 					<Icon name="check" />
 					Enregistrement prêt — {formatElapsed(elapsedS)} · {formatSize(sizeBytes)}
 				</p>
+				<!-- Près du résumé, pas après le recadrage : c'est ici qu'on décide de garder ou non. -->
+				<button type="button" class="btn btn-secondary btn-sm discard-btn" onclick={() => requestCancel('result')} {disabled}>
+					Jeter et recommencer
+				</button>
 				{#if onkeep}
 					<!-- Entre deux morceaux, le geste attendu : il passe avant le recadrage. -->
 					<button type="button" class="btn btn-primary start-btn" onclick={keepAndNext} {disabled}>
@@ -990,9 +999,6 @@
 						</div>
 					</div>
 				{/if}
-				<button type="button" class="btn btn-ghost btn-sm" onclick={() => requestCancel('result')} {disabled}>
-					Recommencer
-				</button>
 			</div>
 		{:else}
 			{#if devices.length > 1}
@@ -1060,6 +1066,9 @@
 			{#if warning}
 				<p class="message-error">{warning}</p>
 			{/if}
+			{#if notice && phase === 'armed'}
+				<p class="hint" role="status">{notice}</p>
+			{/if}
 			{#if busy}
 				<p class="hint">
 					Garde cette page ouverte et l'écran allumé : changer d'application ou verrouiller le
@@ -1080,7 +1089,7 @@
 <ConfirmDialog
 	open={confirming !== null}
 	level="warning"
-	title={confirming === 'result' ? 'Recommencer ?' : confirming === 'pending' ? 'Supprimer ?' : "Annuler l'enregistrement ?"}
+	title={confirming === 'result' ? 'Jeter et recommencer ?' : confirming === 'pending' ? 'Supprimer ?' : "Annuler l'enregistrement ?"}
 	message={confirming === 'result'
 		? `L'enregistrement de ${formatElapsed(elapsedS)} sera perdu, et le micro rouvert pour un nouveau.`
 		: confirming === 'pending'
@@ -1088,7 +1097,7 @@
 				? `Les ${pending.length} prises non envoyées (${formatElapsed(pendingDurationS)}) seront perdues.`
 				: `L'enregistrement non envoyé de ${formatElapsed(pendingDurationS)} sera perdu.`
 			: `Les ${formatElapsed(elapsedS)} enregistrées seront perdues. Le micro reste ouvert pour recommencer.`}
-	confirmLabel={confirming === 'result' ? 'Recommencer' : confirming === 'pending' ? 'Supprimer' : "Annuler l'enregistrement"}
+	confirmLabel={confirming === 'result' ? 'Jeter' : confirming === 'pending' ? 'Supprimer' : "Annuler l'enregistrement"}
 	cancelLabel={confirming === 'result' || confirming === 'pending' ? 'Garder' : "Continuer l'enregistrement"}
 	onConfirm={() => (confirming === 'result' ? restart() : confirming === 'pending' ? dropPending() : cancelRecording())}
 	onCancel={() => (confirming = null)}
@@ -1185,6 +1194,7 @@
 	.buttons .btn { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 40px; }
 
 	/* Annuler n'est pas au même rang que Pause et Terminer : on l'atteint sans le heurter. */
+	.discard-btn { align-self: flex-start; }
 	.cancel-btn { color: var(--color-text-muted); }
 	.cancel-btn:hover:not(:disabled) { color: var(--color-error); }
 
