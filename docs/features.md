@@ -318,14 +318,14 @@ au milieu de la salle, ou l'interface audio branchée au PC.
 - Vumètre de crête (−60 à 0 dBFS) dès l'ouverture du micro, avant même d'enregistrer, pour
   placer le téléphone ; « Saturation » s'affiche 1,5 s après chaque crête écrêtée
 - Pause / reprise ; arrêt automatique avant 200 Mo (≈ 2 h 20 à 192 kbit/s), prévenu à 170 Mo
-- **Annuler** pendant l'enregistrement ou en pause : ce qui est capté est jeté, la copie de
-  secours effacée, et le micro reste ouvert pour repartir — annuler n'est pas quitter
-  l'écran. Au-delà de 5 s, une confirmation `warning` nomme la durée perdue ;
-  l'enregistrement continue pendant la question, pour que « non » ne coûte rien. Même
-  confirmation sur « Jeter et recommencer », qui jette un enregistrement déjà terminé : placé
-  sous le résumé « Enregistrement prêt » (avant le recadrage), doublé d'un « Annuler » à côté
-  de l'envoi dans le formulaire de classement. Une annulation le dit (« Enregistrement annulé.
-  Le micro reste ouvert »)
+- **Pas d'« Annuler » pendant la prise** : « Terminer » puis « Jeter et recommencer » disent
+  la même chose, et un troisième bouton à côté de Pause et Terminer, qu'on touche en direct,
+  ne ferait qu'ajouter un risque de clic de travers. « Jeter et recommencer » jette un
+  enregistrement terminé, la copie de secours effacée, et le micro reste ouvert pour
+  repartir — jeter n'est pas quitter l'écran. Au-delà de 5 s, une confirmation `warning`
+  nomme la durée perdue. Le bouton est sous le résumé « Enregistrement prêt » (avant le
+  recadrage), doublé d'un « Annuler » à côté de l'envoi dans le formulaire de classement.
+  L'écran dit que la prise est jetée (« Enregistrement jeté. Le micro reste ouvert »)
 - **Écran gardé allumé** (Wake Lock) pendant l'enregistrement, repris au retour sur
   l'onglet : un téléphone qui se verrouille coupe le micro. L'écran dit quand le navigateur
   ne le permet pas

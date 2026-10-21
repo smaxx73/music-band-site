@@ -53,7 +53,7 @@
 	const CONFIRM_CANCEL_ABOVE_S = 5
 	const MIN_TRIM_S = 0.5
 
-	type Phase = 'idle' | 'arming' | 'armed' | 'starting' | 'recording' | 'paused' | 'stopping' | 'cancelling' | 'done'
+	type Phase = 'idle' | 'arming' | 'armed' | 'starting' | 'recording' | 'paused' | 'stopping' | 'done'
 	let phase = $state<Phase>('idle')
 	let error = $state<string | null>(null)
 	let warning = $state<string | null>(null)
@@ -113,20 +113,16 @@
 	let clipUntil = 0
 	let wakeLock: WakeLockSentinel | null = null
 	let destroyed = false
-	// Vrai entre la demande d'annulation et l'arrêt effectif du `MediaRecorder` : les
-	// derniers blocs arrivent après `stop()` et n'ont plus à être gardés nulle part.
-	let cancelling = false
-
-	// Ce que la confirmation en cours abandonnerait : l'enregistrement qui tourne, ou
-	// celui qui vient de se terminer.
-	let confirming = $state<'recording' | 'result' | 'pending' | null>(null)
+	// Ce que la confirmation en cours abandonnerait : l'enregistrement qui vient de se
+	// terminer, ou les prises non envoyées retrouvées.
+	let confirming = $state<'result' | 'pending' | null>(null)
 
 	const supported =
 		typeof navigator !== 'undefined' &&
 		!!navigator.mediaDevices?.getUserMedia &&
 		typeof MediaRecorder !== 'undefined'
 
-	const busy = $derived(phase === 'starting' || phase === 'recording' || phase === 'paused' || phase === 'stopping' || phase === 'cancelling')
+	const busy = $derived(phase === 'starting' || phase === 'recording' || phase === 'paused' || phase === 'stopping')
 	$effect(() => onbusychange?.(busy))
 
 	onMount(async () => {
@@ -381,7 +377,7 @@
 	}
 
 	function onChunk(data: Blob) {
-		if (cancelling || !data.size || !take) return
+		if (!data.size || !take) return
 		chunks.push(data)
 		sizeBytes += data.size
 		take = { ...take, sizeBytes, durationS: Math.round(currentElapsed()) }
@@ -422,28 +418,15 @@
 	}
 
 	/**
-	 * Annuler, c'est jeter ce qui a été capté et rendre le micro prêt à repartir — pas
-	 * quitter l'écran. Ce qu'on vient d'enregistrer ne doit pas tenir à un clic de
-	 * travers : au-delà de quelques secondes, la confirmation le nomme.
+	 * Jeter ce qu'on vient d'enregistrer et rendre le micro prêt à repartir — pas quitter
+	 * l'écran. Pendant la prise il n'y a pas d'« Annuler » : « Terminer » puis ce geste
+	 * disent la même chose, sans un troisième bouton à côté de ceux qu'on touche en direct.
+	 * Ça ne doit pas tenir à un clic de travers : au-delà de quelques secondes, la
+	 * confirmation le nomme.
 	 */
-	function requestCancel(what: 'recording' | 'result') {
-		if (elapsedS >= CONFIRM_CANCEL_ABOVE_S) confirming = what
-		else if (what === 'recording') cancelRecording()
+	function requestCancel() {
+		if (elapsedS >= CONFIRM_CANCEL_ABOVE_S) confirming = 'result'
 		else restart()
-	}
-
-	function cancelRecording() {
-		confirming = null
-		if (!recorder) {
-			discardRecording()
-			return
-		}
-		// Le dernier `dataavailable` arrive avant `onRecorderStop`, qui fera le ménage.
-		cancelling = true
-		if (recorder.state !== 'inactive') recorder.stop()
-		stopTimer()
-		resetProgress()
-		phase = 'cancelling'
 	}
 
 	function resetProgress() {
@@ -451,20 +434,6 @@
 		elapsedS = 0
 		sizeBytes = 0
 		warning = null
-	}
-
-	/** Remet l'enregistreur au point de départ, micro ouvert s'il l'est resté. */
-	function discardRecording() {
-		// Seule la prise jetée part : celles d'une série attendent encore leur envoi.
-		if (take) deleteTakes([take.id]).catch(() => {})
-		cancelling = false
-		notice = 'Enregistrement annulé. Le micro reste ouvert : tu peux repartir.'
-		chunks = []
-		take = null
-		seq = 0
-		resetProgress()
-		phase = stream ? 'armed' : 'idle'
-		onchange(null, 0)
 	}
 
 	function onRecorderStop() {
@@ -476,10 +445,6 @@
 		releaseWakeLock()
 		window.removeEventListener('beforeunload', onBeforeUnload)
 		document.removeEventListener('visibilitychange', onVisibility)
-		if (cancelling) {
-			discardRecording()
-			return
-		}
 		elapsedS = elapsedBeforeSegment
 		if (!take || chunks.length === 0) {
 			if (take) deleteTakes([take.id]).catch(() => {})
@@ -582,7 +547,7 @@
 
 	/** Pour la page : retirer la prise affichée passe par la même confirmation que « Recommencer ». */
 	export function requestDiscard() {
-		if (phase === 'done') requestCancel('result')
+		if (phase === 'done') requestCancel()
 	}
 
 	async function recoverPending() {
@@ -927,9 +892,9 @@
 				Micro de l'appareil, casque ou interface audio branchée. Le son est capté tel quel,
 				sans les corrections automatiques des appels vidéo.
 			</p>
-		{:else if phase === 'starting' || phase === 'stopping' || phase === 'cancelling'}
+		{:else if phase === 'starting' || phase === 'stopping'}
 			<p class="hint" role="status">
-				{phase === 'starting' ? 'Préparation de l’enregistrement…' : phase === 'stopping' ? 'Finalisation de l’enregistrement…' : 'Annulation de l’enregistrement…'}
+				{phase === 'starting' ? 'Préparation de l’enregistrement…' : 'Finalisation de l’enregistrement…'}
 			</p>
 		{:else if phase === 'done'}
 			<div class="result">
@@ -938,7 +903,7 @@
 					Enregistrement prêt — {formatElapsed(elapsedS)} · {formatSize(sizeBytes)}
 				</p>
 				<!-- Près du résumé, pas après le recadrage : c'est ici qu'on décide de garder ou non. -->
-				<button type="button" class="btn btn-secondary btn-sm discard-btn" onclick={() => requestCancel('result')} {disabled}>
+				<button type="button" class="btn btn-secondary btn-sm discard-btn" onclick={() => requestCancel()} {disabled}>
 					Jeter et recommencer
 				</button>
 				{#if onkeep}
@@ -1055,10 +1020,6 @@
 						<button type="button" class="btn btn-primary" onclick={stop} {disabled}>
 							<Icon name="stop" /> Terminer
 						</button>
-						<!-- Jeter ce qui est capté sans quitter l'écran : le micro reste ouvert. -->
-						<button type="button" class="btn btn-ghost cancel-btn" onclick={() => requestCancel('recording')} {disabled}>
-							Annuler
-						</button>
 					{/if}
 				</div>
 			</div>
@@ -1085,21 +1046,18 @@
 	{/if}
 </div>
 
-<!-- L'enregistrement continue pendant la question : répondre « non » ne doit rien coûter. -->
 <ConfirmDialog
 	open={confirming !== null}
 	level="warning"
-	title={confirming === 'result' ? 'Jeter et recommencer ?' : confirming === 'pending' ? 'Supprimer ?' : "Annuler l'enregistrement ?"}
+	title={confirming === 'result' ? 'Jeter et recommencer ?' : 'Supprimer ?'}
 	message={confirming === 'result'
 		? `L'enregistrement de ${formatElapsed(elapsedS)} sera perdu, et le micro rouvert pour un nouveau.`
-		: confirming === 'pending'
-			? pending.length > 1
-				? `Les ${pending.length} prises non envoyées (${formatElapsed(pendingDurationS)}) seront perdues.`
-				: `L'enregistrement non envoyé de ${formatElapsed(pendingDurationS)} sera perdu.`
-			: `Les ${formatElapsed(elapsedS)} enregistrées seront perdues. Le micro reste ouvert pour recommencer.`}
-	confirmLabel={confirming === 'result' ? 'Jeter' : confirming === 'pending' ? 'Supprimer' : "Annuler l'enregistrement"}
-	cancelLabel={confirming === 'result' || confirming === 'pending' ? 'Garder' : "Continuer l'enregistrement"}
-	onConfirm={() => (confirming === 'result' ? restart() : confirming === 'pending' ? dropPending() : cancelRecording())}
+		: pending.length > 1
+			? `Les ${pending.length} prises non envoyées (${formatElapsed(pendingDurationS)}) seront perdues.`
+			: `L'enregistrement non envoyé de ${formatElapsed(pendingDurationS)} sera perdu.`}
+	confirmLabel={confirming === 'result' ? 'Jeter' : 'Supprimer'}
+	cancelLabel="Garder"
+	onConfirm={() => (confirming === 'result' ? restart() : dropPending())}
 	onCancel={() => (confirming = null)}
 />
 
@@ -1193,10 +1151,7 @@
 	.buttons { display: flex; gap: 0.5rem; margin-left: auto; }
 	.buttons .btn { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 40px; }
 
-	/* Annuler n'est pas au même rang que Pause et Terminer : on l'atteint sans le heurter. */
 	.discard-btn { align-self: flex-start; }
-	.cancel-btn { color: var(--color-text-muted); }
-	.cancel-btn:hover:not(:disabled) { color: var(--color-error); }
 
 	.rec-dot {
 		width: 0.7em;
