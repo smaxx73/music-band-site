@@ -11,6 +11,17 @@ pour une bibliothèque :
 Chaque version liste les migrations qu'elle apporte : ce sont elles qu'il faut appliquer
 en montant de version (voir `deploy.md`).
 
+## [1.11.0] — 2026-10-21
+
+Aucune migration.
+
+- **Notifications des autres groupes** : avec plusieurs groupes, un point sur le sélecteur
+  de groupe signale des non lues ailleurs, et son menu affiche leur nombre en face de
+  chaque groupe non ouvert. Rafraîchi toutes les 60 s
+- **Commentaires en direct** : sur une prise, une setlist ou une publication, les
+  commentaires des autres arrivent seuls (toutes les 30 s, onglet visible), sans toucher
+  au commentaire en cours d'écriture
+
 ## [1.10.0] — 2026-10-21
 
 Migration à appliquer : `050_song_tempo.sql`.
