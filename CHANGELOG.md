@@ -11,6 +11,20 @@ pour une bibliothèque :
 Chaque version liste les migrations qu'elle apporte : ce sont elles qu'il faut appliquer
 en montant de version (voir `deploy.md`).
 
+## [1.10.0] — 2026-10-21
+
+Migration à appliquer : `050_song_tempo.sql`.
+
+- **Clic au tempo du morceau** sur la feuille de répétition, en lecture et au pupitre :
+  un tempo de référence (20 à 300 BPM) sur la fiche du morceau, un bouton « Clic 96 BPM »
+  avec un témoin qui s'allume à chaque battement, − / + pour s'en écarter sans toucher la
+  fiche
+- **Annuler un enregistrement** sur `/record` est plus clair : le micro reste ouvert pour
+  repartir, une confirmation nomme la durée perdue au-delà de 5 s, et l'écran dit que
+  l'enregistrement est annulé
+- **Fermer un panneau d'un geste** au téléphone : les notifications se referment en les
+  faisant glisser vers le haut, le menu « + Ajouter » vers le bas
+
 ## [1.9.1] — 2026-10-07
 
 Aucune migration.
