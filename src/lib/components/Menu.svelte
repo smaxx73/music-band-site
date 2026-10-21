@@ -103,11 +103,100 @@
 		const still = matchMedia('(prefers-reduced-motion: reduce)').matches
 		// Par défaut, un menu déroulant descend de quelques pixels vers sa place.
 		const y = still ? 0 : parseFloat(style.getPropertyValue('--menu-enter-y') || '-4')
-		const duration = (sheet ? 220 : 120) * (leaving ? 0.7 : 1)
+		const gone = leaving && swiped
+		if (gone) swiped = false
+		const duration = gone ? 0 : (sheet ? 220 : 120) * (leaving ? 0.7 : 1)
 		return {
 			duration,
 			easing: cubicOut,
 			css: (t: number, u: number) => `opacity: ${t}; transform: translateY(${u * y}px)`
+		}
+	}
+
+	// Quand un geste a fait sortir le panneau, la transition de sortie n'a plus rien à
+	// jouer : il est déjà parti.
+	let swiped = false
+
+	/**
+	 * Glisser un panneau fixé à l'écran vers son bord d'origine (le haut pour les
+	 * notifications, le bas pour « + Ajouter ») le referme, comme un store qu'on rend.
+	 * Le geste ne prend la main que s'il est surtout vertical, dans ce sens, et que le
+	 * contenu défilant dessous est au bout : sinon c'est un défilement ordinaire.
+	 */
+	function swipeAway(node: HTMLElement) {
+		let startX = 0
+		let startY = 0
+		let startT = 0
+		let dragging = false
+		let decided = false
+		let sign = 1
+
+		const scrollerAtEdge = (target: EventTarget | null, dir: number) => {
+			for (let el = target as HTMLElement | null; el && el !== node; el = el.parentElement) {
+				if (el.scrollHeight <= el.clientHeight) continue
+				if (!['auto', 'scroll'].includes(getComputedStyle(el).overflowY)) continue
+				// Fermer vers le haut (dir -1) : il faut être au bout du bas, et inversement.
+				const atEnd =
+					dir < 0 ? el.scrollTop + el.clientHeight >= el.scrollHeight - 1 : el.scrollTop <= 0
+				if (!atEnd) return false
+			}
+			return true
+		}
+
+		const start = (e: TouchEvent) => {
+			if (getComputedStyle(node).position !== 'fixed' || e.touches.length !== 1) return
+			startX = e.touches[0].clientX
+			startY = e.touches[0].clientY
+			startT = e.timeStamp
+			dragging = false
+			decided = false
+			sign = parseFloat(getComputedStyle(node).getPropertyValue('--menu-enter-y') || '-4') < 0 ? -1 : 1
+		}
+		const move = (e: TouchEvent) => {
+			if (e.touches.length !== 1 || (decided && !dragging)) return
+			const dx = e.touches[0].clientX - startX
+			const dy = e.touches[0].clientY - startY
+			if (!decided) {
+				if (Math.abs(dx) < 8 && Math.abs(dy) < 8) return
+				decided = true
+				dragging = Math.abs(dy) > Math.abs(dx) && dy * sign > 0 && scrollerAtEdge(e.target, sign)
+				if (!dragging) return
+				node.style.transition = 'none'
+			}
+			e.preventDefault()
+			const d = Math.max(0, dy * sign)
+			node.style.transform = `translateY(${d * sign}px)`
+			node.style.opacity = String(Math.max(0.3, 1 - d / 300))
+		}
+		const end = (e: TouchEvent) => {
+			if (!dragging) return
+			dragging = false
+			const dy = (e.changedTouches[0].clientY - startY) * sign
+			const fast = dy / Math.max(1, e.timeStamp - startT) > 0.5
+			if (dy > 80 || (fast && dy > 30)) {
+				swiped = true
+				node.style.transition = 'transform 160ms ease-out, opacity 160ms ease-out'
+				node.style.transform = `translateY(${sign * (node.offsetHeight + 40)}px)`
+				node.style.opacity = '0'
+				setTimeout(() => (open = false), 160)
+			} else {
+				node.style.transition = 'transform 160ms ease-out, opacity 160ms ease-out'
+				node.style.transform = ''
+				node.style.opacity = ''
+			}
+		}
+
+		node.addEventListener('touchstart', start, { passive: true })
+		node.addEventListener('touchmove', move, { passive: false })
+		node.addEventListener('touchend', end)
+		node.addEventListener('touchcancel', end)
+		return {
+			destroy() {
+				node.removeEventListener('touchstart', start)
+				node.removeEventListener('touchmove', move)
+				node.removeEventListener('touchend', end)
+				node.removeEventListener('touchcancel', end)
+			}
 		}
 	}
 
@@ -128,6 +217,7 @@
 			{role}
 			aria-label={label}
 			bind:this={panel}
+			use:swipeAway
 			in:reveal
 			out:reveal={{ leaving: true }}
 		>
