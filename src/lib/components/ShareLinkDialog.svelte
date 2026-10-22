@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte'
+	import { env } from '$env/dynamic/public'
 	import Modal from '$lib/components/Modal.svelte'
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
 	import Icon from '$lib/components/Icon.svelte'
@@ -13,6 +14,10 @@
 		type ShareLinkView,
 		type ShareTarget
 	} from '$lib/types'
+
+	// Domaine dédié aux liens publics (voir deploy.md) : un lien copié depuis le domaine des
+	// membres doit quand même pointer vers lui. Absent, on garde le domaine courant.
+	const shareOrigin = () => env.PUBLIC_SHARE_ORIGIN || location.origin
 
 	/**
 	 * Liens d'écoute publics d'un enregistrement : en créer, les recopier, les révoquer.
@@ -93,7 +98,7 @@
 		clearTimeout(copiedTimer)
 		copiedId = null
 		try {
-			await navigator.clipboard.writeText(shareUrl(location.origin, link.token))
+			await navigator.clipboard.writeText(shareUrl(shareOrigin(), link.token))
 			manualId = null
 			copiedId = link.id
 			copiedTimer = setTimeout(() => (copiedId = null), 2500)
@@ -191,7 +196,7 @@
 								class="form-input manual-url"
 								type="text"
 								readonly
-								value={shareUrl(location.origin, link.token)}
+								value={shareUrl(shareOrigin(), link.token)}
 								aria-label="Adresse du lien public"
 								use:selectOnMount
 								onfocus={(e) => e.currentTarget.select()}

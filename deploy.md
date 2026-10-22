@@ -10,7 +10,7 @@ git clone <url-repo> ~/music-band-site
 cd ~/music-band-site
 
 cp .env.example .env
-nano .env   # remplir AUTH_SECRET, POSTGRES_PASSWORD, ORIGIN=https://maximenguyen.fr
+nano .env   # remplir AUTH_SECRET, POSTGRES_PASSWORD, PUBLIC_SHARE_ORIGIN
 chmod 600 .env
 
 docker compose up -d --build
@@ -75,3 +75,21 @@ Internet → Caddy système (80/443) → localhost:3000 → container app → co
 - `/ecoute/*` (liens d'écoute publics) est proxyfié comme le reste : le jeton y est
   vérifié par l'application. Il figure dans l'URL, donc dans les journaux d'accès de Caddy —
   les garder courts (voir `accessLogRetentionDays` dans `src/lib/legal.ts`).
+
+## Domaine dédié aux liens publics
+
+Les membres utilisent `music.maximenguyen.fr` ; les liens d'écoute diffusés au grand public
+vivent sur un second domaine, qui ne sert **que** le public.
+
+- `PUBLIC_SHARE_ORIGIN` (`.env`, ex. `https://music.rockandmore.org`) : domaine inscrit dans les
+  liens copiés, quel que soit le domaine d'où le membre les copie. Lu au démarrage, sans
+  rebuild : `docker compose up -d` suffit. Vide, le lien reprend le domaine courant
+- Pas de variable `ORIGIN` : elle forcerait `url.origin` sur un seul domaine, et l'aperçu
+  du lien (Open Graph) pointerait vers le mauvais. L'origine vient de `x-forwarded-proto` et
+  `x-forwarded-host`, posés par Caddy ; le port 3000 n'est ouvert qu'en local, donc ces
+  en-têtes ne viennent que de lui
+- Caddy (`vps-rockandmore/Caddyfile`) n'ouvre sur le domaine public que `/ecoute/*`
+  (page et fichier audio), `/_app/*`, `/brand/*`, `/robots.txt` et le logo du groupe
+  (`/api/groups/*/logo`, image d'aperçu). Tout le reste répond `404` : ni connexion, ni API
+- Les liens déjà envoyés sur l'ancien domaine restent valables : le jeton ne dépend pas du domaine
+- Les cookies de session restent propres au domaine des membres ; le domaine public n'en pose aucun

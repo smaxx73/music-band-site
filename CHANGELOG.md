@@ -11,6 +11,15 @@ pour une bibliothèque :
 Chaque version liste les migrations qu'elle apporte : ce sont elles qu'il faut appliquer
 en montant de version (voir `deploy.md`).
 
+## [Non publié]
+
+Aucune migration. **Variables d'environnement** : `ORIGIN` est retirée du `.env` ;
+`PUBLIC_SHARE_ORIGIN` s'ajoute (voir `deploy.md`).
+
+- **Domaine dédié aux liens d'écoute publics** : les liens copiés portent `PUBLIC_SHARE_ORIGIN`,
+  d'où que le membre les copie. L'application répond sous plusieurs domaines (origine lue
+  des en-têtes de Caddy, plus d'`ORIGIN` figé)
+
 ## [1.11.0] — 2026-10-21
 
 Aucune migration.

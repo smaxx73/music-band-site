@@ -1211,6 +1211,9 @@ membre. C'est la **seule** porte de l'application qui s'ouvre sans connexion.
   pour être recopié : sans le `.env` du serveur, la colonne est illisible. Changer
   `AUTH_SECRET` laisse les liens fonctionner mais les rend impossibles à recopier, comme
   ceux créés avant la migration 042 : ceux-là se recréent puis se révoquent
+- **Domaine dédié** : les liens copiés portent `PUBLIC_SHARE_ORIGIN` (domaine réservé au
+  public, qui ne sert que `/ecoute/*` et ses ressources — voir `deploy.md`), d'où que le
+  membre les copie. Les anciens liens restent valables sur le domaine des membres
 - **Expiration toujours** : 1 semaine, 1 mois ou **6 mois** (défaut). Un lien expiré
   n'ouvre plus rien et disparaît de la liste. **Révoquer** supprime la ligne, après une
   confirmation `warning` : c'est sans retour — un lien recréé a une autre adresse, et
@@ -1230,7 +1233,7 @@ membre. C'est la **seule** porte de l'application qui s'ouvre sans connexion.
 - **Aperçu du lien** dans une messagerie : balises Open Graph avec le titre, le contexte
   (groupe, prise, date) et pour image la **miniature du logo du groupe**, ou à défaut
   celle de BandStash (`static/brand/bandstash-og.jpg`, 512 px, ~25 Ko). Rien de plus que
-  ce que la page montre déjà. L'URL de l'image est absolue, construite depuis `ORIGIN`
+  ce que la page montre déjà. L'URL de l'image est absolue, construite depuis le domaine de la requête (`url.origin`)
 
 ## Naviguer dans une prise très commentée
 

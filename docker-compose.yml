@@ -14,7 +14,11 @@ services:
       NODE_ENV: production
       PORT: 3000
       BODY_SIZE_LIMIT: 200M
-      ORIGIN: ${ORIGIN:-http://localhost}
+      # Pas d'ORIGIN : il figerait url.origin sur un seul domaine. L'app répond sous deux
+      # domaines (membres et liens publics), l'origine est lue des en-têtes de Caddy.
+      PROTOCOL_HEADER: x-forwarded-proto
+      HOST_HEADER: x-forwarded-host
+      PUBLIC_SHARE_ORIGIN: ${PUBLIC_SHARE_ORIGIN:-}
     volumes:
       - audio_data:/data/audio
     networks:
