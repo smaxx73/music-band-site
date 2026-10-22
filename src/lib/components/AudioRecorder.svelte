@@ -34,7 +34,7 @@
 		onbusychange?: (busy: boolean) => void
 		/**
 		 * Mode série : la prise terminée est confiée à la page, qui l'enverra avec les
-		 * autres, et la suivante démarre aussitôt, micro resté ouvert. Absent, une seule
+		 * autres, et le micro reste ouvert, prêt pour la suivante. Absent, une seule
 		 * prise à la fois.
 		 */
 		onkeep?: (take: RecordedTake) => void
@@ -523,8 +523,9 @@
 	}
 
 	/**
-	 * La prise rejoint la série et la suivante démarre aussitôt : entre deux morceaux, un
-	 * seul toucher. La copie de secours de la prise confiée reste, jusqu'à son envoi.
+	 * La prise rejoint la série et le micro reste ouvert, prêt à repartir : la suivante ne
+	 * démarre qu'au toucher de « Enregistrer » — on se place, on s'accorde, puis on lance. La
+	 * copie de secours de la prise confiée reste, jusqu'à son envoi.
 	 */
 	async function keepAndNext() {
 		if (phase !== 'done' || !resultFile || !resultTake || !onkeep) return
@@ -545,7 +546,6 @@
 			// `arm()` a changé la phase pendant l'attente : TypeScript ne le voit pas.
 			if ((phase as Phase) !== 'armed') return
 		}
-		await start()
 	}
 
 	/** Pour la page : retirer la prise affichée passe par la même confirmation que « Recommencer ». */
@@ -912,10 +912,10 @@
 				{#if onkeep}
 					<!-- Entre deux morceaux, le geste attendu : il passe avant le recadrage. -->
 					<button type="button" class="btn btn-primary start-btn" onclick={keepAndNext} {disabled}>
-						<span class="rec-dot"></span> Prise suivante
+						Prise suivante
 					</button>
 					<p class="hint">
-						Celle-ci rejoint la série, et l'enregistrement de la suivante démarre aussitôt.
+						Celle-ci rejoint la série, et le micro reste ouvert : lance la suivante avec « Enregistrer ».
 						Les morceaux se choisissent quand tu veux, tout part à la fin.
 					</p>
 				{/if}

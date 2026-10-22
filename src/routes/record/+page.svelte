@@ -140,7 +140,7 @@
 		series = series.filter((i) => i.key !== key)
 	}
 
-	/** « Prise suivante » : l'enregistreur confie la prise terminée, et repart aussitôt. */
+	/** « Prise suivante » : l'enregistreur confie la prise terminée et rouvre le micro, sans démarrer. */
 	function keepTake(take: RecordedTake) {
 		const existing = series.find((item) => item.key === take.id)
 		if (existing) {

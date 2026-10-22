@@ -350,8 +350,8 @@ on discute, on s'accorde, on refait le pont. Sortir de `/record` après chaque p
 rouvrir le micro, rechoisir l'entrée et attendre la conversion cassait le rythme.
 
 - Une prise terminée propose **« Prise suivante »**, avant le recadrage : elle rejoint la
-  série et l'enregistrement de la suivante **démarre aussitôt**. Un seul toucher entre deux
-  morceaux. Dans le groupe seulement (`onkeep` d'`AudioRecorder.svelte`, passé seulement
+  série et le micro reste ouvert, **prêt** : l'enregistrement de la suivante ne démarre qu'au
+  toucher de « Enregistrer », le temps de se placer et de s'accorder. Dans le groupe seulement (`onkeep` d'`AudioRecorder.svelte`, passé seulement
   avec un groupe actif) : une idée jouée seul va dans l'espace perso une à
   une, ou se découpe
 - **Le micro reste ouvert** entre les prises, avec l'entrée choisie — sans série, il se
