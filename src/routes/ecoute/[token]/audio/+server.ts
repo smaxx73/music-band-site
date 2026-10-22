@@ -7,7 +7,7 @@ import { attachmentHeader, downloadFileName, resolveShareToken } from '$lib/serv
 /**
  * Fichier d'un lien d'écoute, sans compte. Toujours par Node, comme `/audio/` : le jeton
  * est revérifié à chaque requête, pour qu'un lien révoqué ou expiré cesse aussitôt de
- * servir le fichier — lecture en cours comprise. `?download` le donne en pièce jointe.
+ * servir le fichier — lecture en cours comprise. `?download` le donne en pièce jointe, si le lien l'autorise.
  */
 export const GET: RequestHandler = async ({ params, request, url }) => {
 	const shared = await resolveShareToken(params.token)
@@ -18,8 +18,12 @@ export const GET: RequestHandler = async ({ params, request, url }) => {
 
 	response.headers.set('X-Robots-Tag', 'noindex, nofollow')
 	response.headers.set('Cache-Control', 'private, no-store')
+	// Le téléchargement est un choix du lien : refusé d'ici, pas seulement masqué à l'écran.
 	if (url.searchParams.has('download')) {
+		if (!shared.allow_download) return new Response('Forbidden', { status: 403 })
 		response.headers.set('Content-Disposition', attachmentHeader(downloadFileName(shared)))
+	} else {
+		response.headers.set('Content-Disposition', 'inline')
 	}
 	return response
 }

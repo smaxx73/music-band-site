@@ -326,6 +326,9 @@ CREATE TABLE share_links (
     created_by_user_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
     expires_at            TIMESTAMPTZ NOT NULL,    -- toujours borné : 6 mois par défaut
+    allow_download        BOOLEAN NOT NULL DEFAULT false,
+                                                   -- téléchargement du fichier, choisi à la création
+                                                   -- du lien (migration 051) ; sinon écoute seule
     last_accessed_at      TIMESTAMPTZ,             -- dernière ouverture de la page d'écoute
     CONSTRAINT share_links_target CHECK (num_nonnulls(recording_id, personal_recording_id) = 1)
 );

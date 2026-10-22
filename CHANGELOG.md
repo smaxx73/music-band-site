@@ -13,9 +13,13 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
-Aucune migration. **Variables d'environnement** : `ORIGIN` est retirée du `.env` ;
+Migration à appliquer : `051_share_link_download.sql`. **Variables d'environnement** : `ORIGIN` est retirée du `.env` ;
 `PUBLIC_SHARE_ORIGIN` s'ajoute (voir `deploy.md`).
 
+- **Liens d'écoute publics : écoute seule par défaut, téléchargement en option**. Case à
+  cocher à la création du lien ; la page publique affiche un rappel de droits (droit
+  d'auteur, droits voisins, écoute personnelle) et le fichier ne se télécharge que si le
+  lien l'autorise. Les liens existants passent en écoute seule
 - **Domaine dédié aux liens d'écoute publics** : les liens copiés portent `PUBLIC_SHARE_ORIGIN`,
   d'où que le membre les copie. L'application répond sous plusieurs domaines (origine lue
   des en-têtes de Caddy, plus d'`ORIGIN` figé)

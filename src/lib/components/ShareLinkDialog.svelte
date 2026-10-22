@@ -42,6 +42,8 @@
 	let error = $state<string | null>(null)
 	let days = $state<ShareDurationDays>(SHARE_DEFAULT_DAYS)
 	let creating = $state(false)
+	/** Écoute en ligne seule par défaut : télécharger est un choix, fait lien par lien. */
+	let allowDownload = $state(false)
 	let revokingId = $state<number | null>(null)
 	let copiedId = $state<number | null>(null)
 	/** Lien dont la copie a été refusée : son adresse s'affiche, à copier à la main. */
@@ -79,7 +81,7 @@
 			const res = await fetch('/api/share-links', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ [param]: target.id, expires_in_days: days })
+				body: JSON.stringify({ [param]: target.id, expires_in_days: days, allow_download: allowDownload })
 			})
 			if (!res.ok) { error = await readError(res, 'Impossible de créer le lien.'); return }
 			const link = await res.json() as ShareLinkView
@@ -142,8 +144,9 @@
 		<p class="explain">
 			<Icon name="globe" size="0.9rem" />
 			<span>
-				Qui a le lien peut <strong>écouter et télécharger</strong> ce fichier, sans compte —
-				rien d'autre : ni commentaires, ni note, ni participants.
+				Qui a le lien peut <strong>écouter</strong> ce fichier en ligne, sans compte — et le
+				télécharger si tu l'autorises. Rien d'autre : ni commentaires, ni note, ni participants.
+				Le contenu est protégé par le droit d'auteur : la page rappelle que l'écoute est personnelle.
 			</span>
 		</p>
 
@@ -158,6 +161,11 @@
 				{creating ? 'Création…' : 'Créer un lien'}
 			</button>
 		</div>
+
+		<label class="download-choice">
+			<input type="checkbox" bind:checked={allowDownload} disabled={creating} />
+			<span>Autoriser aussi le téléchargement du fichier</span>
+		</label>
 
 		{#if error}<p class="message-error">{error}</p>{/if}
 
@@ -177,6 +185,7 @@
 						<div class="link-meta">
 							<span>Créé le {formatDateOnly(link.created_at, longDate)}{link.created_by ? ` par ${link.created_by}` : ''}</span>
 							<span class="muted">
+								{link.allow_download ? 'téléchargement autorisé' : 'écoute seule'} ·
 								expire le {formatDateOnly(link.expires_at, longDate)} ·
 								{link.last_accessed_at ? `ouvert pour la dernière fois ${formatDateTime(link.last_accessed_at)}` : 'jamais ouvert'}
 							</span>
@@ -220,7 +229,7 @@
 	level="warning"
 	title="Révoquer ce lien ?"
 	message={pendingRevoke
-		? `Qui a reçu ce lien ne pourra plus écouter ni télécharger le fichier${pendingRevoke.last_accessed_at ? ` (ouvert pour la dernière fois ${formatDateTime(pendingRevoke.last_accessed_at)})` : ''}. Un nouveau lien aura une autre adresse, à renvoyer.`
+		? `Qui a reçu ce lien ne pourra plus écouter le fichier${pendingRevoke.last_accessed_at ? ` (ouvert pour la dernière fois ${formatDateTime(pendingRevoke.last_accessed_at)})` : ''}. Un nouveau lien aura une autre adresse, à renvoyer.`
 		: ''}
 	confirmLabel="Révoquer le lien"
 	onConfirm={() => { if (pendingRevoke) revoke(pendingRevoke.id) }}
@@ -239,6 +248,8 @@
 	.create-row { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 	.create-row .form-label { margin: 0; }
 	.create-row select { width: auto; }
+
+	.download-choice { display: flex; align-items: center; gap: 0.5rem; font-size: var(--text-sm); }
 
 	h3 { font-size: var(--text-sm); margin: 0.3rem 0 0; }
 	.empty { margin: 0; font-size: var(--text-sm); color: var(--color-text-muted); }

@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Page d'écoute publique : ce que voit quelqu'un qui n'a pas de compte. Pas de
 	// coquille applicative — il n'a nulle part où aller dans l'application —, juste de
-	// quoi écouter, télécharger, et savoir jusqu'à quand.
+	// quoi écouter, télécharger si le lien l'autorise, et savoir jusqu'à quand.
 	import type { PageData } from './$types'
 	import { page } from '$app/state'
 	import { formatDateOnly } from '$lib/date'
@@ -65,11 +65,23 @@
 			/>
 		</div>
 
-		<div class="actions">
-			<a href="{audioSrc}?download" class="btn btn-secondary btn-sm" download>
-				<Icon name="download" size="0.9rem" /> Télécharger le fichier audio
-			</a>
-		</div>
+		{#if data.allow_download}
+			<div class="actions">
+				<a href="{audioSrc}?download" class="btn btn-secondary btn-sm" download>
+					<Icon name="download" size="0.9rem" /> Télécharger le fichier audio
+				</a>
+			</div>
+		{/if}
+
+		<!-- Ce contenu musical est protégé : l'écoute en ligne est tout ce que le lien donne. -->
+		<p class="rights">
+			<strong>Écoute en ligne uniquement.</strong>
+			Ce contenu musical est protégé par le droit d'auteur et les droits voisins. Sa mise à
+			disposition n'autorise que son écoute personnelle depuis ce site. Toute extraction,
+			reproduction, modification, adaptation, diffusion, publication, redistribution ou autre
+			exploitation est interdite sans autorisation écrite préalable des titulaires de droits,
+			sous réserve des exceptions prévues par la loi.
+		</p>
 
 		<p class="expiry">Lien valable jusqu'au {formatDateOnly(data.expires_at, longDate)}.</p>
 	</section>
@@ -116,6 +128,13 @@
 	.player { margin-bottom: 1rem; }
 
 	.actions { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+	.rights {
+		margin: 0;
+		font-size: var(--text-xs);
+		line-height: 1.5;
+		color: var(--color-text-secondary);
+	}
 
 	.expiry {
 		margin: 1rem 0 0;

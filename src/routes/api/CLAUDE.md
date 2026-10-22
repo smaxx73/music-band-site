@@ -299,7 +299,8 @@ perso ; une cible hors de portée répond `404`. `GET /api/share-links?recording
 `?personal_recording_id=`) liste les liens valides avec leur `token`, pour les recopier (`null` pour un lien antérieur
 à la migration 042) ;
 `POST /api/share-links` (`{ recording_id | personal_recording_id, expires_in_days? }`, durée
-parmi 7, 30, 180 — défaut 180) répond `201` avec le lien et son `token`. En base, le jeton
+parmi 7, 30, 180 — défaut 180 ; `allow_download` booléen, faux par défaut : sans lui,
+`/ecoute/[token]/audio?download` répond `403`) répond `201` avec le lien et son `token`. En base, le jeton
 n'est jamais en clair : empreinte SHA-256 pour le retrouver, chiffré (clé dérivée
 d'`AUTH_SECRET`) pour le recopier. `400` sur un enregistrement sans piste audio.
 `DELETE /api/share-links/[id]` révoque, même droit que la création. La page publique et son

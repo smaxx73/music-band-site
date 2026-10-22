@@ -1186,8 +1186,19 @@ membre. C'est la **seule** porte de l'application qui s'ouvre sans connexion.
 
 - **Un fichier audio, rien d'autre.** La page montre le lecteur (waveform), le titre, la
   date, et pour une prise le nom du groupe et le numéro de prise. Ni commentaires, ni note,
-  ni participants, ni lien vers le reste de l'application. Un bouton **télécharge** le
-  fichier, nommé d'après le titre (« Sunny - prise 3.mp3 ») plutôt que `{id}.mp3`
+  ni participants, ni lien vers le reste de l'application. Un rappel de droits y figure toujours :
+  écoute en ligne uniquement, contenu protégé par le droit d'auteur et les droits voisins,
+  écoute personnelle depuis le site, tout autre usage interdit sans autorisation écrite
+- **Écoute seule par défaut, téléchargement en option** : la case « Autoriser aussi le
+  téléchargement du fichier » se coche **à la création** du lien (`share_links.allow_download`,
+  migration 051) et ne change plus ensuite — pour l'ouvrir ou le fermer, on recrée un lien.
+  Sans elle, la page n'a pas de bouton et `/ecoute/[token]/audio?download` répond `403` :
+  le refus est côté serveur, pas seulement à l'écran. La liste des liens dit lequel
+  autorise quoi. Un lien qui l'autorise sert le fichier nommé d'après le titre
+  (« Sunny - prise 3.mp3 ») plutôt que `{id}.mp3`. Ce n'est **pas** une protection
+  technique : le navigateur reçoit le flux audio pour le lire, et qui veut l'enregistrer
+  y arrivera ; c'est un choix de ce qu'on propose, adossé au rappel de droits. Les liens
+  créés avant la migration 051 sont passés en écoute seule
 - **Qui partage** (`canSharePublicly`, `src/lib/types.ts`) : une prise est au groupe
   entier, **tout membre** peut créer ou révoquer ses liens, quel qu'en soit l'auteur. Un
   enregistrement perso, **son propriétaire seul**. Les admins n'ont rien de plus

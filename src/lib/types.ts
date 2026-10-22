@@ -569,6 +569,8 @@ export type ShareLinkView = {
 	expires_at: string
 	last_accessed_at: string | null
 	created_by: string | null
+	/** Le fichier se télécharge-t-il ? Choisi à la création ; sinon, écoute en ligne seulement. */
+	allow_download: boolean
 	/** `null` : lien antérieur à la migration 042, ou AUTH_SECRET changé depuis — il ne se recopie pas. */
 	token: string | null
 }

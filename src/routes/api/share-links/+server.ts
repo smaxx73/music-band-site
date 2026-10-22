@@ -35,7 +35,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	return json(await listShareLinks(target))
 }
 
-/** POST — `{ recording_id | personal_recording_id, expires_in_days? }`. Retourne le lien créé. */
+/** POST — `{ recording_id | personal_recording_id, expires_in_days?, allow_download? }`. Retourne le lien créé. */
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
 
@@ -61,5 +61,13 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		return json({ error: "Cet enregistrement n'a pas de piste audio : partagez directement la vidéo YouTube." }, { status: 400 })
 	}
 
-	return json(await createShareLink(target, locals.user.id, days as ShareDurationDays), { status: 201 })
+	// Écoute en ligne seule par défaut : le téléchargement se coche, il ne se déduit pas.
+	if (body.allow_download !== undefined && typeof body.allow_download !== 'boolean') {
+		return json({ error: 'allow_download doit être un booléen.' }, { status: 400 })
+	}
+
+	return json(
+		await createShareLink(target, locals.user.id, days as ShareDurationDays, body.allow_download === true),
+		{ status: 201 }
+	)
 }

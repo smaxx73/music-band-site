@@ -49,6 +49,7 @@ export const load: PageServerLoad = async ({ params, setHeaders, isDataRequest, 
 		created_at: shared.created_at,
 		duration_s: shared.duration_s ?? peaks.duration,
 		expires_at: shared.expires_at,
+		allow_download: shared.allow_download,
 		peaks: peaks.peaks,
 		preview_image: previewImage,
 		page_url: `${url.origin}${url.pathname}`

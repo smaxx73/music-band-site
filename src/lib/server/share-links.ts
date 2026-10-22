@@ -90,7 +90,7 @@ export async function findShareTarget(
 }
 
 const VIEW_COLUMNS = sql`
-	sl.id, sl.created_at, sl.expires_at, sl.last_accessed_at, sl.token_sealed,
+	sl.id, sl.created_at, sl.expires_at, sl.last_accessed_at, sl.token_sealed, sl.allow_download,
 	u.display_name AS created_by
 `
 
@@ -128,18 +128,20 @@ export async function activeShareCount(target: ShareTarget): Promise<number> {
 export async function createShareLink(
 	target: ShareTarget,
 	userId: number,
-	days: ShareDurationDays
+	days: ShareDurationDays,
+	allowDownload = false
 ): Promise<ShareLinkView> {
 	const token = randomBytes(TOKEN_BYTES).toString('base64url')
 	const [created] = await sql<{ id: number }[]>`
-		INSERT INTO share_links (token_hash, token_sealed, recording_id, personal_recording_id, created_by_user_id, expires_at)
+		INSERT INTO share_links (token_hash, token_sealed, recording_id, personal_recording_id, created_by_user_id, expires_at, allow_download)
 		VALUES (
 			${hashToken(token)},
 			${sealToken(token)},
 			${target.kind === 'recording' ? target.id : null},
 			${target.kind === 'personal' ? target.id : null},
 			${userId},
-			now() + make_interval(days => ${days})
+			now() + make_interval(days => ${days}),
+			${allowDownload}
 		)
 		RETURNING id
 	`
@@ -187,6 +189,8 @@ export type SharedAudio = {
 	created_at: Date | null
 	duration_s: number | null
 	expires_at: Date
+	/** Le lien autorise-t-il le téléchargement ? Sinon, écoute en ligne seulement. */
+	allow_download: boolean
 }
 
 /**
@@ -199,6 +203,7 @@ export async function resolveShareToken(token: string): Promise<SharedAudio | nu
 	const [row] = await sql<{
 		id: number
 		expires_at: Date
+		allow_download: boolean
 		recording_id: number | null
 		personal_recording_id: number | null
 		r_file: string | null
@@ -215,7 +220,7 @@ export async function resolveShareToken(token: string): Promise<SharedAudio | nu
 		pr_created: Date | null
 	}[]>`
 		SELECT
-			sl.id, sl.expires_at, sl.recording_id, sl.personal_recording_id,
+			sl.id, sl.expires_at, sl.allow_download, sl.recording_id, sl.personal_recording_id,
 			r.file_path AS r_file, r.duration_s AS r_duration, r.take,
 			s.title AS song_title, ses.date::text AS session_date, g.id AS group_id, g.name AS group_name,
 			floor(EXTRACT(EPOCH FROM gl.updated_at))::float8 AS logo_version,
@@ -246,7 +251,8 @@ export async function resolveShareToken(token: string): Promise<SharedAudio | nu
 			take: row.take,
 			created_at: null,
 			duration_s: row.r_duration,
-			expires_at: row.expires_at
+			expires_at: row.expires_at,
+			allow_download: row.allow_download
 		}
 	}
 	if (row.personal_recording_id === null || !row.pr_file) return null
@@ -262,7 +268,8 @@ export async function resolveShareToken(token: string): Promise<SharedAudio | nu
 		take: null,
 		created_at: row.pr_created,
 		duration_s: row.pr_duration,
-		expires_at: row.expires_at
+		expires_at: row.expires_at,
+		allow_download: row.allow_download
 	}
 }
 
