@@ -28,7 +28,7 @@ export const LEGAL = {
 	},
 
 	// Représentant légal de l'association, en principe son président ou sa présidente.
-	publicationDirector: TO_COMPLETE,
+	publicationDirector: 'Maxime Nguyen',
 
 	host: {
 		name: 'IONOS SARL',
