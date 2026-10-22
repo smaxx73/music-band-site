@@ -20,6 +20,8 @@
 <dl>
 	<dt>Site</dt>
 	<dd>{LEGAL.siteName} — <a href={LEGAL.siteUrl}>{LEGAL.siteUrl.replace('https://', '')}</a></dd>
+	<dt>Liens d'écoute publics</dt>
+	<dd>{LEGAL.publicListenUrl.replace('https://', '')} — écoute en ligne seule, sauf autorisation du téléchargement par le membre qui a créé le lien</dd>
 	<dt>Éditeur</dt>
 	<dd>{publisher.name}, {publisher.legalForm}</dd>
 	<dt>Siège social</dt>

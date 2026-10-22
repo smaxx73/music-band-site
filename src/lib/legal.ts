@@ -12,7 +12,10 @@ export const TO_COMPLETE = '[à compléter]'
 export const LEGAL = {
 	siteName: 'BandStash',
 	siteUrl: 'https://music.maximenguyen.fr',
-	lastUpdated: '27 septembre 2026',
+	// Domaine réservé aux liens d'écoute publics (`PUBLIC_SHARE_ORIGIN`, voir deploy.md) :
+	// il ne sert que `/ecoute/*`, pas l'application.
+	publicListenUrl: 'https://music.rockandmore.org',
+	lastUpdated: '22 octobre 2026',
 
 	publisher: {
 		name: 'Rock and More',
