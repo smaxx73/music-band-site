@@ -13,6 +13,7 @@
 	import Icon from '$lib/components/Icon.svelte'
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
 	import SongSelect from '$lib/components/SongSelect.svelte'
+	import JourneySteps from '$lib/components/JourneySteps.svelte'
 	import { createSong, placeholderSongTitle, sortedWithSong } from '$lib/songs'
 
 	let { data }: { data: PageData } = $props()
@@ -77,6 +78,38 @@
 	const kept = $derived(segments.filter((s) => s.kept))
 	// Un passage perso sans titre prend le titre commun numéroté : il n'est jamais en attente.
 	const unassigned = $derived(personal ? 0 : kept.filter((s) => !s.song_id).length)
+
+	// Pourquoi « Créer » est grisé, dit à côté du bouton : un bouton désactivé sans motif
+	// laisse chercher ce qui manque. Une seule raison à la fois, la première à lever.
+	const blocker = $derived.by(() => {
+		if (analysing) return 'Analyse en cours…'
+		if (kept.length === 0) return `Retiens au moins un ${personal ? 'passage' : 'segment'}.`
+		if (!personal && !sessionId) return 'Choisis la session qui recevra les prises.'
+		if (unassigned > 0) return `${unassigned} segment${unassigned > 1 ? 's' : ''} sans morceau.`
+		return null
+	})
+
+	/**
+	 * Le morceau du segment retenu juste avant, s'il en a un : on rejoue souvent le même
+	 * (plusieurs prises d'affilée). Proposé d'un clic, jamais posé d'office — regrouper à tort
+	 * serait plus pénible à défaire que de choisir.
+	 */
+	function previousSong(index: number): { id: string; title: string; rank: number } | null {
+		const kept = segments.slice(0, index).filter((s) => s.kept)
+		const before = kept.at(-1)
+		if (!before?.song_id) return null
+		const title = songs.find((s) => String(s.id) === before.song_id)?.title
+		return title ? { id: before.song_id, title, rank: segments.indexOf(before) + 1 } : null
+	}
+
+	/** Amène le premier segment retenu sans morceau à l'écran, sélecteur au focus. */
+	function goToFirstUnassigned() {
+		const index = segments.findIndex((s) => s.kept && !s.song_id)
+		if (index < 0) return
+		const row = document.getElementById(`segment-${index}`)
+		row?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+		row?.querySelector<HTMLSelectElement>('select')?.focus({ preventScroll: true })
+	}
 
 	// Titre commun des passages perso : celui saisi avant l'envoi (`?titre=`), sinon un défaut.
 	// Un enregistrement fait dans le navigateur s'appelle « enregistrement-2026-09-25-14h05.webm » :
@@ -400,11 +433,21 @@
 		<h1>Découper l'enregistrement</h1>
 	</div>
 
+	<JourneySteps steps={['Enregistrer', 'Classer', 'Découper', 'Réécouter']} current={2} />
+
 	<p class="source">
 		<strong>{data.audioImport.file_name}</strong>
 		<span class="hint">
 			· {formatTime(duration)} · {segments.length} segment{segments.length > 1 ? 's' : ''} détecté{segments.length > 1 ? 's' : ''}
 		</span>
+	</p>
+	<p class="guide">
+		{#if personal}
+			Vérifie les coupures, écarte ce qui n'est pas un passage, puis crée les enregistrements.
+		{:else}
+			Vérifie les coupures, écarte ce qui n'est pas un morceau, puis choisis un morceau pour
+			chaque segment retenu.
+		{/if}
 	</p>
 	<p class="hint">
 		Analyse et écoute sur une copie allégée ; les {personal ? 'enregistrements' : 'prises'} seront
@@ -548,7 +591,12 @@
 			</p>
 			<ul class="segments">
 				{#each segments as segment, i (i)}
-					<li class="segment" class:dropped={!segment.kept}>
+					<li
+						id="segment-{i}"
+						class="segment"
+						class:dropped={!segment.kept}
+						class:missing={!personal && segment.kept && !segment.song_id}
+					>
 						<button
 							type="button"
 							class="play"
@@ -600,6 +648,17 @@
 									placeholderAt={importedAt}
 									disabled={!segment.kept || creating || naming}
 								/>
+								{#if segment.kept && !segment.song_id}
+									{@const same = previousSong(i)}
+									{#if same}
+										<button
+											type="button"
+											class="btn-link same-song"
+											onclick={() => (segment.song_id = same.id)}
+											disabled={creating || naming}
+										>Même morceau que le segment {same.rank} ({same.title})</button>
+									{/if}
+								{/if}
 							{/if}
 						</div>
 
@@ -666,36 +725,45 @@
 		{/if}
 	</fieldset>
 
+	<!-- Collée en bas : la liste de segments est longue, et « Créer » ne doit pas se chercher. -->
 	<div class="actions">
-		<button type="button" class="btn btn-ghost" onclick={() => (confirmAbandonOpen = true)} disabled={creating}>
-			Abandonner l'import
-		</button>
-		<button
-			type="button"
-			class="btn btn-primary"
-			onclick={createTakes}
-			disabled={creating || naming || analysing || kept.length === 0 || unassigned > 0 || (!personal && !sessionId)}
-		>
-			{#if creating}
-				Découpe en cours…
-			{:else if personal}
-				Créer {kept.length} enregistrement{kept.length > 1 ? 's' : ''}
-			{:else}
-				Créer {kept.length} prise{kept.length > 1 ? 's' : ''}
-			{/if}
-		</button>
-	</div>
-
-	{#if unassigned > 0}
-		<div class="unassigned">
-			<p class="hint">
-				{unassigned} segment{unassigned > 1 ? 's' : ''} sans morceau — choisis-le ou écarte-le.
-			</p>
-			<button type="button" class="btn btn-secondary btn-sm" onclick={nameLater} disabled={naming || creating}>
-				{naming ? 'Création…' : 'Nommer plus tard'}
+		{#if blocker}
+			<div class="blocker" role="status">
+				<p class="hint">
+					{#if unassigned > 0 && !analysing && kept.length > 0 && (personal || sessionId)}
+						{kept.length - unassigned} sur {kept.length} nommés ·
+						<button type="button" class="btn-link" onclick={goToFirstUnassigned}>{blocker} Voir le premier →</button>
+					{:else}
+						{blocker}
+					{/if}
+				</p>
+				{#if unassigned > 0}
+					<button type="button" class="btn btn-secondary btn-sm" onclick={nameLater} disabled={naming || creating}>
+						{naming ? 'Création…' : 'Nommer plus tard'}
+					</button>
+				{/if}
+			</div>
+		{/if}
+		<div class="actions-row">
+			<button type="button" class="btn btn-ghost" onclick={() => (confirmAbandonOpen = true)} disabled={creating}>
+				Abandonner l'import
+			</button>
+			<button
+				type="button"
+				class="btn btn-primary"
+				onclick={createTakes}
+				disabled={creating || naming || blocker !== null}
+			>
+				{#if creating}
+					Découpe en cours…
+				{:else if personal}
+					Créer {kept.length} enregistrement{kept.length > 1 ? 's' : ''}
+				{:else}
+					Créer {kept.length} prise{kept.length > 1 ? 's' : ''}
+				{/if}
 			</button>
 		</div>
-	{/if}
+	</div>
 
 	<ConfirmDialog
 		open={confirmAbandonOpen}
@@ -722,7 +790,7 @@
 	}
 
 
-	.source { margin: -0.75rem 0 0; font-size: var(--text-sm); }
+	.source { margin: 0; font-size: var(--text-sm); }
 
 	.hint {
 		font-size: var(--text-xs);
@@ -898,6 +966,16 @@
 	}
 
 	.song { min-width: 0; }
+	.same-song {
+		display: block;
+		max-width: 100%;
+		margin-top: 0.2rem;
+		font-size: var(--text-xs);
+		text-align: left;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
 	.song :global(select) { font-size: var(--text-sm); }
 
 	/* ── Retouche d'un segment ──────────────────────────────────────────── */
@@ -933,18 +1011,36 @@
 		font-variant-numeric: tabular-nums;
 	}
 
-	.unassigned {
-		display: flex;
-		align-items: center;
-		justify-content: flex-end;
-		flex-wrap: wrap;
-		gap: 0.5rem;
-		margin-top: -0.75rem;
+	.guide { margin: -0.5rem 0 0; font-size: var(--text-sm); }
+
+	.segment.missing {
+		box-shadow: inset 3px 0 0 var(--color-warning-border);
+		padding-left: 0.5rem;
 	}
 
-	.unassigned .hint { margin: 0; }
+	.blocker {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		flex-wrap: wrap;
+		gap: 0.5rem;
+	}
+
+	.blocker .hint { margin: 0; }
 
 	.actions {
+		position: sticky;
+		bottom: var(--footer-actions-h);
+		z-index: 5;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		padding: 0.6rem 0;
+		background: var(--color-bg);
+		border-top: 1px solid var(--color-border-light);
+	}
+
+	.actions-row {
 		display: flex;
 		justify-content: space-between;
 		gap: 0.75rem;

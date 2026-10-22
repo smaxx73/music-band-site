@@ -79,6 +79,7 @@ src/
 │       ├── PublishDialog.svelte   # publier dans le groupe actif : enregistrement perso, vidéo, suggestion
 │       ├── ClassifyDialog.svelte  # classer un enregistrement perso en prise (session + morceau)
 │       ├── AudioEnhanceDialog.svelte # améliorer le son d'une prise : mesure, chaîne, écoute comparée
+│       ├── JourneySteps.svelte    # fil d'étapes d'un parcours (/record, /decoupe) : repère, non cliquable
 │       ├── PendingImports.svelte  # fichiers encore en transit : reprendre ou refaire une découpe
 │       ├── UploadBatch.svelte     # envoi par lots (/upload) et prises en série (/record) :
 │       │                          #   un fichier par ligne, son morceau, son état

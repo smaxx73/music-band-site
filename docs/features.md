@@ -337,6 +337,8 @@ au milieu de la salle, ou l'interface audio branchée au PC.
   Indisponible en navigation privée, et l'écran le dit
 - Quitter la page pendant l'enregistrement demande confirmation ; le formulaire de
   classement n'apparaît qu'une fois l'enregistrement terminé
+- Un **fil d'étapes** en tête (Enregistrer · Classer · Réécouter, avec Découper quand on l'a
+  choisi) dit où l'on en est. Le bouton d'envoi grisé dit ce qui manque (session, morceau)
 - « Enregistrer » est la première entrée du menu **+ Ajouter** (voir « Navigation ») :
   c'est au téléphone, en répétition, qu'on lance un enregistrement — et sur ordinateur,
   interface audio branchée
@@ -421,6 +423,13 @@ Premier des outils d'amélioration audio branchés à la suite de l'upload.
 - Chaque segment retenu reçoit **son propre morceau** ; les autres sont écartés (bavardage,
   fausse note, bruit de salle). Un segment retenu sans morceau bloque la validation —
   « Nommer plus tard » les pourvoit tous d'un morceau « À nommer »
+- **Guidage** : un fil d'étapes (`JourneySteps.svelte` : Enregistrer · Classer · Découper ·
+  Réécouter) situe l'écran, comme sur `/record`. « Créer » dit **pourquoi** il est grisé, à côté
+  de lui — analyse en cours, aucun segment retenu, session manquante, segments sans morceau
+  (« 5 sur 8 nommés », avec un lien vers le premier) —, et sa barre reste collée en bas. Un
+  segment sans morceau est marqué d'un liseré. Sous un segment sans morceau, « Même morceau que
+  le segment N » le reprend d'un clic : **proposé, jamais posé d'office**, une découpe sépare
+  le plus souvent des morceaux différents
 - **Préécoute ciblée** : cliquer une borne joue 5 s avant et 5 s après, ce qui valide une
   coupure sans réécouter le morceau. Un seul élément `<audio>` sur le proxy — on s'y
   déplace, on ne demande pas d'extrait au serveur

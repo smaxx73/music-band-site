@@ -8,6 +8,7 @@
 	import AudioRecorder from '$lib/components/AudioRecorder.svelte'
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
 	import SongSelect from '$lib/components/SongSelect.svelte'
+	import JourneySteps from '$lib/components/JourneySteps.svelte'
 	import UploadBatch from '$lib/components/UploadBatch.svelte'
 	import LocationInput from '$lib/components/LocationInput.svelte'
 	import type { Coords } from '$lib/places'
@@ -364,6 +365,16 @@
 			uploading = false
 		}
 	}
+
+	// Le repère du parcours. La découpe ne s'annonce que si on l'a choisie : une série de
+	// prises, elle, n'en passe jamais par là.
+	const journeySteps = $derived([
+		'Enregistrer',
+		'Classer',
+		...(multiTake && !series.length ? ['Découper'] : []),
+		'Réécouter'
+	])
+	const journeyStep = $derived(series.length || (file && !recording) ? 1 : 0)
 </script>
 
 <svelte:head>
@@ -378,6 +389,8 @@
 	<div class="page-header">
 		<h1>Enregistrer</h1>
 	</div>
+
+	<JourneySteps steps={journeySteps} current={journeyStep} />
 
 	<a href="/upload" class="upload-link">
 		<Icon name="upload" /> Un fichier déjà prêt ? <strong>Envoyer un fichier</strong>
@@ -602,6 +615,13 @@
 				</p>
 			{/if}
 
+			<!-- Un bouton grisé sans motif laisse chercher ce qui manque. -->
+			{#if !uploading && destination === 'group' && !selectedSession}
+				<p class="hint" role="status">Choisis une session pour envoyer.</p>
+			{:else if !uploading && destination === 'group' && !multiTake && !selectedSong}
+				<p class="hint" role="status">Choisis le morceau de cette prise pour envoyer.</p>
+			{/if}
+
 			<div class="submit-row">
 			<button
 				type="submit"
@@ -660,7 +680,7 @@
 		display: inline-flex;
 		align-items: center;
 		gap: 0.45rem;
-		margin: -0.75rem 0 1.25rem;
+		margin: 0 0 1.25rem;
 		font-size: var(--text-sm);
 		color: var(--color-text-secondary);
 		text-decoration: none;
