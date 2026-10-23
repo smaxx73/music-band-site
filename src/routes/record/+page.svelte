@@ -403,7 +403,7 @@
 			onchange={onRecorded}
 			ontrimchange={onTrimChange}
 			onbusychange={(busy) => (recording = busy)}
-			onkeep={data.currentGroup ? keepTake : undefined}
+			onkeep={data.currentGroup && (destination === 'group' || series.length) ? keepTake : undefined}
 		/>
 	</section>
 
@@ -540,6 +540,7 @@
 						Dans mon espace perso
 						<span class="hint block">
 							Pour toi seul, sans session ni morceau à choisir. Se classe en prise plus tard.
+							Une prise à la fois, ou à découper : pas de « Prise suivante », réservée au groupe.
 						</span>
 					</span>
 				</label>

@@ -352,8 +352,9 @@ rouvrir le micro, rechoisir l'entrée et attendre la conversion cassait le rythm
 - Une prise terminée propose **« Prise suivante »**, avant le recadrage : elle rejoint la
   série et le micro reste ouvert, **prêt** : l'enregistrement de la suivante ne démarre qu'au
   toucher de « Enregistrer », le temps de se placer et de s'accorder. Dans le groupe seulement (`onkeep` d'`AudioRecorder.svelte`, passé seulement
-  avec un groupe actif) : une idée jouée seul va dans l'espace perso une à
-  une, ou se découpe
+  avec un groupe actif **et** la destination « groupe ») : choisir l'espace perso masque
+  « Prise suivante », et le formulaire le dit — une idée jouée seul va dans l'espace perso
+  une à une, ou se découpe
 - **Le micro reste ouvert** entre les prises, avec l'entrée choisie — sans série, il se
   ferme à la fin d'un enregistrement, comme avant. S'il tombe entre-temps (écran verrouillé,
   interface débranchée), « Prise suivante » le rouvre
