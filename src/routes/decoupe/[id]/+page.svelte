@@ -537,13 +537,27 @@
 					disabled={analysing || creating}
 				/>
 			</label>
+			<label class="form-label">
+				Discussion entre morceaux
+				<span class="value">{params.talk_drop_db === 0 ? 'ignorée' : `${params.talk_drop_db} dB sous le jeu`}</span>
+				<input
+					type="range"
+					bind:value={params.talk_drop_db}
+					min={SPLIT_BOUNDS.talk_drop_db.min}
+					max={SPLIT_BOUNDS.talk_drop_db.max}
+					step={SPLIT_BOUNDS.talk_drop_db.step}
+					disabled={analysing || creating}
+				/>
+			</label>
 		</div>
 		<div class="reanalyse">
 			<button type="button" class="btn btn-secondary btn-sm" onclick={reanalyse} disabled={analysing || creating}>
 				{analysing ? 'Analyse en cours…' : 'Relancer l’analyse'}
 			</button>
 			<span class="hint">
-				La marge évite de trancher une résonance de fin de morceau. Relancer remet à
+				La marge évite de trancher une résonance de fin de morceau. « Discussion entre
+				morceaux » traite comme un blanc ce qui est bien plus faible que le jeu du
+				groupe ; à 0, seul le seuil de silence décide. Relancer remet à
 				zéro les morceaux choisis et les retouches.
 			</span>
 		</div>

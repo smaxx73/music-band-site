@@ -664,20 +664,28 @@ export type SplitParams = {
 	 * qui traîne, réverb. Sans cette marge, la résonance est tranchée net.
 	 */
 	pad_s: number
+	/**
+	 * Écart sous le niveau de jeu en deçà duquel le son compte aussi comme un blanc : une
+	 * discussion entre deux morceaux est bien au-dessus de −40 dB, mais loin sous le groupe
+	 * qui joue. 0 = désactivé, seul le seuil de silence décide.
+	 */
+	talk_drop_db: number
 }
 
 export const SPLIT_DEFAULTS: SplitParams = {
 	threshold_db: -40,
 	min_silence_s: 2,
 	min_segment_s: 10,
-	pad_s: 0.25
+	pad_s: 0.25,
+	talk_drop_db: 18
 }
 
 export const SPLIT_BOUNDS: Record<keyof SplitParams, { min: number; max: number; step: number }> = {
 	threshold_db: { min: -70, max: -15, step: 1 },
 	min_silence_s: { min: 0.3, max: 15, step: 0.1 },
 	min_segment_s: { min: 0, max: 300, step: 5 },
-	pad_s: { min: 0, max: 5, step: 0.05 }
+	pad_s: { min: 0, max: 5, step: 0.05 },
+	talk_drop_db: { min: 0, max: 40, step: 1 }
 }
 
 /**

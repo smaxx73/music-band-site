@@ -416,6 +416,17 @@ Premier des outils d'amélioration audio branchés à la suite de l'upload.
 - Réglages par défaut : silence ≥ 2 s sous −40 dB, prise ≥ 10 s, marge 0,25 s. Quatre
   curseurs permettent de **relancer l'analyse** sans renvoyer le fichier — il est déjà sur
   le serveur. Relancer remet à zéro les morceaux choisis et les retouches, l'écran le dit
+- **Discussion entre les morceaux** : une conversation à deux mètres du téléphone est bien
+  au-dessus de −40 dB, `silencedetect` la prend pour du jeu et elle soude deux prises. Un
+  cinquième réglage, « Discussion entre morceaux » (`talk_drop_db`, 18 dB par défaut,
+  0 = désactivé), traite aussi comme un blanc tout passage d'au moins « Blanc minimum »
+  nettement **sous le niveau de jeu**. Ce niveau est déduit du fichier — 75ᵉ percentile
+  des fenêtres de 0,5 s au-dessus du seuil de silence, médiane glissante sur 2,5 s pour
+  qu'un éclat de rire ne coupe pas la détection (`quietSilences`, `imports.ts` ;
+  `measureLevels`, `ffmpeg.ts`) — car il dépend de la place du micro. Les deux listes de
+  blancs sont réunies (`mergeSilences`). **Limite connue** : un passage joué très
+  doucement (intro) sur plus de « Blanc minimum » est coupé comme une discussion ; le
+  curseur à 0 le rend. Écart par défaut non calibré sur de vrais fichiers
 - La **marge conservée** est bornée à la moitié du blanc de chaque côté : deux segments
   voisins ne peuvent donc jamais se recouvrir. Au-delà de cette limite, la marge revient
   exactement à couper au centre du blanc

@@ -2,7 +2,7 @@ import { access, mkdir, readdir, rm, stat, unlink, writeFile, readFile } from 'f
 import { join } from 'path'
 import { tmpdir } from 'os'
 import sql from './db'
-import { detectSilences, extractPeaks, getExactDuration, type Silence } from './ffmpeg'
+import { detectSilences, extractPeaks, getExactDuration, LEVEL_WINDOW_S, measureLevels, type Silence } from './ffmpeg'
 import {
 	SPLIT_BOUNDS,
 	SPLIT_DEFAULTS,
@@ -109,7 +109,8 @@ export function normalizeParams(raw: Partial<Record<keyof SplitParams, unknown>>
 		threshold_db: Math.round(clamp('threshold_db')),
 		min_silence_s: Math.round(clamp('min_silence_s') * 10) / 10,
 		min_segment_s: Math.round(clamp('min_segment_s')),
-		pad_s: Math.round(clamp('pad_s') * 100) / 100
+		pad_s: Math.round(clamp('pad_s') * 100) / 100,
+		talk_drop_db: Math.round(clamp('talk_drop_db'))
 	}
 }
 
@@ -152,6 +153,67 @@ export function segmentsFromSilences(
 	// Fin de fichier : aucun blanc à emprunter au-delà.
 	if (cursor < duration) push(cursor, duration, 0)
 	return segments
+}
+
+/** Médiane glissante sur `width` fenêtres (impair) : un éclat de rire ne coupe pas une discussion. */
+function medianSmooth(values: number[], width: number): number[] {
+	const half = Math.floor(width / 2)
+	return values.map((_, i) => {
+		const slice = values.slice(Math.max(0, i - half), i + half + 1).sort((a, b) => a - b)
+		return slice[Math.floor(slice.length / 2)]
+	})
+}
+
+/**
+ * Passages nettement plus faibles que le jeu du groupe : de la discussion entre deux
+ * morceaux, que `silencedetect` prend pour du son. Le niveau de jeu est déduit du fichier
+ * (75ᵉ percentile des fenêtres au-dessus du seuil de silence) plutôt que fixé, car il
+ * dépend de la place du micro. Même contrat que `silencedetect` : des blancs d'au moins
+ * `minSilenceS`.
+ */
+export function quietSilences(
+	levels: number[],
+	thresholdDb: number,
+	dropDb: number,
+	minSilenceS: number
+): Silence[] {
+	if (dropDb <= 0) return []
+	const sounding = levels.filter((l) => l > thresholdDb).sort((a, b) => a - b)
+	if (sounding.length === 0) return []
+	const playLevel = sounding[Math.floor(sounding.length * 0.75)]
+	const limit = playLevel - dropDb
+
+	const smooth = medianSmooth(levels, 5)
+	const silences: Silence[] = []
+	let runStart: number | null = null
+	const close = (endIndex: number) => {
+		if (runStart === null) return
+		const start = runStart * LEVEL_WINDOW_S
+		const end = endIndex * LEVEL_WINDOW_S
+		if (end - start >= minSilenceS) silences.push({ start, end })
+		runStart = null
+	}
+	smooth.forEach((level, i) => {
+		if (level < limit) runStart ??= i
+		else close(i)
+	})
+	close(smooth.length)
+	return silences
+}
+
+/** Réunit deux listes de blancs en une seule, sans chevauchement, dans l'ordre. */
+export function mergeSilences(a: Silence[], b: Silence[], duration: number): Silence[] {
+	const sorted = [...a, ...b]
+		.map((s) => ({ start: s.start, end: s.end ?? duration }))
+		.sort((x, y) => x.start - y.start)
+	const merged: { start: number; end: number }[] = []
+	for (const s of sorted) {
+		const last = merged[merged.length - 1]
+		if (last && s.start <= last.end) last.end = Math.max(last.end, s.end)
+		else merged.push({ ...s })
+	}
+	// Un blanc qui court jusqu'à la fin reste « non refermé », comme le rend ffmpeg.
+	return merged.map((s) => ({ start: s.start, end: s.end >= duration ? null : s.end }))
 }
 
 function round(seconds: number): number {
@@ -299,10 +361,18 @@ export async function analyzeImport(id: string, params: SplitParams): Promise<Im
 	// Sur le proxy : même échelle de temps que l'original, pour une fraction du décodage.
 	const path = proxyPath(id)
 	const duration = (await getExactDuration(path)) ?? 0
-	const silences = await detectSilences(path, {
-		thresholdDb: params.threshold_db,
-		minSilenceS: params.min_silence_s
-	})
+	const [silent, levels] = await Promise.all([
+		detectSilences(path, {
+			thresholdDb: params.threshold_db,
+			minSilenceS: params.min_silence_s
+		}),
+		params.talk_drop_db > 0 ? measureLevels(path) : Promise.resolve([])
+	])
+	const silences = mergeSilences(
+		silent,
+		quietSilences(levels, params.threshold_db, params.talk_drop_db, params.min_silence_s),
+		duration
+	)
 	return {
 		params,
 		duration_s: round(duration),

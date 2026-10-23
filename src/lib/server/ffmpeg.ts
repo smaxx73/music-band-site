@@ -256,6 +256,46 @@ export function detectSilences(
 	})
 }
 
+/** Durée d'une fenêtre de `measureLevels` : assez fine pour une coupure, trop large pour une note. */
+export const LEVEL_WINDOW_S = 0.5
+
+/**
+ * Niveau RMS (dB) de chaque fenêtre de `LEVEL_WINDOW_S`, dans l'ordre. `-Infinity` pour
+ * un silence numérique. Pensé pour le proxy (22,05 kHz) : la fenêtre se compte en
+ * échantillons, donc un autre débit décalerait les durées.
+ */
+export function measureLevels(filePath: string): Promise<number[]> {
+	return new Promise((resolve, reject) => {
+		const ff = spawn('ffmpeg', [
+			'-hide_banner',
+			'-nostats',
+			'-i', filePath,
+			'-af', `asetnsamples=n=${Math.round(22050 * LEVEL_WINDOW_S)}:p=0,astats=metadata=1:reset=1,ametadata=print:key=lavfi.astats.Overall.RMS_level:file=-`,
+			'-f', 'null',
+			'-'
+		])
+
+		let stdout = ''
+		let stderr = ''
+		ff.stdout.on('data', (d: Buffer) => (stdout += d.toString()))
+		ff.stderr.on('data', (d: Buffer) => (stderr += d.toString()))
+
+		ff.on('close', (code) => {
+			if (code !== 0) {
+				reject(new Error(`ffmpeg levels exited with code ${code}: ${stderr.slice(-300)}`))
+				return
+			}
+			const levels: number[] = []
+			for (const m of stdout.matchAll(/RMS_level=(-?inf|-?[\d.]+)/g)) {
+				levels.push(m[1].endsWith('inf') ? -Infinity : parseFloat(m[1]))
+			}
+			resolve(levels)
+		})
+
+		ff.on('error', reject)
+	})
+}
+
 /**
  * Fabrique un proxy léger : mono, 22 kHz, 48 kbps. Il ne sert qu'à travailler —
  * détection des blancs, forme d'onde, préécoute — là où l'original serait inutilement
