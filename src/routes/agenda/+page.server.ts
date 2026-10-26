@@ -21,10 +21,12 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const monthParam = openDate?.slice(0, 7) ?? url.searchParams.get('month')
 	const month = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : currentMonth()
 	const openDay = openDate ? Number(openDate.slice(8, 10)) : null
+	// `&ajouter` : le panneau du jour s'ouvre sur le formulaire d'ajout (replié au téléphone).
+	const openForm = openDate !== null && url.searchParams.has('ajouter')
 
 	const groupId = locals.user.current_group_id
 	if (!groupId) {
-		return { events: [], sessions: [], places: [], attendance: {}, month, openDay, userName: locals.user.display_name }
+		return { events: [], sessions: [], places: [], attendance: {}, month, openDay, openForm, userName: locals.user.display_name }
 	}
 
 	const [y, m] = month.split('-').map(Number)
@@ -73,5 +75,5 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		await listAttendance(groupId, groupEventIds)
 	)
 
-	return { events, sessions, places, attendance, month, openDay, userName: locals.user.display_name, userId: locals.user.id }
+	return { events, sessions, places, attendance, month, openDay, openForm, userName: locals.user.display_name, userId: locals.user.id }
 }

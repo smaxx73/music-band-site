@@ -511,7 +511,7 @@
 						     formulaire d'ajout déplié, pour être une action et pas un second chemin. -->
 						<div class="empty-row">
 							<p class="empty">Rien de prévu.</p>
-							<a href="/agenda?date={localDateOnly()}" class="btn btn-secondary btn-sm">
+							<a href="/agenda?date={localDateOnly()}&ajouter" class="btn btn-secondary btn-sm">
 								<Icon name="plus" /> Ajouter une date
 							</a>
 						</div>

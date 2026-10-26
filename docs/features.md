@@ -1747,8 +1747,20 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 - Chaque événement peut avoir `title`, `notes` et `location`
 - Les indisponibilités affichées sont celles des utilisateurs membres du groupe actif
 - Clic sur un jour → panneau détail : liste des événements du jour + formulaire d'ajout
+- **Au téléphone** (≤ 640 px), la grille du mois remplit l'écran et le panneau s'ouvrait
+  dessous, hors de vue. Choisir un jour **replie le mois sur sa semaine** : il ne reste que
+  cette rangée, le panneau juste dessous, et l'on remonte au titre du mois si l'on avait
+  défilé. ‹ › passent à la semaine précédente ou suivante, au même jour — un autre mois se
+  charge par `?date=` —, « Tout le mois » ou la croix du panneau rouvrent la grille. Pas
+  d'animation de repli. Changer de mois referme le jour. Sur ordinateur et tablette, rien
+  ne change : la place ne manque pas
+- **Formulaire d'ajout replié au téléphone**, derrière « + Ajouter un événement » : on ouvre
+  un jour bien plus souvent pour voir qui vient que pour ajouter. Un jour **sans
+  événement** s'ouvre formulaire déplié — on l'a touché pour y ajouter —, et il se replie
+  après un ajout pour laisser voir l'événement créé. Toujours déplié sur un écran plus large
 - `?date=YYYY-MM-DD` ouvre le mois de ce jour avec son panneau déplié et amené à l'écran
-  (liens du tableau de bord) ; il l'emporte sur `?month=`
+  (liens du tableau de bord) ; il l'emporte sur `?month=`. `&ajouter` l'ouvre sur le
+  formulaire d'ajout
 - Badges colorés : rouge = indisponible, orange = répétition, vert = concert, violet = studio, gris = autre
   (mêmes teintes que le visuel d'une session, `SessionCover.svelte`)
 - Droits : seul l'auteur peut modifier ou supprimer son indisponibilité ; les événements de groupe sont modifiables/supprimables par les membres du groupe actif
@@ -2044,7 +2056,7 @@ la prochaine date, puis seulement l'activité.
   session → ». Les deux dates suivantes en lignes, avec le nombre d'absents. Les autres
   indisponibilités à venir restent en une ligne. La session affichée dans « À réécouter »
   n'y figure pas, même datée du jour. Toujours affichée, même vide (« Rien de prévu », avec
-  « Ajouter une date », qui ouvre l'agenda sur le jour même, formulaire déplié — « Agenda → »
+  « Ajouter une date », qui ouvre l'agenda sur le jour même, formulaire déplié (`&ajouter`) — « Agenda → »
   mène déjà au calendrier). Une date mène à sa session, ou à `/agenda?date=…`
 - **« À toi »**, seulement s'il y a quelque chose : les dates qui attendent sa réponse
   (« Répétition — tu viens ? », boutons sur place — voir « Présences »), un enregistrement resté dans la copie

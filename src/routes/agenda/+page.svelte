@@ -2,7 +2,7 @@
 	import { localDateOnly } from '$lib/date'
 	import { SESSION_TYPES, sessionTypeLabel, type SessionType } from '$lib/types'
 	import type { PageData } from './$types'
-	import { tick } from 'svelte'
+	import { tick, untrack } from 'svelte'
 	import { goto, invalidateAll } from '$app/navigation'
 	import Icon from '$lib/components/Icon.svelte'
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
@@ -138,6 +138,7 @@
 			y--
 			m = 12
 		}
+		selectedDay = null
 		goto(`/agenda?month=${y}-${String(m).padStart(2, '0')}`)
 	}
 
@@ -148,11 +149,13 @@
 			y++
 			m = 1
 		}
+		selectedDay = null
 		goto(`/agenda?month=${y}-${String(m).padStart(2, '0')}`)
 	}
 
 	function goToday() {
 		const now = new Date()
+		selectedDay = null
 		goto(`/agenda?month=${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`)
 	}
 
@@ -169,6 +172,11 @@
 	let formEnd = $state('')
 	let submitting = $state(false)
 	let formError = $state('')
+	// Au téléphone, le formulaire d'ajout est replié derrière un bouton : on ouvre un jour
+	// bien plus souvent pour voir qui vient que pour ajouter. Sur un écran plus large, il
+	// reste toujours déplié (voir le CSS) — cet état n'y change rien.
+	let formOpen = $state(false)
+	let formTypeSelect: HTMLSelectElement | undefined = $state()
 
 	$effect(() => {
 		if (formType === 'indisponibilite') {
@@ -179,16 +187,51 @@
 		}
 	})
 
+	const PHONE_QUERY = '(max-width: 640px)'
+	let header: HTMLElement | undefined = $state()
+
 	function selectDay(day: number) {
 		if (selectedDay === day) {
 			selectedDay = null
 		} else {
 			openDayPanel(day)
+			revealWeek()
 		}
 	}
 
-	function openDayPanel(day: number) {
+	/**
+	 * Au téléphone, le mois se replie sur la semaine du jour choisi et le panneau se lit
+	 * juste dessous. Si l'on avait fait défiler la grille, on remonte au titre du mois pour
+	 * que la bande de la semaine soit à l'écran.
+	 */
+	function revealWeek() {
+		if (!window.matchMedia(PHONE_QUERY).matches) return
+		tick().then(() => {
+			if (header && header.getBoundingClientRect().top < 0) {
+				const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+				header.scrollIntoView({ block: 'start', behavior: smooth ? 'smooth' : 'auto' })
+			}
+		})
+	}
+
+	// Rangée (semaine) du jour choisi dans la grille : au téléphone, seule elle reste.
+	const selectedWeek = $derived(selectedDay === null ? null : Math.floor(calDays.indexOf(selectedDay) / 7))
+
+	/** Semaine précédente ou suivante, au même jour de la semaine ; un autre mois se recharge. */
+	function shiftWeek(direction: -1 | 1) {
+		if (selectedDay === null) return
+		const target = new Date(calYear, calMonth - 1, selectedDay + 7 * direction)
+		if (target.getMonth() === calMonth - 1) {
+			openDayPanel(target.getDate())
+			return
+		}
+		goto(`/agenda?date=${localDateOnly(target)}`, { noScroll: true })
+	}
+
+	/** Un jour sans événement s'ouvre sur le formulaire : on l'a touché pour y ajouter. */
+	function openDayPanel(day: number, form = eventsForDay(day).length === 0) {
 		selectedDay = day
+		formOpen = form
 		formType = 'indisponibilite'
 		formTitle = ''
 		formNotes = ''
@@ -204,11 +247,13 @@
 	// Jour demandé par l'URL (`?date=`) : panneau ouvert d'emblée, et amené à l'écran —
 	// sur téléphone, il est sous toute la grille du mois. Suivi par valeur, pour qu'un
 	// rechargement des données après un ajout ne rouvre pas un jour refermé.
+	// `&ajouter` (« Ajouter une date » du tableau de bord) l'ouvre sur le formulaire.
 	const openDay = $derived(data.openDay)
 	let dayPanel: HTMLElement | undefined = $state()
 	$effect(() => {
 		if (!openDay) return
-		openDayPanel(openDay)
+		// Ni les événements ni le reste des données ne doivent relancer l'ouverture.
+		untrack(() => openDayPanel(openDay, data.openForm || undefined))
 		tick().then(() => dayPanel?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
 	})
 
@@ -244,6 +289,8 @@
 				formSessionId = ''
 				formStart = ''
 				formEnd = ''
+				// Replié, le formulaire laisse voir l'événement qu'on vient d'ajouter.
+				formOpen = false
 				await invalidateAll()
 			}
 		} catch {
@@ -351,7 +398,7 @@
 </svelte:head>
 
 <main class="page page-wide">
-	<div class="header">
+	<div class="header" bind:this={header}>
 		<button class="btn btn-ghost nav-arrow" onclick={prevMonth}>←</button>
 		<h1 class="month-title">{monthLabel}</h1>
 		{#if !isCurrentMonth}
@@ -360,14 +407,15 @@
 		<button class="btn btn-ghost nav-arrow" onclick={nextMonth}>→</button>
 	</div>
 
-	<div class="calendar">
+	<div class="calendar" class:week-only={selectedDay !== null}>
 		{#each ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'] as dow}
 			<div class="dow-header">{dow}</div>
 		{/each}
 
-		{#each calDays as day}
+		{#each calDays as day, index}
 			<div
 				class="day-cell"
+				class:out-of-week={selectedWeek !== null && Math.floor(index / 7) !== selectedWeek}
 				class:day-clickable={day !== null}
 				class:day-empty={day === null}
 				class:day-today={day !== null && dateStr(day) === today}
@@ -407,6 +455,19 @@
 			</div>
 		{/each}
 	</div>
+
+	{#if selectedDay !== null}
+		<!-- Au téléphone seulement : la grille n'y montre plus que la semaine du jour. -->
+		<div class="week-nav">
+			<button class="btn btn-ghost btn-sm" onclick={() => shiftWeek(-1)} aria-label="Semaine précédente">
+				<Icon name="chevron-left" size="1rem" />
+			</button>
+			<button class="btn-link btn-link-muted" onclick={() => (selectedDay = null)}>Tout le mois</button>
+			<button class="btn btn-ghost btn-sm" onclick={() => shiftWeek(1)} aria-label="Semaine suivante">
+				<Icon name="chevron-right" size="1rem" />
+			</button>
+		</div>
+	{/if}
 
 	{#if selectedDay !== null}
 		{@const dayGroupEvents = groupEventsForDay(selectedDay)}
@@ -541,75 +602,85 @@
 				{/if}
 			</div>
 
-			<div class="panel-form">
-				<h3 class="form-subtitle">Ajouter un événement</h3>
+			<div class="panel-form" class:form-collapsed={!formOpen}>
+				{#if !formOpen}
+					<button
+						class="btn btn-secondary btn-sm form-toggle"
+						onclick={() => { formOpen = true; tick().then(() => formTypeSelect?.focus()) }}
+					>
+						<Icon name="plus" /> Ajouter un événement
+					</button>
+				{/if}
+				<div class="form-body">
+					<h3 class="form-subtitle">Ajouter un événement</h3>
 
-				<div class="form-row">
-					<select class="form-input" bind:value={formType}>
-						<option value="indisponibilite">Indisponible (personnel)</option>
-						{#each SESSION_TYPES as value}
-							<option {value}>{sessionTypeLabel(value)}</option>
-						{/each}
-					</select>
-				</div>
+					<div class="form-row">
+						<select class="form-input" bind:value={formType} bind:this={formTypeSelect}>
+							<option value="indisponibilite">Indisponible (personnel)</option>
+							{#each SESSION_TYPES as value}
+								<option {value}>{sessionTypeLabel(value)}</option>
+							{/each}
+						</select>
+					</div>
 
-				{#if formType !== 'indisponibilite'}
+					{#if formType !== 'indisponibilite'}
+						<div class="form-row">
+							<input
+								class="form-input"
+								type="text"
+								placeholder="Titre (optionnel)"
+								bind:value={formTitle}
+							/>
+						</div>
+						<div class="form-row time-row">
+							<label class="time-field">
+								<span>De</span>
+								<input class="form-input" type="time" bind:value={formStart} aria-label="Heure de début (optionnel)" />
+							</label>
+							<label class="time-field">
+								<span>à</span>
+								<input class="form-input" type="time" bind:value={formEnd} disabled={!formStart} aria-label="Heure de fin (optionnel)" />
+							</label>
+						</div>
+						<div class="form-row">
+							<select class="form-input" bind:value={formSessionId}>
+								<option value="">Aucune session liée</option>
+								{#each sessions as s}
+									<option value={String(s.id)}>
+										{fmtDate(s.date)}{s.location ? ` — ${s.location}` : ''}
+									</option>
+								{/each}
+							</select>
+						</div>
+					{/if}
+
+					<div class="form-row">
+						<LocationInput
+							bind:value={formLocation}
+							bind:coords={formCoords}
+							optional
+							hideLabel
+						/>
+					</div>
+
 					<div class="form-row">
 						<input
 							class="form-input"
 							type="text"
-							placeholder="Titre (optionnel)"
-							bind:value={formTitle}
+							placeholder="Notes (optionnel)"
+							bind:value={formNotes}
 						/>
 					</div>
-					<div class="form-row time-row">
-						<label class="time-field">
-							<span>De</span>
-							<input class="form-input" type="time" bind:value={formStart} aria-label="Heure de début (optionnel)" />
-						</label>
-						<label class="time-field">
-							<span>à</span>
-							<input class="form-input" type="time" bind:value={formEnd} disabled={!formStart} aria-label="Heure de fin (optionnel)" />
-						</label>
+
+					{#if formError}
+						<p class="message-error">{formError}</p>
+					{/if}
+
+					<div class="form-actions">
+						<button class="btn btn-primary btn-sm" onclick={addEvent} disabled={submitting}>
+							Ajouter
+						</button>
 					</div>
-					<div class="form-row">
-						<select class="form-input" bind:value={formSessionId}>
-							<option value="">Aucune session liée</option>
-							{#each sessions as s}
-								<option value={String(s.id)}>
-									{fmtDate(s.date)}{s.location ? ` — ${s.location}` : ''}
-								</option>
-							{/each}
-						</select>
-					</div>
-				{/if}
-
-				<div class="form-row">
-					<LocationInput
-						bind:value={formLocation}
-						bind:coords={formCoords}
-						optional
-						hideLabel
-					/>
-				</div>
-
-				<div class="form-row">
-					<input
-						class="form-input"
-						type="text"
-						placeholder="Notes (optionnel)"
-						bind:value={formNotes}
-					/>
-				</div>
-
-				{#if formError}
-					<p class="message-error">{formError}</p>
-				{/if}
-
-				<div class="form-actions">
-					<button class="btn btn-primary btn-sm" onclick={addEvent} disabled={submitting}>
-						Ajouter
-					</button>
 				</div>
 			</div>
 		</div>
@@ -628,6 +699,8 @@
 
 <style>
 	.header {
+		/* Sous la barre du haut, collée : sinon le titre du mois finirait dessous. */
+		scroll-margin-top: var(--top-bar-h);
 		display: flex;
 		align-items: center;
 		gap: 0.75rem;
@@ -916,6 +989,39 @@
 		width: 1rem;
 		height: 1rem;
 		display: block;
+	}
+
+	/* Bande de la semaine : seulement au téléphone, quand un jour est choisi. */
+	.week-nav { display: none; }
+
+	/* Le bouton qui déplie le formulaire n'existe qu'au téléphone. */
+	.form-toggle { display: none; }
+
+	@media (max-width: 640px) {
+		.calendar.week-only .out-of-week { display: none; }
+
+		/* La rangée restante garde ses bords : c'est elle qui ferme la grille. */
+		.calendar.week-only .day-cell { border-bottom: none; }
+
+		.week-nav {
+			display: flex;
+			align-items: center;
+			justify-content: space-between;
+			margin-top: 0.35rem;
+		}
+
+		.week-nav .btn-ghost { min-width: 40px; min-height: 40px; }
+
+		.day-panel { margin-top: 0.5rem; }
+
+		.form-collapsed .form-toggle { display: inline-flex; align-self: flex-start; }
+		.form-collapsed .form-body { display: none; }
+	}
+
+	.form-body {
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
 	}
 
 	/* Add form */
