@@ -803,10 +803,11 @@
 		margin-bottom: 2rem;
 	}
 
-	/* Collé sous la barre du haut, elle-même collée en haut de la fenêtre. */
+	/* Collé sous la barre du haut, elle-même collée en haut de la fenêtre, et sous les
+	   bandeaux d'information quand il y en a (`--banners-h`, posée par le layout). */
 	.player-card.sticky {
 		position: sticky;
-		top: var(--top-bar-h);
+		top: calc(var(--top-bar-h) + var(--banners-h, 0px));
 		z-index: 5;
 	}
 

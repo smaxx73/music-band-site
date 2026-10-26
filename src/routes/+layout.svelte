@@ -22,6 +22,7 @@
 	// Fermé, le bandeau de mise à jour ne revient pas dans cet onglet : actualiser coupe
 	// la lecture en cours et un formulaire entamé, c'est au membre de choisir son moment.
 	let updateNoticeDismissed = $state(false)
+	let bannersHeight = $state(0)
 
 	// Les non lues des autres groupes : rendues avec la page, puis sondées comme la cloche.
 	// Une nouvelle valeur du serveur (navigation) reprend la main.
@@ -245,7 +246,11 @@
 				</div>
 			</nav>
 
-			<div class="app-content">
+			<div class="app-content" style="--banners-h: {bannersHeight}px">
+				<!-- Collés sous la barre du haut : un bandeau qui défile avec la page se
+				     manque dès qu'on a quitté le haut. Leur hauteur est publiée pour que
+				     les éléments collés des pages (lecteur d'une prise) se calent dessous. -->
+				<div class="app-banners" bind:clientHeight={bannersHeight}>
 				{#if updated.current && !updateNoticeDismissed}
 					<!-- L'application chargée dans l'onglet n'est plus celle du serveur : ses
 					     liens peuvent viser des fichiers qui n'existent plus. -->
@@ -281,6 +286,7 @@
 						</button>
 					</div>
 				{/if}
+				</div>
 				{#if data.user.groups.length === 0}
 					<div class="no-group-banner">
 						{#if isAdmin(data.user.role)}
@@ -518,6 +524,12 @@
 	.tab-bar { display: none; }
 
 	/* ─── Bandeaux d'information (bascule de groupe, mise à jour) ─ */
+	.app-banners {
+		position: sticky;
+		top: var(--top-bar-h);
+		z-index: 30;
+	}
+
 	.app-banner {
 		display: flex;
 		align-items: center;

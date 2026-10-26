@@ -1122,6 +1122,9 @@ peut viser des fichiers qui n'existent plus.
 - Une version différente fait paraître un **bandeau discret** en tête du contenu, dans le
   style de celui de la bascule de groupe : « Une nouvelle version de BandStash est en
   ligne. Actualiser la page »
+- Les bandeaux (mise à jour, bascule de groupe) sont **collés sous la barre du haut** : un
+  bandeau qui défile avec la page se manque dès qu'on a quitté le haut. Leur hauteur est
+  publiée dans `--banners-h` pour que le lecteur collé d'une prise se cale dessous
 - **Jamais de rechargement imposé** : il couperait la lecture en cours, un enregistrement
   ou un formulaire entamé. Le bandeau se ferme, et ne revient pas dans cet onglet. SvelteKit
   recharge de lui-même une navigation qui échouerait faute des anciens fichiers
