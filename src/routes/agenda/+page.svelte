@@ -8,6 +8,9 @@
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
 	import LocationInput from '$lib/components/LocationInput.svelte'
 	import { findPlace, locationDetails, type Coords, type GroupPlace } from '$lib/places'
+	import EventAttendance from '$lib/components/EventAttendance.svelte'
+	import type { EventAttendance as EventAttendanceData } from '$lib/attendance'
+	import { eventEndTime, formatEventTime } from '$lib/event-time'
 
 	let { data }: { data: PageData } = $props()
 
@@ -25,6 +28,9 @@
 		session_location: string | null
 		location_lat: number | null
 		location_lon: number | null
+		start_time: string | null
+		duration_min: number | null
+		attendance_requested: boolean
 	}
 
 	// Lieux du groupe, pour relire l'adresse d'un lieu d'événement : c'est l'étiquette qui
@@ -50,6 +56,25 @@
 	const sessions = $derived(data.sessions as unknown as SessionRow[])
 	const userName = $derived(data.userName as string)
 	const userId = $derived(data.userId as number)
+
+	// Présences par événement ; une réponse ou une relance les remplace sur place, sans
+	// recharger le mois.
+	let attendance = $derived(data.attendance as Record<number, EventAttendanceData>)
+
+	function attendanceFor(event: CalendarEventRow): EventAttendanceData {
+		return (
+			attendance[event.id] ?? {
+				event_id: event.id,
+				requested: event.attendance_requested,
+				open: false,
+				members: []
+			}
+		)
+	}
+
+	function updateAttendance(updated: EventAttendanceData) {
+		attendance = { ...attendance, [updated.event_id]: updated }
+	}
 
 	const calYear = $derived(Number(data.month.split('-')[0]))
 	const calMonth = $derived(Number(data.month.split('-')[1]))
@@ -140,6 +165,8 @@
 	let formLocation = $state('')
 	let formCoords = $state<Coords | null>(null)
 	let formSessionId = $state('')
+	let formStart = $state('')
+	let formEnd = $state('')
 	let submitting = $state(false)
 	let formError = $state('')
 
@@ -147,6 +174,8 @@
 		if (formType === 'indisponibilite') {
 			formTitle = ''
 			formSessionId = ''
+			formStart = ''
+			formEnd = ''
 		}
 	})
 
@@ -166,7 +195,10 @@
 		formLocation = ''
 		formCoords = null
 		formSessionId = ''
+		formStart = ''
+		formEnd = ''
 		formError = ''
+		editingTimeId = null
 	}
 
 	// Jour demandé par l'URL (`?date=`) : panneau ouvert d'emblée, et amené à l'écran —
@@ -196,7 +228,9 @@
 					notes: formNotes || null,
 					location,
 					location_coords: location ? formCoords : null,
-					session_id: formSessionId ? parseInt(formSessionId) : null
+					session_id: formSessionId ? parseInt(formSessionId) : null,
+					start_time: formStart || null,
+					end_time: formStart ? formEnd || null : null
 				})
 			})
 			if (!res.ok) {
@@ -208,12 +242,50 @@
 				formLocation = ''
 				formCoords = null
 				formSessionId = ''
+				formStart = ''
+				formEnd = ''
 				await invalidateAll()
 			}
 		} catch {
 			formError = 'Erreur réseau.'
 		} finally {
 			submitting = false
+		}
+	}
+
+	// Heure d'un événement déjà posé : celle d'une session ne se règle qu'ici.
+	let editingTimeId = $state<number | null>(null)
+	let editStart = $state('')
+	let editEnd = $state('')
+	let timeSaving = $state(false)
+	let timeError = $state('')
+
+	function startTimeEdit(event: CalendarEventRow) {
+		editingTimeId = event.id
+		editStart = event.start_time ?? ''
+		editEnd = eventEndTime(event.start_time, event.duration_min) ?? ''
+		timeError = ''
+	}
+
+	async function saveTime(event: CalendarEventRow) {
+		timeSaving = true
+		timeError = ''
+		try {
+			const res = await fetch(`/api/agenda/${event.id}`, {
+				method: 'PATCH',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ start_time: editStart || null, end_time: editStart ? editEnd || null : null })
+			})
+			if (!res.ok) {
+				timeError = (await res.json().catch(() => ({}))).error ?? 'Heure non enregistrée.'
+				return
+			}
+			editingTimeId = null
+			await invalidateAll()
+		} catch {
+			timeError = 'Erreur réseau.'
+		} finally {
+			timeSaving = false
 		}
 	}
 
@@ -315,10 +387,12 @@
 									class="event-badge session-type-{event.type}"
 									title="Voir la session"
 								>
+									{#if event.start_time}<span class="badge-time">{event.start_time}</span>{/if}
 									{event.title || TYPE_LABELS[event.type]}
 								</a>
 							{:else}
 								<div class="event-badge session-type-{event.type}">
+									{#if event.start_time}<span class="badge-time">{event.start_time}</span>{/if}
 									{event.title || TYPE_LABELS[event.type]}
 								</div>
 							{/if}
@@ -358,6 +432,34 @@
 								</span>
 								<div class="panel-event-body">
 									<span class="panel-event-name">{event.title || TYPE_LABELS[event.type]}</span>
+									{#if editingTimeId === event.id}
+										<div class="time-edit">
+											<label class="time-field">
+												<span>De</span>
+												<input class="form-input" type="time" bind:value={editStart} />
+											</label>
+											<label class="time-field">
+												<span>à</span>
+												<input class="form-input" type="time" bind:value={editEnd} disabled={!editStart} />
+											</label>
+											<button class="btn btn-primary btn-sm" onclick={() => saveTime(event)} disabled={timeSaving}>
+												Enregistrer
+											</button>
+											<button class="btn btn-secondary btn-sm" onclick={() => (editingTimeId = null)}>Annuler</button>
+										</div>
+										{#if timeError}<p class="message-error">{timeError}</p>{/if}
+									{:else}
+										<span class="panel-event-time">
+											{#if event.start_time}
+												<Icon name="clock" size="0.8rem" /> {formatEventTime(event.start_time, event.duration_min)}
+												<button class="btn-link btn-link-muted" onclick={() => startTimeEdit(event)}>Modifier</button>
+											{:else}
+												<button class="btn-link btn-link-muted" onclick={() => startTimeEdit(event)}>
+													<Icon name="clock" size="0.8rem" /> Ajouter l'heure
+												</button>
+											{/if}
+										</span>
+									{/if}
 									{#if event.session_id && event.session_date}
 										<a href="/sessions/{event.session_id}" class="panel-event-session">
 											Session du {fmtDate(event.session_date)}{event.session_location ? ` — ${event.session_location}` : ''}
@@ -381,6 +483,12 @@
 										<span class="panel-event-notes">{event.notes}</span>
 									{/if}
 									<span class="panel-event-meta">par {event.author}</span>
+									<EventAttendance
+										attendance={attendanceFor(event)}
+										{userId}
+										upcoming={event.date >= today}
+										onchange={updateAttendance}
+									/>
 								</div>
 								{#if canDelete(event)}
 									<button
@@ -453,6 +561,16 @@
 							placeholder="Titre (optionnel)"
 							bind:value={formTitle}
 						/>
+					</div>
+					<div class="form-row time-row">
+						<label class="time-field">
+							<span>De</span>
+							<input class="form-input" type="time" bind:value={formStart} aria-label="Heure de début (optionnel)" />
+						</label>
+						<label class="time-field">
+							<span>à</span>
+							<input class="form-input" type="time" bind:value={formEnd} disabled={!formStart} aria-label="Heure de fin (optionnel)" />
+						</label>
 					</div>
 					<div class="form-row">
 						<select class="form-input" bind:value={formSessionId}>
@@ -738,9 +856,42 @@
 		text-decoration: underline;
 	}
 
-	.panel-event-location {
+	.panel-event-location,
+	.panel-event-time {
 		font-size: var(--text-xs);
 		color: var(--color-text-secondary);
+	}
+
+	.panel-event-time .btn-link { font-size: inherit; margin-left: 0.25rem; }
+	.panel-event-time :global(.icon) { vertical-align: -1px; }
+
+	.badge-time {
+		font-weight: 700;
+		margin-right: 0.2rem;
+	}
+
+	.time-row,
+	.time-edit {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 0.5rem;
+	}
+
+	.time-edit { margin: 0.2rem 0; }
+
+	.time-field {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.35rem;
+		font-size: var(--text-xs);
+		color: var(--color-text-secondary);
+	}
+
+	.form-row .time-field .form-input,
+	.time-field .form-input {
+		flex: none;
+		width: auto;
 	}
 
 	.panel-event-location a { color: inherit; margin-left: 0.25rem; }
@@ -816,6 +967,9 @@
 			font-size: 0.6rem;
 			padding: 1px 2px;
 		}
+
+		/* Sous 600 px, la case n'a pas la place : l'heure se lit dans le panneau du jour. */
+		.badge-time { display: none; }
 
 		.month-title {
 			font-size: var(--text-base);

@@ -4,6 +4,7 @@ import { listRecentPosts } from '$lib/server/posts'
 import { listRecentGroupComments } from '$lib/server/comments'
 import { listRecentImports } from '$lib/server/imports'
 import { PLACEHOLDER_SONG_PREFIX } from '$lib/songs'
+import { listAttendance, pendingAttendance } from '$lib/server/attendance'
 
 // L'accueil n'est qu'un aperçu de l'activité : trois lignes, le fil montre le reste.
 // Trois par source suffisent pour les trois dernières toutes sources confondues.
@@ -33,12 +34,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 			lastSession: null, lastTracks: [], upcomingItems: [], otherUnavailabilities: [],
 			playlists: [], setlists: [], posts: [], recentComments: [], recentSessions: [],
 			recentRecordings: [], placeholderSongCount: 0, pendingImportCount: await pendingImportsQuery,
+			pendingAttendance: [],
 		}
 	}
 
 	const [
 		[lastSession], upcomingSessions, upcomingGroupEvents, playlists, setlists, posts,
-		recentComments, recentSessions, recentRecordings, [placeholders], pendingImportCount
+		recentComments, recentSessions, recentRecordings, [placeholders], pendingImportCount,
+		myPendingAttendance
 	] = await Promise.all([
 		// La dernière session qu'on peut réécouter : passée ou du jour, avec au moins une
 		// piste audio. Une session sans prise, ou vidéo seule, n'a rien à jouer ici.
@@ -51,25 +54,31 @@ export const load: PageServerLoad = async ({ locals }) => {
 			ORDER BY s.date DESC, s.id DESC
 			LIMIT 1
 		`,
+		// L'heure et les présences sont portées par l'événement d'agenda de la session.
 		sql`
-			SELECT s.id, s.date::text AS date, s.type, s.title, s.location
+			SELECT
+				s.id, s.date::text AS date, s.type, s.title, s.location,
+				e.id AS event_id, to_char(e.start_time, 'HH24:MI') AS start_time, e.duration_min
 			FROM sessions s
+			LEFT JOIN calendar_events e ON e.session_id = s.id
 			WHERE s.group_id = ${groupId}
 			  AND s.date >= CURRENT_DATE
-			ORDER BY s.date ASC, s.id ASC
+			ORDER BY s.date ASC, e.start_time ASC NULLS LAST, s.id ASC
 			LIMIT ${UPCOMING_LIMIT + 1}
 		`,
 		// Événements d'agenda de type session (répétition/concert/studio/autre) pas encore
 		// transformés en vraie session — ceux qui le sont déjà sont couverts par la requête
 		// ci-dessus et ne doivent pas apparaître deux fois.
 		sql`
-			SELECT id, date::text AS date, type, title, location
+			SELECT
+				id, date::text AS date, type, title, location,
+				to_char(start_time, 'HH24:MI') AS start_time, duration_min
 			FROM calendar_events
 			WHERE group_id = ${groupId}
 			  AND date >= CURRENT_DATE
 			  AND session_id IS NULL
 			  AND type IN ('repetition', 'concert', 'studio', 'autre')
-			ORDER BY date ASC
+			ORDER BY date ASC, start_time ASC NULLS LAST
 			LIMIT ${UPCOMING_LIMIT}
 		`,
 		sql`
@@ -132,6 +141,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			  AND status IS DISTINCT FROM 'abandonne'
 		`,
 		pendingImportsQuery,
+		// « Tu viens ? » sans réponse : c'est ici qu'elle attend, la cloche se lit et s'oublie.
+		pendingAttendance(userId, groupId),
 	])
 
 	const lastTracks = lastSession
@@ -157,6 +168,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 				type: s.type as string,
 				title: s.title as string | null,
 				location: s.location as string | null,
+				event_id: s.event_id as number | null,
+				start_time: s.start_time as string | null,
+				duration_min: s.duration_min as number | null,
 			})),
 		...upcomingGroupEvents.map((e) => ({
 			kind: 'event' as const,
@@ -165,9 +179,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 			type: e.type as string,
 			title: e.title as string | null,
 			location: e.location as string | null,
+			event_id: e.id as number,
+			start_time: e.start_time as string | null,
+			duration_min: e.duration_min as number | null,
 		})),
 	]
-		.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+		.sort((a, b) =>
+			a.date !== b.date
+				? (a.date < b.date ? -1 : 1)
+				: (a.start_time ?? '99:99').localeCompare(b.start_time ?? '99:99'))
 		.slice(0, UPCOMING_LIMIT)
 
 	// Indisponibilités des membres : elles n'ont pas de group_id (elles suivent la
@@ -194,10 +214,36 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 	const otherUnavailabilities = unavailabilities.filter((u) => !upcomingDates.includes(u.date)).slice(0, 4)
 
+	// Présences des dates à venir. Un « absent » répondu rejoint les indisponibles du jour :
+	// la carte ne dit qu'une fois qui manque, quelle que soit la façon dont il l'a dit.
+	const attendanceByEvent = await listAttendance(
+		groupId,
+		upcomingItems.flatMap((i) => (i.event_id ? [i.event_id] : []))
+	)
+	function upcomingAttendance(item: (typeof upcomingItems)[number]) {
+		const unavailable = absentsByDate.get(item.date) ?? []
+		const attendance = item.event_id ? attendanceByEvent.get(item.event_id) : undefined
+		const members = attendance?.members ?? []
+		const names = (response: string) => members.filter((m) => m.response === response).map((m) => m.name)
+		const absents = [...new Set([...unavailable, ...names('absent')])]
+		if (!attendance || !(attendance.requested || members.some((m) => m.response))) {
+			return { absents, attendance: null }
+		}
+		return {
+			absents,
+			attendance: {
+				present: names('present').length,
+				maybe: names('maybe'),
+				// Sans réponse, hors ceux qu'une indisponibilité annonce déjà absents.
+				pending: members.filter((m) => !m.response && !unavailable.includes(m.name)).length,
+			},
+		}
+	}
+
 	return {
 		lastSession: lastSession ?? null,
 		lastTracks,
-		upcomingItems: upcomingItems.map((i) => ({ ...i, absents: absentsByDate.get(i.date) ?? [] })),
+		upcomingItems: upcomingItems.map((i) => ({ ...i, ...upcomingAttendance(i) })),
 		otherUnavailabilities,
 		playlists,
 		setlists,
@@ -207,5 +253,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 		recentRecordings,
 		placeholderSongCount: placeholders?.count ?? 0,
 		pendingImportCount,
+		pendingAttendance: myPendingAttendance,
 	}
 }

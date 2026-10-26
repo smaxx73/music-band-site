@@ -9,6 +9,8 @@
 	import Icon from '$lib/components/Icon.svelte'
 	import { daysFromToday } from '$lib/date'
 	import Menu from '$lib/components/Menu.svelte'
+	import AttendanceButtons from '$lib/components/AttendanceButtons.svelte'
+	import type { AttendanceResponse } from '$lib/attendance'
 
 	let { groupId, initialUnread = 0 }: { groupId: number; initialUnread?: number } = $props()
 
@@ -138,6 +140,17 @@
 		goto(notification.link, { invalidateAll: true })
 	}
 
+	// Répondre depuis la cloche vaut lecture (le serveur la marque lue). La ligne reste à
+	// l'écran, même sous « Non lues », pour qu'on voie la réponse prise en compte.
+	function attendanceAnswered(notification: ActivityNotification, response: AttendanceResponse) {
+		items = items.map((n) =>
+			n.event_id === notification.event_id && n.type === 'attendance'
+				? { ...n, attendance: response, read_at: n.read_at ?? new Date().toISOString() }
+				: n
+		)
+		refreshCount()
+	}
+
 	function switchFilter(value: boolean) {
 		if (unreadOnly === value) return
 		unreadOnly = value
@@ -223,21 +236,35 @@
 			{:else}
 				{#each items as item (item.id)}
 					<div class="notif-item" class:unread={!item.read_at}>
-						<a
-							class="notif-link"
-							href={item.link}
-							onclick={(e) => openNotification(e, item)}
-						>
-							<Icon name={notificationIcon(item.type)} class="notif-icon" size="1rem" />
-							<span class="notif-text">
-								<span class="notif-action">
-									{item.actor_name} {notificationLabel(item.type)}
+						<div class="notif-main">
+							<a
+								class="notif-link"
+								href={item.link}
+								onclick={(e) => openNotification(e, item)}
+							>
+								<Icon name={notificationIcon(item.type)} class="notif-icon" size="1rem" />
+								<span class="notif-text">
+									<span class="notif-action">
+										{item.actor_name} {notificationLabel(item.type)}
+									</span>
+									{#if item.subject}<span class="notif-subject">{item.subject}</span>{/if}
+									{#if item.excerpt}<span class="notif-excerpt">{item.excerpt}</span>{/if}
+									<span class="notif-time">{relativeTime(item.created_at)}</span>
 								</span>
-								{#if item.subject}<span class="notif-subject">{item.subject}</span>{/if}
-								{#if item.excerpt}<span class="notif-excerpt">{item.excerpt}</span>{/if}
-								<span class="notif-time">{relativeTime(item.created_at)}</span>
-							</span>
-						</a>
+							</a>
+							<!-- « Tu viens ? » se répond d'ici, sans ouvrir l'agenda. Hors du lien : un
+							     bouton dans un lien n'est ni valide ni accessible. -->
+							{#if item.type === 'attendance' && item.event_id && item.attendance_open}
+								<div class="notif-attendance">
+									<AttendanceButtons
+										eventId={item.event_id}
+										value={item.attendance}
+										label="Ta présence : {item.subject ?? 'événement'}"
+										onanswer={(response) => attendanceAnswered(item, response)}
+									/>
+								</div>
+							{/if}
+						</div>
 						<button
 							class="notif-dot"
 							onclick={() => setRead(item, !item.read_at)}
@@ -410,9 +437,12 @@
 
 	.notif-item.unread { background: var(--color-accent-light); }
 
-	.notif-link {
+	.notif-main {
 		flex: 1;
 		min-width: 0;
+	}
+
+	.notif-link {
 		display: flex;
 		gap: 0.5rem;
 		padding: 0.5rem 0.2rem 0.55rem 0.7rem;
@@ -427,6 +457,11 @@
 	.notif-link :global(.notif-icon) {
 		margin-top: 0.15rem;
 		opacity: 0.7;
+	}
+
+	/* Aligné sur le texte, sous l'icône : 0.7rem de marge, 1rem d'icône, 0.5rem d'écart. */
+	.notif-attendance {
+		padding: 0 0.2rem 0.6rem 2.2rem;
 	}
 
 	.notif-text {
@@ -554,6 +589,7 @@
 		}
 
 		.notif-link { padding: 0.7rem 0.2rem 0.75rem 0.9rem; gap: 0.7rem; }
+		.notif-attendance { padding: 0 0.2rem 0.75rem 2.6rem; }
 		.notif-dot { width: 44px; font-size: 0.7rem; }
 
 		.notif-settings {

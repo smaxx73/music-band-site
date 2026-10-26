@@ -372,16 +372,36 @@ CREATE TABLE calendar_events (
     location_lat DOUBLE PRECISION,           -- comme sessions.location_lat (migration 039)
     location_lon DOUBLE PRECISION,
     session_id  INTEGER REFERENCES sessions(id) ON DELETE SET NULL,
+    start_time  TIME,                        -- heure de début, locale au groupe (migration 052)
+    duration_min INTEGER CHECK (duration_min BETWEEN 1 AND 1440),
+                                             -- déduite de l'heure de fin saisie ; fin après minuit possible
+    attendance_requested BOOLEAN NOT NULL DEFAULT false,
+                                             -- présences demandées au groupe (date à venir, ou à la
+                                             -- demande) ; remis à zéro quand la date change
     created_at  TIMESTAMPTZ DEFAULT now(),
-    CONSTRAINT calendar_events_location_coords CHECK ((location_lat IS NULL) = (location_lon IS NULL))
+    CONSTRAINT calendar_events_location_coords CHECK ((location_lat IS NULL) = (location_lon IS NULL)),
+    CONSTRAINT calendar_events_duration_start CHECK (duration_min IS NULL OR start_time IS NOT NULL)
+);
+
+-- Réponse d'un membre à la question « tu viens ? » d'un événement de groupe (migration 052).
+-- Indépendante des indisponibilités : celles-ci valent pour la journée et tous les groupes,
+-- une réponse pour cet événement seul. Voir src/lib/server/attendance.ts.
+CREATE TABLE event_attendance (
+    event_id    INTEGER NOT NULL REFERENCES calendar_events(id) ON DELETE CASCADE,
+    user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    response    TEXT NOT NULL CHECK (response IN ('present', 'maybe', 'absent')),
+    note        TEXT,                        -- « j'arrive à 20 h »
+    answered_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (event_id, user_id)
 );
 
 CREATE TABLE notifications (
     id            SERIAL PRIMARY KEY,
     user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,   -- destinataire
     group_id      INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-    type          TEXT NOT NULL CHECK (type IN ('recording', 'comment', 'mention', 'session', 'playlist', 'agenda', 'setlist', 'post')),
+    type          TEXT NOT NULL CHECK (type IN ('recording', 'comment', 'mention', 'session', 'playlist', 'agenda', 'setlist', 'post', 'attendance')),
                                                  -- 'mention' : membre cité (@pseudo) dans un commentaire
+                                                 -- 'attendance' : « tu viens ? », on y répond depuis la cloche
     actor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                                                  -- auteur de l'action ; jamais destinataire de la sienne
     actor_name    TEXT NOT NULL,                 -- repli si le compte a disparu
@@ -394,6 +414,7 @@ CREATE TABLE notifications (
     playlist_id   INTEGER REFERENCES playlists(id)  ON DELETE CASCADE,
     setlist_id    INTEGER REFERENCES setlists(id)   ON DELETE CASCADE,
     post_id       INTEGER REFERENCES posts(id)      ON DELETE CASCADE,
+    event_id      INTEGER REFERENCES calendar_events(id) ON DELETE CASCADE,
     read_at       TIMESTAMPTZ,                   -- NULL = non lue
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );

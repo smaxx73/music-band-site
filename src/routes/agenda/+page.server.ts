@@ -3,6 +3,8 @@ import { redirect } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 import { loginRedirect } from '$lib/redirect'
 import { listGroupPlaces } from '$lib/server/places'
+import { listAttendance } from '$lib/server/attendance'
+import type { EventAttendance } from '$lib/attendance'
 
 function currentMonth(): string {
 	const now = new Date()
@@ -22,7 +24,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const groupId = locals.user.current_group_id
 	if (!groupId) {
-		return { events: [], sessions: [], places: [], month, openDay, userName: locals.user.display_name }
+		return { events: [], sessions: [], places: [], attendance: {}, month, openDay, userName: locals.user.display_name }
 	}
 
 	const [y, m] = month.split('-').map(Number)
@@ -38,7 +40,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 				to_char(e.date, 'YYYY-MM-DD') AS date,
 				to_char(s.date, 'YYYY-MM-DD') AS session_date,
 				s.location AS session_location,
-				e.location_lat, e.location_lon
+				e.location_lat, e.location_lon,
+				to_char(e.start_time, 'HH24:MI') AS start_time, e.duration_min, e.attendance_requested
 			FROM calendar_events e
 			LEFT JOIN sessions s ON s.id = e.session_id
 			LEFT JOIN users u ON u.id = e.user_id
@@ -51,7 +54,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 						SELECT user_id FROM user_groups WHERE group_id = ${groupId}
 					))
 				)
-			ORDER BY e.date, e.type, e.created_at
+			ORDER BY e.date, e.start_time NULLS LAST, e.type, e.created_at
 		`,
 		sql`
 			SELECT id, to_char(date, 'YYYY-MM-DD') AS date, location
@@ -64,5 +67,11 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 		listGroupPlaces(groupId)
 	])
 
-	return { events, sessions, places, month, openDay, userName: locals.user.display_name, userId: locals.user.id }
+	// Présences des événements du groupe : qui vient, qui n'a pas répondu.
+	const groupEventIds = events.filter((e) => e.type !== 'indisponibilite').map((e) => e.id as number)
+	const attendance: Record<number, EventAttendance> = Object.fromEntries(
+		await listAttendance(groupId, groupEventIds)
+	)
+
+	return { events, sessions, places, attendance, month, openDay, userName: locals.user.display_name, userId: locals.user.id }
 }

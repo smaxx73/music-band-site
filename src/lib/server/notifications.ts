@@ -36,6 +36,8 @@ export type NotifyInput = {
 	playlistId?: number | null
 	setlistId?: number | null
 	postId?: number | null
+	/** Événement d'agenda dont on demande la présence (`attendance`) : on y répond depuis la cloche. */
+	eventId?: number | null
 }
 
 function truncate(value: string | null | undefined): string | null {
@@ -102,7 +104,7 @@ export async function notifyGroup(input: NotifyInput, excludeUserIds: number[] =
 		await sql`
 			INSERT INTO notifications (
 				user_id, group_id, type, actor_user_id, actor_name,
-				subject, excerpt, link, session_id, recording_id, playlist_id, setlist_id, post_id
+				subject, excerpt, link, session_id, recording_id, playlist_id, setlist_id, post_id, event_id
 			)
 			SELECT
 				ug.user_id,
@@ -117,7 +119,8 @@ export async function notifyGroup(input: NotifyInput, excludeUserIds: number[] =
 				${input.recordingId ?? null},
 				${input.playlistId ?? null},
 				${input.setlistId ?? null},
-				${input.postId ?? null}
+				${input.postId ?? null},
+				${input.eventId ?? null}
 			FROM user_groups ug
 			WHERE ug.group_id = ${input.groupId} AND ug.user_id <> ${input.actor.id}
 			  AND NOT (ug.user_id = ANY(${sql.array(excludeUserIds, INT4_OID)}))
@@ -185,9 +188,22 @@ export async function notifyMentions(
 // Le nom de l'auteur est relu depuis `users` quand le compte existe encore, pour que
 // un changement de nom affiché se répercute sur l'historique — comme pour les
 // commentaires et les sessions. `actor_name` ne sert que de repli.
+//
+// Une demande de présence porte sa réponse et dit si l'on peut encore répondre : la
+// cloche affiche les boutons sur la ligne, et la question n'a plus cours une fois la
+// date passée.
 const SELECT_COLUMNS = sql`
 	n.id, n.type, n.actor_user_id, n.subject, n.excerpt, n.link, n.read_at, n.created_at,
-	COALESCE(u.display_name, n.actor_name) AS actor_name
+	COALESCE(u.display_name, n.actor_name) AS actor_name,
+	n.event_id,
+	ea.response AS attendance,
+	COALESCE(ce.attendance_requested AND ce.date >= CURRENT_DATE, false) AS attendance_open
+`
+
+const JOINS = sql`
+	LEFT JOIN users u ON u.id = n.actor_user_id
+	LEFT JOIN calendar_events ce ON ce.id = n.event_id
+	LEFT JOIN event_attendance ea ON ea.event_id = n.event_id AND ea.user_id = n.user_id
 `
 
 export async function listNotifications(
@@ -200,7 +216,7 @@ export async function listNotifications(
 	return (await sql<ActivityNotification[]>`
 		SELECT ${SELECT_COLUMNS}
 		FROM notifications n
-		LEFT JOIN users u ON u.id = n.actor_user_id
+		${JOINS}
 		WHERE n.user_id = ${userId}
 		  AND n.group_id = ${groupId}
 		  ${options.unreadOnly ? sql`AND n.read_at IS NULL` : sql``}
@@ -263,7 +279,7 @@ export async function markNotification(
 	const [full] = await sql<ActivityNotification[]>`
 		SELECT ${SELECT_COLUMNS}
 		FROM notifications n
-		LEFT JOIN users u ON u.id = n.actor_user_id
+		${JOINS}
 		WHERE n.id = ${notificationId} AND n.user_id = ${userId}
 	`
 	return full ?? null

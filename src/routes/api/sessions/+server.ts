@@ -5,6 +5,7 @@ import { notifyGroup } from '$lib/server/notifications'
 import { formatDateOnly } from '$lib/date'
 import { sessionTypeLabel } from '$lib/types'
 import { parseCoords } from '$lib/places'
+import { askAttendance, restartAttendance } from '$lib/server/attendance'
 
 export const GET: RequestHandler = async ({ locals }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -78,9 +79,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	// calendar_events (on la lie via session_id) au lieu d'en insérer une seconde,
 	// pour éviter un doublon sur le même jour.
 	let linkedEventId: number | null = null
+	let linkedEventDate: string | null = null
 	if (typeof linkEventId === 'number') {
 		const [event] = await sql`
-			SELECT id FROM calendar_events
+			SELECT id, date::text AS date FROM calendar_events
 			WHERE id = ${linkEventId}
 			  AND group_id = ${locals.user.current_group_id}
 			  AND session_id IS NULL
@@ -90,7 +92,11 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			return json({ error: 'Événement introuvable ou déjà lié à une session.' }, { status: 400 })
 		}
 		linkedEventId = linkEventId
+		linkedEventDate = event.date
 	}
+
+	// Événement créé avec la session, s'il demande les présences.
+	let askedEventId: number | null = null
 
 	const session = await sql.begin(async (tx) => {
 		const [session] = await tx`
@@ -121,9 +127,15 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 				WHERE id = ${linkedEventId}
 			`
 		} else {
-			// Toute session apparaît automatiquement dans l'agenda, quel que soit son type
-			await tx`
-				INSERT INTO calendar_events (group_id, user_id, date, type, author, title, notes, location, location_lat, location_lon, session_id)
+			// Toute session apparaît automatiquement dans l'agenda, quel que soit son type.
+			// Elle demande qui vient si elle est à venir — pas le jour même : une session du
+			// jour se crée presque toujours pendant la répétition (/record, /upload), et la
+			// question n'aurait plus d'objet. « Demander les présences » reste possible.
+			const [event] = await tx`
+				INSERT INTO calendar_events (
+					group_id, user_id, date, type, author, title, notes, location, location_lat, location_lon, session_id,
+					attendance_requested
+				)
 				VALUES (
 					${locals.user!.current_group_id},
 					${locals.user!.id},
@@ -135,15 +147,29 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 					${resolvedLocation},
 					${session.location_lat},
 					${session.location_lon},
-					${session.id}
+					${session.id},
+					${date.trim()}::date > CURRENT_DATE
 				)
+				RETURNING id, attendance_requested
 			`
+			if (event.attendance_requested) askedEventId = event.id
 		}
 
 		return session
 	})
 
-	await notifyGroup({
+	// La demande de présence annonce la session et demande en plus : elle remplace la
+	// notification de création, comme une mention remplace « a commenté ». Un événement
+	// déplacé à une autre date en devenant session repose la question.
+	let asked = false
+	if (askedEventId) {
+		await askAttendance(askedEventId, locals.user.current_group_id, locals.user)
+		asked = true
+	} else if (linkedEventId && linkedEventDate !== date.trim()) {
+		asked = await restartAttendance(linkedEventId, locals.user.current_group_id, locals.user)
+	}
+
+	if (!asked) await notifyGroup({
 		groupId: locals.user.current_group_id,
 		actor: locals.user,
 		type: 'session',

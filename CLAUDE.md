@@ -122,6 +122,10 @@ NODE_ENV=production
   via `setMemberNotificationPrefs`
 - `/members/[id]` n'a pas de groupe propriétaire unique : sa bascule de groupe passe par
   `retargetActiveGroupToMember`, pas par `retargetActiveGroup`
+- Les présences (« tu viens ? ») sont portées par l'événement d'agenda (`calendar_events`),
+  jamais par la session, et passent par `src/lib/server/attendance.ts`. Une indisponibilité
+  ne répond pas à la place du membre. La notification `attendance` n'est pas désactivable,
+  comme une mention. Voir « Présences » dans docs/features.md
 - Une prise peut n'avoir qu'une vidéo YouTube, sans fichier : tout code qui touche à `AUDIO_DIR`,
   au lecteur audio partagé ou aux playlists vérifie `file_path IS NOT NULL`. Voir « Prises vidéo
   YouTube » dans docs/features.md

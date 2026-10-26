@@ -30,6 +30,7 @@ src/
 │   │   ├── members.ts     # page d'un membre : fiche dans le groupe actif, activité récente
 │   │   ├── avatars.ts     # photo de profil : dépôt (recadrage ffmpeg), retrait, lecture selon
 │   │   │                  #   le partage d'un groupe, versions d'un lot de comptes (fil)
+│   │   ├── attendance.ts  # présences à un événement de groupe : question, réponses, relance, date déplacée
 │   │   ├── places.ts      # lieux du groupe (/group) : liste, ajout, modification (renommage propagé), retrait
 │   │   ├── addresses.ts   # Base Adresse Nationale : recherche d'une adresse pour un lieu
 │   │   ├── images.ts      # images déposées : format lu dans les octets, taille de requête
@@ -64,6 +65,8 @@ src/
 │       ├── IconCover.svelte       # visuel fixe d'une page qui rassemble des morceaux (référentiel, playlist)
 │       ├── RecordingComments.svelte # commentaires d'une prise chargés à la demande (hors lecteur)
 │       ├── NotificationsMenu.svelte # cloche + menu des notifications (barre du haut)
+│       ├── AttendanceButtons.svelte # Présent / Peut-être / Absent : cloche, tableau de bord, agenda
+│       ├── EventAttendance.svelte # présences d'un événement dans le panneau du jour (/agenda)
 │       ├── GroupSwitcher.svelte   # groupe actif (logo, nom) et changement de groupe
 │       ├── AddMenu.svelte         # « + Ajouter » : enregistrer, envoyer, session, publier
 │       ├── PlaylistQueue.svelte   # mode édition d'une playlist : ordre (glisser), retrait

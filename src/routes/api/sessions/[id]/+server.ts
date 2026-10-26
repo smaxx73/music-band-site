@@ -4,6 +4,7 @@ import sql from '$lib/server/db'
 import { removeRecordingFiles } from '$lib/server/storage'
 import { canDeleteGroupContent } from '$lib/types'
 import { parseCoords } from '$lib/places'
+import { restartAttendance } from '$lib/server/attendance'
 
 export const GET: RequestHandler = async ({ locals, params }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -117,6 +118,9 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		return json({ error: 'Aucun champ à modifier.' }, { status: 400 })
 	}
 
+	// Événement dont la date vient de changer : ses présences sont à redemander.
+	let movedEventId: number | null = null
+
 	const result = await sql.begin(async (tx) => {
 		const [session] = await tx`
 			UPDATE sessions SET ${tx(updates)}
@@ -127,10 +131,11 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 
 		// Garder l'agenda synchronisé avec la session, quel que soit son type
 		const [linkedEvent] = await tx`
-			SELECT id FROM calendar_events WHERE session_id = ${id}
+			SELECT id, date::text AS date FROM calendar_events WHERE session_id = ${id}
 		`
 
 		if (linkedEvent) {
+			if (linkedEvent.date !== session.date) movedEventId = linkedEvent.id
 			await tx`
 				UPDATE calendar_events
 				SET date = ${session.date}, type = ${session.type}, title = ${session.title},
@@ -152,6 +157,9 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	})
 
 	if (!result) return json({ error: 'Session introuvable.' }, { status: 404 })
+
+	// Les réponses données pour l'ancienne date ne valent plus : la question est reposée.
+	if (movedEventId) await restartAttendance(movedEventId, locals.user.current_group_id, locals.user)
 
 	return json(result)
 }

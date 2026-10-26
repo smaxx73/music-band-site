@@ -67,6 +67,8 @@ api/share-links/+server.ts
 api/share-links/[id]/+server.ts
 api/agenda/+server.ts
 api/agenda/[id]/+server.ts
+api/agenda/[id]/attendance/+server.ts
+api/agenda/[id]/attendance/remind/+server.ts
 api/groups/+server.ts
 api/groups/[id]/+server.ts
 api/groups/[id]/export/+server.ts
@@ -240,6 +242,19 @@ C'est `findCommentThread` qui le dit (`anchorable`). La vérification de droit e
 actif, via `findCommentThread` (`src/lib/server/comments.ts`). Ne jamais rejoindre
 `recordings` à la main pour retrouver le groupe d'un commentaire : un commentaire de
 setlist n'a pas de prise.
+
+Les **présences** (`api/agenda/[id]/attendance`) portent sur un événement de groupe du
+groupe actif (une indisponibilité répond `404`). `POST /api/agenda` et `PATCH /api/agenda/[id]`
+acceptent `start_time` / `end_time` (« HH:MM », `parseEventTime`, `src/lib/event-time.ts` ;
+`400` pour une fin sans début). La question se pose à la création d'une date à venir —
+`POST /api/agenda` dès le jour même, `POST /api/sessions` à partir du lendemain — et la
+notification `attendance` remplace alors celle de la création. `POST .../attendance`
+(`{ response: 'present' | 'maybe' | 'absent', note? }`, `note` absente = gardée) répond pour
+le membre connecté, `409` si la question n'est pas posée ou la date passée ; il rend
+`{ attendance }`. `POST .../attendance/remind` relance les sans-réponse (tout membre), ou pose
+la question si elle ne l'était pas : `{ reminded, attendance }`, `409` sur une date passée.
+Changer la date d'une session efface les réponses et repose la question
+(`restartAttendance`). Passer par `src/lib/server/attendance.ts`.
 
 Les notifications font exception au scope habituel : elles appartiennent à un destinataire.
 Le filtre `user_id = locals.user.id` **est** la vérification de droit — personne, admin compris,

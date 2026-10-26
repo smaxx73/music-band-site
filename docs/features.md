@@ -1756,6 +1756,60 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
   la session y figure. Il part avec la session, qui porte la suppression
 - `author` = nom de l'utilisateur connecté
 
+### Heure et durée d'un événement
+
+- Un événement de groupe peut porter une **heure de début** et, avec elle, une **heure de
+  fin** (« 19:30 – 22:00 »). On saisit la fin, on stocke une durée
+  (`calendar_events.start_time`, `duration_min`, migration 052) : une fin après minuit
+  n'est pas un cas particulier. Une fin sans début est refusée (`400`)
+- Saisie à l'ajout dans le panneau du jour, et après coup par « Ajouter l'heure » /
+  « Modifier » sur l'événement — c'est là que se règle l'heure d'une **session**, dont
+  l'événement porte l'heure (la fiche de la session ne la demande pas)
+- Elle se lit dans la case du jour (masquée sous 600 px), le panneau du jour, la carte et
+  les lignes « À venir » du tableau de bord, et la demande de présence
+- Changer l'heure garde les réponses et ne notifie personne
+
+### Présences (« tu viens ? »)
+
+Savoir avant la répétition qui sera là, sans un fil de messages à côté.
+
+- **Tout événement de groupe à venir** pose la question — répétition, concert, studio,
+  autre. C'est l'**événement d'agenda** qui la porte (`calendar_events.attendance_requested`,
+  `event_attendance`), jamais la session : toute session a le sien, et un événement
+  transformé en session garde sa ligne, ses réponses avec. Passer par
+  `src/lib/server/attendance.ts`
+- **Trois réponses** : Présent, Peut-être, Absent, et un mot facultatif (« j'arrive à
+  20 h », 140 caractères). On change d'avis tant que la date n'est pas passée
+- **Quand la question se pose** : un événement ajouté dans l'agenda le jour même ou plus
+  tard (« ce soir »), une session créée pour **un jour à venir**. Pas une session du jour :
+  elle se crée presque toujours pendant la répétition (`/record`, `/upload`), et la question
+  n'aurait plus d'objet. Les dates déjà prévues avant la migration la posent aussi, sans
+  notification
+- **Notification `attendance`**, à chaque membre sauf l'auteur, **non désactivable** —
+  comme une mention, elle attend une réponse. Elle remplace la notification de création
+  (session, événement), pas en plus. On répond **depuis la cloche**, boutons sur la ligne ;
+  répondre la marque lue
+- **« À toi »** du tableau de bord garde la question tant qu'on n'a pas répondu, boutons
+  compris : la cloche se lit et s'oublie. L'auteur de l'événement y répond aussi
+- **Une indisponibilité ne répond pas à la place du membre** : elle vaut pour la journée et
+  tous ses groupes, la réponse pour cet événement seul. Elle se signale à côté de lui
+  (« indisponible ce jour-là »), et répondre « Absent » ne crée pas d'indisponibilité
+- **Qui voit** : tout membre du groupe, dans le panneau du jour — décompte, sa propre
+  réponse, puis chaque membre actif avec la sienne ou « Sans réponse ». Sur la carte de la
+  prochaine date, le nombre de présents, les « peut-être » nommés et les sans réponse ; les
+  absents — réponse ou indisponibilité — ne sont nommés qu'une fois
+- **Relancer** : « Relancer les N membres sans réponse », **tout membre**, tant que la date
+  n'est pas passée. Une seule demande par membre dans la cloche : la relance remplace la
+  précédente. Sur un événement qui ne l'a pas posée (session du jour), le même bouton dit
+  « Demander les présences »
+- **La date change** (fiche de la session, ou événement qui devient session à une autre
+  date) : les réponses ne valent plus, elles sont effacées avec leurs notifications, et la
+  question est reposée si la nouvelle date est à venir
+- Les réponses partent avec l'événement (`ON DELETE CASCADE`), donc avec la session. Un
+  membre qui quitte le groupe sort de la liste
+- Pas de rappel automatique la veille : sans e-mail ni tâche planifiée, la relance est un
+  geste
+
 ## Groupe actif (`/group`)
 
 - Consultation pour tout membre : informations du groupe, compteurs (dont le nombre exact de
@@ -1927,6 +1981,9 @@ Qui est qui, et qui a fait quoi, dans le groupe actif.
   - Le filtre est **dans le fan-out** (`wantedBy`) : rien à changer chez les appelants. Le
     fil d'actualité, lui, montre toujours tout
   - Ne vaut que pour la suite : les notifications déjà écrites restent
+- **Demande de présence** (`attendance`) : à la création d'une date à venir et à la relance,
+  non désactivable, avec les boutons de réponse sur la ligne — voir « Présences » dans
+  « Agenda partagé »
 - Sept déclencheurs, un par création : prise uploadée (`recording`), commentaire (`comment`),
   session (`session`), playlist (`playlist`), setlist (`setlist`), publication (`post`),
   événement d'agenda (`agenda`, indisponibilité comprise). Une session crée déjà sa notification : l'événement
@@ -1952,7 +2009,7 @@ Qui est qui, et qui a fait quoi, dans le groupe actif.
 - Le nom de l'auteur est relu depuis `users` (`actor_name` n'est qu'un repli) : un changement
   de nom affiché se répercute sur l'historique, comme pour les commentaires
 - Une notification disparaît avec le contenu qu'elle annonce (`session_id`, `recording_id`,
-  `playlist_id`, `setlist_id`, `post_id` en `ON DELETE CASCADE`) plutôt que de pointer vers une page supprimée
+  `playlist_id`, `setlist_id`, `post_id`, `event_id` en `ON DELETE CASCADE`) plutôt que de pointer vers une page supprimée
 - La pastille est comptée côté serveur dans `+layout.server.ts` — juste dès le premier rendu —
   puis rafraîchie par le menu toutes les 60 s tant qu'il reste fermé
 - **Autres groupes** : un point sur le sélecteur de groupe et, dans son menu, le nombre de
@@ -1980,15 +2037,17 @@ la prochaine date, puis seulement l'activité.
   commentaires ; chacun mène à sa section dans la session (`#song-<id>`). Une session sans
   prise ou vidéo seule n'a rien à jouer : c'est la précédente qui s'affiche
 - **« À venir »** : la **prochaine date** en carte, teintée comme son type — le temps qui
-  reste (« Dans 3 jours »), le titre, la date, le lieu, et **les absents ce jour-là** :
-  une indisponibilité compte sur la carte de la répétition qu'elle touche, pas sur une
-  ligne à part. Un événement d'agenda sans session est en pointillé, avec « Créer la
+  reste (« Dans 3 jours »), le titre, la date, l'heure, le lieu, les présences (voir
+  « Présences ») et **les absents ce jour-là** : une indisponibilité, comme une réponse
+  « Absent », compte sur la carte de la répétition qu'elle touche, pas sur une ligne à
+  part. Un événement d'agenda sans session est en pointillé, avec « Créer la
   session → ». Les deux dates suivantes en lignes, avec le nombre d'absents. Les autres
   indisponibilités à venir restent en une ligne. La session affichée dans « À réécouter »
   n'y figure pas, même datée du jour. Toujours affichée, même vide (« Rien de prévu », avec
   « Ajouter une date », qui ouvre l'agenda sur le jour même, formulaire déplié — « Agenda → »
   mène déjà au calendrier). Une date mène à sa session, ou à `/agenda?date=…`
-- **« À toi »**, seulement s'il y a quelque chose : un enregistrement resté dans la copie
+- **« À toi »**, seulement s'il y a quelque chose : les dates qui attendent sa réponse
+  (« Répétition — tu viens ? », boutons sur place — voir « Présences »), un enregistrement resté dans la copie
   de secours de ce navigateur (→ `/record`), des découpes en attente (→ `/upload`, ou
   `/perso` sans groupe actif), des morceaux « À nommer » (→ `/songs?filtre=a_nommer`). Pas
   les mentions : la cloche les signale déjà, et les marque lues à l'ouverture

@@ -1,4 +1,5 @@
 import type { IconName } from '$lib/icons'
+import type { AttendanceResponse } from '$lib/attendance'
 export type UserRole = 'user' | 'admin' | 'superadmin'
 
 export type User = {
@@ -445,6 +446,7 @@ export type CalendarEvent = {
 
 export type NotificationType =
 	| 'recording' | 'comment' | 'mention' | 'session' | 'playlist' | 'agenda' | 'setlist' | 'post'
+	| 'attendance'
 
 // Une notification appartient à un destinataire précis : il n'y a pas de droit à
 // vérifier au-delà de `user_id`, mais l'affichage reste filtré par groupe actif.
@@ -458,6 +460,10 @@ export type ActivityNotification = {
 	link: string
 	read_at: string | null
 	created_at: string
+	/** Demande de présence : l'événement, la réponse du destinataire, et si elle a encore cours. */
+	event_id: number | null
+	attendance: AttendanceResponse | null
+	attendance_open: boolean
 }
 
 export type NotificationFeed = {
@@ -476,6 +482,7 @@ export function notificationLabel(type: NotificationType): string {
 		case 'agenda': return 'a ajouté un événement'
 		case 'setlist': return 'a créé la setlist'
 		case 'post': return 'a publié'
+		case 'attendance': return 'demande si tu viens'
 	}
 }
 
@@ -489,6 +496,7 @@ export function notificationIcon(type: NotificationType): IconName {
 		case 'agenda': return 'agenda'
 		case 'setlist': return 'list'
 		case 'post': return 'send'
+		case 'attendance': return 'users'
 	}
 }
 

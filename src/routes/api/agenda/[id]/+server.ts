@@ -1,6 +1,7 @@
 import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import sql from '$lib/server/db'
+import { parseEventTime } from '$lib/event-time'
 
 async function getAccessibleEvent(id: number, locals: App.Locals) {
 	if (!locals.user || !locals.user.current_group_id) return null
@@ -38,6 +39,17 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	const title = typeof body.title === 'string' ? (body.title.trim() || null) : event.title
 	const notes = typeof body.notes === 'string' ? (body.notes.trim() || null) : event.notes
 
+	// L'heure ne se change que sur un événement de groupe, et seulement si elle est envoyée.
+	// Pas de notification : les réponses restent, l'heure se lit sur la date.
+	let startTime = event.start_time
+	let durationMin = event.duration_min
+	if (event.type !== 'indisponibilite' && ('start_time' in body || 'end_time' in body)) {
+		const time = parseEventTime(body.start_time, body.end_time)
+		if (!time) return json({ error: 'Heure invalide (HH:MM, fin seulement avec un début).' }, { status: 400 })
+		startTime = time.start_time
+		durationMin = time.duration_min
+	}
+
 	let sessionId = event.session_id
 	if (event.type !== 'indisponibilite' && 'session_id' in body) {
 		sessionId = typeof body.session_id === 'number' ? body.session_id : null
@@ -50,7 +62,9 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	}
 
 	const [updated] = await sql`
-		UPDATE calendar_events SET title = ${title}, notes = ${notes}, session_id = ${sessionId}
+		UPDATE calendar_events
+		SET title = ${title}, notes = ${notes}, session_id = ${sessionId},
+		    start_time = ${startTime}, duration_min = ${durationMin}
 		WHERE id = ${id}
 		RETURNING *
 	`

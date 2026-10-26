@@ -7,6 +7,8 @@
 	import Icon from '$lib/components/Icon.svelte'
 	import SessionCover from '$lib/components/SessionCover.svelte'
 	import PlayAllButton from '$lib/components/PlayAllButton.svelte'
+	import AttendanceButtons from '$lib/components/AttendanceButtons.svelte'
+	import { formatEventTime } from '$lib/event-time'
 	import type { IconName } from '$lib/icons'
 	import type { PlayerTrack } from '$lib/player.svelte'
 	import { findPendingTakes } from '$lib/recording-store'
@@ -28,6 +30,13 @@
 	type UpcomingItem = {
 		kind: 'session' | 'event'; id: number; date: string; type: string
 		title: string | null; location: string | null; absents: string[]
+		start_time: string | null; duration_min: number | null
+		// Présences demandées : les absents (réponse ou indisponibilité) sont dans `absents`.
+		attendance: { present: number; maybe: string[]; pending: number } | null
+	}
+	type PendingAttendance = {
+		event_id: number; session_id: number | null; date: string; type: string
+		title: string | null; location: string | null; start_time: string | null; duration_min: number | null
 	}
 	type Unavailability = { id: number; date: string; author: string }
 	type PlaylistRow = { id: number; name: string; item_count: number; updated_at: string | null; created_at: string }
@@ -57,6 +66,18 @@
 	const recentRecordings = $derived((data.recentRecordings ?? []) as unknown as RecentRecordings[])
 	const placeholderSongCount = $derived(data.placeholderSongCount ?? 0)
 	const pendingImportCount = $derived(data.pendingImportCount ?? 0)
+	// Une réponse donnée ici retire la question aussitôt, avant même le rechargement.
+	let answeredEvents = $state<number[]>([])
+	const pendingAttendance = $derived(
+		((data.pendingAttendance ?? []) as unknown as PendingAttendance[]).filter(
+			(p) => !answeredEvents.includes(p.event_id)
+		)
+	)
+
+	async function attendanceAnswered(eventId: number) {
+		answeredEvents = [...answeredEvents, eventId]
+		await invalidateAll()
+	}
 	const hasGroup = $derived(!!data.user?.current_group_id)
 
 	// Un enregistrement resté dans la copie de secours n'existe que dans ce navigateur :
@@ -433,9 +454,27 @@
 								</span>
 								<span class="next-detail">
 									<span class="next-date">{formatDate(nextItem.date)}</span>
+									{#if nextItem.start_time}· {formatEventTime(nextItem.start_time, nextItem.duration_min)}{/if}
 									{#if nextItem.title}· {sessionTypeLabel(nextItem.type)}{/if}
 									{#if nextItem.location}· {nextItem.location}{/if}
 								</span>
+								{#if nextItem.attendance}
+									{@const a = nextItem.attendance}
+									<span class="presence">
+										{#if a.present > 0}
+											<span class="presence-label">{a.present} présent{a.present > 1 ? 's' : ''}</span>
+										{/if}
+										{#if a.maybe.length > 0}
+											{#if a.present > 0}·{/if} peut-être : {a.maybe.join(', ')}
+										{/if}
+										{#if a.pending > 0}
+											{#if a.present > 0 || a.maybe.length > 0}·{/if}
+											{a.present === 0 && a.maybe.length === 0 && nextItem.absents.length === 0
+												? `Pas encore de réponse (${a.pending})`
+												: `${a.pending} sans réponse`}
+										{/if}
+									</span>
+								{/if}
 								{#if nextItem.absents.length > 0}
 									<span class="absents">
 										<span class="absents-label">Absent{nextItem.absents.length > 1 ? 's' : ''}</span>
@@ -454,6 +493,7 @@
 										<a href={upcomingHref(item)} class="later-row">
 											<span class="later-date">{dayLabel(item.date, formatDate)}</span>
 											<span class="later-title">
+												{#if item.start_time}<span class="later-time">{item.start_time}</span>{/if}
 												{item.title ?? sessionTypeLabel(item.type)}{#if item.location}<span class="later-loc"> · {item.location}</span>{/if}
 											</span>
 											{#if item.absents.length > 0}
@@ -491,11 +531,37 @@
 		<div class="dash-side">
 			<!-- N'apparaît que s'il y a quelque chose : une section vide dirait « tout va
 			     bien » en prenant la place de ce qui compte. -->
-			{#if todos.length > 0}
+			{#if todos.length > 0 || pendingAttendance.length > 0}
 				<section aria-labelledby="dash-todo">
 					<div class="section-header">
 						<h2 id="dash-todo">À toi</h2>
 					</div>
+					<!-- « Tu viens ? » : on répond sur place. La question reste ici tant qu'on n'a
+					     pas répondu — la cloche, elle, se lit et s'oublie. -->
+					{#if pendingAttendance.length > 0}
+						<ul class="todos attendance-todos">
+							{#each pendingAttendance as p (p.event_id)}
+								<li class="todo attendance-todo">
+									<a href={agendaDayUrl(p.date)} class="attendance-todo-text">
+										<span class="attendance-todo-title">
+											{p.title ?? sessionTypeLabel(p.type)} — tu viens ?
+										</span>
+										<span class="attendance-todo-detail">
+											<span class="next-date">{dayLabel(p.date, formatDate)}</span>
+											{#if p.start_time}· {formatEventTime(p.start_time, p.duration_min)}{/if}
+											{#if p.location}· {p.location}{/if}
+										</span>
+									</a>
+									<AttendanceButtons
+										eventId={p.event_id}
+										label="Ta présence : {p.title ?? sessionTypeLabel(p.type)}"
+										stretch
+										onanswer={() => attendanceAnswered(p.event_id)}
+									/>
+								</li>
+							{/each}
+						</ul>
+					{/if}
 					<ul class="todos">
 						{#each todos as todo (todo.href)}
 							<li>
@@ -818,6 +884,19 @@
 		color: var(--color-text);
 	}
 
+	.presence {
+		margin-top: 0.35rem;
+		font-size: var(--text-xs);
+		color: var(--color-text-secondary);
+	}
+
+	.presence-label {
+		font-weight: 700;
+		color: var(--color-success-text);
+	}
+
+	.presence + .absents { margin-top: 0.1rem; }
+
 	.absents-label,
 	.unavail-label {
 		font-weight: 700;
@@ -874,6 +953,12 @@
 	}
 
 	.later-loc { color: var(--color-text-muted); }
+	.later-time {
+		margin-right: 0.35rem;
+		font-size: var(--text-xs);
+		font-weight: 600;
+		color: var(--color-text-secondary);
+	}
 
 	.later-absents {
 		flex-shrink: 0;
@@ -923,6 +1008,33 @@
 	}
 
 	.todo:hover { border-color: var(--color-accent); }
+
+	.attendance-todos { margin-bottom: 0.35rem; }
+
+	/* Une question, pas un lien : le texte mène à l'agenda, les boutons répondent. */
+	.attendance-todo {
+		flex-direction: column;
+		align-items: stretch;
+		gap: 0.4rem;
+		font-weight: 400;
+	}
+
+	.attendance-todo:hover { border-color: var(--color-accent-light); }
+
+	.attendance-todo-text {
+		display: flex;
+		flex-direction: column;
+		color: inherit;
+		text-decoration: none;
+	}
+
+	.attendance-todo-text:hover .attendance-todo-title { text-decoration: underline; }
+	.attendance-todo-title { font-weight: 600; }
+
+	.attendance-todo-detail {
+		font-size: var(--text-xs);
+		color: var(--color-text-secondary);
+	}
 	.todo > span { flex: 1; min-width: 0; }
 	.todo :global(.todo-chevron) { color: var(--color-mid); }
 

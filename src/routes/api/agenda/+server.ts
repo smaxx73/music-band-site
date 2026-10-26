@@ -5,6 +5,8 @@ import { notifyGroup } from '$lib/server/notifications'
 import { formatDateOnly } from '$lib/date'
 import { sessionTypeLabel } from '$lib/types'
 import { parseCoords } from '$lib/places'
+import { parseEventTime } from '$lib/event-time'
+import { askAttendance } from '$lib/server/attendance'
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -26,6 +28,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 		SELECT
 			e.id, e.group_id, e.user_id, e.type, COALESCE(u.display_name, e.author) AS author, e.title, e.notes, e.location, e.session_id, e.created_at,
 			to_char(e.date, 'YYYY-MM-DD') AS date,
+			to_char(e.start_time, 'HH24:MI') AS start_time, e.duration_min, e.attendance_requested,
 			to_char(s.date, 'YYYY-MM-DD') AS session_date,
 			s.location AS session_location
 		FROM calendar_events e
@@ -96,6 +99,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		return json(event, { status: 201 })
 	}
 
+	// Heure de début et de fin (« HH:MM ») : un événement de groupe seulement.
+	const time = parseEventTime(body.start_time, body.end_time)
+	if (!time) return json({ error: 'Heure invalide (HH:MM, fin seulement avec un début).' }, { status: 400 })
+
 	let resolvedSessionId: number | null = null
 	if (typeof session_id === 'number') {
 		const [session] = await sql`
@@ -114,8 +121,14 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		resolvedSessionId = session_id
 	}
 
+	// Une date posée dans l'agenda se prépare : même ajoutée le jour même (« ce soir »),
+	// elle demande qui vient. Une session créée le jour même, elle, l'est presque toujours
+	// pendant la répétition — voir POST /api/sessions.
 	const [event] = await sql`
-		INSERT INTO calendar_events (group_id, user_id, date, type, author, title, notes, location, location_lat, location_lon, session_id)
+		INSERT INTO calendar_events (
+			group_id, user_id, date, type, author, title, notes, location, location_lat, location_lon, session_id,
+			start_time, duration_min, attendance_requested
+		)
 		VALUES (
 			${locals.user.current_group_id},
 			${locals.user.id},
@@ -127,14 +140,21 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			${resolvedLocation},
 			${resolvedCoords?.lat ?? null},
 			${resolvedCoords?.lon ?? null},
-			${resolvedSessionId}
+			${resolvedSessionId},
+			${time.start_time},
+			${time.duration_min},
+			${date}::date >= CURRENT_DATE
 		)
 		RETURNING *
 	`
 
-	// Les sessions créent déjà leur propre notification : ne notifier ici que
-	// l'événement d'agenda autonome, sans quoi la même création apparaîtrait deux fois.
-	if (resolvedSessionId === null) {
+	// La demande de présence annonce la date et demande en plus : elle remplace la
+	// notification de l'événement, pas en plus. Les sessions créent déjà la leur : ne
+	// notifier ici que l'événement d'agenda autonome, sans quoi la même création
+	// apparaîtrait deux fois.
+	if (event.attendance_requested) {
+		await askAttendance(event.id, locals.user.current_group_id, locals.user)
+	} else if (resolvedSessionId === null) {
 		await notifyGroup({
 			groupId: locals.user.current_group_id,
 			actor: locals.user,
