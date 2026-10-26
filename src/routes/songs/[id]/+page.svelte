@@ -150,12 +150,6 @@
 				<a class="btn btn-ghost mh-secondary sheet-header-link" href="/songs/{song.id}/partition">
 					<Icon name="sheet" size="0.9rem" /> <span class="mh-label">Feuille de répétition</span>
 				</a>
-				<SongCoverEditor
-					songId={song.id}
-					title={song.title}
-					coverVersion={song.cover_version}
-					searchQuery={[song.title, song.original_artist].filter(Boolean).join(' ')}
-				/>
 				<PlayAllButton tracks={tracks} label="Écouter toutes les prises de {song.title} à la suite" />
 			{/if}
 		{/snippet}
