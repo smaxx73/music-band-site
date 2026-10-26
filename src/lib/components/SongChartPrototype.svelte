@@ -122,6 +122,8 @@ K:D
 	// Part de la feuille affichée en lecture : le chanteur n'a que faire des accords, le
 	// guitariste des paroles. Réglage du lecteur, gardé dans son navigateur.
 	let sheetView = $state<SheetView>('all')
+	// Colonnes de la lecture, du pupitre et du papier : jusqu'à 4, selon l'écran et la distance.
+	let sheetColumns = $state(1)
 
 	// Pupitre : la feuille seule, en plein écran, posée à un mètre sur une tablette.
 	// Taille et vitesse sont des paliers : on règle d'un toucher, mains sur l'instrument.
@@ -130,6 +132,7 @@ K:D
 	// zoomer ne change pas le nombre de lignes lues à la minute.
 	const STAGE_SPEEDS = [6, 9, 12, 16, 21, 27, 35, 45]
 	const STAGE_PREFS_KEY = 'sheet-stage'
+	const MAX_COLUMNS = 4
 	let stage = $state(false)
 	let stageEl = $state<HTMLElement>()
 	let stageScroller = $state<HTMLElement>()
@@ -631,8 +634,9 @@ K:D
 	function loadStagePrefs() {
 		try {
 			stageDark = window.matchMedia?.('(prefers-color-scheme: dark)').matches ?? false
-			const prefs = JSON.parse(localStorage.getItem(STAGE_PREFS_KEY) ?? '{}') as { scale?: unknown; speed?: unknown; dark?: unknown; view?: unknown }
+			const prefs = JSON.parse(localStorage.getItem(STAGE_PREFS_KEY) ?? '{}') as { scale?: unknown; speed?: unknown; dark?: unknown; view?: unknown; columns?: unknown }
 			if (typeof prefs.dark === 'boolean') stageDark = prefs.dark
+			if (Number.isInteger(prefs.columns) && (prefs.columns as number) >= 1 && (prefs.columns as number) <= MAX_COLUMNS) sheetColumns = prefs.columns as number
 			if (prefs.view === 'lyrics' || prefs.view === 'chords') sheetView = prefs.view
 			if (Number.isInteger(prefs.scale) && STAGE_SCALES[prefs.scale as number] !== undefined) scaleIndex = prefs.scale as number
 			if (Number.isInteger(prefs.speed) && STAGE_SPEEDS[prefs.speed as number] !== undefined) speedIndex = prefs.speed as number
@@ -641,7 +645,7 @@ K:D
 
 	// La distance au pupitre est celle du musicien, pas de la feuille : un réglage pour toutes.
 	function saveStagePrefs() {
-		try { localStorage.setItem(STAGE_PREFS_KEY, JSON.stringify({ scale: scaleIndex, speed: speedIndex, dark: stageDark, view: sheetView })) } catch { /* idem */ }
+		try { localStorage.setItem(STAGE_PREFS_KEY, JSON.stringify({ scale: scaleIndex, speed: speedIndex, dark: stageDark, view: sheetView, columns: sheetColumns })) } catch { /* idem */ }
 	}
 
 	async function acquireStageWakeLock() {
@@ -671,6 +675,12 @@ K:D
 		stageWakeLock?.release().catch(() => {})
 		stageWakeLock = null
 		if (document.fullscreenElement) void document.exitFullscreen().catch(() => {})
+	}
+
+	function changeColumns(value: string) {
+		const n = Number(value)
+		sheetColumns = Number.isInteger(n) && n >= 1 && n <= MAX_COLUMNS ? n : 1
+		saveStagePrefs()
 	}
 
 	function changeView(view: string) {
@@ -958,6 +968,14 @@ K:D
 	</label>
 {/snippet}
 
+<!-- Un maximum, pas une promesse : la largeur d'une colonne a un plancher (voir `.multi`), un
+     téléphone en garde donc une ou deux quel que soit le choix. -->
+{#snippet columnsSelect()}
+	<label class="read-transpose" title="Pour la lecture, le pupitre et l’impression : la feuille enregistrée ne change pas">
+		Colonnes <select value={sheetColumns} onchange={(event) => changeColumns(event.currentTarget.value)}>{#each [1, 2, 3, 4] as n}<option value={n}>{n}</option>{/each}</select>
+	</label>
+{/snippet}
+
 {#snippet transposeOptions()}
 	{#each [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5] as step}<option value={step}>{step > 0 ? `+${step}` : step < 0 ? `−${-step}` : '0'}</option>{/each}
 {/snippet}
@@ -1031,7 +1049,7 @@ K:D
 					<button class="btn btn-secondary btn-sm" onclick={() => zoom(1)} disabled={scaleIndex === STAGE_SCALES.length - 1} aria-label="Agrandir le texte" title="Agrandir le texte (+)">A+</button>
 					<button class="btn btn-secondary btn-sm stage-toggle" onclick={toggleDark} aria-pressed={stageDark} title="Texte clair sur fond sombre">Sombre</button>
 				</div>
-				{#if hasChords}{@render viewSelect()}{/if}
+				{#if hasChords}{@render viewSelect()}{/if}{@render columnsSelect()}
 				{#if canTranspose}
 					<label class="read-transpose">Transposer <select bind:value={readTranspose}>{@render transposeOptions()}</select></label>
 				{/if}
@@ -1054,7 +1072,7 @@ K:D
 			tabindex="-1"
 			use:holdOnTouch
 		>
-			<div class="stage-sheet">{@render renderedBlocks(true)}</div>
+			<div class="stage-sheet" class:multi={sheetColumns > 1} style:--sheet-cols={sheetColumns}>{@render renderedBlocks(true)}</div>
 		</div>
 	</div>
 {:else if mode === 'read'}
@@ -1069,7 +1087,7 @@ K:D
 			</div>
 			<div class="page-actions">
 				{#if documentId}
-					{#if hasChords}{@render viewSelect()}{/if}
+					{#if hasChords}{@render viewSelect()}{/if}{@render columnsSelect()}
 					{#if canTranspose}
 						<label class="read-transpose" title="Pour la lecture et l’impression : la feuille enregistrée ne change pas">
 							Transposer <select bind:value={readTranspose}>{@render transposeOptions()}</select>
@@ -1090,7 +1108,7 @@ K:D
 		{#if notationLoadError}<p class="abc-error">{notationLoadError}</p>{/if}
 
 		{#if documentId}
-			<div class="sheet-body">{@render renderedBlocks(true)}</div>
+			<div class="sheet-body" class:multi={sheetColumns > 1} style:--sheet-cols={sheetColumns}>{@render renderedBlocks(true)}</div>
 		{:else if loading}
 			<p class="empty">Chargement…</p>
 		{:else}
@@ -1246,8 +1264,9 @@ K:D
 	.stage-scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; outline: none; }
 	/* La colonne s'élargit avec le texte, et la gravure ABC (responsive) grossit avec elle.
 	   La marge basse laisse la fin du morceau remonter à hauteur d'yeux. */
-	.stage-sheet { box-sizing: border-box; width: 100%; max-width: calc(46rem * var(--stage-scale)); margin: 0 auto; padding: 1.5rem 1.25rem 50vh; }
+	.stage-sheet { box-sizing: border-box; width: 100%; max-width: calc(46rem * var(--stage-scale) * var(--sheet-cols, 1)); margin: 0 auto; padding: 1.5rem 1.25rem 50vh; }
 	.stage .rendered { padding: 1rem 0; }
+	.stage-sheet.multi { column-width: calc(22rem * var(--stage-scale)); }
 	/* Seul écart aux paliers de taille : c'est le musicien qui la choisit, selon sa distance
 	   à l'écran. Les paliers restent la base, le multiplicateur vient du réglage. */
 	.stage .chart-line { min-height: 2.65em; font-size: calc(var(--text-lg) * var(--stage-scale)); }
@@ -1257,6 +1276,15 @@ K:D
 	.stage .lyric { min-height: 1.35em; }
 	.stage .space { height: calc(.55rem * var(--stage-scale)); }
 	.stage .chart h3, .stage .caption strong { font-size: calc(var(--text-sm) * var(--stage-scale)); }
+
+	/* Plusieurs colonnes : le texte coule de l'une à l'autre, équilibré. Le plancher de largeur
+	   (`column-width`) ramène seul le nombre à ce que l'écran porte ; sur papier, le nombre
+	   demandé est tenu. Une section ne se coupe pas entre deux colonnes, et une mini-partition,
+	   trop large pour une colonne, passe sur toute la largeur. */
+	.multi { column-count: var(--sheet-cols); column-width: 15rem; column-gap: 2rem; }
+	.multi > :global(.rendered) { border-bottom: 0; }
+	.multi :global(.chart-section), .multi :global(.caption) { break-inside: avoid; }
+	.multi > :global(.rendered.notation) { column-span: all; }
 
 	/* Édition : l'atelier en trois colonnes. */
 	.composer { max-width: 1400px; margin: 2rem auto 4rem; padding: 0 1rem; color: var(--color-text); } .composer-header h1 { margin-top: .15rem; }
@@ -1284,6 +1312,7 @@ K:D
 		.composer, .sheet { box-sizing: border-box; max-width: none; margin: 0; padding: 12mm 14mm; color: #000; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
 		.composer-header, .document-tools, .block-list, .editor-panel, .preview-tabs, .load-error, .score-scroll-hint, .sheet-header .page-actions, .sheet-header .eyebrow { display: none !important; }
 		.sheet-header { margin-bottom: 0; padding: 0 0 5mm; border-bottom: 1px solid #222; } .sheet-header h1 { font-size: 16pt; }
+		.multi { column-width: auto; column-gap: 8mm; }
 		.sheet-body { border: 0; border-radius: 0; overflow: visible; background: #fff; } .sheet-body .rendered { padding: 5mm 0; }
 		.workspace { display: block; border: 0; border-radius: 0; overflow: visible; background: #fff; }
 		.preview { display: block; background: #fff; }

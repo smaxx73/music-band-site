@@ -948,6 +948,15 @@ morceau (`score_documents.song_id` unique), au groupe : tout membre la crée et 
     n'en font qu'une, suivie de « ×2 ». ChordPro ne dit pas où tombent les mesures : on
     garde l'ordre des accords, pas leur place dans la phrase. Les mini-partitions restent
   - Un bloc à qui la vue ne laisse rien disparaît, titre compris
+- **Colonnes** (1 à 4), à côté de « Afficher », en lecture comme au pupitre : le texte coule
+  d'une colonne à l'autre, équilibré, pour une tablette en paysage ou un écran au bout de la
+  salle où une seule colonne laisse la moitié de l'écran vide. Un **maximum**, pas une
+  promesse : chaque colonne a une largeur plancher, un téléphone en garde donc une ou deux
+  quel que soit le choix (au pupitre, le plancher grandit avec la taille du texte et la
+  feuille s'élargit d'autant). Une section ne se coupe pas entre deux colonnes ; une
+  mini-partition, trop large pour une colonne, prend toute la largeur. Sur papier le nombre
+  demandé est tenu. Un filtre d'affichage comme « Afficher » : la feuille enregistrée ne
+  change pas, le choix est gardé dans le navigateur, pour toutes les feuilles
 - **Imprimer / PDF** imprime la vue de lecture, jamais les sources. La mise en page papier
   diffère de l'écran sur quelques points :
   - **Une section n'est pas coupée** entre deux pages quand elle tient sur une page, et son
