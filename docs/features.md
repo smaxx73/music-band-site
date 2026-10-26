@@ -911,6 +911,11 @@ Ce qu'on pose sur le pupitre : les paroles avec les accords placés au-dessus, l
 dans l'ordre du morceau, et au besoin quelques mesures de partition. Une feuille par
 morceau (`score_documents.song_id` unique), au groupe : tout membre la crée et la modifie.
 
+- **Accès** : sur la page du morceau, le bouton de l'en-tête perd son libellé sous 720 px et
+  se perdait parmi trois autres icônes. Au téléphone (≤ 640 px), une **ligne pleine largeur**
+  sous l'en-tête le remplace : « Feuille de répétition » et son état (« Modifiée hier à 14:05
+  par Julie », « Pas encore de feuille »). Dans la liste `/songs`, un morceau qui a une feuille
+  porte un pictogramme qui y mène directement
 - **Elle se lit d'abord.** La page s'ouvre en **lecture** : la feuille mise en forme,
   rendue avec la page, sans l'atelier. « Modifier » ouvre l'**édition** (blocs, source,
   aperçu) ; « Enregistrer » y revient, « Annuler » abandonne tout après confirmation

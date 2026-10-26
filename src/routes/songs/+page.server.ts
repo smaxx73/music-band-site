@@ -5,7 +5,7 @@ import { deleteSong, importCatalogCover, isUniqueViolation, parseSongForm, updat
 import type { Song } from '$lib/types'
 import { loginRedirect } from '$lib/redirect'
 
-type SongWithTakeCount = Song & { take_count: number; cover_version: number | null }
+type SongWithTakeCount = Song & { take_count: number; cover_version: number | null; has_sheet: boolean }
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	if (!locals.user) redirect(302, loginRedirect(url))
@@ -13,7 +13,8 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const songs = await sql<SongWithTakeCount[]>`
 		SELECT s.*, COUNT(r.id)::int AS take_count,
-		       floor(EXTRACT(EPOCH FROM sc.updated_at) * 1000)::float8 AS cover_version
+		       floor(EXTRACT(EPOCH FROM sc.updated_at) * 1000)::float8 AS cover_version,
+		       EXISTS (SELECT 1 FROM score_documents d WHERE d.song_id = s.id) AS has_sheet
 		FROM songs s
 		LEFT JOIN recordings r ON r.song_id = s.id
 		LEFT JOIN song_covers sc ON sc.song_id = s.id

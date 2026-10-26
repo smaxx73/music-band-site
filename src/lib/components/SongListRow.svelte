@@ -1,6 +1,7 @@
 <script lang="ts">
 	import SongCover from '$lib/components/SongCover.svelte'
 	import AddToSetlistButton from '$lib/components/AddToSetlistButton.svelte'
+	import Icon from '$lib/components/Icon.svelte'
 	import TrackRow from '$lib/components/TrackRow.svelte'
 	import { isPlaceholderSongTitle } from '$lib/songs'
 
@@ -14,6 +15,7 @@
 		status: string
 		take_count: number
 		cover_version: number | null
+		has_sheet?: boolean
 	}
 
 	// Un morceau du référentiel, en lecture : une pochette à la place du numéro, et le
@@ -49,6 +51,12 @@
 <!-- Programmer depuis la liste reste à portée : on parcourt le référentiel pour bâtir
      une setlist bien plus souvent que pour corriger une fiche. -->
 {#snippet actions()}
+	<!-- Seulement quand la feuille existe : le raccourci vaut aussi indication. -->
+	{#if song.has_sheet}
+		<a class="sheet-shortcut" href="/songs/{song.id}/partition" title="Feuille de répétition" aria-label="Feuille de répétition de {song.title}">
+			<Icon name="sheet" size="1.1rem" />
+		</a>
+	{/if}
 	<span class="setlist">
 		<AddToSetlistButton
 			songId={song.id}
@@ -104,6 +112,19 @@
 	}
 
 	.none { color: var(--color-text-muted); }
+
+	.sheet-shortcut {
+		position: relative;
+		z-index: 1;
+		display: flex;
+		align-items: center;
+		padding: 0.4rem;
+		color: var(--color-text-muted);
+	}
+
+	@media (hover: hover) and (pointer: fine) {
+		.sheet-shortcut:hover { color: var(--color-accent); }
+	}
 
 	/* Au-dessus du lien étendu : le bouton reste cliquable pour lui-même. */
 	.setlist {

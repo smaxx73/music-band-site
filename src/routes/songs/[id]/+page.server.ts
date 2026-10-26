@@ -43,7 +43,15 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 		ORDER BY ses.date DESC, r.take ASC
 	`
 
-	return { song, recordings }
+	// Seulement de quoi annoncer la feuille sous l'en-tête (existence, dernière modification) :
+	// son contenu se charge sur sa propre page, pas ici.
+	const [sheet] = await sql`
+		SELECT d.updated_at, u.display_name AS updated_by
+		FROM score_documents d LEFT JOIN users u ON u.id = d.updated_by_user_id
+		WHERE d.song_id = ${id}
+	`
+
+	return { song, recordings, sheet: sheet ? { updated_at: sheet.updated_at as Date, updated_by: sheet.updated_by as string | null } : null }
 }
 
 // Même fiche, mêmes règles que le tableau de /songs : tout membre du groupe actif.

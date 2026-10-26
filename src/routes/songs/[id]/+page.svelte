@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types'
-	import { formatDateOnly } from '$lib/date'
+	import { formatDateOnly, formatModifiedAt } from '$lib/date'
 	import SongDetails from '$lib/components/SongDetails.svelte'
 	import RecordingRow from '$lib/components/RecordingRow.svelte'
 	import AddToSetlistButton from '$lib/components/AddToSetlistButton.svelte'
@@ -147,7 +147,7 @@
 				<button class="btn btn-ghost mh-secondary" onclick={startEditing}>
 					<Icon name="pencil" size="0.9rem" /> <span class="mh-label">Modifier</span>
 				</button>
-				<a class="btn btn-ghost mh-secondary" href="/songs/{song.id}/partition">
+				<a class="btn btn-ghost mh-secondary sheet-header-link" href="/songs/{song.id}/partition">
 					<Icon name="sheet" size="0.9rem" /> <span class="mh-label">Feuille de répétition</span>
 				</a>
 				<SongCoverEditor
@@ -160,6 +160,25 @@
 			{/if}
 		{/snippet}
 	</MediaHeader>
+
+	<!-- Téléphone seulement : sous 720 px l'en-tête réduit ses commandes à leur icône, et la
+	     feuille — ce qu'on ouvre le plus en répétition — s'y perdait parmi trois autres. -->
+	{#if !editing}
+		<a class="sheet-link" href="/songs/{song.id}/partition">
+			<Icon name="sheet" size="1.4rem" />
+			<span class="sheet-text">
+				<span class="sheet-title">Feuille de répétition</span>
+				<span class="sheet-state">
+					{#if data.sheet}
+						Modifiée {formatModifiedAt(data.sheet.updated_at)}{data.sheet.updated_by ? ` par ${data.sheet.updated_by}` : ''}
+					{:else}
+						Pas encore de feuille
+					{/if}
+				</span>
+			</span>
+			<span class="sheet-chevron" aria-hidden="true">›</span>
+		</a>
+	{/if}
 
 	{#if coverNotice}
 		<p class="message-error" role="alert">{coverNotice}</p>
@@ -330,10 +349,37 @@
 
 	.list-actions { margin-bottom: 1.25rem; display: flex; flex-wrap: wrap; gap: 0.6rem; }
 
+	.sheet-link { display: none; }
+
 
 	/* Les prises se replient toutes seules (voir RecordingRow) : il ne reste ici que
 	   ce qui entoure la liste. */
 	@media (max-width: 640px) {
+		/* La ligne ci-dessous prend le relais du bouton-icône de l'en-tête. */
+		:global(.sheet-header-link) { display: none; }
+
+		.sheet-link {
+			display: flex;
+			align-items: center;
+			gap: 0.75rem;
+			margin: 0.75rem 0 1rem;
+			padding: 0.75rem 0.9rem;
+			background: var(--color-bg);
+			border: 1px solid var(--color-border);
+			border-radius: var(--radius-md);
+			color: var(--color-text);
+			text-decoration: none;
+		}
+		.sheet-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+		.sheet-title { font-weight: 600; font-size: var(--text-base); }
+		.sheet-state {
+			font-size: var(--text-xs);
+			color: var(--color-text-muted);
+			overflow: hidden;
+			text-overflow: ellipsis;
+			white-space: nowrap;
+		}
+		.sheet-chevron { font-size: 1.5rem; color: var(--color-text-muted); }
 
 		/* La modale du sélecteur est en `position: fixed` : elle reste hors de ce flux. */
 		/* Côte à côte tant qu'ils tiennent : empilés, ils repoussaient les prises sous l'écran. */
