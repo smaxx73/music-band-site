@@ -166,6 +166,17 @@
 	{/if}
 
 	{#if editing}
+		<!-- Hors du formulaire (pas de <form> imbriqué ni de bouton qui l'envoie) : la
+		     pochette s'enregistre d'elle-même, sans attendre « Enregistrer ». -->
+		<div class="cover-row">
+			<SongCover songId={song.id} title={song.title} size={48} coverVersion={song.cover_version} />
+			<SongCoverEditor
+				songId={song.id}
+				title={song.title}
+				coverVersion={song.cover_version}
+				searchQuery={[song.title, song.original_artist].filter(Boolean).join(' ')}
+			/>
+		</div>
 		<form
 			method="POST"
 			action="?/update"
@@ -302,6 +313,7 @@
 	.composer .year { color: var(--color-text-muted); }
 	.ref-duration { font-size: var(--text-sm); color: var(--color-text-muted); margin: 0; }
 
+	.cover-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
 	.edit-form { margin-bottom: 1.5rem; }
 
 	.form-actions {

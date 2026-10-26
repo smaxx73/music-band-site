@@ -861,8 +861,9 @@ note, 💬 s'il y a des commentaires — plus l'écoute, et un menu ⋮ recueill
 Sans pochette, un morceau a un dégradé dans sa teinte (`songHue`) avec son initiale. Tout
 membre du groupe peut lui donner une vraie image, comme il gère le reste du référentiel.
 
-- « Pochette » dans l'en-tête de `/songs/[id]` (`SongCoverEditor.svelte`) : choisir une
-  image, la remplacer, la retirer. Retirer ne demande pas de confirmation : le dégradé
+- « Pochette » dans le mode édition de `/songs/[id]` (« Modifier », au-dessus de la fiche ;
+  `SongCoverEditor.svelte`), plus dans l'en-tête : choisir une image, la remplacer, la
+  retirer. Elle s'enregistre d'elle-même, sans attendre « Enregistrer ». Retirer ne demande pas de confirmation : le dégradé
   revient, et l'image se redépose
 - PNG, JPEG, WebP ou GIF, **8 Mo** au plus — une photo de téléphone dépasse vite les 2 Mo du
   logo. Le format est lu dans les octets ; SVG refusé

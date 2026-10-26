@@ -6,18 +6,21 @@
 	import CatalogSearch, { type CatalogTrack } from '$lib/components/CatalogSearch.svelte'
 
 	// Déposer, remplacer ou retirer la pochette d'un morceau — tout membre du groupe,
-	// comme le reste du référentiel. Le bouton se pose dans les actions de l'en-tête.
+	// comme le reste du référentiel. Le bouton se pose dans le mode édition de la fiche, hors du <form> : les boutons de
+	// la fenêtre n'y enverraient pas la fiche.
 	let {
 		songId,
 		title,
 		coverVersion,
-		searchQuery = ''
+		searchQuery = '',
+		buttonClass = 'btn btn-secondary'
 	}: {
 		songId: number
 		title: string
 		coverVersion: number | null
 		/** Recherche proposée d'emblée dans le catalogue : titre et artiste d'origine. */
 		searchQuery?: string
+		buttonClass?: string
 	} = $props()
 
 	let open = $state(false)
@@ -100,8 +103,8 @@
 	}
 </script>
 
-<button class="btn btn-ghost mh-secondary" onclick={() => (open = true)}>
-	<Icon name="image" size="0.9rem" /> <span class="mh-label">Pochette</span>
+<button type="button" class={buttonClass} onclick={() => (open = true)}>
+	<Icon name="image" size="0.9rem" /> Pochette
 </button>
 
 {#if open}
