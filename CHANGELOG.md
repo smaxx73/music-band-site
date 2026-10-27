@@ -13,6 +13,43 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+Aucune migration.
+
+## [1.14.0] — 2026-10-26
+
+Aucune migration.
+
+- **Feuille de répétition sur 1 à 4 colonnes**, en lecture, au pupitre et sur papier. Au
+  pupitre, la feuille se lit alors de gauche à droite : chaque colonne prend la hauteur de
+  l'écran, « Défiler » avance d'une colonne à la fois, une pastille « Col. 3–4 / 7 » dit où
+  l'on en est, et le tourne-page avance d'un écran moins une colonne
+- **Accès à la feuille plus visible sur téléphone** : une ligne pleine largeur sous l'en-tête
+  du morceau, avec l'état de la feuille (« Modifiée hier à 14:05 par Julie »)
+- **Pochette d'un morceau gérée depuis le mode édition** de la page du morceau, plus depuis
+  l'en-tête
+
+## [1.13.1] — 2026-10-26
+
+Aucune migration.
+
+- **Agenda au téléphone** : choisir un jour replie le mois sur sa semaine, avec le panneau du
+  jour juste dessous ; ‹ › changent de semaine
+
+## [1.13.0] — 2026-10-26
+
+Migration à appliquer : `052_event_attendance.sql`.
+
+- **Heure et durée d'un événement** d'agenda (heure de début, heure de fin), visibles dans
+  l'agenda, le tableau de bord et la demande de présence
+- **Présences (« tu viens ? »)** : Présent / Peut-être / Absent, avec un mot facultatif, sur tout
+  événement de groupe à venir. Notification `attendance` non désactivable, réponse depuis la
+  cloche ou le tableau de bord (« À toi »), relance des sans-réponse, décompte dans le panneau
+  du jour et sur la carte de la prochaine date
+- Les bandeaux d'information (mise à jour, bascule de groupe) restent collés sous la barre du
+  haut
+
+## [1.12.0] — 2026-10-23
+
 Migration à appliquer : `051_share_link_download.sql`. **Variables d'environnement** : `ORIGIN` est retirée du `.env` ;
 `PUBLIC_SHARE_ORIGIN` s'ajoute (voir `deploy.md`).
 
@@ -23,6 +60,11 @@ Migration à appliquer : `051_share_link_download.sql`. **Variables d'environnem
 - **Domaine dédié aux liens d'écoute publics** : les liens copiés portent `PUBLIC_SHARE_ORIGIN`,
   d'où que le membre les copie. L'application répond sous plusieurs domaines (origine lue
   des en-têtes de Caddy, plus d'`ORIGIN` figé)
+- Mentions légales : le directeur de publication y figure
+- **Découpe : les discussions entre morceaux sont écartées**, par un seuil relatif au niveau de
+  jeu du fichier (réglage « Discussion entre morceaux », 0 = désactivé)
+- **Parcours d'enregistrement guidé** : fil d'étapes, motif du blocage de l'envoi, « Même
+  morceau que… » proposé ; « Prise suivante » rouvre le micro sans lancer l'enregistrement
 
 ## [1.11.0] — 2026-10-21
 

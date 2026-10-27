@@ -39,6 +39,7 @@ api/places/addresses/+server.ts
 api/catalog/search/+server.ts
 api/catalog/tracks/[id]/+server.ts
 api/recordings/[id]/+server.ts
+api/recordings/[id]/peaks/+server.ts
 api/recordings/[id]/enhance/+server.ts
 api/recordings/[id]/enhance/preview/+server.ts
 api/recordings/[id]/enhance/audio/+server.ts
@@ -51,6 +52,7 @@ api/notifications/[id]/+server.ts
 api/playlists/+server.ts
 api/playlists/[id]/+server.ts
 api/playlists/[id]/items/+server.ts
+api/playlists/[id]/items/[itemId]/+server.ts
 api/setlists/+server.ts
 api/setlists/[id]/+server.ts
 api/setlists/[id]/items/+server.ts
@@ -58,6 +60,7 @@ api/setlists/[id]/items/[itemId]/+server.ts
 api/personal/+server.ts
 api/personal/youtube/+server.ts
 api/personal/[id]/+server.ts
+api/personal/[id]/take/+server.ts
 api/posts/+server.ts
 api/posts/[id]/+server.ts
 api/posts/[id]/song/+server.ts
@@ -76,6 +79,8 @@ api/groups/[id]/logo/+server.ts
 api/groups/[id]/members/+server.ts
 api/groups/[id]/members/[userId]/+server.ts
 api/groups/switch/+server.ts
+api/admin/backup/+server.ts
+api/admin/stats/+server.ts
 api/users/[id]/avatar/+server.ts
 ```
 
@@ -99,6 +104,12 @@ Deux niveaux de droits au-delà de l'authentification :
   `DELETE /api/groups/[id]` exige en plus `?confirm=<nom exact du groupe>` et supprime tout
   le contenu en cascade ; `GET /api/groups/[id]/export` en fournit l'archive JSON préalable.
   Une archive ne contient jamais de `password_hash`.
+
+Les routes **`api/admin/`** sont réservées aux admins globaux (`isAdmin`, `403` sinon) :
+`GET /api/admin/backup` rend le dump `pg_dump` complet, `GET /api/admin/stats` les compteurs
+du groupe actif et le volume audio. `GET /api/recordings/[id]/peaks` rend la forme d'onde
+d'une prise du groupe actif (`400` sans piste audio), calculée une fois par ffmpeg et gardée
+à côté du mp3 (`src/lib/server/peaks.ts`).
 
 Les **imports** (`api/imports/`) sont la zone de transit des outils audio d'après upload :
 un fichier déposé qui n'est pas encore devenu des prises. Ils font exception au scope de

@@ -148,7 +148,7 @@ foi. Résumé :
 ```bash
 # Premier déploiement
 git clone <url-repo> ~/music-band-site && cd ~/music-band-site
-cp .env.example .env && nano .env   # AUTH_SECRET, POSTGRES_PASSWORD, ORIGIN
+cp .env.example .env && nano .env   # AUTH_SECRET, POSTGRES_PASSWORD, PUBLIC_SHARE_ORIGIN
 docker compose up -d --build
 
 # Mise à jour après un changement de code

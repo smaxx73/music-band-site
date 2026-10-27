@@ -326,6 +326,14 @@ au milieu de la salle, ou l'interface audio branchée au PC.
   nomme la durée perdue. Le bouton est sous le résumé « Enregistrement prêt » (avant le
   recadrage), doublé d'un « Annuler » à côté de l'envoi dans le formulaire de classement.
   L'écran dit que la prise est jetée (« Enregistrement jeté. Le micro reste ouvert »)
+- **Recadrer l'audio** avant l'envoi : sous le résumé « Enregistrement prêt », une frise avec
+  deux poignées (souris, doigt ou flèches du clavier) garde le passage qui compte et écarte
+  le début et la fin (« Tout garder » rétablit). Les bornes partent avec le fichier
+  (`trim_start`, `trim_end`) et le serveur taille dedans, après les avoir validées (au moins
+  0,25 s, dans la durée du fichier, `400` sinon ; `src/lib/server/audio-trim.ts`). Le
+  `file_hash` d'une coupe tient compte des bornes : deux coupes du même enregistrement sont
+  deux prises, pas un doublon. Vaut pour l'envoi d'une prise, le dépôt perso et l'import à
+  découper
 - **Écran gardé allumé** (Wake Lock) pendant l'enregistrement, repris au retour sur
   l'onglet : un téléphone qui se verrouille coupe le micro. L'écran dit quand le navigateur
   ne le permet pas
@@ -1008,8 +1016,19 @@ morceau (`score_documents.song_id` unique), au groupe : tout membre la crée et 
     posé sur la feuille la retient, et le défilement reprend dès qu'on le lève ; arrivé en
     bas, il s'arrête, et relancé il repart du début. Une marge basse d'une demi-page laisse
     la fin du morceau remonter à hauteur d'yeux
+  - **En colonnes (2 à 4), la feuille se lit de gauche à droite.** Un défilement vertical
+    ferait fuir le début de la colonne suivante pendant qu'on lit encore la première : au
+    pupitre, chaque colonne prend la hauteur de l'écran, N colonnes tiennent exactement, et le
+    texte déborde vers la droite. « Défiler » avance **d'une colonne à la fois, en continu** :
+    celle de gauche sort, une nouvelle entre à droite. En « Auto », une colonne quitte l'écran
+    quand le temps de la lire est écoulé (durée de référence ÷ nombre de colonnes) ; les
+    dernières restent à l'écran, lues jusqu'à la fin du morceau. En manuel, − / + gardent leurs
+    paliers, appliqués à la hauteur d'une colonne : zoomer ne change pas le nombre de lignes
+    lues à la minute. Une pastille « Col. 3–4 / 7 » dit où l'on en est. Une seule colonne garde
+    le défilement vertical. La lecture et l'impression, elles, restent verticales. Les
+    mini-partitions n'y prennent plus toute la largeur : elles se gravent à celle d'une colonne
   - **Tourner la page** au clavier : → / PageDown, ← / PageUp, d'un écran moins une
-    marge, pour garder la dernière ligne lue. C'est ce qu'envoient les pédales de
+    marge (en colonnes : moins une colonne), pour garder la dernière ligne lue. C'est ce qu'envoient les pédales de
     tourne-page Bluetooth
   - **Thème sombre** (« Sombre ») : texte clair sur fond sombre, pour une scène ou une salle
     peu éclairée, où une feuille blanche éblouit. Il suit le réglage du système tant qu'on

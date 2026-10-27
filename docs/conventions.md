@@ -12,6 +12,9 @@ src/
 │   │   │                  #   miniature du logo de groupe, recadrage des images déposées
 │   │   ├── audio-enhance.ts # amélioration du son d'une prise : mesure, aperçu, application,
 │   │   │                  #   retour à l'original (réglages partagés : src/lib/audio-enhance.ts)
+│   │   ├── audio-trim.ts  # recadrage d'un enregistrement (bornes début/fin) : validation avant
+│   │   │                  #   ffmpeg, empreinte propre à chaque coupe, contrôle du rendu
+│   │   ├── peaks.ts       # forme d'onde d'une prise : extraction ffmpeg, cache à côté du mp3
 │   │   ├── upload-stream.ts # réception multipart d'un fichier audio (prise ou import)
 │   │   ├── imports.ts     # zone de transit des outils audio d'après upload
 │   │   ├── youtube.ts     # vidéo YouTube d'une prise : lien, oEmbed, doublon
@@ -42,6 +45,12 @@ src/
 │       │                          #   cloche des notifications
 │       ├── AudioPlayer.svelte     # lecteur WaveSurfer.js
 │       ├── AudioRecorder.svelte   # enregistrement en direct depuis le navigateur (micro, interface)
+│       ├── Modal.svelte           # fenêtre modale (Échap ne ferme que la plus haute) ; socle des dialogues
+│       ├── MiniPlayer.svelte      # mini-lecteur persistant (barre du bas), pilote `player.svelte.ts`
+│       ├── InlineRecordingPlayer.svelte # écoute dépliable d'une prise sur sa ligne (waveform)
+│       ├── RecordingPlaybackActions.svelte # ▶ / ⏸ d'une prise vers le mini-lecteur (ou « Voir » pour une vidéo seule)
+│       ├── SessionHeader.svelte   # en-tête d'une session (MediaHeader + feuillet, lieu, présents)
+│       ├── PublicLanding.svelte   # accueil public (`/`, `/accueil`) et connexion
 │       ├── YouTubePlayer.svelte   # lecteur de la vidéo YouTube d'une prise (API IFrame, chargée à la demande)
 │       ├── YouTubeEmbed.svelte    # vidéo YouTube citée dans un commentaire (vignette, iframe au clic)
 │       ├── CommentsPanel.svelte   # commentaires d'une prise + formulaire d'ajout (page lecteur)

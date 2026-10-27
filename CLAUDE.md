@@ -54,6 +54,7 @@ déploiement (dev et prod), avec la commande exacte à lancer. Ne jamais laisser
 DATABASE_URL=postgresql://band:secret@db:5432/bandapp
 AUDIO_DIR=/data/audio
 AUTH_SECRET=chaine_aleatoire_pour_cookies
+PUBLIC_SHARE_ORIGIN=https://domaine-public.exemple   # domaine des liens d'écoute, voir deploy.md
 NODE_ENV=production
 ```
 
@@ -171,6 +172,7 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
                     « Modifier » pour l'atelier
 /recording/[id]     lecteur waveform + commentaires (`?t=1:23` ouvre au repère,
                     `#comment-<id>` cible un commentaire)
+/playlists          liste des playlists + création
 /playlists/[id]     lecture en continu d'une playlist
 /setlists           liste des setlists + création
 /setlists/[id]      programme d'une setlist : morceaux ordonnés, durée totale, commentaires
@@ -187,12 +189,16 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
                     gestion des membres, du nom, du logo et des liens pour l'admin du groupe)
 /admin/users        gestion des comptes
 /admin/groups       gestion des groupes et membres
+/admin/settings     formats audio acceptés à l'import (admin global)
+/admin/partition    laboratoire des feuilles de répétition (superadmin, prototype)
 /agenda             agenda partagé du groupe (indisponibilités + toutes les sessions)
 /perso              espace personnel : enregistrements à soi, non partagés + publication
                     (un enregistrement s'y classe après coup en prise d'une session)
 /perso/[id]         un enregistrement perso : lecteur, titre, note, publications
 /posts/[id]         une publication dans le groupe : lecteur ou suggestion + commentaires
 /ecoute/[token]     écoute publique d'un enregistrement, sans compte (lien à jeton)
+/accueil            page d'accueil publique (aussi sur `/` hors connexion)
+/login              connexion
 /mentions-legales   mentions légales (publique)
 /confidentialite    politique de confidentialité et cookies (publique)
 ```
@@ -217,7 +223,9 @@ dans docs/features.md.
 - Pagination (à faire quand > 50 éléments) — seul le fil d'actualité (`/fil`) est paginé,
   par curseur : voir « Fil d'actualité » dans docs/features.md
 - Suppression de commentaires (l'édition, elle, existe — voir docs/features.md)
-- Tests automatisés
+- Tests automatisés couvrant l'application : seuls quelques modules purs sont testés
+  (`tests/` : éditeur ABC, ChordPro, chaîne d'amélioration du son, reconnexion audio),
+  lancés par `pnpm test`. Ni routes, ni composants, ni SQL
 - Autres outils d'amélioration audio (fondus, réduction de bruit, déclippage, correction
   d'un son trop brillant) : seules la découpe sur les blancs, la recopie d'un canal muet et
   l'amélioration du son d'une prise (loudness, égalisation dosée sur l'équilibre aigus /
