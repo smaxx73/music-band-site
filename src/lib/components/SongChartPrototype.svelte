@@ -144,6 +144,12 @@ K:D
 	// du système tant qu'on n'a pas choisi.
 	let stageDark = $state(false)
 	let scrolling = $state(false)
+	// Plusieurs colonnes au pupitre : la feuille se lit de gauche à droite, colonne après
+	// colonne, sur la hauteur de l'écran. Défiler verticalement ferait fuir le début de la
+	// colonne suivante pendant qu'on lit encore la première.
+	const stagePaged = $derived(stage && sheetColumns > 1)
+	let stageColumn = $state(1)
+	let stageColumnTotal = $state(1)
 	let stageWakeLockOk = $state(true)
 	let stageWakeLock: WakeLockSentinel | null = null
 	// Un doigt posé sur la feuille la retient : le défilement ne lutte pas contre lui.
@@ -254,9 +260,13 @@ K:D
 				// scrollTop s'arrondit : on cumule les fractions pour garder une vitesse juste.
 				carry += scrollRate(scroller) * elapsed
 				const whole = Math.floor(carry)
-				if (whole) { scroller.scrollTop += whole; carry -= whole }
+				if (whole) {
+					if (stagePaged) scroller.scrollLeft += whole
+					else scroller.scrollTop += whole
+					carry -= whole
+				}
 			}
-			if (scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1) { scrolling = false; return }
+			if (atStageEnd(scroller)) { scrolling = false; return }
 			frame = requestAnimationFrame(step)
 		}
 		frame = requestAnimationFrame(step)
@@ -680,6 +690,9 @@ K:D
 	function changeColumns(value: string) {
 		const n = Number(value)
 		sheetColumns = Number.isInteger(n) && n >= 1 && n <= MAX_COLUMNS ? n : 1
+		// Un autre axe de lecture : la position d'avant ne veut plus rien dire.
+		scrolling = false
+		stageScroller?.scrollTo({ left: 0, top: 0 })
 		saveStagePrefs()
 	}
 
@@ -707,11 +720,61 @@ K:D
 		saveStagePrefs()
 	}
 
-	// Pixels par seconde. En automatique, toute la feuille défile sur la durée du morceau ;
-	// relue à chaque image, elle suit une gravure ABC arrivée en retard ou un zoom.
+	// Mesures des colonnes du pupitre : largeur d'un pas (colonne + gouttière), place du
+	// premier pixel de texte, hauteur d'une colonne, nombre de colonnes que la feuille remplit.
+	function columnMetrics(scroller: HTMLElement) {
+		const sheet = scroller.firstElementChild as HTMLElement | null
+		if (!sheet) return null
+		const style = getComputedStyle(sheet)
+		const gap = parseFloat(style.columnGap) || 0
+		const padLeft = parseFloat(style.paddingLeft) || 0
+		const inner = sheet.clientWidth - padLeft - (parseFloat(style.paddingRight) || 0)
+		const stride = (inner - (sheetColumns - 1) * gap) / sheetColumns + gap
+		const height = sheet.clientHeight - (parseFloat(style.paddingTop) || 0) - (parseFloat(style.paddingBottom) || 0)
+		if (stride <= 0 || height <= 0) return null
+		const total = Math.max(sheetColumns, Math.round((scroller.scrollWidth - padLeft + gap) / stride))
+		return { stride, height, total }
+	}
+
+	function measureColumns() {
+		const scroller = stageScroller
+		const metrics = scroller && stagePaged ? columnMetrics(scroller) : null
+		if (!scroller || !metrics) return
+		stageColumnTotal = metrics.total
+		stageColumn = Math.min(metrics.total, Math.round(scroller.scrollLeft / metrics.stride) + 1)
+	}
+
+	// Les colonnes se remplissent à l'ouverture, au zoom, au changement de vue ou de ton.
+	$effect(() => {
+		stage; sheetColumns; scaleIndex; effectiveView; readTranspose
+		void tick().then(measureColumns)
+	})
+
+	function atStageEnd(scroller: HTMLElement) {
+		return stagePaged
+			? scroller.scrollLeft + scroller.clientWidth >= scroller.scrollWidth - 1
+			: scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1
+	}
+
+	// Le palier manuel est une vitesse de lecture à la verticale (px/s à la taille 1). En
+	// colonnes, il devient le temps qu'on met à lire une colonne : la même vitesse, appliquée
+	// à la hauteur d'une colonne — zoomer ne change pas le nombre de lignes lues à la minute.
+	function manualRate(scroller: HTMLElement, speed: number) {
+		const metrics = stagePaged ? columnMetrics(scroller) : null
+		return metrics ? (speed * stageScale * metrics.stride) / metrics.height : speed * stageScale
+	}
+
+	// Pixels par seconde, sur l'axe de lecture. En automatique, toute la feuille défile sur la
+	// durée du morceau ; relue à chaque image, elle suit une gravure ABC arrivée en retard ou
+	// un zoom. En colonnes, une colonne quitte l'écran quand le temps de la lire est écoulé
+	// (durée / nombre de colonnes) : les dernières restent à l'écran pour être lues.
 	function scrollRate(scroller: HTMLElement) {
-		if (autoSpeed && songDuration) return Math.max(0, scroller.scrollHeight - scroller.clientHeight) / songDuration
-		return STAGE_SPEEDS[speedIndex] * stageScale
+		if (autoSpeed && songDuration) {
+			const metrics = stagePaged ? columnMetrics(scroller) : null
+			if (metrics) return (metrics.stride * metrics.total) / songDuration
+			return Math.max(0, scroller.scrollHeight - scroller.clientHeight) / songDuration
+		}
+		return manualRate(scroller, STAGE_SPEEDS[speedIndex])
 	}
 
 	function changeSpeed(direction: -1 | 1) {
@@ -719,7 +782,7 @@ K:D
 			// Quitter l'automatique pour le palier juste au-dessus ou au-dessous de lui : le
 			// groupe joue un peu plus vite ou plus lentement que la référence.
 			const rate = scrollRate(stageScroller)
-			const levels = STAGE_SPEEDS.map((speed) => speed * stageScale)
+			const levels = STAGE_SPEEDS.map((speed) => manualRate(stageScroller!, speed))
 			const index = direction === 1 ? levels.findIndex((level) => level > rate) : levels.findLastIndex((level) => level < rate)
 			speedIndex = index === -1 ? (direction === 1 ? levels.length - 1 : 0) : index
 			autoSpeed = false
@@ -732,7 +795,10 @@ K:D
 	function toggleScroll() {
 		const scroller = stageScroller
 		// Relancé en bas de la feuille, le défilement repart du début : c'est le morceau suivant.
-		if (!scrolling && scroller && scroller.scrollTop + scroller.clientHeight >= scroller.scrollHeight - 1) scroller.scrollTop = 0
+		if (!scrolling && scroller && atStageEnd(scroller)) {
+			if (stagePaged) scroller.scrollLeft = 0
+			else scroller.scrollTop = 0
+		}
 		scrolling = !scrolling
 	}
 
@@ -754,8 +820,13 @@ K:D
 	}
 
 	// Une page ne recouvre pas tout l'écran : la dernière ligne lue reste en haut.
+	// En colonnes, la page est l'écran moins une colonne : la dernière colonne lue reste à gauche.
 	function turnPage(direction: -1 | 1) {
-		stageScroller?.scrollBy({ top: direction * stageScroller.clientHeight * 0.85, behavior: 'smooth' })
+		const scroller = stageScroller
+		if (!scroller) return
+		const metrics = stagePaged ? columnMetrics(scroller) : null
+		if (metrics) scroller.scrollBy({ left: direction * Math.max(1, sheetColumns - 1) * metrics.stride, behavior: 'smooth' })
+		else scroller.scrollBy({ top: direction * scroller.clientHeight * 0.85, behavior: 'smooth' })
 	}
 
 	// Les pédales de tourne-page Bluetooth envoient des flèches ou PageDown/PageUp.
@@ -1062,17 +1133,20 @@ K:D
 					<button class="btn btn-secondary btn-sm" onclick={() => changeSpeed(-1)} disabled={!autoSpeed && speedIndex === 0} aria-label="Défiler plus lentement" title="Plus lent">−</button>
 					<span class="stage-speed" aria-live="polite">{#if autoSpeed && songDuration}<span title="Toute la feuille défile en {formatTimecode(songDuration)}, la durée de référence du morceau">{formatTimecode(songDuration)}</span>{:else}Vitesse {speedIndex + 1}{/if}</span>
 					<button class="btn btn-secondary btn-sm" onclick={() => changeSpeed(1)} disabled={!autoSpeed && speedIndex === STAGE_SPEEDS.length - 1} aria-label="Défiler plus vite" title="Plus vite">+</button>
+					{#if stagePaged}<span class="stage-speed" aria-live="off" title="Colonnes visibles, sur le total de la feuille">Col. {stageColumn}{sheetColumns > 1 ? `–${Math.min(stageColumn + sheetColumns - 1, stageColumnTotal)}` : ''} / {stageColumnTotal}</span>{/if}
 				</div>
 			</div>
 		</div>
 		{#if !stageWakeLockOk}<p class="stage-note">Ce navigateur ne permet pas de garder l’écran allumé : il peut se mettre en veille pendant la lecture.</p>{/if}
 		<div
 			class="stage-scroll"
+			class:paged={stagePaged}
+			onscroll={measureColumns}
 			bind:this={stageScroller}
 			tabindex="-1"
 			use:holdOnTouch
 		>
-			<div class="stage-sheet" class:multi={sheetColumns > 1} style:--sheet-cols={sheetColumns}>{@render renderedBlocks(true)}</div>
+			<div class="stage-sheet" class:multi={sheetColumns > 1} class:paged={stagePaged} style:--sheet-cols={sheetColumns}>{@render renderedBlocks(true)}</div>
 		</div>
 	</div>
 {:else if mode === 'read'}
@@ -1285,6 +1359,18 @@ K:D
 	.multi > :global(.rendered) { border-bottom: 0; }
 	.multi :global(.chart-section), .multi :global(.caption) { break-inside: avoid; }
 	.multi > :global(.rendered.notation) { column-span: all; }
+
+	/* Pupitre en colonnes : une bande horizontale. Chaque colonne a la hauteur de l'écran
+	   (`column-fill: auto`) et le texte déborde vers la droite ; la largeur d'une colonne est
+	   celle de l'écran partagée en N, pour que N colonnes tiennent exactement. */
+	.stage-scroll.paged { overflow-x: auto; overflow-y: hidden; container-type: size; }
+	.stage-sheet.paged {
+		max-width: none; height: 100%; margin: 0; padding: 1.25rem;
+		column-count: auto; column-fill: auto; column-gap: 2rem;
+		column-width: calc((100cqw - 2.5rem - (var(--sheet-cols) - 1) * 2rem) / var(--sheet-cols) - 1px);
+	}
+	.stage-sheet.paged > :global(.rendered.notation) { column-span: none; }
+	.stage-sheet.paged .abc-output :global(div), .stage-sheet.paged .abc-output :global(svg) { min-width: 0; max-width: 100%; }
 
 	/* Édition : l'atelier en trois colonnes. */
 	.composer { max-width: 1400px; margin: 2rem auto 4rem; padding: 0 1rem; color: var(--color-text); } .composer-header h1 { margin-top: .15rem; }
