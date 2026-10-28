@@ -1,21 +1,30 @@
 <!-- Groupe actif : son logo et son nom, et le changement de groupe. Posé en haut de la
      barre latérale (ordinateur, rail sur tablette) et dans la barre du haut au téléphone.
-     Avec un seul groupe, il n'y a rien à choisir : c'est un lien vers la fiche du groupe. -->
+     L'espace perso s'y choisit comme un groupe, mais n'en est pas un : y aller ne change pas
+     le groupe actif (le cookie `band_group` ne bouge pas), c'est une simple navigation vers
+     `/perso`. Le menu existe donc dès qu'il y a un groupe, même seul. -->
 <script lang="ts">
 	import { page } from '$app/state'
+	import { goto } from '$app/navigation'
 	import Menu from '$lib/components/Menu.svelte'
 	import Icon from '$lib/components/Icon.svelte'
+	import Avatar from '$lib/components/Avatar.svelte'
 	import { groupLogoUrl } from '$lib/types'
 	import { switchActiveGroup } from '$lib/group-switch'
 
 	type Group = { id: number; name: string; logo_version: number | null }
 
+	type Me = { id: number; display_name: string; avatar_version: number | null }
+
 	let {
+		user,
 		groups,
 		currentGroupId,
 		unreadByGroup = {},
 		variant
 	}: {
+		/** Le compte connecté : l'espace perso s'affiche sous sa photo. */
+		user: Me
 		groups: Group[]
 		currentGroupId: number | null
 		/** Notifications non lues par id de groupe. */
@@ -29,6 +38,10 @@
 	let error = $state<string | null>(null)
 
 	const current = $derived(groups.find((g) => g.id === currentGroupId))
+	// Sur /perso, le groupe actif reste celui du cookie mais la page n'en dépend pas : le
+	// déclencheur dit où l'on est. Sans aucun groupe, l'espace perso est le seul endroit.
+	const inPerso = $derived(page.url.pathname === '/perso' || page.url.pathname.startsWith('/perso/'))
+	const showPersonal = $derived(inPerso || !current)
 	// Ce que le groupe actif a de non lu est déjà sur la cloche : seuls les autres comptent.
 	const otherUnread = $derived(
 		groups.reduce((n, g) => (g.id === currentGroupId ? n : n + (unreadByGroup[g.id] ?? 0)), 0)
@@ -48,6 +61,8 @@
 		if (switching) return
 		if (groupId === currentGroupId) {
 			open = false
+			// Revenir de l'espace perso au groupe qu'on n'a jamais quitté côté cookie.
+			if (inPerso) await goto('/')
 			return
 		}
 		switching = true
@@ -69,19 +84,31 @@
 	{/if}
 {/snippet}
 
-{#snippet identity(group: Group, withChevron: boolean)}
-	{@render badge(group)}
-	<span class="gs-text">
-		<span class="gs-name">{group.name}</span>
-		{#if variant === 'sidebar'}<span class="gs-sub">Groupe actif</span>{/if}
-	</span>
+{#snippet personalBadge(size: string)}
+	<Avatar userId={user.id} name={user.display_name} version={user.avatar_version} {size} />
+{/snippet}
+
+{#snippet identity(group: Group | undefined, withChevron: boolean)}
+	{#if showPersonal || !group}
+		{@render personalBadge('30px')}
+		<span class="gs-text">
+			<span class="gs-name">Mon espace perso</span>
+			{#if variant === 'sidebar'}<span class="gs-sub">Hors groupe</span>{/if}
+		</span>
+	{:else}
+		{@render badge(group)}
+		<span class="gs-text">
+			<span class="gs-name">{group.name}</span>
+			{#if variant === 'sidebar'}<span class="gs-sub">Groupe actif</span>{/if}
+		</span>
+	{/if}
 	{#if withChevron}
 		{#if otherUnread > 0}<span class="gs-dot" aria-hidden="true"></span>{/if}
 		<Icon name={variant === 'sidebar' ? 'chevrons-up-down' : 'chevron-down'} class="gs-chevron" size="1rem" />
 	{/if}
 {/snippet}
 
-{#if current && groups.length > 1}
+{#if groups.length > 0}
 	<Menu
 		bind:open
 		label="Changer de groupe"
@@ -95,7 +122,7 @@
 				{...menu}
 				type="button"
 				class="gs-trigger gs-trigger-{variant}"
-				aria-label="Groupe actif : {current.name}. Changer de groupe{otherUnread > 0 ? '. Notifications non lues dans un autre groupe' : ''}"
+				aria-label="{showPersonal || !current ? 'Espace perso' : `Groupe actif : ${current.name}`}. Changer de groupe{otherUnread > 0 ? '. Notifications non lues dans un autre groupe' : ''}"
 				aria-busy={switching}
 			>
 				{@render identity(current, true)}
@@ -108,7 +135,7 @@
 				type="button"
 				class="menu-item"
 				role="menuitemradio"
-				aria-checked={group.id === currentGroupId}
+				aria-checked={!inPerso && group.id === currentGroupId}
 				disabled={switching}
 				onclick={() => choose(group.id)}
 			>
@@ -119,18 +146,31 @@
 						{unreadByGroup[group.id] > 99 ? '99+' : unreadByGroup[group.id]}
 					</span>
 				{/if}
-				{#if group.id === currentGroupId}<Icon name="check" size="1rem" class="gs-check" />{/if}
+				{#if !inPerso && group.id === currentGroupId}<Icon name="check" size="1rem" class="gs-check" />{/if}
 			</button>
 		{/each}
-		<a href="/group" class="menu-item gs-info" role="menuitem" onclick={() => (open = false)}>
-			Infos du groupe
-			<Icon name="chevron-right" size="1rem" />
+		<a
+			href="/perso"
+			class="menu-item gs-perso"
+			role="menuitemradio"
+			aria-checked={inPerso}
+			onclick={() => (open = false)}
+		>
+			{@render personalBadge('26px')}
+			<span class="gs-option">Mon espace perso</span>
+			{#if inPerso}<Icon name="check" size="1rem" class="gs-check" />{/if}
 		</a>
+		{#if current && !inPerso}
+			<a href="/group" class="menu-item gs-info" role="menuitem" onclick={() => (open = false)}>
+				Infos du groupe
+				<Icon name="chevron-right" size="1rem" />
+			</a>
+		{/if}
 		{#if error}<p class="message-error gs-error" role="alert">{error}</p>{/if}
 	</Menu>
-{:else if current}
-	<a href="/group" class="gs-trigger gs-trigger-{variant}" aria-label="Groupe actif : {current.name}. Infos du groupe">
-		{@render identity(current, false)}
+{:else}
+	<a href="/perso" class="gs-trigger gs-trigger-{variant}" aria-label="Mon espace perso">
+		{@render identity(undefined, false)}
 	</a>
 {/if}
 
@@ -258,6 +298,13 @@
 
 	.menu-item[aria-checked='true'] { background: var(--color-accent-light); }
 	.menu-item :global(.gs-check) { color: var(--color-accent-dark); }
+
+	/* L'espace perso n'est pas un groupe : un filet le sépare de la liste. */
+	.gs-perso {
+		margin-top: 0.25rem;
+		border-top: 1px solid var(--color-border-light);
+		border-radius: 0;
+	}
 
 	.gs-info {
 		justify-content: space-between;

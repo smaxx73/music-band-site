@@ -176,7 +176,7 @@
 			<!-- Au téléphone, la barre latérale n'existe plus : le groupe actif prend la
 			     place du logo, à gauche de la barre du haut. -->
 			<div class="bar-group">
-				<GroupSwitcher groups={data.user.groups} currentGroupId={data.user.current_group_id} {unreadByGroup} variant="bar" />
+				<GroupSwitcher user={data.user} groups={data.user.groups} currentGroupId={data.user.current_group_id} {unreadByGroup} variant="bar" />
 			</div>
 			<div class="top-spacer"></div>
 			{#if data.user.current_group_id}
@@ -203,7 +203,7 @@
 			     masquée, remplacée par la barre d'onglets du bas. -->
 			<nav class="app-sidebar" aria-label="Navigation principale">
 				<div class="sidebar-group">
-					<GroupSwitcher groups={data.user.groups} currentGroupId={data.user.current_group_id} {unreadByGroup} variant="sidebar" />
+					<GroupSwitcher user={data.user} groups={data.user.groups} currentGroupId={data.user.current_group_id} {unreadByGroup} variant="sidebar" />
 				</div>
 				<div class="sidebar-add">
 					<AddMenu variant="sidebar" hasGroup={!!data.user.current_group_id} />
