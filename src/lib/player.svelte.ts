@@ -10,18 +10,44 @@
 
 import { untrack } from 'svelte'
 import { reconnectAudio } from '$lib/audio-reconnect'
+import { personalAudioUrl } from '$lib/types'
 
-export type PlayerTrack = {
+/** Une prise du groupe. */
+export type RecordingTrack = {
 	recordingId: number
 	songId: number
 	songTitle: string
 	take: number
 	sessionDate: string | null
 	durationS: number | null
+	personal?: false
 }
+
+/**
+ * Un enregistrement de l'espace perso. Son `recordingId` est l'id de `personal_recordings`,
+ * qui n'a rien à voir avec celui d'une prise : deux pistes ne sont les mêmes que si
+ * l'id ET la nature concordent (`sameTrack`).
+ */
+export type PersonalTrack = {
+	personal: true
+	recordingId: number
+	title: string
+	durationS: number | null
+}
+
+export type PlayerTrack = RecordingTrack | PersonalTrack
 
 export function audioUrl(recordingId: number): string {
 	return `/audio/${recordingId}.mp3`
+}
+
+/** Adresse du fichier d'une piste : `/audio/` pour une prise, `/audio/perso/` sinon. */
+export function trackUrl(track: PlayerTrack): string {
+	return track.personal ? personalAudioUrl(track.recordingId) : audioUrl(track.recordingId)
+}
+
+export function sameTrack(a: PlayerTrack | null | undefined, b: PlayerTrack | null | undefined): boolean {
+	return !!a && !!b && a.recordingId === b.recordingId && !!a.personal === !!b.personal
 }
 
 class SharedPlayer {
@@ -45,7 +71,7 @@ class SharedPlayer {
 		this.#reconnect = media ? reconnectAudio(media) : null
 		this.media = media
 		const track = untrack(() => this.track)
-		if (media && track) media.src = audioUrl(track.recordingId)
+		if (media && track) media.src = trackUrl(track)
 	}
 
 	/**
@@ -53,7 +79,7 @@ class SharedPlayer {
 	 * la lecture continue là où elle en est (cas du retour sur une page qui la porte).
 	 */
 	load(next: PlayerTrack, autoplay = false) {
-		if (this.track?.recordingId !== next.recordingId) this.queue = []
+		if (!sameTrack(this.track, next)) this.queue = []
 		this.#setTrack(next, autoplay)
 	}
 
@@ -66,8 +92,22 @@ class SharedPlayer {
 
 	/** ▶ d'une ligne de prise : met en pause celle qui joue, lance les autres. */
 	toggleTrack(next: PlayerTrack) {
-		if (this.track?.recordingId === next.recordingId) this.toggle()
+		if (sameTrack(this.track, next)) this.toggle()
 		else this.load(next, true)
+	}
+
+	/** La piste en cours est cette prise du groupe (pas un enregistrement perso de même id). */
+	isRecording(recordingId: number): boolean {
+		return sameTrack(this.track, { recordingId, songId: 0, songTitle: '', take: 0, sessionDate: null, durationS: null })
+	}
+
+	/** La piste en cours est cet enregistrement perso. */
+	isPersonal(id: number): boolean {
+		return sameTrack(this.track, { personal: true, recordingId: id, title: '', durationS: null })
+	}
+
+	isCurrent(track: PlayerTrack): boolean {
+		return sameTrack(this.track, track)
 	}
 
 	next() {
@@ -89,14 +129,14 @@ class SharedPlayer {
 	}
 
 	#setTrack(next: PlayerTrack, autoplay: boolean) {
-		const isNew = this.track?.recordingId !== next.recordingId
+		const isNew = !sameTrack(this.track, next)
 		this.track = next
 
 		if (isNew) {
 			this.#reconnect?.reset()
 			this.currentTime = 0
 			this.duration = next.durationS ?? 0
-			if (this.media) this.media.src = audioUrl(next.recordingId)
+			if (this.media) this.media.src = trackUrl(next)
 		}
 
 		if (autoplay) this.play()
@@ -109,7 +149,7 @@ class SharedPlayer {
 	 */
 	reload(recordingId: number) {
 		const media = this.media
-		if (!media || this.track?.recordingId !== recordingId) return
+		if (!media || !this.isRecording(recordingId)) return
 		const at = media.currentTime
 		const wasPlaying = !media.paused
 		this.#reconnect?.stop()

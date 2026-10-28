@@ -17,6 +17,11 @@ Aucune migration.
 
 - **Nouveautés** : une page `/nouveautes` raconte l'évolution de BandStash, version après
   version, et un bandeau annonce ce qui est sorti depuis la dernière visite
+- **Mon espace perso dans le sélecteur de groupe** : il se choisit depuis le même menu que
+  les groupes, en haut à gauche, et s'y reconnaît quand on y est. Le groupe actif ne change
+  pas pour autant
+- **Écoute des enregistrements perso dans la barre du bas** : un ▶ par ligne dans l'espace
+  perso, « Tout écouter » pour les enchaîner, et la lecture continue quand on change de page
 
 ## [1.14.0] — 2026-10-26
 

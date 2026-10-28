@@ -1110,9 +1110,17 @@ Trois mises en page, toutes dans `src/routes/+layout.svelte` :
 | ≤ 640 px (téléphone) | **barre d'onglets** en bas : Accueil · Sessions · **+** · Morceaux · Plus |
 
 - **Groupe actif** (`GroupSwitcher.svelte`) : en tête de la barre latérale (pastille seule
-  dans le rail), à gauche de la barre du haut au téléphone. Logo et nom ; avec plusieurs
-  groupes, un menu pour changer de groupe et « Infos du groupe » (`/group`). Avec un seul,
-  c'est un lien vers `/group` — d'où l'absence d'entrée « Mon groupe » dans la navigation
+  dans le rail), à gauche de la barre du haut au téléphone. Logo et nom ; un menu pour
+  changer de groupe, choisir **« Mon espace perso »** et ouvrir « Infos du groupe » (`/group`).
+  Le menu existe dès qu'il y a un groupe, même seul — l'espace perso en est l'autre entrée —,
+  d'où l'absence d'entrée « Mon groupe » dans la navigation
+- **L'espace perso s'y choisit comme un groupe, mais n'en est pas un** : l'entrée mène à
+  `/perso` sans toucher au groupe actif (le cookie `band_group` ne bouge pas, rien n'est
+  rechargé). Sur `/perso`, le déclencheur affiche la photo du compte et « Mon espace perso »
+  (« Hors groupe »), et « Infos du groupe » disparaît du menu ; choisir le groupe actif
+  ramène au tableau de bord. Sans aucun groupe, le déclencheur est un simple lien vers
+  `/perso`. Une donnée perso reste filtrée par `user_id`, jamais par groupe : l'entrée du
+  menu n'est qu'une navigation
 - **Changer de groupe garde la section** (`pathAfterSwitch`, `src/lib/group-switch.ts`) : une
   liste se recharge pour le nouveau groupe, une page de détail — qui appartient à l'ancien —
   ramène à la liste de sa section (`/songs/7` → `/songs`), une page hors groupe (espace perso,
@@ -1555,9 +1563,17 @@ travaillée seul, une vidéo repérée. Rien n'y est partagé tant qu'on ne le p
   blancs, chaque passage devenant un enregistrement perso — voir « Découpe vers l'espace perso »
 - Les fichiers vivent dans `AUDIO_DIR/perso/{id}.mp3` et sont servis par
   `/audio/perso/{id}.mp3`, **toujours par Node**. La route laisse passer le propriétaire,
-  et un membre du **groupe actif** si l'enregistrement y est publié — rien d'autre. Le
-  lecteur perso a son propre `<audio>` : un enregistrement perso n'entre ni dans la barre
-  du bas ni dans une playlist
+  et un membre du **groupe actif** si l'enregistrement y est publié — rien d'autre
+- **Lecture par la barre du bas**, comme une prise (`player.svelte.ts`) : chaque ligne de
+  `/perso` a son ▶, « Tout écouter » enchaîne la liste, et la page `/perso/[id]` greffe sa
+  forme d'onde sur le même média — la lecture survit à la navigation. Une piste perso est une
+  `PersonalTrack` (`personal: true`) : son `recordingId` est l'id de `personal_recordings`,
+  sans rapport avec celui d'une prise, donc **on compare les pistes par `sameTrack`**
+  (`player.isRecording`, `isPersonal`, `isCurrent`), jamais par `recordingId` seul. La
+  barre montre « espace perso » à la place de « prise n » et mène à `/perso/[id]`. Une vidéo
+  seule n'y joue pas ; une playlist ne désigne toujours que des prises. Les pages d'une
+  publication et d'un lien d'écoute public gardent leur propre `<audio>` (`MediaPlayer`
+  sans `shared`)
 - Titre et note se modifient depuis `/perso/[id]`, par le propriétaire seul
 - L'en-tête de la liste affiche l'**espace disque** occupé par ses pistes audio. Un
   enregistrement publié compte chez son propriétaire, jamais dans le volume du groupe

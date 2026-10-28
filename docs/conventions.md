@@ -76,7 +76,7 @@ src/
 │       ├── NotificationsMenu.svelte # cloche + menu des notifications (barre du haut)
 │       ├── AttendanceButtons.svelte # Présent / Peut-être / Absent : cloche, tableau de bord, agenda
 │       ├── EventAttendance.svelte # présences d'un événement dans le panneau du jour (/agenda)
-│       ├── GroupSwitcher.svelte   # groupe actif (logo, nom) et changement de groupe
+│       ├── GroupSwitcher.svelte   # groupe actif (logo, nom), changement de groupe, entrée « Mon espace perso »
 │       ├── AddMenu.svelte         # « + Ajouter » : enregistrer, envoyer, session, publier
 │       ├── PlaylistQueue.svelte   # mode édition d'une playlist : ordre (glisser), retrait
 │       ├── PlaylistTrackRow.svelte # une piste de playlist, en lecture
@@ -87,7 +87,7 @@ src/
 │       ├── SetlistSongs.svelte    # programme d'une setlist : ordre (glisser + ↑↓), retrait
 │       ├── AddToPlaylistButton.svelte # ajout d'une prise à une playlist (sélecteur + création)
 │       ├── AddToSetlistButton.svelte  # ajout d'un morceau à une setlist (listes et vue morceau)
-│       ├── MediaPlayer.svelte     # lecteur d'un enregistrement perso (audio et/ou vidéo, hors barre du bas)
+│       ├── MediaPlayer.svelte     # lecteur d'un enregistrement perso (audio et/ou vidéo ; barre du bas via `shared`, sinon son propre <audio>)
 │       ├── PublishDialog.svelte   # publier dans le groupe actif : enregistrement perso, vidéo, suggestion
 │       ├── ClassifyDialog.svelte  # classer un enregistrement perso en prise (session + morceau)
 │       ├── AudioEnhanceDialog.svelte # améliorer le son d'une prise : mesure, chaîne, écoute comparée

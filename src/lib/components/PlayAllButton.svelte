@@ -6,7 +6,7 @@
 
 	// Le bouton suit la série qu'il a lancée : pause tant qu'une de ses prises joue,
 	// reprise si l'une d'elles est en pause, sinon on repart de la première.
-	const current = $derived(tracks.some((t) => t.recordingId === player.track?.recordingId))
+	const current = $derived(tracks.some((t) => player.isCurrent(t)))
 	const playing = $derived(current && player.isPlaying)
 
 	function onclick() {

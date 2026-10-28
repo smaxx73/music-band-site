@@ -59,7 +59,7 @@
 		sessionDate: item.session_date,
 		durationS: item.duration_s
 	})))
-	const currentIdx = $derived(items.findIndex((item) => item.recording_id === player.track?.recordingId))
+	const currentIdx = $derived(items.findIndex((item) => player.isRecording(item.recording_id)))
 	const currentItem = $derived(currentIdx >= 0 ? items[currentIdx] : null)
 
 	function playFrom(idx: number) {

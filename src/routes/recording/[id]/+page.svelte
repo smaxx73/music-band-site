@@ -93,7 +93,7 @@
 		peaks: data.peaks as number[],
 		duration: (recording.duration_s ?? (data as { peaksDuration?: number | null }).peaksDuration) ?? undefined
 	})
-	const sharedTrackMatches = $derived(player.track?.recordingId === recording.id)
+	const sharedTrackMatches = $derived(player.isRecording(recording.id))
 
 	function sharedRecordingTrack(r: Recording) {
 		return {

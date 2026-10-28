@@ -10,6 +10,8 @@
 	import ClassifyDialog from '$lib/components/ClassifyDialog.svelte'
 	import PendingImports from '$lib/components/PendingImports.svelte'
 	import Icon from '$lib/components/Icon.svelte'
+	import PlayAllButton from '$lib/components/PlayAllButton.svelte'
+	import { player, type PersonalTrack } from '$lib/player.svelte'
 	import { deleteTakes, takeIdOf } from '$lib/recording-store'
 	import { sendAudioFile, splitUrl, trimFields } from '$lib/upload-client'
 	import type { AudioTrim } from '$lib/types'
@@ -155,6 +157,24 @@
 		}))
 	)
 
+	// Lecture par la barre du bas, comme les prises d'une session : elle enchaîne la liste
+	// et survit à la navigation. Une vidéo seule n'a rien à y jouer.
+	function trackOf(r: Row): PersonalTrack {
+		return { personal: true, recordingId: r.id, title: r.title, durationS: r.duration_s }
+	}
+	const tracks = $derived(recordings.filter((r) => r.file_path !== null).map(trackOf))
+
+	function playFrom(r: Row) {
+		const track = trackOf(r)
+		if (player.isCurrent(track)) {
+			player.toggle()
+			return
+		}
+		// Depuis ce morceau jusqu'à la fin de la liste : le ▶ d'une ligne enchaîne la suite.
+		const index = tracks.findIndex((t) => t.recordingId === r.id)
+		player.playAll(tracks.slice(index))
+	}
+
 	function formatDate(value: string) {
 		return formatDateOnly(value, { day: 'numeric', month: 'short', year: 'numeric' })
 	}
@@ -261,6 +281,7 @@
 	<section class="list">
 		<div class="list-header">
 			<h2>Mes enregistrements ({recordings.length})</h2>
+			<PlayAllButton {tracks} label="Tout écouter" />
 			{#if data.audioBytes > 0}
 				<span class="usage" title="{data.audioBytes.toLocaleString('fr-FR')} octets">
 					{formatBytes(data.audioBytes)} sur le disque
@@ -273,7 +294,17 @@
 			<ul>
 				{#each recordings as r (r.id)}
 					{@const publishedHere = r.publications.some((p) => p.group_id === currentGroup?.id)}
+					{@const isCurrent = player.isCurrent(trackOf(r))}
 					<li class="card">
+						<div class="card-lead">
+						{#if r.file_path}
+							<button
+								class="btn btn-secondary btn-sm btn-icon"
+								onclick={() => playFrom(r)}
+								title={isCurrent && player.isPlaying ? 'Mettre en pause' : 'Écouter dans le mini-lecteur persistant'}
+								aria-label={isCurrent && player.isPlaying ? 'Mettre en pause' : 'Écouter dans le mini-lecteur persistant'}
+							><Icon name={isCurrent && player.isPlaying ? 'pause' : 'play'} /></button>
+						{/if}
 						<div class="card-main">
 							<a href="/perso/{r.id}" class="card-title">
 								{#if r.file_path}<Icon name="waveform" size="0.85rem" />{/if}
@@ -295,6 +326,7 @@
 									{/each}
 								</div>
 							{/if}
+						</div>
 						</div>
 						{#if currentGroup}
 							<div class="card-actions">
@@ -363,6 +395,7 @@
 		display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
 		border: 1px solid var(--color-border-light); border-radius: var(--radius-lg); padding: 0.7rem 0.9rem;
 	}
+	.card-lead { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
 	.card-main { min-width: 0; display: flex; flex-direction: column; gap: 0.2rem; }
 	.card-title { display: inline-flex; align-items: center; gap: 0.35rem; font-weight: 600; color: inherit; text-decoration: none; }
 	.card-title:hover { color: var(--color-accent); }

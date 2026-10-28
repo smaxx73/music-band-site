@@ -70,17 +70,23 @@
 ></audio>
 
 {#if visible && player.track}
+	{@const track = player.track}
+	{@const href = track.personal ? `/perso/${track.recordingId}` : `/recording/${track.recordingId}`}
 	<!-- Comme la mini-barre d'une plateforme d'écoute : la pochette du morceau, ce qui
 	     joue, puis les commandes. -->
 	<div class="mini-player" bind:offsetHeight={barHeight}>
-		<a href="/recording/{player.track.recordingId}" class="mini-cover" tabindex="-1" aria-hidden="true">
-			<SongCover songId={player.track.songId} title={player.track.songTitle} size={38} />
+		<a {href} class="mini-cover" tabindex="-1" aria-hidden="true">
+			{#if track.personal}
+				<span class="mini-personal"><Icon name="user" size="1.1rem" /></span>
+			{:else}
+				<SongCover songId={track.songId} title={track.songTitle} size={38} />
+			{/if}
 		</a>
 
 		<div class="mini-body">
 			<div class="mini-title">
-				<a href="/recording/{player.track.recordingId}">{player.track.songTitle}</a>
-				<span class="mini-take">prise {player.track.take}</span>
+				<a {href}>{track.personal ? track.title : track.songTitle}</a>
+				<span class="mini-take">{track.personal ? 'espace perso' : `prise ${track.take}`}</span>
 			</div>
 			<div class="mini-progress">
 				<span class="mini-time">{formatTime(player.currentTime)}</span>
@@ -110,8 +116,8 @@
 			<button
 				class="mini-btn mini-next"
 				onclick={() => player.next()}
-				title="Prise suivante ({player.queue.length} en attente)"
-				aria-label="Prise suivante"
+				title="Suivant ({player.queue.length} en attente)"
+				aria-label="Piste suivante"
 			><Icon name="skip-forward" size="0.95rem" /></button>
 		{/if}
 
@@ -167,6 +173,17 @@
 	}
 
 	.mini-play:hover { filter: brightness(1.08); }
+
+	/* Un enregistrement perso n'a pas de pochette : la pastille du compte en tient lieu. */
+	.mini-personal {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 38px;
+		height: 38px;
+		background: rgba(255, 255, 255, 0.1);
+		color: var(--color-mid);
+	}
 
 	.mini-close {
 		width: 26px;

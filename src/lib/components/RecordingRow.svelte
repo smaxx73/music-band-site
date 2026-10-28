@@ -61,7 +61,7 @@
 
 	// La prise que joue le mini-lecteur se signale dans la liste, comme la piste en
 	// cours d'une plateforme de streaming : on la retrouve sans lire la barre du bas.
-	const isCurrent = $derived(player.track?.recordingId === recording.id)
+	const isCurrent = $derived(player.isRecording(recording.id))
 	const isPlaying = $derived(isCurrent && player.isPlaying)
 	// Partager depuis la prise qu'on écoute reprend sa position, comme sur sa page.
 	const shareTime = $derived(isCurrent && player.currentTime > 1 ? Math.floor(player.currentTime) : null)

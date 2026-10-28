@@ -21,7 +21,7 @@
 	} = $props()
 
 	// La prise qui joue déjà se met en pause au lieu de repartir du début.
-	const playing = $derived(player.isPlaying && player.track?.recordingId === recordingId)
+	const playing = $derived(player.isPlaying && player.isRecording(recordingId))
 
 	function togglePlayback() {
 		player.toggleTrack({ recordingId, songId, songTitle, take, sessionDate, durationS })

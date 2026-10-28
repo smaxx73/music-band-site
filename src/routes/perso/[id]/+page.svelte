@@ -199,6 +199,9 @@
 			peaks={data.peaks as number[]}
 			duration={recording.duration_s ?? (data.peaksDuration as number | null)}
 			videoId={recording.youtube_video_id}
+			shared={recording.file_path
+				? { personal: true, recordingId: recording.id, title: recording.title, durationS: recording.duration_s }
+				: null}
 		/>
 	</div>
 
