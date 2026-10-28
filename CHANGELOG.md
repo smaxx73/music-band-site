@@ -15,6 +15,9 @@ en montant de version (voir `deploy.md`).
 
 Aucune migration.
 
+- **Nouveautés** : une page `/nouveautes` raconte l'évolution de BandStash, version après
+  version, et un bandeau annonce ce qui est sorti depuis la dernière visite
+
 ## [1.14.0] — 2026-10-26
 
 Aucune migration.

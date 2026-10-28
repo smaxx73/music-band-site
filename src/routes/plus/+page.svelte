@@ -44,6 +44,7 @@
 	const meEntries = $derived<Entry[]>([
 		{ href: '/perso', label: 'Mon espace perso', icon: 'user' },
 		{ href: '/profile', label: 'Mon profil', icon: 'settings' },
+		{ href: '/nouveautes', label: 'Nouveautés', icon: 'info' },
 		...(isAdmin(user.role) ? [{ href: '/admin', label: 'Administration', icon: 'settings' } satisfies Entry] : []),
 	])
 

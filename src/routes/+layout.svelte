@@ -12,6 +12,7 @@
 	import Avatar from '$lib/components/Avatar.svelte'
 	import LegalLinks from '$lib/components/LegalLinks.svelte'
 	import { APP_VERSION } from '$lib/version'
+	import { loadSeen, markSeen, pendingEntries, whatsNew } from '$lib/whats-new.svelte'
 	import type { IconName } from '$lib/icons'
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props()
@@ -23,6 +24,12 @@
 	// la lecture en cours et un formulaire entamé, c'est au membre de choisir son moment.
 	let updateNoticeDismissed = $state(false)
 	let bannersHeight = $state(0)
+
+	// Lu une fois connecté seulement : un visiteur de l'accueil public n'a rien « vu » à mémoriser.
+	$effect(() => {
+		if (data.user) loadSeen()
+	})
+	const newReleases = $derived(pendingEntries())
 
 	// Les non lues des autres groupes : rendues avec la page, puis sondées comme la cloche.
 	// Une nouvelle valeur du serveur (navigation) reprend la main.
@@ -112,6 +119,7 @@
 	// Hors groupe : l'espace perso suit l'utilisateur quel que soit le groupe actif.
 	const meNav: NavItem[] = [
 		{ href: '/perso', label: 'Mon espace perso', short: 'Perso', icon: 'user' },
+		{ href: '/nouveautes', label: 'Nouveautés', short: 'Nouveau', icon: 'info' },
 	]
 
 	// Barre d'onglets (téléphone) : ce qu'on ouvre en répétition, le reste sous « Plus ».
@@ -265,6 +273,25 @@
 							aria-label="Fermer le bandeau de mise à jour"
 							title="Fermer"
 							onclick={() => (updateNoticeDismissed = true)}
+						>
+							<Icon name="close" size="1rem" />
+						</button>
+					</div>
+				{/if}
+				{#if newReleases.length > 0}
+					<!-- Une version est sortie depuis la dernière visite de ce navigateur : le dire une
+					     fois, le détail vit sur /nouveautes (qui marque aussi la version comme vue). -->
+					<div class="app-banner" role="status">
+						<span>
+							Du nouveau dans BandStash depuis la v{whatsNew.seen}.
+							<a href="/nouveautes" class="btn-link">Voir les nouveautés</a>
+						</span>
+						<button
+							type="button"
+							class="app-banner-close"
+							aria-label="Fermer le bandeau des nouveautés"
+							title="Fermer"
+							onclick={markSeen}
 						>
 							<Icon name="close" size="1rem" />
 						</button>

@@ -2119,6 +2119,27 @@ la prochaine date, puis seulement l'activité.
   « En préparation » dans la colonne de droite. Sur une colonne (≤ 700 px), dans cet ordre
 - Actualisation toutes les 60 secondes tant que l'onglet est visible, et dès qu'on y revient
 
+## Nouveautés (`/nouveautes`)
+
+Annoncer ce qui change dans la plateforme, sans écrire un message à part : le
+`CHANGELOG.md` est la source, lu au build.
+
+- **Un seul endroit où écrire** : les puces des versions publiées de `CHANGELOG.md`. Le
+  paragraphe qui les précède (migrations, variables d'environnement) s'adresse à qui
+  déploie et n'est pas montré. Les puces doivent donc être écrites pour les membres
+  (`src/lib/changelog-parse.ts`, `src/lib/changelog.ts`). « [Non publié] » n'apparaît pas
+- **Page `/nouveautes`**, réservée aux comptes connectés : toutes les versions, la plus
+  récente d'abord, avec une marque « Nouveau » sur celles sorties depuis la dernière visite.
+  Entrée « Nouveautés » dans « Moi » (barre latérale, rail) et dans « Plus »
+- **Bandeau** sous la barre du haut (comme celui de la mise à jour) quand une version est
+  sortie depuis la dernière visite de ce navigateur : « Du nouveau dans BandStash depuis la
+  v1.13.0 ». Se ferme, ou disparaît en ouvrant la page
+- **Mémorisé par navigateur** (`localStorage`, clé `band_seen_version`), pas par compte :
+  pas de table, pas de migration. Un navigateur qui n'a encore rien vu se place sur la
+  version en service sans bandeau — un nouveau membre n'a rien à rattraper. Sans stockage
+  (navigation privée), pas de bandeau plutôt qu'un bandeau à chaque page
+- Rien n'est envoyé : ni notification, ni e-mail
+
 ## Pages légales (`/mentions-legales`, `/confidentialite`)
 
 - **Publiques** (`PUBLIC_PATHS`, `src/routes/+layout.server.ts`) : la LCEN exige des mentions

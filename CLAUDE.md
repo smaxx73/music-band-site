@@ -199,6 +199,8 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
 /ecoute/[token]     écoute publique d'un enregistrement, sans compte (lien à jeton)
 /accueil            page d'accueil publique (aussi sur `/` hors connexion)
 /login              connexion
+/nouveautes         journal des nouveautés (CHANGELOG.md) ; un bandeau annonce les versions
+                    sorties depuis la dernière visite
 /mentions-legales   mentions légales (publique)
 /confidentialite    politique de confidentialité et cookies (publique)
 ```

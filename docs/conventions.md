@@ -113,6 +113,7 @@ src/
 │       │                          #   répétition) ; moteur : src/lib/metronome.svelte.ts
 │       └── SongDetails.svelte     # paroles et notes musicales
 ├── routes/
+│   ├── nouveautes/+page.svelte    # journal des nouveautés (CHANGELOG.md lu au build)
 │   ├── +layout.svelte     # layout global + vérif auth
 │   ├── +page.svelte       # tableau de bord
 │   ├── sessions/[id]/+page.svelte
