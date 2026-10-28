@@ -13,6 +13,8 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.15.0] — 2026-10-28
+
 Aucune migration.
 
 - **Nouveautés** : une page `/nouveautes` raconte l'évolution de BandStash, version après
