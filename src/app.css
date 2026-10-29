@@ -1087,3 +1087,25 @@ html:has(.modal-backdrop) {
 @media (max-width: 640px) {
   .app-content { padding-bottom: calc(var(--footer-actions-h) + var(--mini-player-h)); }
 }
+
+/* ─── Indicateur de chargement ───────────────────────── */
+/* Petit anneau à poser devant un texte d'attente ou dans un bouton qui envoie.
+   Il hérite la couleur du texte (`currentColor`) pour rester lisible partout. */
+.spinner {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  vertical-align: -0.15em;
+  animation: spinner-turn 0.7s linear infinite;
+}
+
+@keyframes spinner-turn {
+  to { transform: rotate(360deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 2s; }
+}

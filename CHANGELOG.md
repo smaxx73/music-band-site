@@ -13,6 +13,9 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+- **Chargement visible** : quand le réseau tarde à ouvrir une page, une barre orange défile
+  en haut de l'écran pour montrer que le changement est en cours.
+
 ## [1.15.0] — 2026-10-28
 
 Aucune migration.

@@ -335,7 +335,7 @@
 					aria-label="Envoyer le commentaire"
 					title="Envoyer (Ctrl/⌘+Entrée)"
 				>
-					{#if submitting}…{:else}<Icon name="send" size="0.95rem" />{/if}
+					{#if submitting}<span class="spinner" aria-hidden="true"></span>{:else}<Icon name="send" size="0.95rem" />{/if}
 				</button>
 			</div>
 		</div>

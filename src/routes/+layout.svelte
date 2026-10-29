@@ -1,7 +1,7 @@
 <script lang="ts">
 	import '../app.css'
 	import type { LayoutData } from './$types'
-	import { page, updated } from '$app/state'
+	import { navigating, page, updated } from '$app/state'
 	import { onMount } from 'svelte'
 	import { isAdmin } from '$lib/types'
 	import MiniPlayer from '$lib/components/MiniPlayer.svelte'
@@ -16,6 +16,18 @@
 	import type { IconName } from '$lib/icons'
 
 	let { data, children }: { data: LayoutData; children: import('svelte').Snippet } = $props()
+
+	// Une navigation rapide ne doit pas clignoter : l'indicateur n'apparaît que si le
+	// réseau tarde, c'est là seulement que le membre se demande si son toucher a porté.
+	let slowNavigation = $state(false)
+	$effect(() => {
+		if (!navigating.to) {
+			slowNavigation = false
+			return
+		}
+		const timer = setTimeout(() => (slowNavigation = true), 250)
+		return () => clearTimeout(timer)
+	})
 
 	// Fermeture locale ; une nouvelle annonce du serveur réaffiche le bandeau.
 	let groupSwitchNotice = $derived(data.group_switched_to)
@@ -341,7 +353,40 @@
 	{@render children()}
 {/if}
 
+{#if slowNavigation}
+	<div class="nav-progress" role="progressbar" aria-label="Chargement de la page"></div>
+{/if}
+
 <style>
+	/* Barre indéterminée collée en haut de la fenêtre, au-dessus de tout (menus, modales). */
+	.nav-progress {
+		position: fixed;
+		inset: 0 0 auto 0;
+		height: 3px;
+		z-index: 1000;
+		overflow: hidden;
+		background: var(--color-accent-light);
+		pointer-events: none;
+	}
+
+	.nav-progress::before {
+		content: '';
+		position: absolute;
+		inset: 0;
+		width: 40%;
+		background: var(--color-accent);
+		animation: nav-progress-slide 1.1s ease-in-out infinite;
+	}
+
+	@keyframes nav-progress-slide {
+		from { transform: translateX(-100%); }
+		to { transform: translateX(250%); }
+	}
+
+	@media (prefers-reduced-motion: reduce) {
+		.nav-progress::before { width: 100%; animation: none; opacity: 0.7; }
+	}
+
 	/* Trois mises en page, réglées ici seules :
 	   - ordinateur (≥ 1024 px) : barre latérale complète, en sections ;
 	   - tablette (641–1023 px) : rail d'icônes à court libellé, qui rend la largeur au contenu ;

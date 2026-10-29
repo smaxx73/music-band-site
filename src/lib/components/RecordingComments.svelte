@@ -54,7 +54,7 @@
 
 <div class="inline-comments">
 	{#if loading}
-		<p class="inline-msg">Chargement des commentaires…</p>
+		<p class="inline-msg" role="status"><span class="spinner" aria-hidden="true"></span> Chargement des commentaires…</p>
 	{:else if loadError}
 		<p class="inline-msg error">{loadError}</p>
 	{:else if comments.length === 0}
