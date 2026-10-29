@@ -2,7 +2,9 @@
      barre latérale (ordinateur, rail sur tablette) et dans la barre du haut au téléphone.
      L'espace perso s'y choisit comme un groupe, mais n'en est pas un : y aller ne change pas
      le groupe actif (le cookie `band_group` ne bouge pas), c'est une simple navigation vers
-     `/perso`. Le menu existe donc dès qu'il y a un groupe, même seul. -->
+     `/perso`. Le menu existe donc dès qu'il y a un groupe, même seul. Sur `/perso`, deux
+     coches : l'espace perso (où l'on est) et le groupe actif (celui des notifications, de
+     « + Ajouter » et de la page où l'on reviendra). -->
 <script lang="ts">
 	import { page } from '$app/state'
 	import { goto } from '$app/navigation'
@@ -135,7 +137,7 @@
 				type="button"
 				class="menu-item"
 				role="menuitemradio"
-				aria-checked={!inPerso && group.id === currentGroupId}
+				aria-checked={group.id === currentGroupId}
 				disabled={switching}
 				onclick={() => choose(group.id)}
 			>
@@ -146,7 +148,7 @@
 						{unreadByGroup[group.id] > 99 ? '99+' : unreadByGroup[group.id]}
 					</span>
 				{/if}
-				{#if !inPerso && group.id === currentGroupId}<Icon name="check" size="1rem" class="gs-check" />{/if}
+				{#if group.id === currentGroupId}<Icon name="check" size="1rem" class="gs-check" />{/if}
 			</button>
 		{/each}
 		<a
@@ -160,7 +162,7 @@
 			<span class="gs-option">Mon espace perso</span>
 			{#if inPerso}<Icon name="check" size="1rem" class="gs-check" />{/if}
 		</a>
-		{#if current && !inPerso}
+		{#if current}
 			<a href="/group" class="menu-item gs-info" role="menuitem" onclick={() => (open = false)}>
 				Infos du groupe
 				<Icon name="chevron-right" size="1rem" />

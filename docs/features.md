@@ -1117,8 +1117,9 @@ Trois mises en page, toutes dans `src/routes/+layout.svelte` :
 - **L'espace perso s'y choisit comme un groupe, mais n'en est pas un** : l'entrée mène à
   `/perso` sans toucher au groupe actif (le cookie `band_group` ne bouge pas, rien n'est
   rechargé). Sur `/perso`, le déclencheur affiche la photo du compte et « Mon espace perso »
-  (« Hors groupe »), et « Infos du groupe » disparaît du menu ; choisir le groupe actif
-  ramène au tableau de bord. Sans aucun groupe, le déclencheur est un simple lien vers
+  (« Hors groupe »), et le menu porte **deux coches** : l'espace perso, où l'on est, et le
+  groupe actif, qui reste celui des notifications, de « + Ajouter » et de « Infos du groupe ».
+  Choisir ce groupe ramène au tableau de bord. Sans aucun groupe, le déclencheur est un simple lien vers
   `/perso`. Une donnée perso reste filtrée par `user_id`, jamais par groupe : l'entrée du
   menu n'est qu'une navigation
 - **Changer de groupe garde la section** (`pathAfterSwitch`, `src/lib/group-switch.ts`) : une
