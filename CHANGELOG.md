@@ -13,10 +13,16 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.15.1] — 2026-10-30
+
+Aucune migration.
+
 - **Chargement visible** : quand le réseau tarde à ouvrir une page, une barre orange défile
   en haut de l'écran pour montrer que le changement est en cours.
 - **Commentaires** : un petit anneau qui tourne signale le chargement des commentaires d'une
   prise et l'envoi d'un commentaire, quand le réseau est lent.
+- **Notifications** : la pastille de la cloche se met à jour dès qu'on revient dans
+  l'onglet, au lieu d'afficher jusqu'à une minute un compte périmé.
 
 ## [1.15.0] — 2026-10-28
 
