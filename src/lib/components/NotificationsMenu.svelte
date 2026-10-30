@@ -87,9 +87,20 @@
 
 	// Sondage discret : sans temps réel, c'est le compromis le plus simple pour que
 	// la pastille bouge pendant qu'on reste sur la même page.
+	// Au retour dans l'onglet, les minuteries ont pu être suspendues (téléphone) : on recompte
+	// tout de suite plutôt que d'afficher jusqu'à une minute une pastille périmée.
 	$effect(() => {
 		const timer = setInterval(() => { if (!open) refreshCount() }, 60_000)
-		return () => clearInterval(timer)
+		function onReturn() {
+			if (document.visibilityState === 'visible' && !open) refreshCount()
+		}
+		document.addEventListener('visibilitychange', onReturn)
+		window.addEventListener('focus', onReturn)
+		return () => {
+			clearInterval(timer)
+			document.removeEventListener('visibilitychange', onReturn)
+			window.removeEventListener('focus', onReturn)
+		}
 	})
 
 	function toggle() {
