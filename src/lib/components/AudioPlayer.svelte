@@ -173,6 +173,8 @@
 		if (!waveformEl || wavesurfer) return
 
 		const WaveSurfer = (await import('wavesurfer.js')).default
+		// La page a pu remplacer ce lecteur pendant le chargement (`{#key}` de `/recording/[id]`).
+		if (!waveformEl) return
 		const instance = WaveSurfer.create({
 			container: waveformEl,
 			...(media ? { media } : {}),
