@@ -6,6 +6,7 @@
 	import Icon from '$lib/components/Icon.svelte'
 	import { formatDateOnly, localDateOnly, sessionOfDay } from '$lib/date'
 	import AudioRecorder from '$lib/components/AudioRecorder.svelte'
+	import TrimNotice from '$lib/components/TrimNotice.svelte'
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
 	import SongSelect from '$lib/components/SongSelect.svelte'
 	import JourneySteps from '$lib/components/JourneySteps.svelte'
@@ -52,6 +53,7 @@
 
 	let file = $state<File | null>(null)
 	let audioTrim = $state<AudioTrim | null>(null)
+	let recordedDurationS = $state(0)
 	// Date le titre provisoire d'un morceau créé à la volée : c'est l'heure de la prise
 	// qui aide à la reconnaître plus tard, pas celle du classement.
 	let recordedAt = $state<Date | null>(null)
@@ -233,6 +235,7 @@
 	 * la découpe dès que l'enregistrement est long.
 	 */
 	function onRecorded(recorded: File | null, durationS: number) {
+		recordedDurationS = durationS
 		file = recorded
 		audioTrim = null
 		duplicate = null
@@ -622,6 +625,8 @@
 			{:else if !uploading && destination === 'group' && !multiTake && !selectedSong}
 				<p class="hint" role="status">Choisis le morceau de cette prise pour envoyer.</p>
 			{/if}
+
+			<TrimNotice trim={audioTrim} durationS={recordedDurationS} />
 
 			<div class="submit-row">
 			<button

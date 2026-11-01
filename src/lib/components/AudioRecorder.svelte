@@ -3,6 +3,7 @@
 	import Icon from './Icon.svelte'
 	import ConfirmDialog from './ConfirmDialog.svelte'
 	import type { AudioTrim } from '$lib/types'
+	import TrimNotice from '$lib/components/TrimNotice.svelte'
 	import {
 		appendChunk,
 		assembleTake,
@@ -52,6 +53,8 @@
 	// En deçà, il n'y a rien à perdre : annuler ne demande pas confirmation.
 	const CONFIRM_CANCEL_ABOVE_S = 5
 	const MIN_TRIM_S = 0.5
+	// En deçà, le doigt a juste tremblé en se posant sur la poignée : rien n'est coupé.
+	const DRAG_THRESHOLD_PX = 6
 
 	type Phase = 'idle' | 'arming' | 'armed' | 'starting' | 'recording' | 'paused' | 'stopping' | 'done'
 	let phase = $state<Phase>('idle')
@@ -85,6 +88,8 @@
 	let trimDuration = $state(0)
 	let trimStart = $state(0)
 	let trimEnd = $state(0)
+	// Replié tant qu'on ne le demande pas : un enregistrement part entier par défaut.
+	let trimOpen = $state(false)
 	let previewing = $state(false)
 	// Position réellement lue, tracée sur la forme d'onde : c'est elle qui prouve qu'on
 	// entend la sélection, et non le début du fichier.
@@ -95,6 +100,7 @@
 	let audioEl = $state<HTMLAudioElement | null>(null)
 	let timelineEl = $state<HTMLDivElement | null>(null)
 	let dragging: 'start' | 'end' | null = null
+	let dragOrigin: { x: number; seconds: number; moved: boolean } | null = null
 	let wavePeaks: number[] = []
 	const selectedDuration = $derived(Math.max(0, trimEnd - trimStart))
 	const hasTrim = $derived(trimStart > 0.01 || trimEnd < trimDuration - 0.01)
@@ -489,6 +495,7 @@
 		trimDuration = durationS
 		trimStart = 0
 		trimEnd = durationS
+		trimOpen = false
 		waveBars = makeWaveBars(wavePeaks)
 		ontrimchange?.(null)
 		sizeBytes = blob.size
@@ -506,6 +513,7 @@
 		previewUrl = null
 		resultFile = null
 		resultTake = null
+		trimOpen = false
 		ontrimchange?.(null)
 		onchange(null, 0)
 	}
@@ -717,31 +725,46 @@
 		emitTrim()
 	}
 
-	function timeAtPointer(event: PointerEvent): number {
-		if (!timelineEl || !trimDuration) return 0
-		const rect = timelineEl.getBoundingClientRect()
-		return Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width)) * trimDuration
+	/** Refermer revient à tout garder : un recadrage ne reste jamais actif hors de la vue. */
+	function closeTrim() {
+		resetTrim()
+		trimOpen = false
 	}
 
+	/**
+	 * Seules les poignées se saisissent. Une forme d'onde se touche pour se repérer ou en
+	 * faisant défiler la page, et ce geste-là coupait l'enregistrement à l'insu de son auteur.
+	 */
 	function startDrag(event: PointerEvent) {
 		if (disabled || !timelineEl || trimDuration < MIN_TRIM_S) return
-		const marked = event.target instanceof Element ? event.target.closest('[data-edge]')?.getAttribute('data-edge') : null
-		const position = timeAtPointer(event)
-		dragging = marked === 'start' || marked === 'end'
-			? marked
-			: Math.abs(position - trimStart) <= Math.abs(position - trimEnd) ? 'start' : 'end'
+		const edge = event.target instanceof Element ? event.target.closest('[data-edge]')?.getAttribute('data-edge') : null
+		if (edge !== 'start' && edge !== 'end') return
+		dragging = edge
+		dragOrigin = { x: event.clientX, seconds: edge === 'start' ? trimStart : trimEnd, moved: false }
 		timelineEl.setPointerCapture(event.pointerId)
-		if (!marked) setTrim(dragging, position)
 	}
 
+	// La poignée suit le déplacement du doigt, pas sa position : saisie par son bord, elle
+	// sauterait de plusieurs secondes sur un long enregistrement.
 	function moveDrag(event: PointerEvent) {
-		if (dragging) setTrim(dragging, timeAtPointer(event))
+		if (!dragging || !dragOrigin || !timelineEl) return
+		const deltaX = event.clientX - dragOrigin.x
+		if (!dragOrigin.moved && Math.abs(deltaX) < DRAG_THRESHOLD_PX) return
+		dragOrigin.moved = true
+		setTrim(dragging, dragOrigin.seconds + deltaX / timelineEl.getBoundingClientRect().width * trimDuration)
 	}
 
 	function endDrag(event: PointerEvent) {
 		if (!dragging) return
 		dragging = null
+		dragOrigin = null
 		if (timelineEl?.hasPointerCapture(event.pointerId)) timelineEl.releasePointerCapture(event.pointerId)
+	}
+
+	/** Le navigateur a repris le geste pour faire défiler la page : il n'a rien recadré. */
+	function cancelDrag(event: PointerEvent) {
+		if (dragging && dragOrigin?.moved) setTrim(dragging, dragOrigin.seconds)
+		endDrag(event)
 	}
 
 	function moveByKey(event: KeyboardEvent, edge: 'start' | 'end') {
@@ -923,47 +946,54 @@
 					<!-- Pas de contrôles natifs : leur ▶ rejouait tout le fichier, sélection ignorée,
 					     sur une barre de progression sans rapport avec les poignées. -->
 					<audio bind:this={audioEl} src={previewUrl} preload="metadata" onloadedmetadata={onAudioMetadata} onpause={endPreview} onended={endPreview}></audio>
-					<div class="trim-editor">
-						<div class="trim-heading">
-							<strong>Recadrer l'audio</strong>
-							<span>Glisse les poignées au doigt ou à la souris.</span>
-						</div>
-						<!-- svelte-ignore a11y_no_static_element_interactions -->
-						<div
-							class="trim-timeline"
-							bind:this={timelineEl}
-							onpointerdown={startDrag}
-							onpointermove={moveDrag}
-							onpointerup={endDrag}
-							onpointercancel={endDrag}
-						>
-							<div class="waveform" aria-hidden="true">
-								{#if waveBars.length}
-									{#each waveBars as bar}
-										<span style:height={`${bar}%`}></span>
-									{/each}
-								{:else}
-									<div class="waveform-fallback"></div>
-								{/if}
+					<div class="trim-area" class:trim-editor={trimOpen}>
+						{#if trimOpen}
+							<div class="trim-heading">
+								<strong>Recadrer l'audio</strong>
+								<span>Glisse une poignée pour écarter le début ou la fin : seul le passage entre les deux sera envoyé.</span>
 							</div>
-							<div class="trim-shade left" style:width={`${trimDuration ? trimStart / trimDuration * 100 : 0}%`}></div>
-							<div class="trim-shade right" style:width={`${trimDuration ? (trimDuration - trimEnd) / trimDuration * 100 : 0}%`}></div>
-							{#if playheadS !== null && trimDuration}
-								<div class="trim-playhead" style:left={`${Math.min(100, playheadS / trimDuration * 100)}%`}></div>
-							{/if}
-							<button type="button" class="trim-handle" data-edge="start" style:left={`${trimDuration ? trimStart / trimDuration * 100 : 0}%`} aria-label={`Début de la sélection : ${formatTrimTime(trimStart)}`} title="Début de la sélection" onkeydown={(e) => moveByKey(e, 'start')} {disabled}></button>
-							<button type="button" class="trim-handle" data-edge="end" style:left={`${trimDuration ? trimEnd / trimDuration * 100 : 100}%`} aria-label={`Fin de la sélection : ${formatTrimTime(trimEnd)}`} title="Fin de la sélection" onkeydown={(e) => moveByKey(e, 'end')} {disabled}></button>
-						</div>
-						<div class="trim-times">
-							<span>Début <strong>{formatTrimTime(trimStart)}</strong></span>
-							<span>{formatTrimTime(selectedDuration)} conservées</span>
-							<span>Fin <strong>{formatTrimTime(trimEnd)}</strong></span>
-						</div>
+							<!-- svelte-ignore a11y_no_static_element_interactions -->
+							<div
+								class="trim-timeline"
+								bind:this={timelineEl}
+								onpointerdown={startDrag}
+								onpointermove={moveDrag}
+								onpointerup={endDrag}
+								onpointercancel={cancelDrag}
+							>
+								<div class="waveform" aria-hidden="true">
+									{#if waveBars.length}
+										{#each waveBars as bar}
+											<span style:height={`${bar}%`}></span>
+										{/each}
+									{:else}
+										<div class="waveform-fallback"></div>
+									{/if}
+								</div>
+								<div class="trim-shade left" style:width={`${trimDuration ? trimStart / trimDuration * 100 : 0}%`}></div>
+								<div class="trim-shade right" style:width={`${trimDuration ? (trimDuration - trimEnd) / trimDuration * 100 : 0}%`}></div>
+								{#if playheadS !== null && trimDuration}
+									<div class="trim-playhead" style:left={`${Math.min(100, playheadS / trimDuration * 100)}%`}></div>
+								{/if}
+								<button type="button" class="trim-handle" data-edge="start" style:left={`${trimDuration ? trimStart / trimDuration * 100 : 0}%`} aria-label={`Début de la sélection : ${formatTrimTime(trimStart)}`} title="Début de la sélection" onkeydown={(e) => moveByKey(e, 'start')} {disabled}></button>
+								<button type="button" class="trim-handle" data-edge="end" style:left={`${trimDuration ? trimEnd / trimDuration * 100 : 100}%`} aria-label={`Fin de la sélection : ${formatTrimTime(trimEnd)}`} title="Fin de la sélection" onkeydown={(e) => moveByKey(e, 'end')} {disabled}></button>
+							</div>
+							<div class="trim-times">
+								<span>Début <strong>{formatTrimTime(trimStart)}</strong></span>
+								<span>{formatTrimTime(selectedDuration)} conservées</span>
+								<span>Fin <strong>{formatTrimTime(trimEnd)}</strong></span>
+							</div>
+							<TrimNotice trim={hasTrim ? { startS: trimStart, endS: trimEnd } : null} durationS={trimDuration} />
+						{/if}
 						<div class="trim-actions">
 							<button type="button" class="btn btn-secondary btn-sm" onclick={playSelection} disabled={disabled || revealing}>
 								{#if previewing}Arrêter · {formatTrimTime(playheadS ?? trimStart)}{:else if hasTrim}Écouter la sélection{:else}Écouter{/if}
 							</button>
-							{#if hasTrim}<button type="button" class="btn btn-ghost btn-sm" onclick={resetTrim} {disabled}>Tout garder</button>{/if}
+							{#if trimOpen}
+								<button type="button" class="btn btn-ghost btn-sm" onclick={closeTrim} {disabled}>{hasTrim ? 'Tout garder' : 'Fermer'}</button>
+							{:else}
+								<button type="button" class="btn btn-ghost btn-sm" onclick={() => (trimOpen = true)} {disabled}>Recadrer…</button>
+							{/if}
 						</div>
 					</div>
 				{/if}
@@ -1188,10 +1218,11 @@
 	.result { display: flex; flex-direction: column; gap: 0.5rem; }
 	.result .btn { align-self: flex-start; }
 	.result audio { width: 100%; }
-	.trim-editor { display: flex; flex-direction: column; gap: 0.45rem; padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+	.trim-area { display: flex; flex-direction: column; gap: 0.45rem; }
+	.trim-editor { padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 	.trim-heading { display: flex; flex-direction: column; gap: 0.1rem; font-size: var(--text-sm); }
 	.trim-heading span { color: var(--color-text-muted); font-size: var(--text-xs); }
-	.trim-timeline { position: relative; height: 78px; margin: 0 12px; border-radius: var(--radius-sm); background: var(--color-bg-muted); cursor: crosshair; touch-action: none; user-select: none; }
+	.trim-timeline { position: relative; height: 78px; margin: 0 12px; border-radius: var(--radius-sm); background: var(--color-bg-muted); touch-action: pan-y; user-select: none; }
 	.waveform { position: absolute; inset: 10px 0; display: flex; align-items: center; gap: 1px; overflow: hidden; pointer-events: none; }
 	.waveform span { flex: 1; min-width: 0; border-radius: 2px; background: var(--color-accent); }
 	.waveform-fallback { width: 100%; height: 3px; background: var(--color-accent); }
@@ -1199,7 +1230,7 @@
 	.trim-shade.left { left: 0; }
 	.trim-shade.right { right: 0; }
 	.trim-playhead { position: absolute; z-index: 2; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); background: var(--color-text); pointer-events: none; }
-	.trim-handle { position: absolute; z-index: 1; top: 0; bottom: 0; width: 24px; transform: translateX(-50%); border: 0; border-left: 3px solid var(--color-accent); border-right: 3px solid var(--color-accent); border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.22); cursor: ew-resize; touch-action: none; }
+	.trim-handle { position: absolute; z-index: 1; top: 0; bottom: 0; width: 24px; transform: translateX(-50%); border: 0; border-left: 3px solid var(--color-accent); border-right: 3px solid var(--color-accent); border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.22); cursor: ew-resize; touch-action: pan-y; }
 	.trim-handle:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 2px; }
 	.trim-times { display: flex; justify-content: space-between; gap: 0.5rem; font-size: var(--text-xs); font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
 	.trim-times strong { color: var(--color-text); }

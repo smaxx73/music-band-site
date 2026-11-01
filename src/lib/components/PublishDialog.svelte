@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Modal from '$lib/components/Modal.svelte'
 	import AudioRecorder from '$lib/components/AudioRecorder.svelte'
+	import TrimNotice from '$lib/components/TrimNotice.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import { deleteTakes, takeIdOf } from '$lib/recording-store'
 	import { sendAudioFile, trimFields } from '$lib/upload-client'
@@ -66,6 +67,7 @@
 	let source = $state<Source>(recordings.some((r) => !r.published_here) ? 'existing' : 'file')
 	let file = $state<File | null>(null)
 	let audioTrim = $state<AudioTrim | null>(null)
+	let recordedDurationS = $state(0)
 	let newTitle = $state('')
 	let recorderBusy = $state(false)
 	let progress = $state<number | null>(null)
@@ -103,7 +105,8 @@
 	}
 
 	/** Un enregistrement fait sur place porte la date du jour, comme dans l'espace perso. */
-	function onRecorded(recorded: File | null) {
+	function onRecorded(recorded: File | null, durationS: number) {
+		recordedDurationS = durationS
 		file = recorded
 		audioTrim = null
 		error = null
@@ -289,6 +292,7 @@
 					placeholder="Ce que tu veux que le groupe en retienne…"></textarea>
 			</label>
 
+			{#if type === 'recording' && source === 'record'}<TrimNotice trim={audioTrim} durationS={recordedDurationS} />{/if}
 			{#if error}<p class="message-error" role="alert">{error}</p>{/if}
 		</div>
 

@@ -45,6 +45,7 @@ src/
 │       │                          #   cloche des notifications
 │       ├── AudioPlayer.svelte     # lecteur WaveSurfer.js
 │       ├── AudioRecorder.svelte   # enregistrement en direct depuis le navigateur (micro, interface)
+│       ├── TrimNotice.svelte      # avertissement « recadré », dans la frise et au-dessus de l'envoi
 │       ├── Modal.svelte           # fenêtre modale (Échap ne ferme que la plus haute) ; socle des dialogues
 │       ├── MiniPlayer.svelte      # mini-lecteur persistant (barre du bas), pilote `player.svelte.ts`
 │       ├── InlineRecordingPlayer.svelte # écoute dépliable d'une prise sur sa ligne (waveform)

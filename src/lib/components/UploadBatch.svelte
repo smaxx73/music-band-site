@@ -32,11 +32,17 @@
 		return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, '0')}`
 	}
 
+	/** Un recadrage se dit en toutes lettres : une série se relit vite avant l'envoi. */
+	function durationLabel(item: BatchItem) {
+		if (item.durationS === undefined) return null
+		if (!item.trim) return formatDuration(item.durationS)
+		return `recadrée : ${formatDuration(item.trim.endS - item.trim.startS)} gardées sur ${formatDuration(item.durationS)}`
+	}
+
 	/** Ce que la ligne dit du fichier : sa durée retenue s'il est enregistré sur place. */
 	function meta(item: BatchItem) {
-		const kept = item.trim ? item.trim.endS - item.trim.startS : item.durationS
 		return [
-			kept !== undefined ? `${formatDuration(kept)}${item.trim ? ' recadrée' : ''}` : null,
+			durationLabel(item),
 			`${(item.file.size / 1024 / 1024).toFixed(1)} Mo`,
 			item.label ? null : recordedAt(item.file)
 		].filter(Boolean).join(' · ')

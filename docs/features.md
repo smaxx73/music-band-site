@@ -326,9 +326,16 @@ au milieu de la salle, ou l'interface audio branchée au PC.
   nomme la durée perdue. Le bouton est sous le résumé « Enregistrement prêt » (avant le
   recadrage), doublé d'un « Annuler » à côté de l'envoi dans le formulaire de classement.
   L'écran dit que la prise est jetée (« Enregistrement jeté. Le micro reste ouvert »)
-- **Recadrer l'audio** avant l'envoi : sous le résumé « Enregistrement prêt », une frise avec
-  deux poignées (souris, doigt ou flèches du clavier) garde le passage qui compte et écarte
-  le début et la fin (« Tout garder » rétablit). Les bornes partent avec le fichier
+- **Recadrer l'audio** avant l'envoi : « Recadrer… », sous le résumé « Enregistrement prêt »,
+  déplie une frise avec deux poignées (souris, doigt ou flèches du clavier) qui garde le
+  passage qui compte et écarte le début et la fin. **Un enregistrement part entier par
+  défaut**, et l'outil ne coupe rien sans qu'on le veuille : la frise est repliée d'office,
+  seules les poignées se saisissent (toucher la forme d'onde ne fait rien), un geste
+  vertical fait défiler la page, et un tremblement de moins de 6 px ne déplace pas la
+  poignée. Tant qu'un recadrage est actif, un avertissement dit la durée gardée sur la durée
+  totale, dans la frise **et au-dessus du bouton d'envoi** ; sur une ligne de série, c'est
+  la ligne qui le dit. La frise ne se referme pas sur un recadrage : « Tout garder » rétablit
+  et referme. Rien ne se récupère après l'envoi : le serveur ne garde que le passage. Les bornes partent avec le fichier
   (`trim_start`, `trim_end`) et le serveur taille dedans, après les avoir validées (au moins
   0,25 s, dans la durée du fichier, `400` sinon ; `src/lib/server/audio-trim.ts`). Le
   `file_hash` d'une coupe tient compte des bornes : deux coupes du même enregistrement sont

@@ -13,6 +13,11 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+- **Recadrage d'un enregistrement** : l'outil se déplie maintenant à la demande (« Recadrer… »)
+  et un enregistrement part entier par défaut. Toucher la forme d'onde ou faire défiler la
+  page par-dessus ne coupe plus rien : seules les poignées se déplacent. Un avertissement
+  au-dessus du bouton d'envoi dit ce qui sera gardé.
+
 ## [1.15.1] — 2026-10-30
 
 Aucune migration.

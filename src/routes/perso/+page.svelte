@@ -6,6 +6,7 @@
 	import { formatDateOnly } from '$lib/date'
 	import { formatBytes } from '$lib/types'
 	import AudioRecorder from '$lib/components/AudioRecorder.svelte'
+	import TrimNotice from '$lib/components/TrimNotice.svelte'
 	import PublishDialog from '$lib/components/PublishDialog.svelte'
 	import ClassifyDialog from '$lib/components/ClassifyDialog.svelte'
 	import PendingImports from '$lib/components/PendingImports.svelte'
@@ -40,6 +41,7 @@
 	let source = $state<Source>('file')
 	let file = $state<File | null>(null)
 	let audioTrim = $state<AudioTrim | null>(null)
+	let recordedDurationS = $state(0)
 	let recorderBusy = $state(false)
 	let title = $state('')
 	let notes = $state('')
@@ -67,6 +69,7 @@
 
 	/** Un enregistrement fait sur place porte la date du jour : c'est ce qui le distingue. */
 	function onRecorded(recorded: File | null, durationS: number) {
+		recordedDurationS = durationS
 		file = recorded
 		audioTrim = null
 		addError = null
@@ -267,6 +270,7 @@
 			</label>
 		{/if}
 
+		{#if source === 'record'}<TrimNotice trim={audioTrim} durationS={recordedDurationS} />{/if}
 		{#if addError}<p class="message-error" role="alert">{addError}</p>{/if}
 
 		<div class="add-actions">
