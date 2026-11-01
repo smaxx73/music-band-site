@@ -13,6 +13,8 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.16.0] — 2026-11-01
+
 Migration à appliquer : `053_trim_keeps_whole_file.sql`.
 
 - **Recadrage d'un enregistrement** : l'outil se déplie maintenant à la demande (« Recadrer… »)
