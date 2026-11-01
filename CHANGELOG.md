@@ -13,6 +13,10 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.16.1] — 2026-11-01
+
+Aucune migration.
+
 - **Écoute du recadrage** : « Écouter la sélection » part toujours du début de la sélection.
   Sous Firefox, elle repartait parfois du tout début de l'enregistrement.
 
