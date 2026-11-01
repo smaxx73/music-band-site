@@ -335,8 +335,8 @@ au milieu de la salle, ou l'interface audio branchée au PC.
   poignée. Tant qu'un recadrage est actif, un avertissement dit la durée gardée sur la durée
   totale, dans la frise **et au-dessus du bouton d'envoi** ; sur une ligne de série, c'est
   la ligne qui le dit. La frise ne se referme pas sur un recadrage : « Tout garder » rétablit
-  et referme. L'envoi reste réversible — voir « Rétablir un enregistrement recadré » —, sauf
-  vers une découpe, où l'avertissement dit que le reste est perdu. Les bornes partent avec le fichier
+  et referme. L'envoi reste réversible — voir « Rétablir un enregistrement recadré » ; vers
+  une découpe, ce qui est écarté se reprend sur son écran. Les bornes partent avec le fichier
   (`trim_start`, `trim_end`) et le serveur taille dedans, après les avoir validées (au moins
   0,25 s, dans la durée du fichier, `400` sinon ; `src/lib/server/audio-trim.ts`). Le
   `file_hash` d'une coupe tient compte des bornes : deux coupes du même enregistrement sont
@@ -394,9 +394,17 @@ Un recadrage se fait en un geste et se remarque parfois bien plus tard, à la r�
 - Un enregistrement perso **classé en prise** reste réversible : les morceaux déménagent
   avec lui
 - Sens unique : une fois rétabli, l'enregistrement ne se recadre plus. Pas de notification
+- **Recadrage suivi d'« À découper sur les blancs »** : rien n'est coupé à l'envoi. L'import
+  garde tout son fichier et ses bornes (`audio_imports.trim_start_s`, `trim_end_s`), et l'écran
+  de découpe montre le fichier entier : ce qui sort du passage gardé arrive **déjà écarté**,
+  marqué « Écarté au recadrage », et « Rétablir » le reprend. Une borne coupe le segment qui
+  la chevauche (`splitAtTrim`). Même un bout trop court pour faire une prise y figure ; seul un
+  vrai silence n'est pas listé. Le temps de l'écran est celui du fichier entier. Rouvert par
+  « Refaire la découpe », l'écran repropose la même chose
 - **Limites** : un enregistrement recadré **avant la migration 053** n'a rien gardé, rien ne
-  le rétablit. Un recadrage suivi d'**« À découper sur les blancs »** ne garde
-  pas le reste : la découpe part du seul passage gardé, et l'écran le dit avant l'envoi
+  le rétablit. Dans une découpe, le passage écarté suit la règle de tout import : **7 jours**
+  au plus, découpe validée ou non, et moins si le conteneur est recréé, le répertoire temporaire
+  partant avec lui. Passé ce délai, ce qui n'est pas devenu une prise est perdu
 
 ### Prises en série
 
@@ -482,6 +490,8 @@ Premier des outils d'amélioration audio branchés à la suite de l'upload.
   blancs sont réunies (`mergeSilences`). **Limite connue** : un passage joué très
   doucement (intro) sur plus de « Blanc minimum » est coupé comme une discussion ; le
   curseur à 0 le rend. Écart par défaut non calibré sur de vrais fichiers
+- Un enregistrement **recadré avant l'envoi** arrive entier, ce qui sort du passage gardé
+  déjà écarté — voir « Rétablir un enregistrement recadré »
 - La **marge conservée** est bornée à la moitié du blanc de chaque côté : deux segments
   voisins ne peuvent donc jamais se recouvrir. Au-delà de cette limite, la marge revient
   exactement à couper au centre du blanc

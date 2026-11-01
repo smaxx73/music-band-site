@@ -9,8 +9,8 @@
 	}: {
 		trim: AudioTrim | null
 		durationS: number
-		/** Ce que devient le reste à l'envoi : gardé pour se rétablir, ou perdu par une découpe. */
-		fate?: 'kept' | 'lost'
+		/** Ce que devient le reste à l'envoi : gardé pour se rétablir, ou proposé à la découpe. */
+		fate?: 'kept' | 'split'
 	} = $props()
 
 	// Arrondi : la durée vient du chronomètre ou du fichier, à quelques dixièmes près.
@@ -23,8 +23,8 @@
 		<strong>Recadré : {label(trim.endS - trim.startS)} gardées sur {label(durationS)}.</strong>
 		{#if fate === 'kept'}
 			Le reste ne s'entendra pas, mais il est gardé à part : tu pourras le rétablir depuis la page de l'enregistrement.
-		{:else if fate === 'lost'}
-			Le reste sera perdu : une découpe part du seul passage gardé.
+		{:else if fate === 'split'}
+			Le reste sera proposé, déjà écarté, à l'écran de découpe : tu pourras l'y reprendre, 7 jours au plus.
 		{/if}
 		« Tout garder » annule le recadrage.
 	</p>

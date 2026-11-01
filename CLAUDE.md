@@ -232,7 +232,7 @@ dans docs/features.md.
 - Suppression de commentaires (l'édition, elle, existe — voir docs/features.md)
 - Tests automatisés couvrant l'application : seuls quelques modules purs sont testés
   (`tests/` : éditeur ABC, ChordPro, chaîne d'amélioration du son, reconnexion audio, coupe
-  d'un mp3),
+  d'un mp3, segments d'un fichier recadré),
   lancés par `pnpm test`. Ni routes, ni composants, ni SQL
 - Autres outils d'amélioration audio (fondus, réduction de bruit, déclippage, correction
   d'un son trop brillant) : seules la découpe sur les blancs, la recopie d'un canal muet et
@@ -254,7 +254,8 @@ dans docs/features.md.
   et au bouton (±0,5 s / ±5 s, couper, fusionner)
 - Durée de conservation du passage écarté par un recadrage : pas de limite pour l'instant, il
   part avec la prise ou l'enregistrement. À reconsidérer si un passage retiré exprès doit
-  pouvoir disparaître sans supprimer la prise.
+  pouvoir disparaître sans supprimer la prise. Recadré puis découpé, il suit la rétention des
+  imports (7 jours) : choix assumé, la découpe se trie sur le moment
 - Recherche full-text
 - PWA : ni manifeste, ni service worker, ni installation sur l'écran d'accueil. Écarté
   volontairement — le gain se limite à une icône et à la barre d'adresse en moins, et rien

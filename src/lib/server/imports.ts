@@ -3,11 +3,14 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import sql from './db'
 import { detectSilences, extractPeaks, getExactDuration, LEVEL_WINDOW_S, measureLevels, type Silence } from './ffmpeg'
+import { splitAtTrim } from './trim-segments'
 import {
+	MIN_SEGMENT_LENGTH_S,
 	SPLIT_BOUNDS,
 	SPLIT_DEFAULTS,
 	type AudioImport,
 	type AudioSegment,
+	type AudioTrim,
 	type SplitParams
 } from '$lib/types'
 
@@ -22,8 +25,8 @@ import {
  * et une recréation du conteneur qui l'emporterait ne perd rien de validé.
  *
  * Chaque import tient en deux fichiers :
- * - **la source**, conservée intacte sauf si l'enregistrement a été recadré avant
- *   l'envoi, dans laquelle les prises seront taillées ;
+ * - **la source**, conservée intacte, recadrée ou non avant l'envoi, dans laquelle les
+ *   prises seront taillées ;
  * - **un proxy** léger (mono 22 kHz), sur lequel tout le travail se fait — détection des
  *   blancs, forme d'onde, préécoute. Décoder une heure d'audio à chaque relance
  *   d'analyse, ou la transférer au navigateur pour une écoute de cinq secondes, n'a
@@ -234,15 +237,18 @@ export type CreateImportInput = {
 	/** L'original et son proxy sont déjà écrits dans la zone de transit. */
 	id: string
 	durationS: number | null
+	/** Recadrage fait avant l'envoi : voir `splitAtTrim`. */
+	trim: AudioTrim | null
 }
 
-const IMPORT_COLUMNS = sql`id, group_id, session_id, file_name, source_mime, duration_s, consumed_at, created_at`
+const IMPORT_COLUMNS = sql`id, group_id, session_id, file_name, source_mime, duration_s, trim_start_s, trim_end_s, consumed_at, created_at`
 
 export async function createImport(input: CreateImportInput): Promise<AudioImport> {
 	const [row] = await sql<AudioImport[]>`
-		INSERT INTO audio_imports (id, group_id, user_id, session_id, file_name, source_mime, file_hash, duration_s)
+		INSERT INTO audio_imports (id, group_id, user_id, session_id, file_name, source_mime, file_hash, duration_s, trim_start_s, trim_end_s)
 		VALUES (${input.id}, ${input.groupId}, ${input.userId}, ${input.sessionId},
-		        ${input.fileName}, ${input.sourceMime}, ${input.fileHash}, ${input.durationS})
+		        ${input.fileName}, ${input.sourceMime}, ${input.fileHash}, ${input.durationS},
+		        ${input.trim?.startS ?? null}, ${input.trim?.endS ?? null})
 		RETURNING ${IMPORT_COLUMNS}
 	`
 	return row
@@ -357,9 +363,12 @@ export type ImportAnalysis = {
 	duration_s: number
 }
 
-export async function analyzeImport(id: string, params: SplitParams): Promise<ImportAnalysis> {
+export async function analyzeImport(
+	audioImport: Pick<AudioImport, 'id' | 'trim_start_s' | 'trim_end_s'>,
+	params: SplitParams
+): Promise<ImportAnalysis> {
 	// Sur le proxy : même échelle de temps que l'original, pour une fraction du décodage.
-	const path = proxyPath(id)
+	const path = proxyPath(audioImport.id)
 	const duration = (await getExactDuration(path)) ?? 0
 	const [silent, levels] = await Promise.all([
 		detectSilences(path, {
@@ -373,11 +382,12 @@ export async function analyzeImport(id: string, params: SplitParams): Promise<Im
 		quietSilences(levels, params.threshold_db, params.talk_drop_db, params.min_silence_s),
 		duration
 	)
-	return {
-		params,
-		duration_s: round(duration),
-		segments: segmentsFromSilences(silences, duration, params.min_segment_s, params.pad_s)
-	}
+	const { trim_start_s: startS, trim_end_s: endS } = audioImport
+	const trim = startS !== null && endS !== null ? { startS, endS } : null
+	const segments = trim
+		? splitAtTrim(segmentsFromSilences(silences, duration, MIN_SEGMENT_LENGTH_S, params.pad_s), trim, params.min_segment_s)
+		: segmentsFromSilences(silences, duration, params.min_segment_s, params.pad_s)
+	return { params, duration_s: round(duration), segments }
 }
 
 /**

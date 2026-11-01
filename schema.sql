@@ -454,8 +454,12 @@ CREATE TABLE audio_imports (
     file_hash   TEXT NOT NULL,                   -- SHA-256 de la source, comme recordings.file_hash
     duration_s  INTEGER,
     consumed_at TIMESTAMPTZ,                     -- verrou : une decoupe ne se valide qu'une fois
+    trim_start_s DOUBLE PRECISION,               -- recadrage avant l'envoi (migration 053) : le
+    trim_end_s   DOUBLE PRECISION,               -- fichier reste entier, ces bornes disent ce qui
+                                                 -- part ecarte sur l'ecran de decoupe
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT audio_imports_personal_no_session CHECK (group_id IS NOT NULL OR session_id IS NULL)
+    CONSTRAINT audio_imports_personal_no_session CHECK (group_id IS NOT NULL OR session_id IS NULL),
+    CONSTRAINT audio_imports_trim CHECK ((trim_start_s IS NULL) = (trim_end_s IS NULL))
 );
 
 CREATE INDEX idx_songs_group_id     ON songs(group_id);

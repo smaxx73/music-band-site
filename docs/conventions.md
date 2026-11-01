@@ -16,6 +16,7 @@ src/
 │   │   │                  #   ffmpeg, empreinte propre à chaque coupe, contrôle du rendu
 │   │   │                  #   coupe à l'envoi, retour au fichier entier (recadrage défait)
 │   │   ├── mp3-cut.ts     # coupe d'un mp3 sur ses octets, aux frontières de trames, et recollage
+│   │   ├── trim-segments.ts # découpe d'un fichier recadré : ce qui sort du passage part écarté
 │   │   ├── peaks.ts       # forme d'onde d'une prise : extraction ffmpeg, cache à côté du mp3
 │   │   ├── upload-stream.ts # réception multipart d'un fichier audio (prise ou import)
 │   │   ├── imports.ts     # zone de transit des outils audio d'après upload

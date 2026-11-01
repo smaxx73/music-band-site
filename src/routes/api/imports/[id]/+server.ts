@@ -23,7 +23,7 @@ export const GET: RequestHandler = async ({ locals, params, url }) => {
 
 	try {
 		const [analysis, peaks] = await Promise.all([
-			analyzeImport(audioImport.id, splitParams),
+			analyzeImport(audioImport, splitParams),
 			importPeaks(audioImport.id)
 		])
 		return json({ import: audioImport, peaks, ...analysis })

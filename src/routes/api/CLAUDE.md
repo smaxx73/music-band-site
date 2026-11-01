@@ -120,7 +120,9 @@ au groupe (ou le remplace pour un import destiné à l'espace perso), et l'impor
 répond `404`. Rien n'y est publié, personne d'autre n'a
 à le voir. Passer par `src/lib/server/imports.ts`, jamais par un SQL direct.
 `POST /api/imports` (multipart, champs `audio` + `session_id`) dépose le fichier : l'original
-est conservé tel quel et un proxy léger est fabriqué pour le travail. Avec `destination=perso`
+est conservé tel quel et un proxy léger est fabriqué pour le travail. `trim_start` et `trim_end`
+n'y coupent rien : les bornes sont retenues, et `GET /api/imports/[id]` marque `outside_trim` les
+segments qui en sortent, que l'écran propose écartés (`splitAtTrim`). Avec `destination=perso`
 (sans `session_id`, sans groupe actif requis), l'import vise l'espace perso : `group_id` NULL,
 visible de son déposant quel que soit le groupe actif, et `/split` y prend
 `{ segments: [{ start_s, end_s, title }] }` pour créer des `personal_recordings` au lieu de prises ;

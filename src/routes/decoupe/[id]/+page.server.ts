@@ -35,7 +35,7 @@ export const load: PageServerLoad = async ({ locals, params, url }) => {
 	// affiche alors le message et propose d'abandonner l'import.
 	try {
 		const [analysis, peaks] = await Promise.all([
-			analyzeImport(audioImport.id, SPLIT_DEFAULTS),
+			analyzeImport(audioImport, SPLIT_DEFAULTS),
 			importPeaks(audioImport.id)
 		])
 		return { audioImport, songs, sessions, peaks, ...analysis, analysisError: null }

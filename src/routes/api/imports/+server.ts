@@ -3,8 +3,8 @@ import { json } from '@sveltejs/kit'
 import { randomUUID } from 'crypto'
 import { rename, unlink } from 'fs/promises'
 import sql from '$lib/server/db'
-import { createProxy, extractSegment, getDuration } from '$lib/server/ffmpeg'
-import { assertTrimmedAudio, hashWithTrim, readAudioTrim } from '$lib/server/audio-trim'
+import { createProxy, getDuration } from '$lib/server/ffmpeg'
+import { hashWithTrim, readAudioTrim } from '$lib/server/audio-trim'
 import {
 	allowedAudioMime,
 	cleanSourceFileName,
@@ -26,9 +26,9 @@ import { findPersonalDuplicate } from '$lib/server/personal'
  * Rien n'entre dans `recordings` ni dans `personal_recordings` ici : le fichier attend
  * dans la zone de transit que la découpe soit validée depuis `/decoupe/[id]`.
  *
- * L'original est conservé tel quel sauf si l'utilisateur a recadré une prise faite
- * dans le navigateur : dans ce cas, seule la portion retenue rejoint la zone de transit.
- * Un proxy léger porte l'analyse et la préécoute.
+ * L'original est conservé tel quel, même recadré : les bornes disent seulement ce qui part
+ * écarté sur l'écran de découpe, où un geste le reprend. Un proxy léger porte l'analyse et
+ * la préécoute.
  */
 export const POST: RequestHandler = async ({ locals, request }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -101,18 +101,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			}
 		}
 
-		// Sans cadrage, l'original entre sans transcodage : un seul encodage au total.
-		// Un cadrage est appliqué ici, avant l'analyse, pour que les temps affichés
-		// sur l'écran de découpe commencent bien à zéro.
+		// L'original entre sans transcodage : un seul encodage au total.
 		await ensureImportsDir()
-		if (trim) {
-			// La découpe ultérieure voit seulement la plage choisie et son temps part de zéro.
-			await extractSegment(tmpPath, sourcePath(id), trim.startS, trim.endS - trim.startS)
-			await assertTrimmedAudio(sourcePath(id), trim)
-			await unlink(tmpPath).catch(() => {})
-		} else {
-			await rename(tmpPath, sourcePath(id))
-		}
+		await rename(tmpPath, sourcePath(id))
 
 		// Le proxy, lui, se refabrique à volonté — il ne porte que le travail.
 		await createProxy(sourcePath(id), proxyPath(id))
@@ -123,8 +114,9 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			userId,
 			sessionId,
 			fileName: cleanSourceFileName(fileName) ?? 'enregistrement',
-			sourceMime: trim ? 'audio/mpeg' : mimeType || null,
+			sourceMime: mimeType || null,
 			fileHash: hash,
+			trim,
 			// Sur le proxy, pas l'original : un enregistrement fait dans le navigateur
 			// (WebM de MediaRecorder) ne porte pas sa durée, le mp3 du proxy si.
 			durationS: await getDuration(proxyPath(id))
@@ -135,12 +127,10 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 
 		return json(created, { status: 201 })
 	} catch (err) {
-		const invalidTrim = (err as { code?: string }).code === 'invalid_trim'
 		console.error('[imports]', err)
 		unlink(tmpPath).catch(() => {})
 		unlink(sourcePath(id)).catch(() => {})
 		unlink(proxyPath(id)).catch(() => {})
-		if (invalidTrim) return json({ error: 'La coupe ne contient pas de son.' }, { status: 400 })
 		return json({ error: "Erreur lors de la préparation du fichier." }, { status: 500 })
 	}
 }

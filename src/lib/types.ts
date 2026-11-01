@@ -718,7 +718,12 @@ export const SPLIT_BOUNDS: Record<keyof SplitParams, { min: number; max: number;
 export const MIN_SEGMENT_LENGTH_S = 1
 
 /** Passage sonore repéré entre deux silences, en secondes depuis le début du fichier. */
-export type AudioSegment = { start_s: number; end_s: number }
+export type AudioSegment = {
+	start_s: number
+	end_s: number
+	/** Écarté par le recadrage fait avant l'envoi : proposé, mais pas retenu d'office. */
+	outside_trim?: boolean
+}
 
 /**
  * Fichier déposé, pas encore devenu des prises. Voir `src/lib/server/imports.ts`.
@@ -734,6 +739,9 @@ export type AudioImport = {
 	/** Type de l'original conservé, tel que déposé. */
 	source_mime: string | null
 	duration_s: number | null
+	/** Recadrage fait avant l'envoi : le fichier reste entier, ce qui en sort part écarté. */
+	trim_start_s: number | null
+	trim_end_s: number | null
 	/** Non nul = la découpe a été validée. L'original reste repris pendant la rétention. */
 	consumed_at: Date | null
 	created_at: Date

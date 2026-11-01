@@ -23,6 +23,8 @@ Migration à appliquer : `053_trim_keeps_whole_file.sql`.
   passage écarté, et les repères des commentaires restent sur les mêmes notes. Réservé à qui
   a déposé la prise et aux admins du groupe. Vaut pour ce qui est recadré à partir de
   maintenant : les enregistrements déjà recadrés n'ont pas gardé le passage écarté.
+- **Recadrer puis découper** : ce que tu as écarté en recadrant reste proposé sur l'écran de
+  découpe, marqué « Écarté au recadrage », et se reprend d'un clic, pendant 7 jours au plus.
 
 ## [1.15.1] — 2026-10-30
 

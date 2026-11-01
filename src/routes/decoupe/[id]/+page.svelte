@@ -76,6 +76,7 @@
 	const importedAt = $derived(new Date(data.audioImport.created_at))
 
 	const kept = $derived(segments.filter((s) => s.kept))
+	const trimmedOut = $derived(segments.some((s) => s.outside_trim))
 	// Un passage perso sans titre prend le titre commun numéroté : il n'est jamais en attente.
 	const unassigned = $derived(personal ? 0 : kept.filter((s) => !s.song_id).length)
 
@@ -136,7 +137,8 @@
 	}
 
 	function toEditable(list: AudioSegment[]): EditableSegment[] {
-		return list.map((s) => ({ ...s, song_id: '', title: '', kept: true }))
+		// Ce qu'un recadrage a écarté se propose, écarté : il n'y a qu'à le rétablir.
+		return list.map((s) => ({ ...s, song_id: '', title: '', kept: !s.outside_trim }))
 	}
 
 	function round2(seconds: number): number {
@@ -453,6 +455,13 @@
 		Analyse et écoute sur une copie allégée ; les {personal ? 'enregistrements' : 'prises'} seront
 		taillé{personal ? 's' : 'es'} dans l'original ({formatSource(data.audioImport.source_mime)}).
 	</p>
+	{#if trimmedOut}
+		<p class="trim-note" role="status">
+			<Icon name="scissors" size="0.85rem" />
+			Ce que tu as écarté en recadrant est encore là, marqué « Écarté au recadrage » :
+			« Rétablir » le reprend.
+		</p>
+	{/if}
 
 	{#if error}
 		<p class="message-error" style="margin-bottom: 0.75rem;">{error}</p>
@@ -638,6 +647,9 @@
 									title="Écouter la fin"
 								>{formatTime(segment.end_s)}</button>
 							</span>
+							{#if segment.outside_trim && !segment.kept}
+								<span class="trimmed-tag">Écarté au recadrage</span>
+							{/if}
 							<span class="hint">{formatTime(segment.end_s - segment.start_s)}</span>
 						</span>
 
@@ -935,6 +947,13 @@
 	.segment:last-child { border-bottom: 0; }
 
 	.segment.dropped { opacity: 0.45; }
+	.trim-note {
+		display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
+		margin: 0 0 0.75rem; padding: 0.5rem 0.75rem;
+		border: 1px solid var(--color-warning-border); border-radius: var(--radius-md);
+		background: var(--color-warning-bg); color: var(--color-warning-text); font-size: var(--text-sm);
+	}
+	.trimmed-tag { display: block; font-size: var(--text-xs); color: var(--color-warning-text); }
 
 	.play {
 		width: 2rem;
