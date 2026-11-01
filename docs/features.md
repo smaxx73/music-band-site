@@ -309,10 +309,11 @@ au milieu de la salle, ou l'interface audio branchée au PC.
   avant. Stéréo au mieux : pas de multipiste
 - **Annulation d'écho, réduction de bruit et gain automatique sont coupés** : pensés pour
   la visio, ils écrasent la dynamique et mangent les notes tenues
-- Format : WebM/Opus (Chrome, Firefox, Android) ou MP4/AAC (Safari, iOS), à 192 kbit/s,
+- Format : Ogg/Opus (Firefox), WebM/Opus (Chrome, Android) ou MP4/AAC (Safari, iOS), à 192 kbit/s,
   le débit de stockage : capter moins bien qu'on ne stocke ferait perdre ce que le mp3 garde.
   Le type est envoyé **sans** ses paramètres (`audio/webm`, pas `audio/webm;codecs=opus`) :
-  le serveur le compare tel quel à `audio_formats`
+  le serveur le compare tel quel à `audio_formats`, où OGG, WebM et AAC / M4A doivent donc
+  rester acceptés (`/admin/settings`)
 - Un WebM de `MediaRecorder` n'annonce pas sa durée : celle d'un import se lit donc sur le
   proxy, qui partage l'échelle de temps de l'original
 - Vumètre de crête (−60 à 0 dBFS) dès l'ouverture du micro, avant même d'enregistrer, pour
@@ -335,7 +336,9 @@ au milieu de la salle, ou l'interface audio branchée au PC.
   poignée. Tant qu'un recadrage est actif, un avertissement dit la durée gardée sur la durée
   totale, dans la frise **et au-dessus du bouton d'envoi** ; sur une ligne de série, c'est
   la ligne qui le dit. La frise ne se referme pas sur un recadrage : « Tout garder » rétablit
-  et referme. L'envoi reste réversible — voir « Rétablir un enregistrement recadré » ; vers
+  et referme. La préécoute ne fait jamais entendre ce qui sort de la sélection : son coupé
+  tant que la position n'est pas atteinte, et, dans un fichier où le navigateur ne sait pas se
+  déplacer, avance accélérée jusqu'au début de la sélection. L'envoi reste réversible — voir « Rétablir un enregistrement recadré » ; vers
   une découpe, ce qui est écarté se reprend sur son écran. Les bornes partent avec le fichier
   (`trim_start`, `trim_end`) et le serveur taille dedans, après les avoir validées (au moins
   0,25 s, dans la durée du fichier, `400` sinon ; `src/lib/server/audio-trim.ts`). Le

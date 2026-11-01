@@ -300,9 +300,13 @@
 
 	// ─── Enregistrement ───────────────────────────────────────────────────
 
-	/** Le premier format que le navigateur sait produire : WebM/Opus partout, MP4/AAC sur Safari. */
+	/**
+	 * Le premier format que le navigateur sait produire : Ogg/Opus sur Firefox, WebM/Opus sur
+	 * Chrome, MP4/AAC sur Safari. Ogg d'abord : le WebM de Firefox n'a ni durée ni index, on
+	 * ne peut pas s'y déplacer, et la préécoute du recadrage partait du début.
+	 */
 	function pickMimeType(): string {
-		const candidates = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm', 'audio/ogg;codecs=opus']
+		const candidates = ['audio/ogg;codecs=opus', 'audio/webm;codecs=opus', 'audio/mp4', 'audio/webm']
 		return candidates.find((t) => MediaRecorder.isTypeSupported(t)) ?? ''
 	}
 
@@ -698,6 +702,10 @@
 		cancelAnimationFrame(previewRaf)
 		previewRaf = 0
 		playheadS = null
+		if (audioEl) {
+			audioEl.playbackRate = 1
+			audioEl.muted = false
+		}
 	}
 
 	function stopPreview() {
@@ -828,25 +836,41 @@
 		})
 	}
 
+	/** Le navigateur sait-il se déplacer jusque-là ? Un fichier sans index ne le permet pas. */
+	function canSeekTo(el: HTMLAudioElement, seconds: number): boolean {
+		const ranges = el.seekable
+		for (let i = 0; i < ranges.length; i++) {
+			if (ranges.start(i) <= seconds && seconds <= ranges.end(i)) return true
+		}
+		return false
+	}
+
+	// Chaque écoute a son numéro : un clic précédent encore en attente de son déplacement ne
+	// doit pas rendre le son au milieu d'une écoute suivante, ailleurs dans le fichier.
+	let previewRun = 0
+
 	async function playSelection() {
 		const el = audioEl
 		if (!el) return
 		if (previewing) { stopPreview(); return }
+		const run = ++previewRun
 		previewing = true
 		playheadS = trimStart
 		// `play()` part dans le clic même : iOS refuse une lecture lancée après une attente,
-		// et ne charge rien avant. Muette jusqu'à ce que le début de la sélection soit
-		// atteint, pour ne jamais faire entendre autre chose que la sélection.
+		// et ne charge rien avant. Le son reste coupé hors de la sélection : c'est
+		// `followPreview` qui le rend, une fois la position vraiment atteinte.
 		el.muted = true
+		// Sans index, on ne revient pas en arrière : repartir du début, `followPreview` avancera.
+		const seekable = canSeekTo(el, trimStart)
+		if (!seekable && el.currentTime > trimStart) el.load()
 		try {
 			await el.play()
-			await seekTo(el, trimStart)
+			if (seekable) await seekTo(el, trimStart)
 		} catch {
-			el.muted = false
-			endPreview()
+			if (run === previewRun) endPreview()
 			return
 		}
-		el.muted = false
+		if (run !== previewRun) return
 		if (!previewing) { el.pause(); return }
 		followPreview()
 	}
@@ -856,7 +880,14 @@
 	function followPreview() {
 		const el = audioEl
 		if (!el || !previewing) return
-		playheadS = el.currentTime
+		// Pas encore dans la sélection : le déplacement n'a pas pris (fichier sans index).
+		// On y va en accéléré, son coupé, plutôt que de faire entendre ce qui précède, et en
+		// ralentissant à l'approche pour ne pas manquer le début de la sélection.
+		const remaining = trimStart - el.currentTime
+		const early = remaining > 0.05
+		el.muted = early
+		el.playbackRate = early ? Math.min(16, Math.max(1, remaining * 8)) : 1
+		playheadS = early ? trimStart : el.currentTime
 		if (el.currentTime >= trimEnd) { stopPreview(); return }
 		previewRaf = requestAnimationFrame(followPreview)
 	}
