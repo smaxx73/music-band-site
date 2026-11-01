@@ -105,6 +105,17 @@ export function canDeleteGroupContent(
 	return canManageGroup(user, groupId)
 }
 
+// Défaire un recadrage : on a pu écarter exprès une conversation ou une fausse note. Tout
+// membre peut retoucher le son d'une prise, mais ce qui a été retiré, seuls son déposant et
+// les admins du groupe décident de le rendre au groupe.
+export function canRestoreTrimmedAudio(
+	user: RoleBearer | null | undefined,
+	groupId: number | null | undefined,
+	uploaderUserId: number | null | undefined
+): boolean {
+	return canDeleteGroupContent(user, groupId, uploaderUserId)
+}
+
 // Modification d'un commentaire : son auteur seul, admins compris. Supprimer le contenu
 // d'autrui se justifie pour un admin ; lui faire dire autre chose, jamais. Un commentaire
 // non relié à un compte (migration 018) n'est donc modifiable par personne.
@@ -547,6 +558,10 @@ export type PersonalRecording = {
 	file_hash: string | null
 	created_at: Date
 	updated_at: Date | null
+	/** Bornes du recadrage à l'envoi ; renseignées = ce qu'il écarte est gardé, voir `cutPartPaths`. */
+	trim_start_s: number | null
+	trim_end_s: number | null
+	source_file_hash: string | null
 }
 
 /** URL d'écoute d'un enregistrement perso — servie par Node, jamais par Caddy. */

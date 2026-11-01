@@ -335,7 +335,8 @@ au milieu de la salle, ou l'interface audio branchée au PC.
   poignée. Tant qu'un recadrage est actif, un avertissement dit la durée gardée sur la durée
   totale, dans la frise **et au-dessus du bouton d'envoi** ; sur une ligne de série, c'est
   la ligne qui le dit. La frise ne se referme pas sur un recadrage : « Tout garder » rétablit
-  et referme. Rien ne se récupère après l'envoi : le serveur ne garde que le passage. Les bornes partent avec le fichier
+  et referme. L'envoi reste réversible — voir « Rétablir un enregistrement recadré » —, sauf
+  vers une découpe, où l'avertissement dit que le reste est perdu. Les bornes partent avec le fichier
   (`trim_start`, `trim_end`) et le serveur taille dedans, après les avoir validées (au moins
   0,25 s, dans la durée du fichier, `400` sinon ; `src/lib/server/audio-trim.ts`). Le
   `file_hash` d'une coupe tient compte des bornes : deux coupes du même enregistrement sont
@@ -357,6 +358,45 @@ au milieu de la salle, ou l'interface audio branchée au PC.
 - « Enregistrer » est la première entrée du menu **+ Ajouter** (voir « Navigation ») :
   c'est au téléphone, en répétition, qu'on lance un enregistrement — et sur ordinateur,
   interface audio branchée
+
+### Rétablir un enregistrement recadré
+
+Un recadrage se fait en un geste et se remarque parfois bien plus tard, à la réécoute.
+
+- **Le passage écarté est gardé à part, sans rien dupliquer.** Tout le fichier est converti
+  (sans rognage des silences), puis coupé en trois sur ses octets, aux frontières de trames
+  (`src/lib/server/mp3-cut.ts`) : `{id}.mp3` ne porte que le passage écouté, `{id}.head` et
+  `{id}.tail` ce qui l'entourait (`perso/{id}.…` pour un enregistrement perso), et les bornes
+  sont en base (`trim_start_s`, `trim_end_s`, migration 053). Tout le reste de l'application
+  ne voit que `{id}.mp3`, et rien n'y change. Le fichier déposé lui-même n'est pas gardé,
+  comme pour toute prise. Sans limite de durée : les morceaux partent avec la prise ou
+  l'enregistrement, et comptent dans le volume du groupe ou de l'espace perso. Jamais servis
+- **La coupe tombe sur une trame** (26 ms), et deux trames avant la borne : le début d'un mp3
+  coupé sort muet ou abîmé sur une cinquantaine de millisecondes (réservoir de bits), qu'il
+  vaut mieux prendre sur ce qui précède que sur ce qu'on a choisi d'entendre. Les bornes
+  enregistrées sont les bornes réelles
+- **« Rétablir l'enregistrement entier »**, sous le lecteur de `/recording/[id]` et de
+  `/perso/[id]`, avec une confirmation `warning`. Réservé au **déposant et aux admins du
+  groupe** (`canRestoreTrimmedAudio`) pour une prise, au propriétaire pour un enregistrement
+  perso : on a pu écarter exprès une conversation, et seul celui-là décide de la rendre au
+  groupe. Les autres membres ne voient pas la ligne. Le passage écarté ne s'écoute pas avant
+  de rétablir : c'est le rétablissement qui le fait entendre
+- **Recoller ne perd rien** : le fichier rétabli est celui d'avant la coupe, octet pour octet,
+  sans conversion, ni donc d'attente
+- **Les repères suivent** : un commentaire ancré est décalé du début écarté, et reste sur la
+  même note, comme la lecture en cours. Ceux des publications d'un enregistrement perso
+  aussi. Un lien déjà partagé avec `?t=`, lui, garde son ancienne position, et quelqu'un qui
+  écoute à ce moment-là peut entendre un saut, jusqu'à recharger sa page
+- La mesure du son repart de zéro et les aperçus d'amélioration sont écartés : ce n'est plus
+  le même son. `file_hash` redevient l'empreinte du fichier déposé
+- **Sur une prise au son amélioré**, il faut d'abord revenir à l'original : seul lui se recolle
+  aux deux autres morceaux. L'original étant intact, le recollage reste exact
+- Un enregistrement perso **classé en prise** reste réversible : les morceaux déménagent
+  avec lui
+- Sens unique : une fois rétabli, l'enregistrement ne se recadre plus. Pas de notification
+- **Limites** : un enregistrement recadré **avant la migration 053** n'a rien gardé, rien ne
+  le rétablit. Un recadrage suivi d'**« À découper sur les blancs »** ne garde
+  pas le reste : la découpe part du seul passage gardé, et l'écran le dit avant l'envoi
 
 ### Prises en série
 
@@ -2000,7 +2040,8 @@ Qui est qui, et qui a fait quoi, dans le groupe actif.
 - Deux téléchargements proposés :
   - `GET /api/groups/[id]/export` — archive JSON du seul groupe (morceaux, sessions, prises,
     commentaires, playlists, agenda, membres) + **manifeste audio** (nom de fichier, taille,
-    SHA-256). Une prise au son amélioré y figure deux fois : `kind: 'audio'` (`{id}.mp3`, la
+    SHA-256). Une prise recadrée y ajoute `kind: 'cut_head'` et `'cut_tail'`
+    (`{id}.head`, `{id}.tail`, ce qu'elle a écarté). Une prise au son amélioré y figure deux fois : `kind: 'audio'` (`{id}.mp3`, la
     version écoutée) et `kind: 'original'` (`{id}.original.mp3`). Ne contient **jamais** de
     hash de mot de passe. Superadmin uniquement
   - `GET /api/admin/backup` — dump `pg_dump` complet, le seul restaurable tel quel

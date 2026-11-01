@@ -37,7 +37,9 @@
 		sessions (dont les noms des participants saisis), morceaux, playlists, setlists, images
 		(logo du groupe, pochettes de morceaux, photos de session). Pochettes, photos de session
 		et photos de profil sont réencodées à l'envoi : leurs métadonnées (EXIF, dont la position GPS d'une photo) ne
-		sont pas conservées.
+		sont pas conservées. Un enregistrement recadré à l'envoi garde son passage écarté, pour que
+		le recadrage puisse être défait : ce passage n'est pas écoutable
+		par les autres membres tant que son déposant ou un administrateur du groupe ne l'a pas rétabli.
 	</li>
 	<li>
 		<strong>Agenda</strong> : événements du groupe et indisponibilités personnelles que vous

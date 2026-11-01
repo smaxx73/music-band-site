@@ -3,7 +3,14 @@ import { json } from '@sveltejs/kit'
 import { copyFile, unlink } from 'fs/promises'
 import sql from '$lib/server/db'
 import { convertToMp3, getDuration } from '$lib/server/ffmpeg'
-import { assertTrimmedAudio, hashWithTrim, readAudioTrim } from '$lib/server/audio-trim'
+import {
+	assertTrimmedAudio,
+	convertWithCut,
+	discardCutParts,
+	hashWithTrim,
+	keepCutParts,
+	readAudioTrim
+} from '$lib/server/audio-trim'
 import {
 	allowedAudioMime,
 	cleanSourceFileName,
@@ -18,7 +25,8 @@ import {
 	normalizeNotes,
 	normalizeTitle,
 	personalAudioPath,
-	personalFilePath
+	personalFilePath,
+	removePersonalFiles
 } from '$lib/server/personal'
 import { fetchYouTubeVideoInfo } from '$lib/server/youtube'
 import { parseYouTubeVideoId } from '$lib/youtube'
@@ -52,6 +60,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const discard = () => {
 		unlink(rawTmpPath).catch(() => {})
 		unlink(mp3TmpPath).catch(() => {})
+		discardCutParts(mp3TmpPath).catch(() => {})
 	}
 
 	const title = normalizeTitle(fields.title, sourceFileName)
@@ -93,7 +102,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			video = { videoId, title: info.title }
 		}
 
-		await convertToMp3(rawTmpPath, mp3TmpPath, trim)
+		const cut = trim ? await convertWithCut(rawTmpPath, mp3TmpPath, trim) : null
+		if (!trim) await convertToMp3(rawTmpPath, mp3TmpPath)
 		await assertTrimmedAudio(mp3TmpPath, trim)
 		await unlink(rawTmpPath).catch(() => {})
 		const duration = await getDuration(mp3TmpPath)
@@ -116,8 +126,15 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		// /tmp et AUDIO_DIR sont sur des systèmes de fichiers distincts : copier, pas renommer.
 		await ensurePersonalDir()
 		await copyFile(mp3TmpPath, personalAudioPath(created.id))
+		// Un recadrage se fait vite et se remarque tard : ce qu'il écarte reste, pour le défaire.
+		if (cut) await keepCutParts(mp3TmpPath, personalAudioPath(created.id))
 		await unlink(mp3TmpPath).catch(() => {})
-		await sql`UPDATE personal_recordings SET file_path = ${personalFilePath(created.id)} WHERE id = ${created.id}`
+		await sql`
+			UPDATE personal_recordings
+			SET file_path = ${personalFilePath(created.id)}, trim_start_s = ${cut?.startS ?? null}, trim_end_s = ${cut?.endS ?? null},
+			    source_file_hash = ${cut ? sourceHash : null}
+			WHERE id = ${created.id}
+		`
 
 		return json(await getPersonalRecording(created.id, userId), { status: 201 })
 	} catch (err) {
@@ -128,7 +145,7 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		// Une ligne sans fichier ne doit pas survivre : elle promettrait une écoute impossible.
 		if (insertedId !== null) {
 			await sql`DELETE FROM personal_recordings WHERE id = ${insertedId}`.catch(() => {})
-			await unlink(personalAudioPath(insertedId)).catch(() => {})
+			await removePersonalFiles(insertedId)
 		}
 		console.error('[personal]', err)
 		return json({ error: "Erreur lors de l'envoi." }, { status: 500 })

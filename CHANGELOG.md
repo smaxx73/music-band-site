@@ -13,10 +13,16 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+Migration à appliquer : `053_trim_keeps_whole_file.sql`.
+
 - **Recadrage d'un enregistrement** : l'outil se déplie maintenant à la demande (« Recadrer… »)
   et un enregistrement part entier par défaut. Toucher la forme d'onde ou faire défiler la
   page par-dessus ne coupe plus rien : seules les poignées se déplacent. Un avertissement
   au-dessus du bouton d'envoi dit ce qui sera gardé.
+- **Un recadrage se défait** : « Rétablir l'enregistrement entier », sous le lecteur, rend le
+  passage écarté, et les repères des commentaires restent sur les mêmes notes. Réservé à qui
+  a déposé la prise et aux admins du groupe. Vaut pour ce qui est recadré à partir de
+  maintenant : les enregistrements déjà recadrés n'ont pas gardé le passage écarté.
 
 ## [1.15.1] — 2026-10-30
 

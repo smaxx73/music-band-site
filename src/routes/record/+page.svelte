@@ -626,7 +626,7 @@
 				<p class="hint" role="status">Choisis le morceau de cette prise pour envoyer.</p>
 			{/if}
 
-			<TrimNotice trim={audioTrim} durationS={recordedDurationS} />
+			<TrimNotice trim={audioTrim} durationS={recordedDurationS} fate={multiTake ? 'lost' : 'kept'} />
 
 			<div class="submit-row">
 			<button

@@ -181,8 +181,16 @@ CREATE TABLE recordings (
     enhanced_at         TIMESTAMPTZ,
     enhanced_by_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
     enhancement         JSONB,                   -- réglages choisis : { eq, compression }
+    -- Recadrage à l'envoi (migration 053) : renseignés = {id}.mp3 ne porte que le passage
+    -- écouté, ce qui l'entoure est dans {id}.head et {id}.tail, et les trois recollés
+    -- redonnent le fichier entier — voir src/lib/server/audio-trim.ts
+    trim_start_s DOUBLE PRECISION,               -- bornes dans le temps du fichier entier
+    trim_end_s   DOUBLE PRECISION,
+    source_file_hash TEXT,                       -- empreinte du fichier déposé, que file_hash
+                                                 -- retrouvera une fois le recadrage défait
     UNIQUE (song_id, take),
-    CONSTRAINT recordings_source CHECK (file_path IS NOT NULL OR youtube_video_id IS NOT NULL)
+    CONSTRAINT recordings_source CHECK (file_path IS NOT NULL OR youtube_video_id IS NOT NULL),
+    CONSTRAINT recordings_trim CHECK (num_nonnulls(trim_start_s, trim_end_s, source_file_hash) IN (0, 3))
 );
 
 -- Calcul du take à l'upload (dans une transaction) :
@@ -226,7 +234,12 @@ CREATE TABLE personal_recordings (
     file_hash   TEXT,                        -- doublon cherché dans l'espace du seul propriétaire
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ,
-    CONSTRAINT personal_recordings_source CHECK (file_path IS NOT NULL OR youtube_video_id IS NOT NULL)
+    -- Recadrage à l'envoi, comme une prise (migration 053) : perso/{id}.head et perso/{id}.tail
+    trim_start_s DOUBLE PRECISION,
+    trim_end_s   DOUBLE PRECISION,
+    source_file_hash TEXT,
+    CONSTRAINT personal_recordings_source CHECK (file_path IS NOT NULL OR youtube_video_id IS NOT NULL),
+    CONSTRAINT personal_recordings_trim CHECK (num_nonnulls(trim_start_s, trim_end_s, source_file_hash) IN (0, 3))
 );
 
 -- Ce qu'un membre apporte au groupe depuis l'extérieur des répétitions.

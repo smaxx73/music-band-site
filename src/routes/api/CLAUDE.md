@@ -43,6 +43,7 @@ api/recordings/[id]/peaks/+server.ts
 api/recordings/[id]/enhance/+server.ts
 api/recordings/[id]/enhance/preview/+server.ts
 api/recordings/[id]/enhance/audio/+server.ts
+api/recordings/[id]/trim/+server.ts
 api/youtube/+server.ts
 api/comments/+server.ts
 api/comments/[id]/+server.ts
@@ -61,6 +62,7 @@ api/personal/+server.ts
 api/personal/youtube/+server.ts
 api/personal/[id]/+server.ts
 api/personal/[id]/take/+server.ts
+api/personal/[id]/trim/+server.ts
 api/posts/+server.ts
 api/posts/[id]/+server.ts
 api/posts/[id]/song/+server.ts
@@ -162,6 +164,14 @@ réglages dans `recordings.enhancement` (`409` si déjà fait) ; `DELETE .../enh
 rétablit l'original, et la version améliorée redevient un aperçu. Une prise sans
 piste audio répond `400`, une prise quasi muette aussi à l'aperçu. Passer par
 `src/lib/server/audio-enhance.ts`.
+
+Un **recadrage** à l'envoi (`trim_start`, `trim_end` de `POST /api/upload` et
+`POST /api/personal`) garde ce qu'il écarte à côté du mp3 et ses bornes réelles (`trim_start_s`,
+`trim_end_s`). `DELETE /api/recordings/[id]/trim` le défait : réservé au déposant et aux admins
+du groupe (`canRestoreTrimmedAudio`, `403` sinon), `409` si la prise n'est pas recadrée ou si
+son son est amélioré. Les repères des commentaires sont décalés d'autant, la mesure est
+effacée. `DELETE /api/personal/[id]/trim` fait de même pour le propriétaire seul (`404` sinon).
+Passer par `src/lib/server/audio-trim.ts`.
 
 La **pochette** d'un morceau (`api/songs/[id]/cover`) est groupe-scopée : tout membre du
 groupe actif la dépose (`POST`, multipart, champ `cover`, 8 Mo au plus) ou la retire

@@ -112,6 +112,11 @@ NODE_ENV=production
   fichiers d'une prise s'effacent par `removeRecordingFiles` (`src/lib/server/storage.ts`),
   jamais par un `unlink(audioPath(id))` qui laisserait l'original. Tout passe par
   `src/lib/server/audio-enhance.ts`. Voir « Amélioration du son d'une prise » dans docs/features.md
+- IMPORTANT : un enregistrement recadré à l'envoi (`trim_start_s` renseigné) a TROIS fichiers :
+  `{id}.mp3` (le passage écouté) et `{id}.head`, `{id}.tail` (`perso/{id}.…` pour un
+  enregistrement perso), qui portent peut-être ce qu'on a voulu écarter : jamais servis, ni par
+  `/audio/` ni par `/ecoute/`. Ils s'effacent avec `removeRecordingFiles` / `removePersonalFiles`,
+  et se recollent par `src/lib/server/audio-trim.ts` (`canRestoreTrimmedAudio`). Voir « Rétablir un enregistrement recadré » dans docs/features.md
 - La photo de profil (`user_avatars`) n'est ni publique ni groupe-scopée : la voient le
   compte, les membres d'un de ses groupes et les admins globaux. Passer par
   `src/lib/server/avatars.ts`, l'afficher par `Avatar.svelte`. Les instruments vivent sur
@@ -226,7 +231,8 @@ dans docs/features.md.
   par curseur : voir « Fil d'actualité » dans docs/features.md
 - Suppression de commentaires (l'édition, elle, existe — voir docs/features.md)
 - Tests automatisés couvrant l'application : seuls quelques modules purs sont testés
-  (`tests/` : éditeur ABC, ChordPro, chaîne d'amélioration du son, reconnexion audio),
+  (`tests/` : éditeur ABC, ChordPro, chaîne d'amélioration du son, reconnexion audio, coupe
+  d'un mp3),
   lancés par `pnpm test`. Ni routes, ni composants, ni SQL
 - Autres outils d'amélioration audio (fondus, réduction de bruit, déclippage, correction
   d'un son trop brillant) : seules la découpe sur les blancs, la recopie d'un canal muet et
@@ -246,6 +252,9 @@ dans docs/features.md.
   volontairement, ils se règlent sur des fichiers réels et non a priori
 - Waveform zoomable avec marqueurs déplaçables : la retouche des bornes se fait au clavier
   et au bouton (±0,5 s / ±5 s, couper, fusionner)
+- Durée de conservation du passage écarté par un recadrage : pas de limite pour l'instant, il
+  part avec la prise ou l'enregistrement. À reconsidérer si un passage retiré exprès doit
+  pouvoir disparaître sans supprimer la prise.
 - Recherche full-text
 - PWA : ni manifeste, ni service worker, ni installation sur l'écran d'accueil. Écarté
   volontairement — le gain se limite à une icône et à la barre d'adresse en moins, et rien

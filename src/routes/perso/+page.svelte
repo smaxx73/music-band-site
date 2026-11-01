@@ -270,7 +270,7 @@
 			</label>
 		{/if}
 
-		{#if source === 'record'}<TrimNotice trim={audioTrim} durationS={recordedDurationS} />{/if}
+		{#if source === 'record'}<TrimNotice trim={audioTrim} durationS={recordedDurationS} fate={splitting ? 'lost' : 'kept'} />{/if}
 		{#if addError}<p class="message-error" role="alert">{addError}</p>{/if}
 
 		<div class="add-actions">

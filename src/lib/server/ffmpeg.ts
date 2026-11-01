@@ -1,6 +1,5 @@
 import { spawn, type ChildProcess } from 'child_process'
 import { setPriority } from 'os'
-import type { AudioTrim } from '$lib/types'
 
 /**
  * Débit des mp3 stockés (prises, enregistrements perso, extraits de découpe). Constant et
@@ -68,18 +67,20 @@ export function duplicateChannelFilter(active: ActiveChannel): string {
 }
 
 /**
- * Convertit un fichier audio en mp3 au débit de stockage (`STORAGE_BITRATE`). Sans coupe manuelle, les silences
- * aux extrémités sont aussi supprimés. Un canal muet est remplacé par l'autre
- * (`detectSingleChannel`).
+ * Convertit un fichier audio en mp3 au débit de stockage (`STORAGE_BITRATE`). Les silences aux
+ * extrémités sont supprimés, sauf `keepSilence` : un recadrage garde exactement l'échelle de
+ * temps du fichier. Un canal muet est remplacé par l'autre (`detectSingleChannel`).
  * Lecture depuis le disque, écriture sur le disque — jamais en mémoire Node.
  */
-export async function convertToMp3(inputPath: string, outputPath: string, trim: AudioTrim | null = null): Promise<void> {
+export async function convertToMp3(
+	inputPath: string,
+	outputPath: string,
+	options: { keepSilence?: boolean } = {}
+): Promise<void> {
 	const active = await detectSingleChannel(inputPath)
 	const filters = [
 		...(active ? [duplicateChannelFilter(active)] : []),
-		// Une coupe manuelle garde exactement la portion choisie ; le rognage
-		// automatique des silences ne sert qu'aux dépôts sans bornes.
-		...(!trim ? [
+		...(!options.keepSilence ? [
 			'silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB',
 			'areverse',
 			'silenceremove=start_periods=1:start_silence=0.1:start_threshold=-50dB',
@@ -88,9 +89,7 @@ export async function convertToMp3(inputPath: string, outputPath: string, trim: 
 	]
 	return new Promise((resolve, reject) => {
 		const ff = spawn('ffmpeg', [
-			...(trim ? ['-ss', trim.startS.toFixed(3)] : []),
 			'-i', inputPath,
-			...(trim ? ['-t', (trim.endS - trim.startS).toFixed(3)] : []),
 			'-ar', '44100',
 			'-ab', STORAGE_BITRATE,
 			'-ac', '2',

@@ -14,6 +14,8 @@ src/
 │   │   │                  #   retour à l'original (réglages partagés : src/lib/audio-enhance.ts)
 │   │   ├── audio-trim.ts  # recadrage d'un enregistrement (bornes début/fin) : validation avant
 │   │   │                  #   ffmpeg, empreinte propre à chaque coupe, contrôle du rendu
+│   │   │                  #   coupe à l'envoi, retour au fichier entier (recadrage défait)
+│   │   ├── mp3-cut.ts     # coupe d'un mp3 sur ses octets, aux frontières de trames, et recollage
 │   │   ├── peaks.ts       # forme d'onde d'une prise : extraction ffmpeg, cache à côté du mp3
 │   │   ├── upload-stream.ts # réception multipart d'un fichier audio (prise ou import)
 │   │   ├── imports.ts     # zone de transit des outils audio d'après upload
@@ -46,6 +48,7 @@ src/
 │       ├── AudioPlayer.svelte     # lecteur WaveSurfer.js
 │       ├── AudioRecorder.svelte   # enregistrement en direct depuis le navigateur (micro, interface)
 │       ├── TrimNotice.svelte      # avertissement « recadré », dans la frise et au-dessus de l'envoi
+│       ├── TrimRestore.svelte     # « Rétablir l'enregistrement entier » (prise, enregistrement perso)
 │       ├── Modal.svelte           # fenêtre modale (Échap ne ferme que la plus haute) ; socle des dialogues
 │       ├── MiniPlayer.svelte      # mini-lecteur persistant (barre du bas), pilote `player.svelte.ts`
 │       ├── InlineRecordingPlayer.svelte # écoute dépliable d'une prise sur sa ligne (waveform)
@@ -198,6 +201,8 @@ sur « oui ».
 
 ## Fichiers audio
 - Stockés dans `/data/audio/{recording_id}.mp3`
+- Un enregistrement recadré à l'envoi garde ce qu'il écarte à côté : `{id}.head`, `{id}.tail`
+  (et sous `perso/`), jamais servis. Voir « Rétablir un enregistrement recadré » dans docs/features.md
 - Une prise au son amélioré garde son original à côté : `/data/audio/{id}.original.mp3`,
   jamais servi par `/audio/` (seulement par `/api/recordings/[id]/enhance/audio`). Effacer
   les fichiers d'une prise passe par `removeRecordingFiles`

@@ -37,13 +37,28 @@ export type PersonalTrack = {
 
 export type PlayerTrack = RecordingTrack | PersonalTrack
 
+// Le fichier d'une piste peut changer sous la même adresse (son amélioré, recadrage défait).
+// Le navigateur rejouerait alors ce qu'il a déjà chargé, Cache-Control ou non : une fois le
+// fichier changé, l'adresse porte une version, partout où elle est calculée — le lecteur et
+// la waveform doivent s'accorder, sinon l'un recharge le média derrière l'autre.
+const fileVersions = new Map<string, number>()
+
+function versioned(url: string): string {
+	const version = fileVersions.get(url)
+	return version ? `${url}?v=${version}` : url
+}
+
 export function audioUrl(recordingId: number): string {
-	return `/audio/${recordingId}.mp3`
+	return versioned(`/audio/${recordingId}.mp3`)
+}
+
+export function personalTrackUrl(id: number): string {
+	return versioned(personalAudioUrl(id))
 }
 
 /** Adresse du fichier d'une piste : `/audio/` pour une prise, `/audio/perso/` sinon. */
 export function trackUrl(track: PlayerTrack): string {
-	return track.personal ? personalAudioUrl(track.recordingId) : audioUrl(track.recordingId)
+	return track.personal ? personalTrackUrl(track.recordingId) : audioUrl(track.recordingId)
 }
 
 export function sameTrack(a: PlayerTrack | null | undefined, b: PlayerTrack | null | undefined): boolean {
@@ -147,10 +162,23 @@ class SharedPlayer {
 	 * l'original) : on le recharge, à la même position et dans le même état de lecture.
 	 * Réaffecter `src`, même identique, relance le chargement.
 	 */
-	reload(recordingId: number) {
+	reload(recordingId: number, shiftS = 0) {
+		fileVersions.set(`/audio/${recordingId}.mp3`, Date.now())
+		if (this.isRecording(recordingId)) this.#reloadFrom(audioUrl(recordingId), shiftS)
+	}
+
+	/** Même chose pour un enregistrement perso, dont l'id ne se confond pas avec celui d'une prise. */
+	reloadPersonal(id: number, shiftS = 0) {
+		fileVersions.set(personalAudioUrl(id), Date.now())
+		if (this.isPersonal(id)) this.#reloadFrom(personalTrackUrl(id), shiftS)
+	}
+
+	/** `shiftS` : recadrage défait, le même son se trouve plus loin dans le fichier. */
+	#reloadFrom(src: string, shiftS: number) {
 		const media = this.media
-		if (!media || !this.isRecording(recordingId)) return
-		const at = media.currentTime
+		if (!media) return
+		// Pas encore écouté : rien à retrouver, on repart du début.
+		const at = media.currentTime > 0 ? media.currentTime + shiftS : 0
 		const wasPlaying = !media.paused
 		this.#reconnect?.stop()
 		if (wasPlaying) this.#reconnect?.requestPlay()
@@ -162,7 +190,7 @@ class SharedPlayer {
 			},
 			{ once: true }
 		)
-		media.src = audioUrl(recordingId)
+		media.src = src
 	}
 
 	play() {

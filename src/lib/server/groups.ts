@@ -2,6 +2,7 @@ import { stat } from 'fs/promises'
 import { basename } from 'path'
 import sql from './db'
 import { audioPath, originalAudioPath, removeRecordingFiles, totalFileSize } from './storage'
+import { cutPartPaths } from './mp3-cut'
 import { imageThumbnail } from './ffmpeg'
 import {
 	canAssignGroupAdmin,
@@ -465,8 +466,13 @@ export async function groupDeletionImpact(groupId: number): Promise<GroupDeletio
 // propriétaire, et partent avec son espace, pas avec le groupe.
 export async function groupAudioBytes(groupId: number): Promise<number> {
 	const recordingIds = await groupAudioRecordingIds(groupId)
-	// L'original d'un son amélioré occupe le disque autant que la prise : il compte.
-	return totalFileSize(recordingIds.flatMap((id) => [audioPath(id), originalAudioPath(id)]))
+	// L'original d'un son amélioré et ce qu'un recadrage a écarté occupent le disque : ils comptent.
+	return totalFileSize(
+		recordingIds.flatMap((id) => {
+			const { head, tail } = cutPartPaths(audioPath(id))
+			return [audioPath(id), originalAudioPath(id), head, tail]
+		})
+	)
 }
 
 // Prises qui ont un fichier dans AUDIO_DIR : une prise vidéo seule n'en a pas.
@@ -566,7 +572,7 @@ export type GroupArchive = {
 	audio_files: {
 		recording_id: number
 		file: string
-		kind: 'audio' | 'original'
+		kind: 'audio' | 'original' | 'cut_head' | 'cut_tail'
 		bytes: number
 		sha256: string | null
 	}[]
@@ -634,7 +640,7 @@ export async function exportGroup(
 		])
 	const [logo] = logos
 
-	type AudioRow = { id: number; file_path: string | null; file_hash: string | null; enhanced_at: Date | null }
+	type AudioRow = { id: number; file_path: string | null; file_hash: string | null; enhanced_at: Date | null; trim_start_s: number | null }
 	const fileSize = (path: string) => stat(path).then((st) => st.size).catch(() => 0)
 	const audio_files = await Promise.all(
 		(recordings as unknown as AudioRow[])
@@ -643,6 +649,12 @@ export async function exportGroup(
 				{ recording_id: r.id, kind: 'audio' as const, path: audioPath(r.id), sha256: r.file_hash },
 				...(r.enhanced_at
 					? [{ recording_id: r.id, kind: 'original' as const, path: originalAudioPath(r.id), sha256: r.file_hash }]
+					: []),
+				...(r.trim_start_s !== null
+					? [
+							{ recording_id: r.id, kind: 'cut_head' as const, path: cutPartPaths(audioPath(r.id)).head, sha256: null },
+							{ recording_id: r.id, kind: 'cut_tail' as const, path: cutPartPaths(audioPath(r.id)).tail, sha256: null }
+						]
 					: [])
 			])
 			.map(async ({ path, ...entry }) => ({

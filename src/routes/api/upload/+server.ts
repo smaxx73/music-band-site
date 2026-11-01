@@ -3,7 +3,14 @@ import { json } from '@sveltejs/kit'
 import { copyFile, unlink } from 'fs/promises'
 import sql from '$lib/server/db'
 import { convertToMp3, getDuration } from '$lib/server/ffmpeg'
-import { assertTrimmedAudio, hashWithTrim, readAudioTrim } from '$lib/server/audio-trim'
+import {
+	assertTrimmedAudio,
+	convertWithCut,
+	discardCutParts,
+	hashWithTrim,
+	keepCutParts,
+	readAudioTrim
+} from '$lib/server/audio-trim'
 import { audioPath, ensureAudioDir } from '$lib/server/storage'
 import {
 	allowedAudioMime,
@@ -81,7 +88,8 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		}
 
 		// Conversion ffmpeg : disk → disk, jamais en mémoire Node
-		await convertToMp3(rawTmpPath, mp3TmpPath, trim)
+		const cut = trim ? await convertWithCut(rawTmpPath, mp3TmpPath, trim) : null
+		if (!trim) await convertToMp3(rawTmpPath, mp3TmpPath)
 		await assertTrimmedAudio(mp3TmpPath, trim)
 		await unlink(rawTmpPath).catch(() => {})
 
@@ -116,11 +124,18 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		// copier avant de supprimer le fichier temporaire plutôt que d'utiliser rename.
 		await ensureAudioDir()
 		await copyFile(mp3TmpPath, audioPath(recording.id))
+		// Un recadrage se fait vite et se remarque tard : ce qu'il écarte reste, pour le défaire.
+		if (cut) await keepCutParts(mp3TmpPath, audioPath(recording.id))
 		await unlink(mp3TmpPath).catch(() => {})
 
 		// Mettre à jour file_path
 		const filePath = `${recording.id}.mp3`
-		await sql`UPDATE recordings SET file_path = ${filePath} WHERE id = ${recording.id}`
+		await sql`
+			UPDATE recordings
+			SET file_path = ${filePath}, trim_start_s = ${cut?.startS ?? null}, trim_end_s = ${cut?.endS ?? null},
+			    source_file_hash = ${cut ? sourceHash : null}
+			WHERE id = ${recording.id}
+		`
 
 		const { song_title, ...created } = recording
 
@@ -135,10 +150,14 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			sessionId: created.session_id
 		})
 
-		return json({ ...created, file_path: filePath }, { status: 201 })
+		return json(
+			{ ...created, file_path: filePath, trim_start_s: cut?.startS ?? null, trim_end_s: cut?.endS ?? null },
+			{ status: 201 }
+		)
 	} catch (err: unknown) {
 		unlink(rawTmpPath).catch(() => {})
 		unlink(mp3TmpPath).catch(() => {})
+		discardCutParts(mp3TmpPath).catch(() => {})
 
 		const code = (err as { code?: string }).code
 		if (code === 'invalid_trim') return json({ error: 'La coupe ne contient pas de son.' }, { status: 400 })

@@ -1,8 +1,10 @@
-import { copyFile, mkdir, unlink } from 'fs/promises'
+import { copyFile, mkdir, rename, unlink } from 'fs/promises'
 import { join } from 'path'
 import sql from './db'
 import { audioDir } from './config'
 import { audioPath, ensureAudioDir, totalFileSize } from './storage'
+import { discardCutParts, rejoinWholeFile, type RestoreOutcome } from './audio-trim'
+import { cutPartPaths } from './mp3-cut'
 import { loadPeaksAt, type PeaksCache } from './peaks'
 import type { PersonalRecording, Recording } from '$lib/types'
 
@@ -37,7 +39,51 @@ export function loadPersonalPeaks(id: number): Promise<PeaksCache> {
 /** Fichier et cache de forme d'onde. Un fichier déjà absent n'est pas une erreur. */
 export async function removePersonalFiles(id: number): Promise<void> {
 	await unlink(personalAudioPath(id)).catch(() => {})
+	await discardCutParts(personalAudioPath(id))
 	await unlink(join(audioDir(), PERSONAL_SUBDIR, `${id}.peaks.json`)).catch(() => {})
+}
+
+/**
+ * Défait le recadrage d'un enregistrement perso. Les commentaires qu'il a reçus sont ceux de
+ * ses publications : leurs repères suivent, comme pour une prise.
+ */
+export async function restoreWholePersonal(id: number, userId: number): Promise<RestoreOutcome> {
+	const [current] = await sql<{ trim_start_s: number | null }[]>`
+		SELECT trim_start_s FROM personal_recordings WHERE id = ${id} AND user_id = ${userId}
+	`
+	if (!current) return { ok: false, status: 404, error: 'Enregistrement introuvable.' }
+	if (current.trim_start_s === null) return { ok: false, status: 409, error: "Cet enregistrement n'est pas recadré." }
+
+	const { stagedPath, durationS } = await rejoinWholeFile(personalAudioPath(id))
+	try {
+		const outcome: RestoreOutcome = await sql.begin(async (tx) => {
+			const [row] = await tx<{ trim_start_s: number | null }[]>`
+				SELECT trim_start_s FROM personal_recordings WHERE id = ${id} AND user_id = ${userId} FOR UPDATE
+			`
+			if (!row || row.trim_start_s === null) return { ok: false as const, status: 409, error: "Cet enregistrement n'est pas recadré." }
+
+			await tx`
+				UPDATE comments SET timestamp_s = timestamp_s + ${row.trim_start_s}
+				WHERE timestamp_s IS NOT NULL
+				  AND post_id IN (SELECT p.id FROM posts p WHERE p.personal_recording_id = ${id})
+			`
+			await tx`
+				UPDATE personal_recordings
+				SET duration_s = ${durationS}, file_hash = source_file_hash,
+				    trim_start_s = NULL, trim_end_s = NULL, source_file_hash = NULL, updated_at = now()
+				WHERE id = ${id}
+			`
+			await rename(stagedPath, personalAudioPath(id))
+			return { ok: true as const }
+		})
+		if (outcome.ok) {
+			await discardCutParts(personalAudioPath(id))
+			await unlink(join(audioDir(), PERSONAL_SUBDIR, `${id}.peaks.json`)).catch(() => {})
+		}
+		return outcome
+	} finally {
+		await unlink(stagedPath).catch(() => {})
+	}
 }
 
 /** Où l'enregistrement est publié : c'est ce que son propriétaire doit voir d'un coup d'œil. */
@@ -52,6 +98,7 @@ export type PersonalRecordingView = PersonalRecording & {
 const VIEW_COLUMNS = sql`
 	pr.id, pr.user_id, pr.title, pr.notes, pr.file_path, pr.youtube_video_id, pr.youtube_title,
 	pr.source_file_name, pr.duration_s, pr.file_hash, pr.created_at, pr.updated_at,
+	pr.trim_start_s, pr.trim_end_s, pr.source_file_hash,
 	COALESCE(
 		(
 			SELECT json_agg(json_build_object('post_id', p.id, 'group_id', g.id, 'group_name', g.name) ORDER BY g.name)
@@ -153,7 +200,13 @@ export async function personalFileIds(userId: number): Promise<number[]> {
 /** Place occupée sur le disque par l'espace perso d'un compte (pistes audio). */
 export async function personalAudioBytes(userId: number): Promise<number> {
 	const ids = await personalFileIds(userId)
-	return totalFileSize(ids.map(personalAudioPath))
+	// Ce qu'un recadrage a écarté occupe le disque lui aussi : il compte.
+	return totalFileSize(
+		ids.flatMap((id) => {
+			const { head, tail } = cutPartPaths(personalAudioPath(id))
+			return [personalAudioPath(id), head, tail]
+		})
+	)
 }
 
 /**
@@ -291,7 +344,8 @@ export async function classifyPersonalRecording(opts: {
 			const [created] = await tx<Recording[]>`
 				INSERT INTO recordings (
 					session_id, song_id, take, file_path, source_file_name, duration_s,
-					uploaded_by, uploaded_by_user_id, file_hash, youtube_video_id, youtube_title, notes
+					uploaded_by, uploaded_by_user_id, file_hash, youtube_video_id, youtube_title, notes,
+					trim_start_s, trim_end_s, source_file_hash
 				)
 				VALUES (
 					${sessionId}, ${songId}, ${take},
@@ -299,7 +353,8 @@ export async function classifyPersonalRecording(opts: {
 					${source.source_file_name}, ${source.duration_s},
 					${author}, ${userId}, ${source.file_hash},
 					${source.youtube_video_id}, ${source.youtube_title},
-					${takeNotes}
+					${takeNotes},
+					${source.trim_start_s}, ${source.trim_end_s}, ${source.source_file_hash}
 				)
 				RETURNING *
 			`
@@ -309,6 +364,13 @@ export async function classifyPersonalRecording(opts: {
 				await ensureAudioDir()
 				copied = audioPath(created.id)
 				await copyFile(personalAudioPath(id), copied)
+				// Le recadrage reste réversible une fois la prise classée.
+				if (source.trim_start_s !== null) {
+					const from = cutPartPaths(personalAudioPath(id))
+					const to = cutPartPaths(copied)
+					await copyFile(from.head, to.head)
+					await copyFile(from.tail, to.tail)
+				}
 				filePath = `${created.id}.mp3`
 				await tx`UPDATE recordings SET file_path = ${filePath} WHERE id = ${created.id}`
 			}
@@ -334,13 +396,17 @@ export async function classifyPersonalRecording(opts: {
 
 		if (!outcome.ok && copied) {
 			await unlink(copied).catch(() => {})
+			await discardCutParts(copied)
 			return outcome
 		}
 		// Les octets d'origine ne partent qu'une fois la prise acquise.
 		if (outcome.ok && source.file_path) await removePersonalFiles(id)
 		return outcome
 	} catch (err) {
-		if (copied) await unlink(copied).catch(() => {})
+		if (copied) {
+			await unlink(copied).catch(() => {})
+			await discardCutParts(copied)
+		}
 		throw err
 	}
 }

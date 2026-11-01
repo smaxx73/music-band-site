@@ -18,5 +18,8 @@ export const GET: RequestHandler = async ({ params, request, locals }) => {
 	if (!(await canListenPersonal(id, locals.user))) return new Response('Not found', { status: 404 })
 
 	const response = await streamAudioFile(personalAudioPath(id), request)
-	return response ?? new Response('Not found', { status: 404 })
+	if (!response) return new Response('Not found', { status: 404 })
+	// Le fichier peut changer sous la même adresse (recadrage défait) : pas de copie gardée.
+	response.headers.set('Cache-Control', 'no-cache')
+	return response
 }

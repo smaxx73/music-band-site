@@ -4,6 +4,7 @@ import { join } from 'path'
 import { Readable } from 'stream'
 import { createHash } from 'crypto'
 import { audioDir } from '$lib/server/config'
+import { cutPartPaths } from '$lib/server/mp3-cut'
 
 export function audioPath(recordingId: number): string {
 	return join(audioDir(), `${recordingId}.mp3`)
@@ -20,11 +21,13 @@ export function originalAudioPath(recordingId: number): string {
 
 /**
  * Efface tout ce qu'une prise a laissé sur le disque : son mp3, l'original d'un son
- * amélioré, la forme d'onde en cache. À appeler après la suppression en base.
+ * amélioré, ce qu'un recadrage a écarté, la forme d'onde en cache. À appeler après la
+ * suppression en base.
  */
 export async function removeRecordingFiles(recordingId: number): Promise<void> {
+	const { head, tail } = cutPartPaths(audioPath(recordingId))
 	await Promise.all(
-		[audioPath(recordingId), originalAudioPath(recordingId), join(audioDir(), `${recordingId}.peaks.json`)]
+		[audioPath(recordingId), originalAudioPath(recordingId), head, tail, join(audioDir(), `${recordingId}.peaks.json`)]
 			.map((path) => unlink(path).catch(() => {}))
 	)
 }

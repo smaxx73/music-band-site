@@ -8,10 +8,11 @@
 	import PublishDialog from '$lib/components/PublishDialog.svelte'
 	import ClassifyDialog from '$lib/components/ClassifyDialog.svelte'
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
+	import TrimRestore from '$lib/components/TrimRestore.svelte'
+	import { personalTrackUrl, player } from '$lib/player.svelte'
 	import ShareLinkDialog from '$lib/components/ShareLinkDialog.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import { youtubeWatchUrl } from '$lib/youtube'
-	import { personalAudioUrl } from '$lib/types'
 	import { publicLinksLabel } from '$lib/share-client'
 
 	let { data }: { data: PageData } = $props()
@@ -27,6 +28,8 @@
 		source_file_name: string | null
 		duration_s: number | null
 		created_at: string
+		trim_start_s: number | null
+		trim_end_s: number | null
 		publications: Publication[]
 		comment_count: number
 	}
@@ -34,6 +37,14 @@
 	const recording = $derived(data.recording as unknown as Recording)
 	const currentGroup = $derived(data.currentGroup)
 	const publishedHere = $derived(recording.publications.some((p) => p.group_id === currentGroup?.id))
+
+	// Le recadrage défait, le fichier a changé sous la même adresse : le lecteur le recharge.
+	let audioGeneration = $state(0)
+	async function onTrimRestored() {
+		player.reloadPersonal(recording.id, recording.trim_start_s ?? 0)
+		await invalidateAll()
+		audioGeneration += 1
+	}
 
 	// ─── Titre et note ─────────────────────────────────────────────────────
 	let editing = $state(false)
@@ -193,17 +204,30 @@
 	{#if deleteError}<p class="message-error">{deleteError}</p>{/if}
 
 	<div class="player-card">
-		<MediaPlayer
-			trackId={`perso-${recording.id}`}
-			audioSrc={recording.file_path ? personalAudioUrl(recording.id) : null}
-			peaks={data.peaks as number[]}
-			duration={recording.duration_s ?? (data.peaksDuration as number | null)}
-			videoId={recording.youtube_video_id}
-			shared={recording.file_path
-				? { personal: true, recordingId: recording.id, title: recording.title, durationS: recording.duration_s }
-				: null}
-		/>
+		{#key audioGeneration}
+			<MediaPlayer
+				trackId={`perso-${recording.id}`}
+				audioSrc={recording.file_path ? personalTrackUrl(recording.id) : null}
+				peaks={data.peaks as number[]}
+				duration={recording.duration_s ?? (data.peaksDuration as number | null)}
+				videoId={recording.youtube_video_id}
+				shared={recording.file_path
+					? { personal: true, recordingId: recording.id, title: recording.title, durationS: recording.duration_s }
+					: null}
+			/>
+		{/key}
 	</div>
+
+	{#if recording.trim_start_s !== null && recording.trim_end_s !== null}
+		<div class="trim-line">
+			<TrimRestore
+				endpoint={`/api/personal/${recording.id}/trim`}
+				startS={recording.trim_start_s}
+				endS={recording.trim_end_s}
+				onrestored={onTrimRestored}
+			/>
+		</div>
+	{/if}
 
 	<section class="publications">
 		<div class="section-head">
@@ -293,6 +317,7 @@
 	.form-actions { display: flex; gap: 0.5rem; }
 
 	.player-card { border: 1px solid var(--color-border-light); border-radius: var(--radius-lg); padding: 0.9rem; }
+	.trim-line { margin-top: 0.6rem; }
 
 	.publications { margin-top: var(--space-8); padding-top: var(--space-5); border-top: 1px solid var(--color-border-light); }
 	.section-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.6rem; }

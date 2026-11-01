@@ -292,7 +292,7 @@
 					placeholder="Ce que tu veux que le groupe en retienne…"></textarea>
 			</label>
 
-			{#if type === 'recording' && source === 'record'}<TrimNotice trim={audioTrim} durationS={recordedDurationS} />{/if}
+			{#if type === 'recording' && source === 'record'}<TrimNotice trim={audioTrim} durationS={recordedDurationS} fate="kept" />{/if}
 			{#if error}<p class="message-error" role="alert">{error}</p>{/if}
 		</div>
 

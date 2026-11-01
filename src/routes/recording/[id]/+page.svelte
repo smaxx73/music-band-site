@@ -3,7 +3,7 @@
 	import { onMount, tick, untrack } from 'svelte'
 	import { page } from '$app/state'
 	import { afterNavigate, invalidateAll } from '$app/navigation'
-	import { player } from '$lib/player.svelte'
+	import { audioUrl, player } from '$lib/player.svelte'
 	import { formatDateOnly } from '$lib/date'
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte'
 	import CommentsPanel from '$lib/components/CommentsPanel.svelte'
@@ -16,7 +16,8 @@
 	import SongSelect from '$lib/components/SongSelect.svelte'
 	import ShareLinkDialog from '$lib/components/ShareLinkDialog.svelte'
 	import ShareMenu from '$lib/components/ShareMenu.svelte'
-	import { canSharePublicly } from '$lib/types'
+	import { canRestoreTrimmedAudio, canSharePublicly } from '$lib/types'
+	import TrimRestore from '$lib/components/TrimRestore.svelte'
 	import { isPlaceholderSongTitle, sortedWithSong } from '$lib/songs'
 	import AudioEnhanceDialog from '$lib/components/AudioEnhanceDialog.svelte'
 	import type { EnhanceState } from '$lib/audio-enhance'
@@ -27,6 +28,7 @@
 		id: number; take: number; status: string | null; notes: string | null
 		duration_s: number | null; uploaded_by: string; session_id: number; song_id: number
 		file_path: string | null; source_file_name: string | null; enhanced_at: string | null
+		trim_start_s: number | null; trim_end_s: number | null; uploaded_by_user_id: number | null
 		youtube_video_id: string | null; youtube_title: string | null
 		song_title: string; song_composer: string | null; song_key: string | null
 		song_lyrics: string | null; song_music_notes: string | null
@@ -89,7 +91,7 @@
 
 	const playerTrack = $derived({
 		id: recording.id,
-		src: `/audio/${recording.id}.mp3`,
+		src: audioUrl(recording.id),
 		peaks: data.peaks as number[],
 		duration: (recording.duration_s ?? (data as { peaksDuration?: number | null }).peaksDuration) ?? undefined
 	})
@@ -266,9 +268,11 @@
 	// Suivi par l'id seul : `recording` est recréé à chaque `invalidateAll`, et refermer
 	// la fenêtre juste après « Garder la version améliorée » ne doit pas en découler.
 	const recordingId = $derived(recording.id)
+	let measureGeneration = $state(0)
 	$effect(() => {
 		const id = recordingId
 		const audio = hasAudio
+		void measureGeneration
 		enhance = null
 		enhanceFailed = false
 		enhanceOpen = false
@@ -294,6 +298,17 @@
 		// La forme d'onde vient du chargement de la page, recalculée sur le nouveau fichier.
 		await invalidateAll()
 		audioGeneration += 1
+	}
+
+	// Le recadrage défait, ce n'est plus le même son : mesure, forme d'onde et repères changent.
+	const canRestoreTrim = $derived(
+		hasAudio && recording.trim_start_s !== null && canRestoreTrimmedAudio(data.user, data.user?.current_group_id, recording.uploaded_by_user_id)
+	)
+	async function onTrimRestored() {
+		player.reload(recording.id, recording.trim_start_s ?? 0)
+		await invalidateAll()
+		audioGeneration += 1
+		measureGeneration += 1
 	}
 
 	// --- Liens entrants et lien à partager ---
@@ -573,6 +588,18 @@
 		{/if}
 	</div>
 
+	{#if canRestoreTrim && recording.trim_start_s !== null && recording.trim_end_s !== null}
+		<div class="trim-line">
+			<TrimRestore
+				endpoint={`/api/recordings/${recording.id}/trim`}
+				startS={recording.trim_start_s}
+				endS={recording.trim_end_s}
+				blocked={isEnhanced ? "Pour le rétablir, reviens d'abord à l'original du son amélioré." : null}
+				onrestored={onTrimRestored}
+			/>
+		</div>
+	{/if}
+
 	{#if hasAudio && isEnhanced}
 		<p class="enhance-line">
 			<Icon name="sliders" size="0.85rem" /> Son amélioré
@@ -757,6 +784,7 @@
 	}
 
 	/* Sous le lecteur, hors de la partie collée : une proposition, pas une commande. */
+	.trim-line { margin: -1.25rem 0 2rem; }
 	.enhance-line {
 		display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;
 		margin: -1.25rem 0 2rem; font-size: var(--text-sm); color: var(--color-text-muted);
