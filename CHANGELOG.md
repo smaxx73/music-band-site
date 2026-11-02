@@ -13,6 +13,10 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.16.2] — 2026-11-02
+
+Aucune migration.
+
 - **Setlists** : monter, descendre ou retirer un morceau ne referme plus l'édition à chaque clic.
   On fait tous ses changements, puis « Enregistrer » les valide d'un coup, ou « Annuler » les abandonne.
 
