@@ -1571,8 +1571,8 @@ prise du 12 mars, on programme « Sunny », et le jour venu on la jouera.
   doublent pas le glisser : elles le remplacent au doigt, le drag HTML5 n'existant pas sur
   écran tactile — et une setlist se réordonne surtout depuis un téléphone, en répétition.
   Sous 640 px, la poignée disparaît plutôt que de promettre ce qu'elle ne fait pas
-- Chaque changement d'ordre est persisté par `PATCH /api/setlists/[id]/items`, qui réécrit
-  tout le programme dans une transaction. Les positions passent d'abord en négatif : sans
+- L'ordre est un brouillon jusqu'à « Enregistrer », qui le persiste par
+  `PATCH /api/setlists/[id]/items` : l'appel réécrit tout le programme dans une transaction. Les positions passent d'abord en négatif : sans
   cela, `UNIQUE (setlist_id, position)` refuserait les états intermédiaires. Même règle
   au retrait d'un morceau, qui réindexe 1, 2, 3… sans trou
 - Le **temps total** ne se stocke pas : il se somme à la lecture depuis

@@ -100,6 +100,7 @@
 				     surtout depuis un téléphone, en répétition. -->
 				<span class="move">
 					<button
+						type="button"
 						class="move-btn"
 						disabled={busy || i === 0}
 						title="Monter"
@@ -107,6 +108,7 @@
 						onclick={() => onReorder(i, i - 1)}
 					><Icon name="arrow-up" size="0.85rem" /></button>
 					<button
+						type="button"
 						class="move-btn"
 						disabled={busy || i === items.length - 1}
 						title="Descendre"
@@ -115,6 +117,7 @@
 					><Icon name="arrow-down" size="0.85rem" /></button>
 				</span>
 				<button
+					type="button"
 					class="remove-btn"
 					disabled={busy}
 					title="Retirer de la setlist"
