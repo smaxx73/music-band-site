@@ -13,6 +13,8 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.17.0] — 2026-11-07
+
 Aucune migration.
 
 - **Commentaires** : on peut maintenant supprimer un commentaire — l'auteur, ou un admin du groupe.
