@@ -2,7 +2,7 @@ import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 import { commentThread, findCommentThread, reactionSummary } from '$lib/server/comments'
-import { canEditComment } from '$lib/types'
+import { canDeleteGroupContent, canEditComment } from '$lib/types'
 import { notifyMentions } from '$lib/server/notifications'
 
 export const PATCH: RequestHandler = async ({ locals, params, request }) => {
@@ -102,4 +102,42 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		author: locals.user.display_name,
 		...(await reactionSummary(commentId, locals.user.id))
 	})
+}
+
+export const DELETE: RequestHandler = async ({ locals, params }) => {
+	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
+	if (!locals.user.current_group_id) return json({ error: 'Aucun groupe actif.' }, { status: 403 })
+
+	const commentId = parseInt(params.id)
+	if (isNaN(commentId)) return json({ error: 'ID invalide.' }, { status: 400 })
+
+	const [existing] = await sql<{
+		id: number
+		author_user_id: number | null
+		recording_id: number | null
+		setlist_id: number | null
+		post_id: number | null
+	}[]>`
+		SELECT id, author_user_id, recording_id, setlist_id, post_id
+		FROM comments WHERE id = ${commentId}
+	`
+	if (!existing) return json({ error: 'Commentaire introuvable.' }, { status: 404 })
+
+	const target = await findCommentThread(commentThread(existing), locals.user.current_group_id)
+	if (!target) return json({ error: 'Commentaire introuvable.' }, { status: 404 })
+
+	// Supprimer n'est pas modifier : l'auteur et les admins du groupe le peuvent, comme
+	// pour le reste du contenu. Un commentaire sans compte relié n'est supprimable que par un admin.
+	if (!canDeleteGroupContent(locals.user, locals.user.current_group_id, existing.author_user_id)) {
+		return json({ error: "Seul l'auteur ou un admin du groupe peut supprimer ce commentaire." }, { status: 403 })
+	}
+
+	// Les réactions partent en cascade ; les notifications (mention, commentaire) ne portent
+	// pas l'id du commentaire, seulement son ancre dans le lien : on les retire par là.
+	await sql.begin(async (tx) => {
+		await tx`DELETE FROM notifications WHERE link LIKE ${'%#comment-' + commentId}`
+		await tx`DELETE FROM comments WHERE id = ${commentId}`
+	})
+
+	return json({ success: true })
 }

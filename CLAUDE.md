@@ -229,7 +229,6 @@ dans docs/features.md.
 - Purge / archivage des notifications
 - Pagination (à faire quand > 50 éléments) — seul le fil d'actualité (`/fil`) est paginé,
   par curseur : voir « Fil d'actualité » dans docs/features.md
-- Suppression de commentaires (l'édition, elle, existe — voir docs/features.md)
 - Tests automatisés couvrant l'application : seuls quelques modules purs sont testés
   (`tests/` : éditeur ABC, ChordPro, chaîne d'amélioration du son, reconnexion audio, coupe
   d'un mp3, segments d'un fichier recadré),

@@ -13,6 +13,11 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+Aucune migration.
+
+- **Commentaires** : on peut maintenant supprimer un commentaire — l'auteur, ou un admin du groupe.
+  Un lien « Supprimer » apparaît à côté de « Modifier », avec une confirmation.
+
 ## [1.16.2] — 2026-11-02
 
 Aucune migration.

@@ -3,11 +3,12 @@
 	import { page } from '$app/state'
 	import { formatTimecode, parseTimecode } from '$lib/youtube'
 	import { formatDateTime, formatDateTimeFull } from '$lib/date'
-	import { canEditComment, threadAnchorable, threadHref } from '$lib/types'
+	import { canDeleteGroupContent, canEditComment, threadAnchorable, threadHref } from '$lib/types'
 	import { commentParts, commentVideos } from '$lib/comment-content'
 	import YouTubeEmbed from '$lib/components/YouTubeEmbed.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import Avatar from '$lib/components/Avatar.svelte'
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
 	import type { CommentThread, CommentWithReactions, ReactionValue } from '$lib/types'
 
 	type ReactionState = {
@@ -170,6 +171,31 @@
 			editError = 'Erreur réseau.'
 		} finally {
 			saving = false
+		}
+	}
+
+	let deleting = $state<CommentWithReactions | null>(null)
+	let deleteBusy = $state(false)
+	let deleteError = $state<string | null>(null)
+
+	async function confirmDelete() {
+		if (!deleting || deleteBusy) return
+		const comment = deleting
+		deleteBusy = true
+		deleteError = null
+		try {
+			const res = await fetch(`/api/comments/${comment.id}`, { method: 'DELETE' })
+			if (!res.ok) {
+				const json = await res.json().catch(() => ({}))
+				deleteError = json.error ?? 'Erreur.'
+				return
+			}
+			onCommentsChange(comments.filter((current) => current.id !== comment.id))
+			deleting = null
+		} catch {
+			deleteError = 'Erreur réseau.'
+		} finally {
+			deleteBusy = false
 		}
 	}
 
@@ -478,6 +504,9 @@
 				{#if editingId !== comment.id && canEditComment(page.data.user, comment.author_user_id)}
 					<button class="edit-link" onclick={() => startEdit(comment)}>Modifier</button>
 				{/if}
+				{#if editingId !== comment.id && canDeleteGroupContent(page.data.user, page.data.user?.current_group_id, comment.author_user_id)}
+					<button class="edit-link" onclick={() => { deleteError = null; deleting = comment }}>Supprimer</button>
+				{/if}
 			</div>
 			{#if visibleReactors?.commentId === comment.id}
 				{@const visibleNames = namesFor(reactions, visibleReactors.value)}
@@ -489,6 +518,17 @@
 		</li>
 	{/each}
 </ul>
+
+<ConfirmDialog
+	open={deleting !== null}
+	level="danger"
+	title="Supprimer ce commentaire ?"
+	message={(deleteError ? deleteError + ' ' : '') + 'Le commentaire et ses pouces seront supprimés définitivement, ainsi que les notifications qui y renvoient.'}
+	confirmLabel="Supprimer"
+	busy={deleteBusy}
+	onConfirm={confirmDelete}
+	onCancel={() => (deleting = null)}
+/>
 
 <style>
 	:global(.comment.highlight) {
@@ -724,6 +764,7 @@
 
 	/* Les deux poussent à droite : sans cela, l'espace libre se partagerait entre eux. */
 	.link-copy + .edit-link { margin-left: 0.6rem; }
+	.edit-link + .edit-link { margin-left: 0.6rem; }
 
 	.edit-form textarea {
 		width: 100%;

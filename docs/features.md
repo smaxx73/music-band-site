@@ -1478,6 +1478,14 @@ distincte des commentaires, qui sont datés et signés.
 - Pas de notification au groupe : une modification n'annonce pas de nouveau contenu.
   Seule exception, un membre ajouté en mention par la modification est prévenu
 
+## Suppression des commentaires
+
+- Lien « Supprimer » à côté de « Modifier », confirmation `danger`. **Auteur et admins du
+  groupe** (`canDeleteGroupContent`) : contrairement à l'édition, un admin peut retirer le
+  commentaire d'autrui. Un commentaire sans compte relié n'est supprimable que par un admin
+- `DELETE /api/comments/[id]` : réactions en cascade, et les notifications qui renvoient au
+  commentaire (`#comment-<id>`) sont retirées. Sans retour : pas de corbeille
+
 ## Liens et vidéos dans les commentaires
 
 - Toute URL `http(s)` écrite dans un commentaire devient un lien cliquable, ouvert dans un
