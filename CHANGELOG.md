@@ -17,6 +17,9 @@ Aucune migration.
 
 - **Commentaires** : on peut maintenant supprimer un commentaire — l'auteur, ou un admin du groupe.
   Un lien « Supprimer » apparaît à côté de « Modifier », avec une confirmation.
+- **Commentaires** : le repère se règle plus facilement à la modification — boutons Général / Ancré,
+  −5 s / −1 s / +1 s / +5 s, et « Prendre la position du lecteur ». La saisie à la main se fait
+  en minutes et secondes au pavé numérique : sur téléphone, le clavier n'avait pas de « : ».
 
 ## [1.16.2] — 2026-11-02
 

@@ -123,16 +123,49 @@
 	let editingId = $state<number | null>(null)
 	let draft = $state('')
 	let timestampDraft = $state('')
+	// Minutes et secondes se saisissent chacune au pavé numérique : le clavier d'un
+	// téléphone n'a pas de « : » sur son pavé, et « 83 » pourrait se lire 83 s comme 8:3.
+	let minDraft = $state('')
+	let secDraft = $state('')
 	let saving = $state(false)
 	let editError = $state<string | null>(null)
+
+	/** Pose le repère (en secondes entières) ou le retire (`null`), champs compris. */
+	function setTimestamp(seconds: number | null) {
+		if (seconds === null) {
+			timestampDraft = ''
+			minDraft = ''
+			secDraft = ''
+			return
+		}
+		const total = Math.max(0, Math.floor(seconds))
+		timestampDraft = formatTimecode(total)
+		minDraft = String(Math.floor(total / 60))
+		secDraft = String(total % 60).padStart(2, '0')
+	}
+
+	// En cours de frappe on ne réécrit pas les champs (« 75 » reste « 75 » jusqu'à la fin
+	// de la saisie), on tient juste le repère à jour ; `onchange` remet les champs en forme.
+	function onTimeInput() {
+		minDraft = minDraft.replace(/\D/g, '')
+		secDraft = secDraft.replace(/\D/g, '')
+		const total = (parseInt(minDraft, 10) || 0) * 60 + (parseInt(secDraft, 10) || 0)
+		timestampDraft = formatTimecode(total)
+	}
 
 	function startEdit(comment: CommentWithReactions) {
 		editingId = comment.id
 		draft = comment.content
-		timestampDraft = comment.timestamp_s === null || comment.timestamp_s === undefined
-			? ''
-			: formatTimecode(comment.timestamp_s)
+		setTimestamp(comment.timestamp_s ?? null)
 		editError = null
+	}
+
+	// Un repère se règle à l'oreille : on part de celui qui est là, ou de la lecture, et on
+	// le décale, plutôt que de retaper un « mm:ss » sur un clavier de téléphone.
+	function shiftTimestamp(delta: number) {
+		const current = parseTimecode(timestampDraft)
+		const base = current !== null && Number.isFinite(current) ? current : (currentTime ?? 0)
+		setTimestamp(Math.round(base + delta))
 	}
 
 	function cancelEdit() {
@@ -394,25 +427,64 @@
 						></textarea>
 					{#if thread === null || threadAnchorable(thread)}
 					<div class="timestamp-editor">
-						<label for="comment-timestamp-{comment.id}">Repère dans la prise</label>
-						<input
-							id="comment-timestamp-{comment.id}"
-							type="text"
-							inputmode="decimal"
-							placeholder="mm:ss"
-							aria-describedby="comment-timestamp-help-{comment.id}"
-							bind:value={timestampDraft}
-							disabled={saving}
-							onkeydown={(e) => onEditKeydown(e, comment)}
-						/>
-						<span id="comment-timestamp-help-{comment.id}">Secondes, mm:ss ou h:mm:ss</span>
-						{#if timestampDraft.trim()}
+						<span class="te-label" id="comment-timestamp-label-{comment.id}">Repère</span>
+						<div class="te-choice" role="group" aria-labelledby="comment-timestamp-label-{comment.id}">
 							<button
 								type="button"
-								class="remove-timestamp"
+								class="btn btn-sm {timestampDraft.trim() ? 'btn-ghost' : 'btn-secondary'}"
+								aria-pressed={!timestampDraft.trim()}
 								disabled={saving}
-								onclick={() => (timestampDraft = '')}
-							>Supprimer le timestamp</button>
+								onclick={() => setTimestamp(null)}
+							>Général</button>
+							<button
+								type="button"
+								class="btn btn-sm {timestampDraft.trim() ? 'btn-secondary' : 'btn-ghost'}"
+								aria-pressed={!!timestampDraft.trim()}
+								disabled={saving}
+								onclick={() => { if (!timestampDraft.trim()) setTimestamp(currentTime ?? 0) }}
+							><Icon name="clock" size="0.85rem" /> Ancré</button>
+						</div>
+						{#if timestampDraft.trim()}
+							<button type="button" class="btn btn-ghost btn-sm" aria-label="Reculer de 5 secondes" disabled={saving} onclick={() => shiftTimestamp(-5)}>−5 s</button>
+							<button type="button" class="btn btn-ghost btn-sm" aria-label="Reculer d'une seconde" disabled={saving} onclick={() => shiftTimestamp(-1)}>−1 s</button>
+							<span class="te-time" role="group" aria-label="Repère dans la prise">
+								<input
+									id="comment-timestamp-{comment.id}"
+									type="text"
+									inputmode="numeric"
+									pattern="[0-9]*"
+									maxlength="3"
+									placeholder="0"
+									aria-label="Minutes"
+									bind:value={minDraft}
+									oninput={onTimeInput}
+									onchange={() => setTimestamp(parseTimecode(timestampDraft))}
+									disabled={saving}
+									onkeydown={(e) => onEditKeydown(e, comment)}
+								/>
+								<span aria-hidden="true">min</span>
+								<input
+									type="text"
+									inputmode="numeric"
+									pattern="[0-9]*"
+									maxlength="2"
+									placeholder="00"
+									aria-label="Secondes"
+									bind:value={secDraft}
+									oninput={onTimeInput}
+									onchange={() => setTimestamp(parseTimecode(timestampDraft))}
+									disabled={saving}
+									onkeydown={(e) => onEditKeydown(e, comment)}
+								/>
+								<span aria-hidden="true">s</span>
+							</span>
+							<button type="button" class="btn btn-ghost btn-sm" aria-label="Avancer d'une seconde" disabled={saving} onclick={() => shiftTimestamp(1)}>+1 s</button>
+							<button type="button" class="btn btn-ghost btn-sm" aria-label="Avancer de 5 secondes" disabled={saving} onclick={() => shiftTimestamp(5)}>+5 s</button>
+						{/if}
+						{#if currentTime !== null && isFinite(currentTime)}
+							<button type="button" class="btn-link" disabled={saving} onclick={() => setTimestamp(currentTime)}>
+								Prendre la position du lecteur ({formatTimecode(currentTime)})
+							</button>
 						{/if}
 					</div>
 					{/if}
@@ -784,29 +856,19 @@
 		color: var(--color-text-secondary);
 	}
 
-	.timestamp-editor label { font-weight: 600; }
+	.te-label { font-weight: 600; color: var(--color-text-secondary); }
+	.te-choice { display: inline-flex; gap: 0.25rem; }
+
+	.te-time { display: inline-flex; align-items: center; gap: 0.25rem; color: var(--color-text-muted); }
 
 	.timestamp-editor input {
-		width: 6.5rem;
+		width: 3rem;
+		text-align: right;
 		box-sizing: border-box;
 		padding: 0.25rem 0.4rem;
 		font: inherit;
 		font-variant-numeric: tabular-nums;
 	}
-
-	.timestamp-editor span { color: var(--color-text-muted); }
-
-	.remove-timestamp {
-		background: none;
-		border: none;
-		padding: 0;
-		font: inherit;
-		color: var(--color-text-muted);
-		text-decoration: underline;
-		cursor: pointer;
-	}
-
-	.remove-timestamp:hover:not(:disabled) { color: var(--color-text); }
 
 	.edit-actions {
 		display: flex;

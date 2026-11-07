@@ -1467,6 +1467,10 @@ distincte des commentaires, qui sont datés et signés.
   (antérieur à la migration 018) n'est modifiable par personne. L'API répond `403` sinon
 - Le texte et l'ancrage (`timestamp_s`) sont modifiables. L'ancrage accepte les secondes,
   `mm:ss` ou `h:mm:ss` et peut être supprimé pour rendre le commentaire général
+- Le repère se règle comme à l'écriture : **Général / Ancré** en deux boutons nommés, **−5 s, −1 s, +1 s, +5 s**
+  autour de deux champs **minutes / secondes** au pavé numérique (le clavier d'un téléphone n'a pas de « : » sur
+  le sien ; au-delà d'une heure, les minutes dépassent 59), on décale plutôt que de retaper, et « Prendre la position du lecteur » quand
+  un lecteur est monté. Passer en « Ancré » part de la position du lecteur, sinon de 0:00
 - `PATCH /api/comments/[id]` avec `{ content, timestamp_s }` pose `edited_at` ; « (modifié) » s'affiche
   à côté de la date, la date de modification au survol. Les réactions sont conservées
 - L'horodatage d'un commentaire **se réduit à l'heure quand il date du jour**
