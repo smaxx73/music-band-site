@@ -13,6 +13,8 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.20.0] — 2026-11-08
+
 Migration à appliquer : `055_event_program.sql`.
 
 - **Agenda** : une date peut porter un programme de travail, la liste des morceaux à travailler,
