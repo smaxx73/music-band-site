@@ -132,6 +132,10 @@ NODE_ENV=production
   jamais par la session, et passent par `src/lib/server/attendance.ts`. Une indisponibilité
   ne répond pas à la place du membre. La notification `attendance` n'est pas désactivable,
   comme une mention. Voir « Présences » dans docs/features.md
+- Une écoute de prise se compte dans le navigateur (`ListenMeter`, `src/lib/listen-meter.ts`,
+  branché sur le lecteur partagé), jamais dans `/audio/` : les requêtes par plages et le
+  préchargement n'y disent rien de ce qui a été entendu. Une ligne par membre, prise et jour,
+  via `src/lib/server/listens.ts`. Voir « Écoutes d'une prise » dans docs/features.md
 - Une prise peut n'avoir qu'une vidéo YouTube, sans fichier : tout code qui touche à `AUDIO_DIR`,
   au lecteur audio partagé ou aux playlists vérifie `file_path IS NOT NULL`. Voir « Prises vidéo
   YouTube » dans docs/features.md
@@ -231,7 +235,7 @@ dans docs/features.md.
   par curseur : voir « Fil d'actualité » dans docs/features.md
 - Tests automatisés couvrant l'application : seuls quelques modules purs sont testés
   (`tests/` : éditeur ABC, ChordPro, chaîne d'amélioration du son, reconnexion audio, coupe
-  d'un mp3, segments d'un fichier recadré),
+  d'un mp3, segments d'un fichier recadré, seuil d'une écoute),
   lancés par `pnpm test`. Ni routes, ni composants, ni SQL
 - Autres outils d'amélioration audio (fondus, réduction de bruit, déclippage, correction
   d'un son trop brillant) : seules la découpe sur les blancs, la recopie d'un canal muet et

@@ -50,6 +50,12 @@
 		sont visibles que par vous, tant que vous ne les publiez pas dans un groupe.
 	</li>
 	<li>
+		<strong>Écoutes des prises</strong> : quand vous écoutez au moins 30 secondes d'une prise
+		d'un groupe (ou la moitié d'une prise plus courte), le jour de cette écoute est enregistré,
+		une fois par jour au plus. Ni l'heure, ni la durée écoutée, ni les écoutes de votre espace
+		personnel ou d'un lien d'écoute public.
+	</li>
+	<li>
 		<strong>Notifications</strong> générées par l'activité de vos groupes.
 	</li>
 	<li>
@@ -76,7 +82,8 @@
 		Les <strong>membres de chacun de vos groupes</strong> voient ce que vous y déposez, ainsi
 		que votre nom affiché. Les membres des groupes auxquels vous appartenez voient vos
 		indisponibilités d'agenda et votre photo de profil ; ceux d'un groupe voient les
-		instruments que vous y avez indiqués.
+		instruments que vous y avez indiqués, et les prises que vous y avez écoutées (avec le jour
+		de votre dernière écoute).
 	</li>
 	<li>
 		Les <strong>administrateurs</strong> de la plateforme gèrent les comptes et les groupes.
@@ -141,6 +148,7 @@
 		avec le groupe auquel ils appartiennent. Votre espace personnel est supprimé avec votre
 		compte.
 	</li>
+	<li>Écoutes : tant que la prise existe ; supprimées avec votre compte.</li>
 	<li>Fichiers en attente de découpe : 7 jours au plus.</li>
 	<li>Journaux techniques du serveur web : {LEGAL.accessLogRetentionDays} jours au plus.</li>
 </ul>

@@ -48,6 +48,11 @@
 		if (typeof time === 'number' && Number.isFinite(time)) player.currentTime = Math.max(0, time)
 	}
 
+	function onTimeUpdate() {
+		syncTime()
+		if (el) player.noteProgress(el.currentTime, el.paused)
+	}
+
 	function syncDuration() {
 		const duration = el?.duration
 		if (typeof duration === 'number' && Number.isFinite(duration) && duration > 0) {
@@ -60,8 +65,11 @@
 	bind:this={el}
 	preload="metadata"
 	onplay={() => (player.isPlaying = true)}
-	onpause={() => (player.isPlaying = false)}
-	ontimeupdate={syncTime}
+	onpause={() => {
+		player.isPlaying = false
+		player.noteProgress(el?.currentTime ?? 0, true)
+	}}
+	ontimeupdate={onTimeUpdate}
 	onseeking={syncTime}
 	onseeked={syncTime}
 	onloadedmetadata={syncDuration}

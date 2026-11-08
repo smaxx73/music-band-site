@@ -6,6 +6,7 @@ import { loadPeaks } from '$lib/server/peaks'
 import { commentsWithReactions } from '$lib/server/comments'
 import { loginRedirect } from '$lib/redirect'
 import { activeShareCount } from '$lib/server/share-links'
+import { listenersOf } from '$lib/server/listens'
 
 export const load: PageServerLoad = async ({ locals, params, cookies, url, isDataRequest }) => {
 	if (!locals.user) redirect(302, loginRedirect(url))
@@ -39,7 +40,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 		error(404, 'Prise introuvable')
 	}
 
-	const [comments, peaksData, siblings, groupMembers, songs, shareCount] = await Promise.all([
+	const [comments, peaksData, siblings, groupMembers, songs, shareCount, listeners] = await Promise.all([
 		commentsWithReactions({ kind: 'recording', id }, locals.user.id),
 		// Une prise vidéo seule n'a pas de fichier, donc pas de forme d'onde.
 		recording.file_path
@@ -66,7 +67,8 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 			ORDER BY title
 		`,
 		// Écoutable hors du groupe : tous les membres doivent le voir, pas seulement qui a créé le lien.
-		recording.file_path ? activeShareCount({ kind: 'recording', id }) : Promise.resolve(0)
+		recording.file_path ? activeShareCount({ kind: 'recording', id }) : Promise.resolve(0),
+		listenersOf(id, recording.uploaded_by_user_id as number | null)
 	])
 
 	const siblingList = siblings as unknown as { id: number; take: number }[]
@@ -87,6 +89,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 		songs: [...songs],
 		prevRecording,
 		nextRecording,
-		shareCount
+		shareCount,
+		listeners: [...listeners]
 	}
 }

@@ -10,6 +10,7 @@
 
 import { untrack } from 'svelte'
 import { reconnectAudio } from '$lib/audio-reconnect'
+import { ListenMeter } from '$lib/listen-meter'
 import { personalAudioUrl } from '$lib/types'
 
 /** Une prise du groupe. */
@@ -67,6 +68,9 @@ export function sameTrack(a: PlayerTrack | null | undefined, b: PlayerTrack | nu
 
 class SharedPlayer {
 	#reconnect: ReturnType<typeof reconnectAudio> | null = null
+	// Toutes les prises jouées passent par ce média, y compris depuis leur page : c'est
+	// donc ici, et seulement ici, qu'une écoute se compte.
+	#listen = new ListenMeter()
 	track = $state<PlayerTrack | null>(null)
 	media = $state<HTMLAudioElement | null>(null)
 	isPlaying = $state(false)
@@ -139,6 +143,7 @@ class SharedPlayer {
 	 */
 	handleEnded() {
 		this.isPlaying = false
+		this.#listen.reset()
 		if (this.viewCount === 0) this.next()
 		else this.queue = []
 	}
@@ -149,6 +154,7 @@ class SharedPlayer {
 
 		if (isNew) {
 			this.#reconnect?.reset()
+			this.#listen.reset()
 			this.currentTime = 0
 			this.duration = next.durationS ?? 0
 			if (this.media) this.media.src = trackUrl(next)
@@ -191,6 +197,24 @@ class SharedPlayer {
 			{ once: true }
 		)
 		media.src = src
+	}
+
+	/**
+	 * Position lue pendant la lecture (`timeupdate` du média). Une écoute acquise est
+	 * envoyée une fois ; un échec réseau la perd sans rien gêner. Les enregistrements
+	 * perso ne se comptent pas : ils ne sont qu'à leur propriétaire.
+	 */
+	noteProgress(time: number, paused: boolean) {
+		const track = this.track
+		if (!track || track.personal) return
+		if (paused) {
+			this.#listen.pause()
+			return
+		}
+		const duration = Number.isFinite(this.duration) && this.duration > 0 ? this.duration : track.durationS
+		if (!this.#listen.advance(time, duration)) return
+		// `keepalive` : la requête part même si l'onglet se ferme juste après.
+		fetch(`/api/recordings/${track.recordingId}/listens`, { method: 'POST', keepalive: true }).catch(() => {})
 	}
 
 	play() {

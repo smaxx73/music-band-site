@@ -4,7 +4,7 @@
 	import { page } from '$app/state'
 	import { afterNavigate, invalidateAll } from '$app/navigation'
 	import { audioUrl, player } from '$lib/player.svelte'
-	import { formatDateOnly } from '$lib/date'
+	import { formatDateOnly, nearDayLabel } from '$lib/date'
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte'
 	import CommentsPanel from '$lib/components/CommentsPanel.svelte'
 	import SongDetails from '$lib/components/SongDetails.svelte'
@@ -48,6 +48,21 @@
 	const showVideo = $derived(!!recording.youtube_video_id && view === 'video')
 	let comments = $derived(data.comments as unknown as Comment[])
 	const groupMembers = $derived(data.groupMembers as unknown as MentionMember[])
+
+	// « Marc, Julie et 3 autres », comme les pouces d'une publication ; chacun avec sa
+	// dernière écoute au survol.
+	const listenersLine = $derived.by(() => {
+		const names = data.listeners.map((l) => l.name)
+		if (names.length === 0) return null
+		return names.length <= 3
+			? names.join(', ').replace(/, ([^,]*)$/, ' et $1')
+			: `${names.slice(0, 2).join(', ')} et ${names.length - 2} autres`
+	})
+	const listenersTitle = $derived(
+		data.listeners
+			.map((l) => `${l.name} : ${nearDayLabel(l.last_day)?.toLowerCase() ?? `le ${formatDateOnly(l.last_day, { day: 'numeric', month: 'short' })}`}`)
+			.join('\n')
+	)
 
 	type PlayerState = {
 		currentTime: number
@@ -411,6 +426,13 @@
 				     migration 023, déposées quand le nom d'origine n'était pas conservé. -->
 				<div class="meta file-meta" class:fallback={!recording.source_file_name}>
 					<Icon name="waveform" size="0.85rem" /> {recording.source_file_name ?? recording.file_path}
+				</div>
+			{/if}
+			{#if listenersLine}
+				<!-- Son déposant n'y figure pas : il l'écoute pour la vérifier, la question est
+				     de savoir si les autres l'ont entendue. -->
+				<div class="meta file-meta" title={listenersTitle}>
+					<Icon name="headphones" size="0.85rem" /> Écoutée par {listenersLine}
 				</div>
 			{/if}
 			{#if recording.youtube_video_id}

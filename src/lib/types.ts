@@ -267,6 +267,8 @@ export type RecordingListItem = Pick<
 > & {
 	comment_count: number
 	share_count: number
+	/** Membres qui l'ont écoutée, sans son déposant (`src/lib/server/listens.ts`). */
+	listener_count: number
 }
 
 /**

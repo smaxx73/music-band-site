@@ -13,6 +13,14 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+Migration : `054_recording_listens.sql`.
+
+- **Prises** : on voit maintenant qui a écouté une prise. Sur sa page, « Écoutée par Marc, Julie
+  et 2 autres » (le jour de la dernière écoute de chacun au survol) ; dans les listes d'une session
+  ou d'un morceau, le nombre d'auditeurs à côté du déposant. Une écoute compte à partir de 30 s
+  (ou de la moitié d'une prise courte), une fois par jour, et celles du déposant ne comptent pas.
+  Les écoutes ne sont comptées qu'à partir de cette version.
+
 ## [1.17.0] — 2026-11-07
 
 Aucune migration.

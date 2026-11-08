@@ -1458,6 +1458,38 @@ distincte des commentaires, qui sont datés et signés.
   sous 640 px c'est l'entrée du menu ⋮ qui la propose
 - Pas de notification : une note n'annonce pas de nouveau contenu au groupe
 
+## Écoutes d'une prise
+
+Savoir si les autres ont entendu la prise qu'on a déposée, et plus tard repérer celles
+que personne n'écoute plus — c'est le préalable à tout rangement pour gagner de la place.
+
+- **Compté par le navigateur, pas par le serveur audio.** `/audio/[id]` reçoit des requêtes
+  par plages, du préchargement, des sauts : une écoute y ressemble à dix, et un survol à une
+  écoute. Le lecteur partagé (`player.svelte.ts`) mesure le temps **réellement lu**
+  (`ListenMeter`, `src/lib/listen-meter.ts`) : un déplacement dans le morceau (⏭ +10 s, clic
+  sur la forme d'onde) et l'écart d'une pause ne comptent pas. Toutes les prises jouées
+  passent par ce lecteur, y compris depuis leur page
+- **Une écoute = 30 s lues**, ou la moitié d'une prise plus courte. Envoyée une fois par
+  lecture (`POST /api/recordings/[id]/listens`) ; finir la prise et la relancer en refait une
+- **Une ligne par membre, par prise et par jour** (`recording_listens`, migration 054) :
+  réécouter dix fois le même passage un soir reste une écoute. Le jour suffit, ni l'heure ni
+  la durée écoutée ne sont gardées
+- **Le déposant ne compte pas** parmi les auditeurs affichés : il écoute sa prise pour la
+  vérifier, et la question est de savoir si les autres l'ont entendue. Ses écoutes sont
+  gardées quand même
+- **Où ça se lit** : sur `/recording/[id]`, « Écoutée par Marc, Julie et 2 autres » sous le
+  nom du fichier, le jour de la dernière écoute de chacun au survol ; dans les vues session
+  et morceau, le nombre d'auditeurs dans la provenance, à côté du déposant. Rien quand
+  personne d'autre ne l'a écoutée
+- **Pas compté** : les enregistrements perso (ils ne sont qu'à leur propriétaire), les liens
+  d'écoute publics (voir « Lien d'écoute public » : la dernière ouverture suffit), la vidéo
+  YouTube d'une prise, et l'écoute comparée de l'amélioration du son
+- Les écoutes partent avec la prise et avec le compte (`ON DELETE CASCADE`). Un membre qui
+  quitte le groupe reste parmi les auditeurs : il a écouté
+- **Rien avant la migration** : une prise ancienne n'est « jamais écoutée » que depuis le
+  déploiement. Un critère « pas écoutée depuis… » ne vaudra qu'après quelques mois
+- Pas de notification, pas de classement des prises les plus écoutées
+
 ## Édition des commentaires
 
 - Lien « Modifier » sous un commentaire, depuis le lecteur comme depuis les listes dépliées

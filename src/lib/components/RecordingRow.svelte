@@ -58,6 +58,9 @@
 			: (recording.youtube_title ?? 'Vidéo YouTube')
 	)
 	const hasAudio = $derived(!!recording.file_path)
+	const listenersLabel = $derived(
+		`Écoutée par ${recording.listener_count} membre${recording.listener_count > 1 ? 's' : ''}, sans compter son déposant`
+	)
 
 	// La prise que joue le mini-lecteur se signale dans la liste, comme la piste en
 	// cours d'une plateforme de streaming : on la retrouve sans lire la barre du bas.
@@ -255,6 +258,11 @@
 			title={sourceTitle}
 		>{sourceName}</span>
 		· {recording.uploaded_by}
+	{/if}
+	<!-- Un renseignement, pas une commande : il se lit dans la provenance, et les noms
+	     sont sur la page de la prise. -->
+	{#if recording.listener_count > 0}
+		· <span class="listeners" title={listenersLabel}><Icon name="headphones" size="0.8rem" label={listenersLabel} /> {recording.listener_count}</span>
 	{/if}
 {/snippet}
 
@@ -701,6 +709,7 @@
 
 	.file-name { color: var(--color-text-secondary); }
 	.file-name.fallback { color: var(--color-text-muted); font-style: italic; }
+	.listeners { white-space: nowrap; }
 
 	.note-toggle {
 		display: flex;

@@ -346,6 +346,17 @@ CREATE TABLE share_links (
     CONSTRAINT share_links_target CHECK (num_nonnulls(recording_id, personal_recording_id) = 1)
 );
 
+-- Écoutes d'une prise par les membres (migration 054) : une ligne par membre, prise et jour.
+-- C'est le navigateur qui dit qu'il y a eu écoute (30 s lues, ou la moitié d'une prise
+-- courte) — voir src/lib/listen-meter.ts et src/lib/server/listens.ts. Ni l'espace perso,
+-- ni les liens d'écoute publics.
+CREATE TABLE recording_listens (
+    recording_id INTEGER NOT NULL REFERENCES recordings(id) ON DELETE CASCADE,
+    user_id      INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    day          DATE NOT NULL DEFAULT CURRENT_DATE,
+    PRIMARY KEY (recording_id, user_id, day)
+);
+
 -- Lieux du groupe (migration 039) : une étiquette (« Chez Élise ») et, si on la connaît,
 -- son adresse. Gérés depuis /group par les admins du groupe, proposés à la saisie du lieu
 -- d'une session. La session porte l'étiquette (`location`) ; l'adresse se relit ici.
@@ -490,6 +501,7 @@ CREATE INDEX idx_comments_post          ON comments(post_id) WHERE post_id IS NO
 CREATE INDEX idx_share_links_recording  ON share_links(recording_id) WHERE recording_id IS NOT NULL;
 CREATE INDEX idx_share_links_personal   ON share_links(personal_recording_id) WHERE personal_recording_id IS NOT NULL;
 CREATE UNIQUE INDEX group_places_label  ON group_places (group_id, lower(btrim(label)));
+CREATE INDEX idx_recording_listens_user ON recording_listens(user_id);
 -- Feuilles de répétition (voir migration 041)
 CREATE TABLE score_documents (
     id SERIAL PRIMARY KEY,

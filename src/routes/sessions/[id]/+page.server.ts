@@ -66,7 +66,10 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 				s.status   AS song_status,
 				floor(EXTRACT(EPOCH FROM sc.updated_at) * 1000)::float8 AS song_cover_version,
 				COUNT(c.id)::int AS comment_count,
-				(SELECT COUNT(*)::int FROM share_links sl WHERE sl.recording_id = r.id AND sl.expires_at > now()) AS share_count
+				(SELECT COUNT(*)::int FROM share_links sl WHERE sl.recording_id = r.id AND sl.expires_at > now()) AS share_count,
+				-- Le déposant écoute pour vérifier : « écoutée par » ne compte que les autres.
+				(SELECT COUNT(DISTINCT l.user_id)::int FROM recording_listens l
+				 WHERE l.recording_id = r.id AND l.user_id IS DISTINCT FROM r.uploaded_by_user_id) AS listener_count
 			FROM recordings r
 			JOIN songs s ON s.id = r.song_id
 			LEFT JOIN song_covers sc ON sc.song_id = s.id
@@ -96,7 +99,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 		recordings: {
 			id: number; take: number; status: string | null; notes: string | null
 			duration_s: number | null; uploaded_by: string; uploaded_by_user_id: number | null
-			comment_count: number; share_count: number; file_path: string | null; source_file_name: string | null
+			comment_count: number; share_count: number; listener_count: number; file_path: string | null; source_file_name: string | null
 			youtube_video_id: string | null; youtube_title: string | null
 		}[]
 	}>()
@@ -127,6 +130,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 			uploaded_by_user_id: row.uploaded_by_user_id,
 			comment_count: row.comment_count,
 			share_count: row.share_count,
+			listener_count: row.listener_count,
 			file_path: row.file_path,
 			// Repli sur le nom disque pour les prises d'avant la migration 023,
 			// qui n'ont jamais eu de nom d'origine enregistré.

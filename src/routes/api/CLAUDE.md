@@ -44,6 +44,7 @@ api/recordings/[id]/enhance/+server.ts
 api/recordings/[id]/enhance/preview/+server.ts
 api/recordings/[id]/enhance/audio/+server.ts
 api/recordings/[id]/trim/+server.ts
+api/recordings/[id]/listens/+server.ts
 api/youtube/+server.ts
 api/comments/+server.ts
 api/comments/[id]/+server.ts
@@ -174,6 +175,12 @@ du groupe (`canRestoreTrimmedAudio`, `403` sinon), `409` si la prise n'est pas r
 son son est amélioré. Les repères des commentaires sont décalés d'autant, la mesure est
 effacée. `DELETE /api/personal/[id]/trim` fait de même pour le propriétaire seul (`404` sinon).
 Passer par `src/lib/server/audio-trim.ts`.
+
+Une **écoute** (`POST /api/recordings/[id]/listens`, sans corps) est envoyée par le lecteur
+partagé quand 30 s d'une prise ont été lues (`src/lib/listen-meter.ts`). Tout membre, pour une
+prise avec piste audio du groupe actif (`404` sinon) ; une ligne par membre, prise et jour,
+un second envoi le même jour ne change rien (`201` quand même). Passer par
+`src/lib/server/listens.ts`.
 
 La **pochette** d'un morceau (`api/songs/[id]/cover`) est groupe-scopée : tout membre du
 groupe actif la dépose (`POST`, multipart, champ `cover`, 8 Mo au plus) ou la retire
