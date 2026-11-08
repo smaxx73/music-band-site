@@ -13,6 +13,8 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.18.1] — 2026-11-08
+
 Aucune migration.
 
 - **Prises** : les écoutes de celui qui a déposé la prise comptent maintenant comme les autres.
