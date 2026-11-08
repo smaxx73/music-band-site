@@ -1192,17 +1192,21 @@ Trois mises en page, toutes dans `src/routes/+layout.svelte` :
   rail, rond central de la barre d'onglets au téléphone, où le panneau monte du bas. Sans
   groupe actif, ne restent qu'Enregistrer et le dépôt dans l'espace perso
 - **Plus** (`/plus`) : ce que la barre d'onglets et le rail ne portent pas. D'abord une
-  section au nom du groupe actif — Fil (en tête : il n'a pas d'onglet), Agenda, Playlists,
+  section au nom du groupe actif — Fil (en tête : il n'a pas d'onglet), Playlists,
   Setlists, puis « Membres, lieux et réseaux » (`/group`) —, ensuite « Changer de groupe »
   avec les **autres** groupes seulement, enfin espace perso, profil, admin, déconnexion,
-  pages légales et version. Ni le groupe actif ni le tableau de bord n'y sont répétés : la
-  barre du haut montre déjà le premier, l'onglet « Accueil » mène au second. Avec un seul
+  pages légales et version. Ni le groupe actif, ni l'agenda, ni le tableau de bord n'y sont
+  répétés : la barre du haut porte les deux premiers, l'onglet « Accueil » mène au dernier. Avec un seul
   groupe, la section « Changer de groupe » disparaît. L'onglet s'allume aussi sur chacune
   de ces pages
 - Un onglet s'allume sur les pages qu'il contient : une prise est sous « Sessions ». Le lien
   actif porte `aria-current` (`page` sur la page même, `true` dans sa section)
 - La cloche des notifications reste dans la barre du haut à toutes les largeurs ; le
   logo BandStash mène au tableau de bord
+- **Agenda au téléphone** : une icône dans la barre du haut, à gauche de la cloche (avec un
+  groupe actif). On y vient hors répétition, voir le mois ou poser une indisponibilité : il
+  ne prend pas un des cinq onglets, gardés pour ce qu'on ouvre en répétition. C'est le seul
+  raccourci de navigation de cette barre, qui sinon ne porte que du contexte
 - **Fil d'Ariane** : un seul chemin par page (une prise : « Sessions / date / Morceau ·
   Prise n », le morceau se rejoint par le titre de l'en-tête). Au téléphone, il se réduit à
   la page parente, « ‹ Sessions » (`.breadcrumb`, `src/app.css`) : tronqué, le chemin

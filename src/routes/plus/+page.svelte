@@ -32,9 +32,9 @@
 	type Entry = { href: string; label: string; icon: IconName }
 	// Le tableau de bord a son onglet « Accueil » : le fil, sans onglet, passe en tête.
 	// Les infos du groupe en dernier — on les consulte bien moins qu'on ne lit le fil.
+	// L'agenda n'y est pas : il a son icône dans la barre du haut.
 	const groupEntries: Entry[] = [
 		{ href: '/fil', label: "Fil d'actualité", icon: 'feed' },
-		{ href: '/agenda', label: 'Agenda', icon: 'agenda' },
 		{ href: '/playlists', label: 'Playlists', icon: 'playlist' },
 		{ href: '/setlists', label: 'Setlists', icon: 'list' },
 		{ href: '/group', label: 'Membres, lieux et réseaux', icon: 'users' },

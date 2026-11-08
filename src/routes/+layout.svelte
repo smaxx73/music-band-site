@@ -147,7 +147,7 @@
 			href: '/plus',
 			label: 'Plus',
 			icon: 'grid',
-			section: ['/plus', '/fil', '/agenda', '/playlists', '/setlists', '/perso', '/posts', '/group', '/members', '/profile', '/admin'],
+			section: ['/plus', '/fil', '/playlists', '/setlists', '/perso', '/posts', '/group', '/members', '/profile', '/admin'],
 		},
 	]
 </script>
@@ -192,6 +192,15 @@
 			</div>
 			<div class="top-spacer"></div>
 			{#if data.user.current_group_id}
+				<!-- Téléphone seulement : le rail et la barre latérale portent déjà l'entrée. -->
+				<a
+					href="/agenda"
+					class="bar-agenda"
+					class:active={isActive('/agenda')}
+					aria-current={ariaCurrent('/agenda')}
+					aria-label="Agenda"
+					title="Agenda"
+				><Icon name="agenda" size="1.35rem" /></a>
 				<!-- Recréé à chaque bascule de groupe : liste, pastille locale et requêtes en
 				     vol appartiennent au groupe précédent et ne doivent pas lui survivre. -->
 				{#key data.user.current_group_id}
@@ -428,6 +437,8 @@
 	.bar-group { display: none; min-width: 0; }
 
 	.top-spacer { flex: 1; }
+
+	.bar-agenda { display: none; }
 
 	.user-avatar {
 		width: 30px;
@@ -740,6 +751,26 @@
 		.app-sidebar { display: none; }
 
 		.bar-group { display: flex; }
+
+		/* Même format que la cloche voisine : une cible au pouce. */
+		.bar-agenda {
+			width: 44px;
+			height: 44px;
+			display: flex;
+			flex-shrink: 0;
+			align-items: center;
+			justify-content: center;
+			border-radius: 50%;
+			color: #fff;
+			opacity: 0.75;
+			transition: background 0.1s, opacity 0.1s;
+		}
+
+		.bar-agenda:hover,
+		.bar-agenda.active {
+			background: rgba(255, 255, 255, 0.12);
+			opacity: 1;
+		}
 
 		.app-body { flex-direction: column; }
 

@@ -13,6 +13,9 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+- **Agenda** : au téléphone, il s'ouvre d'un toucher depuis l'icône de la barre du haut, à côté
+  de la cloche, et n'est plus dans « Plus ».
+
 ## [1.21.0] — 2026-11-08
 
 Aucune migration.
