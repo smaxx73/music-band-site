@@ -82,12 +82,13 @@
 		Les <strong>membres de chacun de vos groupes</strong> voient ce que vous y déposez, ainsi
 		que votre nom affiché. Les membres des groupes auxquels vous appartenez voient vos
 		indisponibilités d'agenda et votre photo de profil ; ceux d'un groupe voient les
-		instruments que vous y avez indiqués, et les prises que vous y avez écoutées (avec le jour
-		de votre dernière écoute).
+		instruments que vous y avez indiqués. Ils voient combien de membres ont écouté une prise,
+		sans leurs noms.
 	</li>
 	<li>
 		Les <strong>administrateurs</strong> de la plateforme gèrent les comptes et les groupes.
-		Ils n'ont pas accès aux espaces personnels.
+		Avec les administrateurs d'un groupe, ils voient qui a écouté les prises de ce groupe
+		(avec le jour de la dernière écoute). Ils n'ont pas accès aux espaces personnels.
 	</li>
 	<li>
 		<strong>Toute personne qui détient un lien d'écoute public</strong>, si un membre du

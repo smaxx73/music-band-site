@@ -19,6 +19,7 @@ const DETAIL_PARENT: Record<string, string> = {
 	setlists: '/setlists',
 	posts: '/fil',
 	members: '/group',
+	group: '/group',
 	decoupe: '/upload'
 }
 

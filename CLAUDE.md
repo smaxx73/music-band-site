@@ -135,7 +135,8 @@ NODE_ENV=production
 - Une écoute de prise se compte dans le navigateur (`ListenMeter`, `src/lib/listen-meter.ts`,
   branché sur le lecteur partagé), jamais dans `/audio/` : les requêtes par plages et le
   préchargement n'y disent rien de ce qui a été entendu. Une ligne par membre, prise et jour,
-  via `src/lib/server/listens.ts`. Voir « Écoutes d'une prise » dans docs/features.md
+  via `src/lib/server/listens.ts`. Le groupe n'en voit que le nombre, les noms restent dans
+  `/group/listens`, pour l'admin du groupe. Voir « Écoutes d'une prise » dans docs/features.md
 - Une prise peut n'avoir qu'une vidéo YouTube, sans fichier : tout code qui touche à `AUDIO_DIR`,
   au lecteur audio partagé ou aux playlists vérifie `file_path IS NOT NULL`. Voir « Prises vidéo
   YouTube » dans docs/features.md
@@ -154,8 +155,8 @@ Deux axes indépendants, à ne pas confondre :
   des prises du groupe (`canSharePublicly`) ; ceux de son espace perso, lui seul. Ne supprime que les sessions, les prises,
   les playlists, les setlists et les publications dont il est l'auteur. Seul à voir son espace perso.
 - **admin de groupe** — en plus, sur SON groupe : ajouter/retirer des membres, renommer le
-  groupe, changer son logo et ses liens réseaux, supprimer les sessions, prises, playlists,
-  setlists et publications créées par d'autres.
+  groupe, changer son logo et ses liens réseaux, voir qui a écouté les prises, supprimer les
+  sessions, prises, playlists, setlists et publications créées par d'autres.
 - **admin global** — tout ce qui précède sur tous les groupes, plus la création de groupes
   et la gestion des comptes `user`.
 - **superadmin** — en plus, seul à pouvoir gérer les comptes `admin`/`superadmin`, à attribuer
@@ -196,6 +197,7 @@ affiché, saisie du nom exigée, puis cascade complète (contenu + fichiers audi
                     publications et indisponibilités à venir dans ce groupe
 /group              infos + membres du groupe actif (consultation pour tout membre,
                     gestion des membres, du nom, du logo et des liens pour l'admin du groupe)
+/group/listens      qui a écouté les prises du groupe actif (admin du groupe)
 /admin/users        gestion des comptes
 /admin/groups       gestion des groupes et membres
 /admin/settings     formats audio acceptés à l'import (admin global)

@@ -1476,10 +1476,13 @@ que personne n'écoute plus — c'est le préalable à tout rangement pour gagne
   la durée écoutée ne sont gardées
 - **Le déposant compte comme les autres** : une écoute est une écoute, quel que soit celui
   qui a déposé la prise
-- **Où ça se lit** : sur `/recording/[id]`, « Écoutée par Marc, Julie et 2 autres » sous le
-  nom du fichier, le jour de la dernière écoute de chacun au survol ; dans les vues session
-  et morceau, le nombre d'auditeurs dans la provenance, à côté du déposant. Rien tant
-  que personne ne l'a écoutée
+- **Où ça se lit** : le groupe ne voit qu'un **nombre** — sur `/recording/[id]`, « Écoutée
+  par 4 membres » sous le nom du fichier ; dans les vues session et morceau, dans la
+  provenance, à côté du déposant. Rien tant que personne ne l'a écoutée. Nommer les
+  auditeurs désignerait par déduction ceux qui n'ont pas écouté
+- **Le détail est dans `/group/listens`**, réservé aux admins du groupe (`canManageGroup`,
+  admins globaux compris), liée depuis `/group` et `/admin` : pour le groupe actif, les 100
+  prises écoutées le plus récemment, chaque auditeur avec le jour de sa dernière écoute
 - **Pas compté** : les enregistrements perso (ils ne sont qu'à leur propriétaire), les liens
   d'écoute publics (voir « Lien d'écoute public » : la dernière ouverture suffit), la vidéo
   YouTube d'une prise, et l'écoute comparée de l'amélioration du son

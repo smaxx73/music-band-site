@@ -13,6 +13,11 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+Aucune migration.
+
+- **Prises** : seul le nombre d'auditeurs d'une prise reste affiché, plus leurs noms. Le détail
+  est réservé aux admins du groupe (« Écoutes des prises », sur la page du groupe).
+
 ## [1.18.1] — 2026-11-08
 
 Aucune migration.

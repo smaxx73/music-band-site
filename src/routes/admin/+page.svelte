@@ -88,6 +88,7 @@
 		<div class="actions-row">
 			<a href="/admin/groups" class="btn btn-secondary">Gérer les groupes</a>
 			<a href="/admin/users" class="btn btn-secondary">Gérer les utilisateurs</a>
+			<a href="/group/listens" class="btn btn-secondary">Écoutes des prises</a>
 			<a href="/admin/settings" class="btn btn-secondary">Paramètres</a>
 			{#if isSuperadmin(data.user?.role)}
 				<a href="/admin/partition" class="btn btn-secondary">Feuilles de répétition</a>

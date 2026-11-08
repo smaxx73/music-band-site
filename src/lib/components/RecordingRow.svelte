@@ -259,8 +259,7 @@
 		>{sourceName}</span>
 		· {recording.uploaded_by}
 	{/if}
-	<!-- Un renseignement, pas une commande : il se lit dans la provenance, et les noms
-	     sont sur la page de la prise. -->
+	<!-- Un renseignement, pas une commande : il se lit dans la provenance. -->
 	{#if recording.listener_count > 0}
 		· <span class="listeners" title={listenersLabel}><Icon name="headphones" size="0.8rem" label={listenersLabel} /> {recording.listener_count}</span>
 	{/if}

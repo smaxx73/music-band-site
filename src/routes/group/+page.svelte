@@ -172,6 +172,11 @@
 					<a href="/admin/groups/{data.group.id}">Gérer ce groupe →</a>
 				</p>
 			{/if}
+			{#if data.canManage}
+				<p class="admin-link">
+					<a href="/group/listens">Écoutes des prises →</a>
+				</p>
+			{/if}
 		</section>
 
 		<!-- Membres -->

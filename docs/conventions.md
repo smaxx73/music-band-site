@@ -19,7 +19,7 @@ src/
 │   │   ├── trim-segments.ts # découpe d'un fichier recadré : ce qui sort du passage part écarté
 │   │   ├── peaks.ts       # forme d'onde d'une prise : extraction ffmpeg, cache à côté du mp3
 │   │   ├── listens.ts     # écoutes d'une prise : enregistrement (une par membre et par jour),
-│   │   │                  #   auditeurs (seuil côté client : src/lib/listen-meter.ts)
+│   │   │                  #   nombre d'auditeurs, détail pour /group/listens (seuil : src/lib/listen-meter.ts)
 │   │   ├── upload-stream.ts # réception multipart d'un fichier audio (prise ou import)
 │   │   ├── imports.ts     # zone de transit des outils audio d'après upload
 │   │   ├── youtube.ts     # vidéo YouTube d'une prise : lien, oEmbed, doublon
