@@ -1474,13 +1474,12 @@ que personne n'écoute plus — c'est le préalable à tout rangement pour gagne
 - **Une ligne par membre, par prise et par jour** (`recording_listens`, migration 054) :
   réécouter dix fois le même passage un soir reste une écoute. Le jour suffit, ni l'heure ni
   la durée écoutée ne sont gardées
-- **Le déposant ne compte pas** parmi les auditeurs affichés : il écoute sa prise pour la
-  vérifier, et la question est de savoir si les autres l'ont entendue. Ses écoutes sont
-  gardées quand même
+- **Le déposant compte comme les autres** : une écoute est une écoute, quel que soit celui
+  qui a déposé la prise
 - **Où ça se lit** : sur `/recording/[id]`, « Écoutée par Marc, Julie et 2 autres » sous le
   nom du fichier, le jour de la dernière écoute de chacun au survol ; dans les vues session
-  et morceau, le nombre d'auditeurs dans la provenance, à côté du déposant. Rien quand
-  personne d'autre ne l'a écoutée
+  et morceau, le nombre d'auditeurs dans la provenance, à côté du déposant. Rien tant
+  que personne ne l'a écoutée
 - **Pas compté** : les enregistrements perso (ils ne sont qu'à leur propriétaire), les liens
   d'écoute publics (voir « Lien d'écoute public » : la dernière ouverture suffit), la vidéo
   YouTube d'une prise, et l'écoute comparée de l'amélioration du son

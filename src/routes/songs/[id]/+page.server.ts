@@ -36,7 +36,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 			(SELECT COUNT(*)::int FROM share_links sl WHERE sl.recording_id = r.id AND sl.expires_at > now()) AS share_count,
 			-- Le déposant écoute pour vérifier : « écoutée par » ne compte que les autres.
 			(SELECT COUNT(DISTINCT l.user_id)::int FROM recording_listens l
-			 WHERE l.recording_id = r.id AND l.user_id IS DISTINCT FROM r.uploaded_by_user_id) AS listener_count
+			 WHERE l.recording_id = r.id) AS listener_count
 		FROM recordings r
 		JOIN sessions ses ON ses.id = r.session_id
 		LEFT JOIN users u ON u.id = r.uploaded_by_user_id

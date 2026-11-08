@@ -59,7 +59,7 @@
 	)
 	const hasAudio = $derived(!!recording.file_path)
 	const listenersLabel = $derived(
-		`Écoutée par ${recording.listener_count} membre${recording.listener_count > 1 ? 's' : ''}, sans compter son déposant`
+		`Écoutée par ${recording.listener_count} membre${recording.listener_count > 1 ? 's' : ''}`
 	)
 
 	// La prise que joue le mini-lecteur se signale dans la liste, comme la piste en

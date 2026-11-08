@@ -13,6 +13,10 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+Aucune migration.
+
+- **Prises** : les écoutes de celui qui a déposé la prise comptent maintenant comme les autres.
+
 ## [1.18.0] — 2026-11-08
 
 Migration à appliquer : `054_recording_listens.sql`.

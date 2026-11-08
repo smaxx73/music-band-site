@@ -68,7 +68,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 		`,
 		// Écoutable hors du groupe : tous les membres doivent le voir, pas seulement qui a créé le lien.
 		recording.file_path ? activeShareCount({ kind: 'recording', id }) : Promise.resolve(0),
-		listenersOf(id, recording.uploaded_by_user_id as number | null)
+		listenersOf(id)
 	])
 
 	const siblingList = siblings as unknown as { id: number; take: number }[]

@@ -4,10 +4,6 @@ import sql from './db'
  * Écoutes d'une prise par les membres (`recording_listens`, migration 054). Le navigateur
  * dit qu'il y a eu écoute (`src/lib/listen-meter.ts`) ; ici on la range, une par membre,
  * par prise et par jour.
- *
- * Le déposant écoute sa prise pour la vérifier : ses écoutes sont gardées, mais ne
- * comptent pas parmi les auditeurs affichés — « écoutée par » répond à « est-ce que les
- * autres l'ont entendue ? ».
  */
 
 /**
@@ -31,14 +27,13 @@ export async function recordListen(recordingId: number, groupId: number, userId:
 
 export type Listener = { user_id: number; name: string; last_day: string }
 
-/** Les membres qui ont écouté la prise, le plus récent d'abord, sans son déposant. */
-export async function listenersOf(recordingId: number, uploaderId: number | null): Promise<Listener[]> {
+/** Les membres qui ont écouté la prise, le plus récent d'abord. */
+export async function listenersOf(recordingId: number): Promise<Listener[]> {
 	return sql<Listener[]>`
 		SELECT u.id AS user_id, u.display_name AS name, to_char(MAX(l.day), 'YYYY-MM-DD') AS last_day
 		FROM recording_listens l
 		JOIN users u ON u.id = l.user_id
 		WHERE l.recording_id = ${recordingId}
-		  AND l.user_id IS DISTINCT FROM ${uploaderId}
 		GROUP BY u.id
 		ORDER BY MAX(l.day) DESC, u.display_name
 	`
