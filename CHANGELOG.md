@@ -13,6 +13,15 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+- **Agenda** : sur grand écran, le détail d'un jour s'ouvre dans une colonne à droite du mois,
+  qui liste les dates du mois quand aucun jour n'est choisi. Chaque événement se lit en fiche,
+  avec son programme et ses présences à part, et le formulaire d'ajout ne s'ouvre qu'à la demande.
+- **Agenda** : « Modifier » sur un événement permet de corriger sa date, son titre, son type, son
+  heure, son programme, son lieu et ses notes sans le supprimer. Les présences déjà données
+  restent, sauf si la date change : on redemande alors au groupe qui vient.
+- **Agenda** : un titre long ne pousse plus les jours du mois hors de la grille, et les boutons
+  du panneau du jour sont plus faciles à toucher au téléphone.
+
 ## [1.20.0] — 2026-11-08
 
 Migration à appliquer : `055_event_program.sql`.

@@ -121,6 +121,8 @@
 		return events.filter((e) => e.date === d && e.type !== 'indisponibilite')
 	}
 
+	const monthGroupEvents = $derived(events.filter((e) => e.type !== 'indisponibilite'))
+
 	function unavailsForDay(day: number) {
 		const d = dateStr(day)
 		return events.filter((e) => e.date === d && e.type === 'indisponibilite')
@@ -180,9 +182,8 @@
 	let formProgram = $state<EventProgramSong[]>([])
 	let submitting = $state(false)
 	let formError = $state('')
-	// Au téléphone, le formulaire d'ajout est replié derrière un bouton : on ouvre un jour
-	// bien plus souvent pour voir qui vient que pour ajouter. Sur un écran plus large, il
-	// reste toujours déplié (voir le CSS) — cet état n'y change rien.
+	// Le formulaire d'ajout est replié derrière un bouton : on ouvre un jour bien plus
+	// souvent pour voir qui vient que pour ajouter.
 	let formOpen = $state(false)
 	let formTypeSelect: HTMLSelectElement | undefined = $state()
 
@@ -251,8 +252,8 @@
 		formEnd = ''
 		formProgram = []
 		formError = ''
-		editingTimeId = null
-		editingProgramId = null
+		editingEvent = null
+		formDate = ''
 	}
 
 	// Jour demandé par l'URL (`?date=`) : panneau ouvert d'emblée, et amené à l'écran —
@@ -313,73 +314,130 @@
 		}
 	}
 
-	// Heure d'un événement déjà posé : celle d'une session ne se règle qu'ici.
-	let editingTimeId = $state<number | null>(null)
-	let editStart = $state('')
-	let editEnd = $state('')
-	let timeSaving = $state(false)
-	let timeError = $state('')
+	// L'événement qu'on modifie, dans le formulaire d'ajout : mêmes champs, et rien n'est
+	// appliqué avant « Enregistrer ».
+	let editingEvent = $state<CalendarEventRow | null>(null)
+	let formDate = $state('')
+	let formHeading: HTMLElement | undefined = $state()
 
-	function startTimeEdit(event: CalendarEventRow) {
-		editingTimeId = event.id
-		editStart = event.start_time ?? ''
-		editEnd = eventEndTime(event.start_time, event.duration_min) ?? ''
-		timeError = ''
+	// La date, le titre, le type, le lieu et les notes d'une session se changent sur sa fiche.
+	const editingOwnFields = $derived(editingEvent === null || editingEvent.session_id === null)
+
+	// Déplacer une date remet ses présences en cause : le dire avant d'enregistrer.
+	const moveNotice = $derived.by(() => {
+		if (!editingEvent || editingEvent.type === 'indisponibilite' || !formDate || formDate === editingEvent.date) return ''
+		const answers = attendanceFor(editingEvent).members.filter((member) => member.response).length
+		const erased = answers === 0 ? '' : answers === 1 ? 'La réponse déjà donnée sera effacée. ' : `Les ${answers} réponses déjà données seront effacées. `
+		return `${erased}${formDate >= today ? 'Le groupe sera prévenu, et on lui redemandera qui vient.' : ''}`.trim()
+	})
+
+	// Une date passée n'a plus de travail à prévoir : on ne garde que le programme qu'elle a.
+	const showProgramField = $derived(
+		editingEvent === null || editingEvent.date >= today || (programs[editingEvent.id] ?? []).length > 0
+	)
+
+	function startEdit(event: CalendarEventRow) {
+		editingEvent = event
+		formDate = event.date
+		formType = event.type
+		formTitle = event.title ?? ''
+		formNotes = event.notes ?? ''
+		formLocation = event.location ?? ''
+		formCoords =
+			event.location_lat !== null && event.location_lon !== null
+				? { lat: event.location_lat, lon: event.location_lon }
+				: null
+		formStart = event.start_time ?? ''
+		formEnd = eventEndTime(event.start_time, event.duration_min) ?? ''
+		formProgram = [...(programs[event.id] ?? [])]
+		formError = ''
+		formOpen = true
+		// Le bouton cliqué vient de disparaître : le focus suit, et amène le formulaire à l'écran.
+		tick().then(() => formHeading?.focus())
 	}
 
-	async function saveTime(event: CalendarEventRow) {
-		timeSaving = true
-		timeError = ''
-		try {
-			const res = await fetch(`/api/agenda/${event.id}`, {
-				method: 'PATCH',
-				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ start_time: editStart || null, end_time: editStart ? editEnd || null : null })
-			})
-			if (!res.ok) {
-				timeError = (await res.json().catch(() => ({}))).error ?? 'Heure non enregistrée.'
-				return
-			}
-			editingTimeId = null
-			await invalidateAll()
-		} catch {
-			timeError = 'Erreur réseau.'
-		} finally {
-			timeSaving = false
+	// L'événement dont on confirme les modifications.
+	let pendingEdit = $state<CalendarEventRow | null>(null)
+
+	/** Ce que l'enregistrement va changer, dans l'ordre du formulaire. */
+	function changedFields(event: CalendarEventRow): string[] {
+		const differs = (typed: string, saved: string | null) => typed.trim() !== (saved ?? '')
+		const changes: string[] = []
+		if (editingOwnFields) {
+			if (formType !== event.type) changes.push('le type')
+			if (formDate !== event.date) changes.push('la date')
+			if (differs(formTitle, event.title)) changes.push('le titre')
 		}
+		if (event.type !== 'indisponibilite') {
+			const savedEnd = eventEndTime(event.start_time, event.duration_min)
+			if (differs(formStart, event.start_time) || (formStart && differs(formEnd, savedEnd))) changes.push('l’heure')
+			const savedProgram = (programs[event.id] ?? []).map((song) => song.id).join()
+			if (formProgram.map((song) => song.id).join() !== savedProgram) changes.push('le programme')
+		}
+		if (editingOwnFields) {
+			const coordsDiffer = (formCoords?.lat ?? null) !== event.location_lat || (formCoords?.lon ?? null) !== event.location_lon
+			if (differs(formLocation, event.location) || coordsDiffer) changes.push('le lieu')
+			if (differs(formNotes, event.notes)) changes.push('les notes')
+		}
+		return changes
 	}
 
-	// Programme de travail d'un événement déjà posé. Rien n'est appliqué avant « Enregistrer ».
-	let editingProgramId = $state<number | null>(null)
-	let editProgram = $state<EventProgramSong[]>([])
-	let programSaving = $state(false)
-	let programError = $state('')
+	const editConfirmMessage = $derived.by(() => {
+		if (!pendingEdit) return ''
+		const label = pendingEdit.title || TYPE_LABELS[pendingEdit.type]
+		const changes = new Intl.ListFormat('fr', { style: 'long', type: 'conjunction' }).format(changedFields(pendingEdit))
+		return `À modifier pour « ${label} » : ${changes}. ${moveNotice}`.trim()
+	})
 
-	function startProgramEdit(event: CalendarEventRow) {
-		editingProgramId = event.id
-		editProgram = [...(programs[event.id] ?? [])]
-		programError = ''
+	/** Rien de changé : rien à confirmer, le formulaire se referme comme sur « Annuler ». */
+	function requestSave(event: CalendarEventRow) {
+		if (changedFields(event).length === 0) openDayPanel(Number(event.date.slice(8)), false)
+		else pendingEdit = event
 	}
 
-	async function saveProgram(event: CalendarEventRow) {
-		programSaving = true
-		programError = ''
+	function confirmEdit() {
+		const event = pendingEdit
+		pendingEdit = null
+		if (event) saveEdit(event)
+	}
+
+	async function saveEdit(event: CalendarEventRow) {
+		submitting = true
+		formError = ''
+		const location = formLocation.trim() || null
+		const isGroupEvent = event.type !== 'indisponibilite'
+		const newDate = editingOwnFields ? formDate : event.date
 		try {
 			const res = await fetch(`/api/agenda/${event.id}`, {
 				method: 'PATCH',
 				headers: { 'content-type': 'application/json' },
-				body: JSON.stringify({ song_ids: editProgram.map((song) => song.id) })
+				body: JSON.stringify({
+					...(editingOwnFields && {
+						date: formDate,
+						notes: formNotes,
+						location,
+						location_coords: location ? formCoords : null
+					}),
+					...(editingOwnFields && isGroupEvent && { title: formTitle, type: formType }),
+					...(isGroupEvent && {
+						start_time: formStart || null,
+						end_time: formStart ? formEnd || null : null,
+						song_ids: formProgram.map((song) => song.id)
+					})
+				})
 			})
 			if (!res.ok) {
-				programError = (await res.json().catch(() => ({}))).error ?? 'Programme non enregistré.'
+				formError = (await res.json().catch(() => ({}))).error ?? 'Modification non enregistrée.'
 				return
 			}
-			editingProgramId = null
-			await invalidateAll()
+			// Le panneau suit l'événement à sa nouvelle date, au besoin dans un autre mois.
+			openDayPanel(Number(newDate.slice(8)), false)
+			if (newDate.slice(0, 7) === data.month) await invalidateAll()
+			else await goto(`/agenda?date=${newDate}`, { noScroll: true })
 		} catch {
-			programError = 'Erreur réseau.'
+			formError = 'Erreur réseau.'
 		} finally {
-			programSaving = false
+			submitting = false
 		}
 	}
 
@@ -405,6 +463,10 @@
 		return !event.session_id
 	}
 
+	function canEdit(event: CalendarEventRow) {
+		return event.type !== 'indisponibilite' || event.user_id === userId
+	}
+
 	// Les 4 types de groupe reflètent sessions.type
 	const TYPE_LABELS: Record<string, string> = {
 		indisponibilite: 'Indisponible',
@@ -428,6 +490,10 @@
 		return new Date(`${d}T00:00:00`).toLocaleDateString('fr-FR')
 	}
 
+	function fmtShortDay(d: string) {
+		return new Date(`${d}T00:00:00`).toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' })
+	}
+
 	function sessionCreateUrl(event: CalendarEventRow) {
 		const params = new URLSearchParams({
 			link_event_id: String(event.id),
@@ -444,7 +510,7 @@
 	<title>Agenda</title>
 </svelte:head>
 
-<main class="page page-wide">
+<main class="page page-wide agenda">
 	<div class="header" bind:this={header}>
 		<button class="btn btn-ghost nav-arrow" onclick={prevMonth}>←</button>
 		<h1 class="month-title">{monthLabel}</h1>
@@ -520,7 +586,7 @@
 		{@const dayGroupEvents = groupEventsForDay(selectedDay)}
 		{@const dayUnavails = unavailsForDay(selectedDay)}
 
-		<div class="day-panel" bind:this={dayPanel}>
+		<div class="day-panel" class:adding={formOpen} class:editing={editingEvent !== null} bind:this={dayPanel}>
 			<div class="panel-header">
 				<h2 class="panel-title">{selectedDayLabel}</h2>
 				<button class="btn btn-ghost btn-sm" onclick={() => (selectedDay = null)} aria-label="Fermer le panneau">
@@ -535,48 +601,34 @@
 						<span class="panel-section-label">Événements du groupe</span>
 						{#each dayGroupEvents as event}
 							{@const program = programs[event.id] ?? []}
-							<div class="panel-event">
-								<span class="event-badge session-type-{event.type} panel-event-type">
-									{TYPE_LABELS[event.type]}
-								</span>
-								<div class="panel-event-body">
-									<span class="panel-event-name">{event.title || TYPE_LABELS[event.type]}</span>
-									{#if editingTimeId === event.id}
-										<div class="time-edit">
-											<label class="time-field">
-												<span>De</span>
-												<input class="form-input" type="time" bind:value={editStart} />
-											</label>
-											<label class="time-field">
-												<span>à</span>
-												<input class="form-input" type="time" bind:value={editEnd} disabled={!editStart} />
-											</label>
-											<button class="btn btn-primary btn-sm" onclick={() => saveTime(event)} disabled={timeSaving}>
-												Enregistrer
+							{@const eventAttendance = attendanceFor(event)}
+							<div class="event-card">
+								<div class="event-head">
+									<span class="event-badge session-type-{event.type} panel-event-type">
+										{TYPE_LABELS[event.type]}
+									</span>
+									{#if event.title}<span class="panel-event-name">{event.title}</span>{/if}
+									<div class="event-actions">
+										{#if !formOpen}
+											<button class="btn btn-ghost btn-sm" onclick={() => startEdit(event)}>Modifier</button>
+										{/if}
+										{#if canDelete(event)}
+											<button
+												class="btn btn-ghost btn-sm delete-btn"
+												onclick={() => (pendingDelete = event)}
+												title="Supprimer"
+												aria-label="Supprimer l’événement"
+											>
+												<Icon name="trash" />
 											</button>
-											<button class="btn btn-secondary btn-sm" onclick={() => (editingTimeId = null)}>Annuler</button>
-										</div>
-										{#if timeError}<p class="message-error">{timeError}</p>{/if}
-									{:else}
+										{/if}
+									</div>
+								</div>
+								<div class="event-details">
+									{#if event.start_time}
 										<span class="panel-event-time">
-											{#if event.start_time}
-												<Icon name="clock" size="0.8rem" /> {formatEventTime(event.start_time, event.duration_min)}
-												<button class="btn-link btn-link-muted" onclick={() => startTimeEdit(event)}>Modifier</button>
-											{:else}
-												<button class="btn-link btn-link-muted" onclick={() => startTimeEdit(event)}>
-													<Icon name="clock" size="0.8rem" /> Ajouter l'heure
-												</button>
-											{/if}
+											<Icon name="clock" size="0.8rem" /> {formatEventTime(event.start_time, event.duration_min)}
 										</span>
-									{/if}
-									{#if event.session_id && event.session_date}
-										<a href="/sessions/{event.session_id}" class="panel-event-session">
-											Session du {fmtDate(event.session_date)}{event.session_location ? ` — ${event.session_location}` : ''}
-										</a>
-									{:else}
-										<a href={sessionCreateUrl(event)} class="panel-event-session panel-event-create">
-											Créer la session →
-										</a>
 									{/if}
 									{#if event.location}
 										{@const details = eventLocation(event)}
@@ -591,58 +643,34 @@
 									{#if event.notes}
 										<span class="panel-event-notes">{event.notes}</span>
 									{/if}
-									{#if editingProgramId !== event.id}
-										{#if program.length > 0}
-											<div class="panel-event-program">
-												<EventProgram songs={program}>
-													<button class="btn-link btn-link-muted" onclick={() => startProgramEdit(event)}>
-														Modifier le programme
-													</button>
-												</EventProgram>
-											</div>
-										{:else if event.date >= today}
-											<!-- Une date passée n'a plus de travail à prévoir. -->
-											<span class="panel-event-time">
-												<button class="btn-link btn-link-muted" onclick={() => startProgramEdit(event)}>
-													<Icon name="list" size="0.8rem" /> Ajouter un programme de travail
-												</button>
-											</span>
-										{/if}
+									{#if event.session_id && event.session_date}
+										<a href="/sessions/{event.session_id}" class="panel-event-session">
+											Session du {fmtDate(event.session_date)}{event.session_location ? ` — ${event.session_location}` : ''}
+										</a>
+									{:else}
+										<a href={sessionCreateUrl(event)} class="panel-event-session panel-event-create">
+											Créer la session →
+										</a>
 									{/if}
 									<span class="panel-event-meta">par {event.author}</span>
-									<EventAttendance
-										attendance={attendanceFor(event)}
-										{userId}
-										upcoming={event.date >= today}
-										onchange={updateAttendance}
-									/>
 								</div>
-								{#if canDelete(event)}
-									<button
-										class="btn btn-ghost btn-sm delete-btn"
-										onclick={() => (pendingDelete = event)}
-										title="Supprimer"
-										aria-label="Supprimer l’événement"
-									>
-										<Icon name="trash" />
-									</button>
+								{#if program.length > 0}
+									<div class="event-section">
+										<EventProgram songs={program} />
+									</div>
+								{/if}
+								<!-- Date passée où rien n'a été demandé : le composant ne montrerait rien. -->
+								{#if eventAttendance.requested || eventAttendance.members.some((m) => m.response) || event.date >= today}
+									<div class="event-section">
+										<EventAttendance
+											attendance={eventAttendance}
+											{userId}
+											upcoming={event.date >= today}
+											onchange={updateAttendance}
+										/>
+									</div>
 								{/if}
 							</div>
-							{#if editingProgramId === event.id}
-								<!-- Sous la ligne, pas dans sa colonne : au téléphone, le badge et la
-								     corbeille ne laisseraient pas la place aux titres et aux flèches. -->
-								<div class="program-edit">
-									<span class="panel-section-label">Programme de travail</span>
-									<EventProgramField songs={programSongs} setlists={programSetlists} bind:value={editProgram} />
-									{#if programError}<p class="message-error">{programError}</p>{/if}
-									<div class="form-actions">
-										<button class="btn btn-primary btn-sm" onclick={() => saveProgram(event)} disabled={programSaving}>
-											Enregistrer
-										</button>
-										<button class="btn btn-secondary btn-sm" onclick={() => (editingProgramId = null)}>Annuler</button>
-									</div>
-								</div>
-							{/if}
 						{/each}
 					</div>
 				{/if}
@@ -663,16 +691,21 @@
 										<span class="panel-event-notes">{event.notes}</span>
 									{/if}
 								</div>
-								{#if canDelete(event)}
-									<button
-										class="btn btn-ghost btn-sm delete-btn"
-										onclick={() => (pendingDelete = event)}
-										title="Supprimer"
-										aria-label="Supprimer l’événement"
-									>
-										<Icon name="trash" />
-									</button>
-								{/if}
+								<div class="event-actions">
+									{#if canEdit(event) && !formOpen}
+										<button class="btn btn-ghost btn-sm" onclick={() => startEdit(event)}>Modifier</button>
+									{/if}
+									{#if canDelete(event)}
+										<button
+											class="btn btn-ghost btn-sm delete-btn"
+											onclick={() => (pendingDelete = event)}
+											title="Supprimer"
+											aria-label="Supprimer l’événement"
+										>
+											<Icon name="trash" />
+										</button>
+									{/if}
+								</div>
 							</div>
 						{/each}
 					</div>
@@ -683,7 +716,7 @@
 				{/if}
 			</div>
 
-			<div class="panel-form" class:form-collapsed={!formOpen}>
+			<div class="panel-form">
 				{#if !formOpen}
 					<button
 						class="btn btn-secondary btn-sm form-toggle"
@@ -691,28 +724,53 @@
 					>
 						<Icon name="plus" /> Ajouter un événement
 					</button>
-				{/if}
+				{:else}
 				<div class="form-body">
-					<h3 class="form-subtitle">Ajouter un événement</h3>
+					<h3 class="form-subtitle" tabindex="-1" bind:this={formHeading}>
+						{#if !editingEvent}
+							Ajouter un événement
+						{:else if editingEvent.type === 'indisponibilite'}
+							Modifier mon indisponibilité
+						{:else}
+							Modifier {editingEvent.title ? `« ${editingEvent.title} »` : 'l’événement'}
+						{/if}
+					</h3>
 
-					<div class="form-row">
-						<select class="form-input" bind:value={formType} bind:this={formTypeSelect}>
-							<option value="indisponibilite">Indisponible (personnel)</option>
-							{#each SESSION_TYPES as value}
-								<option {value}>{sessionTypeLabel(value)}</option>
-							{/each}
-						</select>
-					</div>
+					{#if editingEvent === null || (editingOwnFields && editingEvent.type !== 'indisponibilite')}
+						<div class="form-row">
+							<select class="form-input" bind:value={formType} bind:this={formTypeSelect}>
+								<!-- Une indisponibilité est personnelle, un événement au groupe : l'un ne devient pas l'autre. -->
+								{#if !editingEvent}
+									<option value="indisponibilite">Indisponible (personnel)</option>
+								{/if}
+								{#each SESSION_TYPES as value}
+									<option {value}>{sessionTypeLabel(value)}</option>
+								{/each}
+							</select>
+						</div>
+					{/if}
+
+					{#if editingEvent && editingOwnFields}
+						<div class="form-row">
+							<label class="time-field">
+								<span>Date</span>
+								<input class="form-input" type="date" bind:value={formDate} required />
+							</label>
+						</div>
+						{#if moveNotice}<p class="form-hint">{moveNotice}</p>{/if}
+					{/if}
 
 					{#if formType !== 'indisponibilite'}
-						<div class="form-row">
-							<input
-								class="form-input"
-								type="text"
-								placeholder="Titre (optionnel)"
-								bind:value={formTitle}
-							/>
-						</div>
+						{#if editingOwnFields}
+							<div class="form-row">
+								<input
+									class="form-input"
+									type="text"
+									placeholder="Titre (optionnel)"
+									bind:value={formTitle}
+								/>
+							</div>
+						{/if}
 						<div class="form-row time-row">
 							<label class="time-field">
 								<span>De</span>
@@ -723,55 +781,99 @@
 								<input class="form-input" type="time" bind:value={formEnd} disabled={!formStart} aria-label="Heure de fin (optionnel)" />
 							</label>
 						</div>
-						<div class="form-row">
-							<select class="form-input" bind:value={formSessionId}>
-								<option value="">Aucune session liée</option>
-								{#each sessions as s}
-									<option value={String(s.id)}>
-										{fmtDate(s.date)}{s.location ? ` — ${s.location}` : ''}
-									</option>
-								{/each}
-							</select>
-						</div>
-						<div class="form-row">
-							<EventProgramField
-								songs={programSongs}
-								setlists={programSetlists}
-								bind:value={formProgram}
-								placeholder="Programme de travail : ajouter un morceau (optionnel)"
-							/>
-						</div>
+						{#if !editingEvent}
+							<div class="form-row">
+								<select class="form-input" bind:value={formSessionId}>
+									<option value="">Aucune session liée</option>
+									{#each sessions as s}
+										<option value={String(s.id)}>
+											{fmtDate(s.date)}{s.location ? ` — ${s.location}` : ''}
+										</option>
+									{/each}
+								</select>
+							</div>
+						{/if}
+						{#if showProgramField}
+							<div class="form-row">
+								<EventProgramField
+									songs={programSongs}
+									setlists={programSetlists}
+									bind:value={formProgram}
+									placeholder="Programme : ajouter un morceau (optionnel)"
+								/>
+							</div>
+						{/if}
 					{/if}
 
-					<div class="form-row">
-						<LocationInput
-							bind:value={formLocation}
-							bind:coords={formCoords}
-							optional
-							hideLabel
-						/>
-					</div>
+					{#if editingOwnFields}
+						<div class="form-row">
+							<LocationInput
+								bind:value={formLocation}
+								bind:coords={formCoords}
+								optional
+								hideLabel
+							/>
+						</div>
 
-					<div class="form-row">
-						<input
-							class="form-input"
-							type="text"
-							placeholder="Notes (optionnel)"
-							bind:value={formNotes}
-						/>
-					</div>
+						<div class="form-row">
+							<input
+								class="form-input"
+								type="text"
+								placeholder="Notes (optionnel)"
+								bind:value={formNotes}
+							/>
+						</div>
+					{:else if editingEvent?.session_id}
+						<p class="form-hint">
+							La date, le titre, le type, le lieu et les notes se modifient sur
+							<a href="/sessions/{editingEvent.session_id}">la session</a>.
+						</p>
+					{/if}
 
 					{#if formError}
 						<p class="message-error">{formError}</p>
 					{/if}
 
 					<div class="form-actions">
-						<button class="btn btn-primary btn-sm" onclick={addEvent} disabled={submitting}>
-							Ajouter
+						{#if editingEvent}
+							{@const target = editingEvent}
+							<button class="btn btn-primary btn-sm" onclick={() => requestSave(target)} disabled={submitting || !formDate}>
+								Enregistrer
+							</button>
+						{:else}
+							<button class="btn btn-primary btn-sm" onclick={addEvent} disabled={submitting}>
+								Ajouter
+							</button>
+						{/if}
+						<button class="btn btn-secondary btn-sm" onclick={() => openDayPanel(selectedDay!, false)}>
+							Annuler
 						</button>
 					</div>
 				</div>
+				{/if}
 			</div>
+		</div>
+	{:else}
+		<!-- Colonne de droite au repos, sur grand écran : sans jour choisi, les dates du mois. -->
+		<div class="month-overview">
+			<h2 class="panel-title">Dates du mois</h2>
+			{#if monthGroupEvents.length > 0}
+				<ul class="overview-list">
+					{#each monthGroupEvents as event (event.id)}
+						<li>
+							<button class="overview-row" onclick={() => selectDay(Number(event.date.slice(8)))}>
+								<span class="overview-date">{fmtShortDay(event.date)}</span>
+								<span class="event-badge session-type-{event.type}">{TYPE_LABELS[event.type]}</span>
+								{#if event.title}<span class="overview-title">{event.title}</span>{/if}
+								{#if event.start_time}<span class="overview-time">{event.start_time}</span>{/if}
+							</button>
+						</li>
+					{/each}
+				</ul>
+			{:else}
+				<p class="empty">Aucune date ce mois-ci.</p>
+			{/if}
+			<p class="overview-hint">Choisis un jour pour voir son détail ou y ajouter un événement.</p>
 		</div>
 	{/if}
 
@@ -783,6 +885,16 @@
 		confirmLabel="Supprimer"
 		onConfirm={deleteEvent}
 		onCancel={() => (pendingDelete = null)}
+	/>
+
+	<ConfirmDialog
+		open={pendingEdit !== null}
+		level={moveNotice ? 'warning' : 'info'}
+		title="Enregistrer les modifications ?"
+		message={editConfirmMessage}
+		confirmLabel="Enregistrer"
+		onConfirm={confirmEdit}
+		onCancel={() => (pendingEdit = null)}
 	/>
 </main>
 
@@ -811,7 +923,9 @@
 	/* Calendar grid */
 	.calendar {
 		display: grid;
-		grid-template-columns: repeat(7, 1fr);
+		/* `minmax(0, …)` : sinon un titre long, qui ne passe pas à la ligne, élargit sa colonne
+		   et pousse les jours suivants hors de la grille. */
+		grid-template-columns: repeat(7, minmax(0, 1fr));
 		border: 1px solid var(--color-border);
 		border-radius: var(--radius-xl);
 		overflow: hidden;
@@ -1024,7 +1138,6 @@
 		color: var(--color-text-secondary);
 	}
 
-	.panel-event-time .btn-link { font-size: inherit; margin-left: 0.25rem; }
 	.panel-event-time :global(.icon) { vertical-align: -1px; }
 
 	.badge-time {
@@ -1032,15 +1145,12 @@
 		margin-right: 0.2rem;
 	}
 
-	.time-row,
-	.time-edit {
+	.time-row {
 		display: flex;
 		flex-wrap: wrap;
 		align-items: center;
 		gap: 0.5rem;
 	}
-
-	.time-edit { margin: 0.2rem 0; }
 
 	.time-field {
 		display: inline-flex;
@@ -1069,22 +1179,57 @@
 		color: var(--color-text-muted);
 	}
 
-	.panel-event-program {
-		margin: 0.25rem 0;
-	}
-
-	.panel-event-program .btn-link {
-		font-size: var(--text-xs);
-	}
-
-	.program-edit {
+	/* Une fiche par événement : l'en-tête, ses détails, puis programme et présences,
+	   chacun sa section. Toute la largeur va au contenu, le badge reste dans l'en-tête. */
+	.event-card {
 		display: flex;
 		flex-direction: column;
-		gap: 0.4rem;
-		padding: 0.6rem;
-		border-radius: var(--radius-lg);
-		background: var(--color-bg-subtle);
+		gap: 0.5rem;
 	}
+
+	.event-card + .event-card {
+		padding-top: 0.75rem;
+		border-top: 1px solid var(--color-border);
+	}
+
+	.event-head {
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		min-width: 0;
+	}
+
+	.event-head .panel-event-type { margin-top: 0; }
+
+	.event-head .panel-event-name {
+		min-width: 0;
+		overflow-wrap: anywhere;
+	}
+
+	.event-actions {
+		margin-left: auto;
+		flex-shrink: 0;
+		display: flex;
+		align-items: center;
+		gap: 0.15rem;
+	}
+
+	.event-details {
+		display: flex;
+		flex-direction: column;
+		gap: 0.2rem;
+	}
+
+	.event-section {
+		padding-top: 0.5rem;
+		border-top: 1px solid var(--color-border-light);
+	}
+
+	.event-section :global(.event-attendance) { margin-top: 0; }
+
+	/* À toutes les largeurs : sous la grille, le formulaire serait sinon sous les fiches. */
+	.day-panel.editing .panel-events { display: none; }
+	.day-panel.editing .panel-form { border-top: none; }
 
 	.delete-btn {
 		flex-shrink: 0;
@@ -1100,8 +1245,132 @@
 	/* Bande de la semaine : seulement au téléphone, quand un jour est choisi. */
 	.week-nav { display: none; }
 
-	/* Le bouton qui déplie le formulaire n'existe qu'au téléphone. */
-	.form-toggle { display: none; }
+	.form-toggle { align-self: flex-start; }
+
+	/* Les dates du mois n'occupent que la colonne de droite d'un grand écran. */
+	.month-overview { display: none; }
+
+	/* Le mois et le détail du jour côte à côte, dès que la grille garde des cases lisibles à
+	   côté de la colonne (fenêtre moins les 188 px de la barre latérale). Le mois ne bouge
+	   plus quand on change de jour, et la colonne reste à l'écran, défilant sur elle-même. */
+	@media (min-width: 1200px) {
+		.agenda {
+			--side-top: calc(var(--top-bar-h) + var(--banners-h, 0px) + 1rem);
+			--side-h: calc(100dvh - var(--side-top) - var(--mini-player-h) - 1rem);
+			max-width: var(--page-split);
+			display: grid;
+			grid-template-columns: minmax(0, 1fr) 380px;
+			/* Une colonne plus haute que le mois ne doit pas faire descendre sa grille : seule
+			   la rangée de celle-ci absorbe l'écart. */
+			grid-template-rows: auto 1fr;
+			column-gap: 1.5rem;
+			align-items: start;
+		}
+
+		.header,
+		.calendar { grid-column: 1; }
+
+		.day-panel,
+		.month-overview {
+			grid-column: 2;
+			grid-row: 1 / span 2;
+			position: sticky;
+			top: var(--side-top);
+			max-height: var(--side-h);
+		}
+
+		.day-panel {
+			margin-top: 0;
+			display: flex;
+			flex-direction: column;
+		}
+
+		.panel-events {
+			flex: 1;
+			min-height: 0;
+			overflow-y: auto;
+		}
+
+		/* La colonne ne montre qu'une chose à la fois : le jour, ou le formulaire d'ajout,
+		   sur toute sa hauteur — les suggestions du lieu ont ainsi la place de s'ouvrir. */
+		.day-panel.adding { height: var(--side-h); }
+		.day-panel.adding .panel-events { display: none; }
+
+		.day-panel.adding .panel-form {
+			flex: 1;
+			min-height: 0;
+			overflow-y: auto;
+			border-top: none;
+		}
+
+		.month-overview {
+			display: flex;
+			flex-direction: column;
+			gap: 0.6rem;
+			overflow-y: auto;
+			padding: 0.65rem 1rem;
+			border: 1px solid var(--color-border);
+			border-radius: var(--radius-xl);
+		}
+	}
+
+	.month-overview .panel-title { text-transform: none; }
+
+	.overview-list {
+		list-style: none;
+		margin: 0;
+		padding: 0;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.overview-row {
+		width: 100%;
+		display: flex;
+		align-items: center;
+		gap: 0.5rem;
+		padding: 0.35rem 0.4rem;
+		border: none;
+		border-radius: var(--radius-md);
+		background: none;
+		color: inherit;
+		font: inherit;
+		font-size: var(--text-sm);
+		text-align: left;
+		cursor: pointer;
+	}
+
+	.overview-row:hover { background: var(--color-bg-subtle); }
+
+	.overview-row .event-badge { flex-shrink: 0; }
+
+	.overview-date {
+		flex-shrink: 0;
+		width: 3.6rem;
+		font-size: var(--text-xs);
+		font-weight: 600;
+		color: var(--color-text-secondary);
+	}
+
+	.overview-title {
+		min-width: 0;
+		overflow: hidden;
+		white-space: nowrap;
+		text-overflow: ellipsis;
+	}
+
+	.overview-time {
+		margin-left: auto;
+		flex-shrink: 0;
+		font-size: var(--text-xs);
+		color: var(--color-text-secondary);
+	}
+
+	.overview-hint {
+		margin: 0;
+		font-size: var(--text-xs);
+		color: var(--color-text-muted);
+	}
 
 	@media (max-width: 640px) {
 		.calendar.week-only .out-of-week { display: none; }
@@ -1120,8 +1389,19 @@
 
 		.day-panel { margin-top: 0.5rem; }
 
-		.form-collapsed .form-toggle { display: inline-flex; align-self: flex-start; }
-		.form-collapsed .form-body { display: none; }
+		/* Au doigt : les mêmes 40 px que la navigation de semaine. */
+		.panel-header .btn,
+		.event-actions .btn,
+		.form-actions .btn,
+		.form-toggle { min-height: 40px; }
+
+		.panel-header .btn,
+		.delete-btn { min-width: 40px; }
+
+		/* Type et commandes sur une rangée, le titre dessous : entre les deux, il n'aurait
+		   plus que quelques mots par ligne. */
+		.event-head { flex-wrap: wrap; }
+		.event-head .panel-event-name { order: 1; flex-basis: 100%; }
 	}
 
 	.form-body {
@@ -1146,12 +1426,26 @@
 		margin: 0 0 0.15rem;
 	}
 
+	.form-hint {
+		margin: 0;
+		font-size: var(--text-xs);
+		color: var(--color-text-secondary);
+	}
+
+	.form-hint a { color: inherit; }
+
 	.form-row {
 		display: flex;
 	}
 
+	/* Rendu par LocationInput : le style scopé ne l'atteint qu'avec `:global`. */
+	.form-row > :global(.location) { flex: 1; min-width: 0; }
+	.form-row > :global(.location .form-input) { width: 100%; }
+
 	.form-row .form-input {
 		flex: 1;
+		/* Un <select> vaut sinon la largeur de sa plus longue option, plus que la colonne. */
+		min-width: 0;
 	}
 
 	.form-actions {

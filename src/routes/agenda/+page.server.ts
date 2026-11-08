@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const monthParam = openDate?.slice(0, 7) ?? url.searchParams.get('month')
 	const month = monthParam && /^\d{4}-\d{2}$/.test(monthParam) ? monthParam : currentMonth()
 	const openDay = openDate ? Number(openDate.slice(8, 10)) : null
-	// `&ajouter` : le panneau du jour s'ouvre sur le formulaire d'ajout (replié au téléphone).
+	// `&ajouter` : le panneau du jour s'ouvre sur le formulaire d'ajout, replié sinon.
 	const openForm = openDate !== null && url.searchParams.has('ajouter')
 
 	const groupId = locals.user.current_group_id

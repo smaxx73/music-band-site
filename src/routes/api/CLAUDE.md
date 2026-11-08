@@ -276,6 +276,12 @@ actif, via `findCommentThread` (`src/lib/server/comments.ts`). Ne jamais rejoind
 `recordings` à la main pour retrouver le groupe d'un commentaire : un commentaire de
 setlist n'a pas de prise.
 
+`PATCH /api/agenda/[id]` ne change que les champs envoyés : `date`, `title`, `notes`, `location`
+(avec `location_coords`, absentes = effacées), `type` (les quatre types de groupe, `400` sinon,
+jamais sur une indisponibilité), `start_time` / `end_time`, `song_ids`. La date, le titre, le type,
+le lieu et les notes de l'événement d'une session sont ignorés : c'est `PATCH /api/sessions/[id]`
+qui les porte. Une date changée efface les réponses et repose la question (`restartAttendance`).
+
 Le **programme de travail** d'un événement de groupe s'écrit par `song_ids` (entiers, dans
 l'ordre, 50 au plus), facultatif sur `POST /api/agenda` et `PATCH /api/agenda/[id]`, où il
 réécrit toute la liste (`[]` = plus de programme, absent = inchangé). `400` si un morceau

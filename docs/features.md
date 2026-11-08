@@ -1911,6 +1911,14 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
 - Chaque événement peut avoir `title`, `notes` et `location`
 - Les indisponibilités affichées sont celles des utilisateurs membres du groupe actif
 - Clic sur un jour → panneau détail : liste des événements du jour + formulaire d'ajout
+- Dans ce panneau, un événement est une **fiche** : type et titre, avec la corbeille, puis
+  heure, lieu, notes et session, et enfin ses sections Programme de travail et Présences.
+  Une session sans titre n'y répète plus son type
+- **Sur grand écran** (fenêtre ≥ 1200 px), le panneau devient une **colonne à droite du mois** :
+  le mois reste en place quand on change de jour, et la colonne reste à l'écran en défilant sur
+  elle-même. Elle ne montre qu'une chose à la fois, le jour ou son formulaire d'ajout. Sans jour
+  choisi, elle liste les dates du mois, qui ouvrent leur jour au clic. En dessous de 1200 px, le
+  panneau reste sous la grille : à côté de la colonne, les cases seraient trop étroites
 - **Au téléphone** (≤ 640 px), la grille du mois remplit l'écran et le panneau s'ouvrait
   dessous, hors de vue. Choisir un jour **replie le mois sur sa semaine** : il ne reste que
   cette rangée, le panneau juste dessous, et l'on remonte au titre du mois si l'on avait
@@ -1918,10 +1926,25 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
   charge par `?date=` —, « Tout le mois » ou la croix du panneau rouvrent la grille. Pas
   d'animation de repli. Changer de mois referme le jour. Sur ordinateur et tablette, rien
   ne change : la place ne manque pas
-- **Formulaire d'ajout replié au téléphone**, derrière « + Ajouter un événement » : on ouvre
-  un jour bien plus souvent pour voir qui vient que pour ajouter. Un jour **sans
-  événement** s'ouvre formulaire déplié — on l'a touché pour y ajouter —, et il se replie
-  après un ajout pour laisser voir l'événement créé. Toujours déplié sur un écran plus large
+- **Formulaire d'ajout replié**, derrière « + Ajouter un événement » : on ouvre un jour bien
+  plus souvent pour voir qui vient que pour ajouter. Un jour **sans événement** s'ouvre
+  formulaire déplié — on l'a touché pour y ajouter —, et il se replie après un ajout pour
+  laisser voir l'événement créé. « Annuler » le replie et efface la saisie
+- **« Modifier » sur chaque événement** ouvre le même formulaire, prérempli, à la place des
+  fiches du jour, à toutes les largeurs : date, titre, type, heure, programme, lieu et notes.
+  Plus besoin de supprimer une date pour la corriger, ce qui perdait ses présences : elles
+  restent tant que la date ne change pas, et rien n'est notifié (une notification déjà envoyée
+  garde l'ancien titre). Rien n'est appliqué avant « Enregistrer », qui demande confirmation
+  en nommant ce qui change : `info`, ou `warning` si la date déplacée touche aux présences.
+  Sans aucun changement, le formulaire se referme, sans question
+  - **Déplacer la date** efface les réponses et redemande qui vient si la nouvelle date est à
+    venir, aujourd'hui compris — voir « Présences ». Le formulaire le dit dès que la date change,
+    et le panneau suit l'événement à sa nouvelle date, au besoin dans un autre mois
+  - Sur l'**événement d'une session**, seuls l'heure et le programme : le reste vient de la
+    session, dont la modification le réécrirait. Le formulaire renvoie vers elle
+  - Sur une **indisponibilité**, la date, le lieu et les notes, pour son auteur seul. Elle ne
+    devient pas un événement de groupe, ni l'inverse
+  - Le lien à une session ne s'y change pas : une session a déjà son événement
 - `?date=YYYY-MM-DD` ouvre le mois de ce jour avec son panneau déplié et amené à l'écran
   (liens du tableau de bord) ; il l'emporte sur `?month=`. `&ajouter` l'ouvre sur le
   formulaire d'ajout
@@ -1938,9 +1961,9 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
   fin** (« 19:30 – 22:00 »). On saisit la fin, on stocke une durée
   (`calendar_events.start_time`, `duration_min`, migration 052) : une fin après minuit
   n'est pas un cas particulier. Une fin sans début est refusée (`400`)
-- Saisie à l'ajout dans le panneau du jour, et après coup par « Ajouter l'heure » /
-  « Modifier » sur l'événement — c'est là que se règle l'heure d'une **session**, dont
-  l'événement porte l'heure (la fiche de la session ne la demande pas)
+- Saisie à l'ajout dans le panneau du jour, et après coup par « Modifier » sur l'événement —
+  c'est là que se règle l'heure d'une **session**, dont l'événement porte l'heure (la fiche
+  de la session ne la demande pas)
 - Elle se lit dans la case du jour (masquée sous 600 px), le panneau du jour, la carte et
   les lignes « À venir » du tableau de bord, et la demande de présence
 - Changer l'heure garde les réponses et ne notifie personne
@@ -1959,11 +1982,10 @@ les bons morceaux.
   morceau : les notes de l'événement portent ce qui s'écrit. Pas une setlist non plus, objet
   durable, nommé et commenté : un programme ne vaut que pour sa date, et n'a pas à remplir
   `/setlists`
-- **Se choisit à l'ajout** dans le panneau du jour, ou après coup par « Ajouter un programme
-  de travail » / « Modifier le programme » (ajouter, retirer, ↑ ↓ et glisser, comme une
-  setlist) — tout membre, comme le reste de l'événement. Rien n'est appliqué avant
-  « Enregistrer ». Sur une date passée, un programme existant reste modifiable, mais on ne
-  propose plus d'en ajouter un
+- **Se choisit à l'ajout** dans le panneau du jour, ou après coup par « Modifier » sur
+  l'événement (ajouter, retirer, ↑ ↓ et glisser, comme une setlist) — tout membre, comme le
+  reste de l'événement. Rien n'est appliqué avant « Enregistrer ». Sur une date passée, un
+  programme existant reste modifiable, mais on ne propose plus d'en ajouter un
 - **« Reprendre une setlist »**, à côté du choix d'un morceau : ses morceaux s'ajoutent au
   programme, dans son ordre, à la suite de ceux déjà choisis — sans doublon, sans les morceaux
   abandonnés. Une copie faite à l'écran, sans lien gardé : changer la setlist ensuite ne change
@@ -2011,9 +2033,10 @@ Savoir avant la répétition qui sera là, sans un fil de messages à côté.
   n'est pas passée. Une seule demande par membre dans la cloche : la relance remplace la
   précédente. Sur un événement qui ne l'a pas posée (session du jour), le même bouton dit
   « Demander les présences »
-- **La date change** (fiche de la session, ou événement qui devient session à une autre
-  date) : les réponses ne valent plus, elles sont effacées avec leurs notifications, et la
-  question est reposée si la nouvelle date est à venir
+- **La date change** (fiche de la session, événement qui devient session à une autre date, ou
+  « Modifier » dans l'agenda) : les réponses ne valent plus, elles sont effacées avec leurs
+  notifications, et la question est reposée si la nouvelle date est à venir — dès le jour même
+  pour une date de l'agenda, à partir du lendemain pour une session, comme à leur création
 - Les réponses partent avec l'événement (`ON DELETE CASCADE`), donc avec la session. Un
   membre qui quitte le groupe sort de la liste
 - Pas de rappel automatique la veille : sans e-mail ni tâche planifiée, la relance est un

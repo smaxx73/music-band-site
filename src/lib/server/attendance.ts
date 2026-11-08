@@ -104,12 +104,19 @@ export async function askAttendance(eventId: number, groupId: number, actor: Act
  * La date de l'événement a changé : les réponses données pour l'ancienne ne valent plus,
  * ni les notifications qui la demandaient. La question est reposée si la nouvelle date
  * est à venir. Retourne vrai si elle l'a été — le groupe vient alors d'être notifié.
+ * `fromToday` : une date posée dans l'agenda demande qui vient même pour ce soir, là où
+ * une session du jour se crée presque toujours pendant la répétition.
  */
-export async function restartAttendance(eventId: number, groupId: number, actor: Actor): Promise<boolean> {
+export async function restartAttendance(
+	eventId: number,
+	groupId: number,
+	actor: Actor,
+	{ fromToday = false }: { fromToday?: boolean } = {}
+): Promise<boolean> {
 	await sql`DELETE FROM event_attendance WHERE event_id = ${eventId}`
 	await sql`DELETE FROM notifications WHERE event_id = ${eventId} AND type = 'attendance'`
 	const [row] = await sql<{ attendance_requested: boolean }[]>`
-		UPDATE calendar_events SET attendance_requested = (date > CURRENT_DATE)
+		UPDATE calendar_events SET attendance_requested = (date >= CURRENT_DATE + ${fromToday ? 0 : 1}::int)
 		WHERE id = ${eventId} AND group_id = ${groupId}
 		RETURNING attendance_requested
 	`

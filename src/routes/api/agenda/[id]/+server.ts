@@ -2,14 +2,17 @@ import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 import { parseEventTime } from '$lib/event-time'
+import { parseCoords } from '$lib/places'
+import { SESSION_TYPES } from '$lib/types'
 import { parseProgramSongIds, programSongsError, writeEventProgram } from '$lib/server/event-program'
+import { restartAttendance } from '$lib/server/attendance'
 
 async function getAccessibleEvent(id: number, locals: App.Locals) {
 	if (!locals.user || !locals.user.current_group_id) return null
 	const groupId = locals.user.current_group_id
 
 	const [event] = await sql`
-		SELECT * FROM calendar_events
+		SELECT *, date::text AS day FROM calendar_events
 		WHERE id = ${id}
 			AND (
 				(group_id = ${groupId} AND type <> 'indisponibilite')
@@ -37,8 +40,38 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 	}
 
 	const body = await request.json()
-	const title = typeof body.title === 'string' ? (body.title.trim() || null) : event.title
-	const notes = typeof body.notes === 'string' ? (body.notes.trim() || null) : event.notes
+
+	// La date, le titre, le type, le lieu et les notes de l'événement d'une session sont ceux
+	// de la session : PATCH /api/sessions/[id] les réécrirait. Ils ne se changent que là-bas.
+	const ownFields = event.session_id === null
+	let date: string = event.day
+	if (ownFields && 'date' in body) {
+		if (typeof body.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(body.date)) {
+			return json({ error: 'Date invalide.' }, { status: 400 })
+		}
+		date = body.date
+	}
+
+	const title = ownFields && typeof body.title === 'string' ? (body.title.trim() || null) : event.title
+	const notes = ownFields && typeof body.notes === 'string' ? (body.notes.trim() || null) : event.notes
+
+	let type = event.type
+	if (ownFields && event.type !== 'indisponibilite' && 'type' in body) {
+		if (!SESSION_TYPES.includes(body.type)) return json({ error: 'Type invalide.' }, { status: 400 })
+		type = body.type
+	}
+
+	// Changer le lieu sans coordonnées les efface : elles décrivaient l'ancien.
+	let location = event.location
+	let locationLat = event.location_lat
+	let locationLon = event.location_lon
+	if (ownFields && 'location' in body) {
+		const coords = parseCoords(body.location_coords)
+		if (coords === undefined) return json({ error: 'location_coords invalide.' }, { status: 400 })
+		location = typeof body.location === 'string' && body.location.trim() ? body.location.trim() : null
+		locationLat = location ? (coords?.lat ?? null) : null
+		locationLon = location ? (coords?.lon ?? null) : null
+	}
 
 	// L'heure ne se change que sur un événement de groupe, et seulement si elle est envoyée.
 	// Pas de notification : les réponses restent, l'heure se lit sur la date.
@@ -76,7 +109,8 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		// L'UPDATE d'abord : le verrou de la ligne fait attendre une seconde écriture du programme.
 		const [row] = await tx`
 			UPDATE calendar_events
-			SET title = ${title}, notes = ${notes}, session_id = ${sessionId},
+			SET date = ${date}::date, title = ${title}, notes = ${notes}, type = ${type}, session_id = ${sessionId},
+			    location = ${location}, location_lat = ${locationLat}, location_lon = ${locationLon},
 			    start_time = ${startTime}, duration_min = ${durationMin}
 			WHERE id = ${id}
 			RETURNING *
@@ -84,6 +118,12 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		if (songIds) await writeEventProgram(tx, id, songIds)
 		return row
 	})
+
+	// Les réponses données pour l'ancienne date ne valent plus : la question est reposée.
+	if (event.type !== 'indisponibilite' && date !== event.day) {
+		await restartAttendance(id, locals.user.current_group_id, locals.user, { fromToday: true })
+	}
+
 	return json(updated)
 }
 

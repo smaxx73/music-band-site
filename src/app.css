@@ -132,10 +132,12 @@
   --mini-player-h: 0px;
 
   /* Largeur de colonne d'une page (.page) : 640 formulaire ou liste simple, 720 par
-     défaut, 900 pour les en-têtes média, les tableaux, l'agenda et la découpe. */
+     défaut, 900 pour les en-têtes média, les tableaux, l'agenda et la découpe.
+     --page-split : l'agenda sur grand écran, le mois et sa colonne de détail côte à côte. */
   --page-narrow: 640px;
   --page-medium: 720px;
   --page-wide:   900px;
+  --page-split:  1320px;
 }
 
 /* Au téléphone, barre du haut et barre d'onglets prennent la hauteur d'une cible au pouce. */
