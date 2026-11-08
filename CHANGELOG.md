@@ -13,6 +13,10 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.21.0] — 2026-11-08
+
+Aucune migration.
+
 - **Agenda** : sur grand écran, le détail d'un jour s'ouvre dans une colonne à droite du mois,
   qui liste les dates du mois quand aucun jour n'est choisi. Chaque événement se lit en fiche,
   avec son programme et ses présences à part, et le formulaire d'ajout ne s'ouvre qu'à la demande.
