@@ -13,7 +13,9 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
-Migration : `054_recording_listens.sql`.
+## [1.18.0] — 2026-11-08
+
+Migration à appliquer : `054_recording_listens.sql`.
 
 - **Prises** : on voit maintenant qui a écouté une prise. Sur sa page, « Écoutée par Marc, Julie
   et 2 autres » (le jour de la dernière écoute de chacun au survol) ; dans les listes d'une session
