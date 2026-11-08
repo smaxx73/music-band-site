@@ -13,6 +13,8 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.19.0] — 2026-11-08
+
 Aucune migration.
 
 - **Prises** : seul le nombre d'auditeurs d'une prise reste affiché, plus leurs noms. Le détail
