@@ -33,6 +33,7 @@
 		start_time: string | null; duration_min: number | null
 		// Présences demandées : les absents (réponse ou indisponibilité) sont dans `absents`.
 		attendance: { present: number; maybe: string[]; pending: number } | null
+		program: string[]
 	}
 	type PendingAttendance = {
 		event_id: number; session_id: number | null; date: string; type: string
@@ -133,6 +134,9 @@
 		const day = localDateOnly(new Date(at))
 		return nearDayLabel(day) ?? formatShortDate(day)
 	}
+
+	// Une carte, pas la feuille de route : le reste se lit dans l'agenda ou la session.
+	const PROGRAM_PREVIEW = 5
 
 	function plural(n: number, one: string, many = `${one}s`) {
 		return `${n} ${n > 1 ? many : one}`
@@ -479,6 +483,13 @@
 									<span class="absents">
 										<span class="absents-label">Absent{nextItem.absents.length > 1 ? 's' : ''}</span>
 										{nextItem.absents.join(', ')}
+									</span>
+								{/if}
+								{#if nextItem.program.length > 0}
+									<span class="next-program">
+										<span class="next-program-label">Au programme</span>
+										{nextItem.program.slice(0, PROGRAM_PREVIEW).join(', ')}{#if nextItem.program.length > PROGRAM_PREVIEW}
+											{' '}et {plural(nextItem.program.length - PROGRAM_PREVIEW, 'autre')}{/if}
 									</span>
 								{/if}
 							</a>
@@ -882,6 +893,17 @@
 		margin-top: 0.35rem;
 		font-size: var(--text-xs);
 		color: var(--color-text);
+	}
+
+	.next-program {
+		margin-top: 0.35rem;
+		font-size: var(--text-xs);
+		color: var(--color-text);
+	}
+
+	.next-program-label {
+		font-weight: 700;
+		margin-right: 0.3rem;
 	}
 
 	.presence {

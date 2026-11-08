@@ -132,6 +132,9 @@ NODE_ENV=production
   jamais par la session, et passent par `src/lib/server/attendance.ts`. Une indisponibilité
   ne répond pas à la place du membre. La notification `attendance` n'est pas désactivable,
   comme une mention. Voir « Présences » dans docs/features.md
+- Le programme de travail d'une date (`event_program_songs`) est porté par l'événement d'agenda,
+  comme les présences, et passe par `src/lib/server/event-program.ts`. Reprendre une setlist le
+  copie, sans lien gardé. Voir « Programme de travail » dans docs/features.md
 - Une écoute de prise se compte dans le navigateur (`ListenMeter`, `src/lib/listen-meter.ts`,
   branché sur le lecteur partagé), jamais dans `/audio/` : les requêtes par plages et le
   préchargement n'y disent rien de ce qui a été entendu. Une ligne par membre, prise et jour,

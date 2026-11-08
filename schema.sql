@@ -419,6 +419,16 @@ CREATE TABLE event_attendance (
     PRIMARY KEY (event_id, user_id)
 );
 
+-- Programme de travail d'un événement de groupe (migration 055) : les morceaux qu'on prévoit
+-- de travailler à cette date, dans l'ordre. Voir src/lib/server/event-program.ts.
+CREATE TABLE event_program_songs (
+    event_id    INTEGER NOT NULL REFERENCES calendar_events(id) ON DELETE CASCADE,
+    song_id     INTEGER NOT NULL REFERENCES songs(id)           ON DELETE CASCADE,
+    position    INTEGER NOT NULL,
+    PRIMARY KEY (event_id, song_id),
+    UNIQUE (event_id, position)
+);
+
 CREATE TABLE notifications (
     id            SERIAL PRIMARY KEY,
     user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,   -- destinataire

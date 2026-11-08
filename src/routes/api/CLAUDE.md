@@ -240,7 +240,7 @@ existe déjà : un sélecteur qui crée un morceau à la volée choisit alors l'
 `PATCH /api/recordings/[id]` accepte `{ song_id }`, **seul** (`400` avec un autre champ) :
 la prise change de morceau et prend le numéro suivant de celui-ci, dans une transaction qui
 verrouille le morceau visé (`400` s'il est `abandonne`). Un morceau « À nommer — … » vidé de
-sa dernière prise, absent de toute setlist et sans rien d'écrit ni déposé (paroles, notes,
+sa dernière prise, absent de toute setlist et de tout programme de travail, et sans rien d'écrit ni déposé (paroles, notes,
 pochette, feuille, suggestion d'origine) est supprimé au passage (`removed_song_id`).
 
 Une **playlist** (`api/playlists/`) désigne des prises du groupe actif.
@@ -253,7 +253,10 @@ ordre. `GET /api/setlists` accepte `?song_id=` : chaque setlist porte alors `con
 pour que le sélecteur d'une vue morceau marque celles où le morceau est déjà programmé.
 `POST /api/setlists` (`{ name, description?, song_id? }`) la crée et notifie le groupe ; avec
 `song_id`, la setlist et son premier morceau naissent dans la **même transaction** — une erreur
-ne laisse pas derrière elle une setlist vide que personne n'a demandée ;
+ne laisse pas derrière elle une setlist vide que personne n'a demandée ; avec `playlist_id`
+(jamais avec `song_id`, `400`), elle reprend dans la même transaction les morceaux de cette
+playlist du groupe actif, dans son ordre, chacun une fois et sans les abandonnés — `404` si
+la playlist est hors du groupe, `400` s'il ne reste aucun morceau ;
 `PATCH /api/setlists/[id]` accepte `name` et/ou `description` (tout membre) ;
 `DELETE /api/setlists/[id]` est réservé à son auteur et aux admins du groupe
 (`canDeleteGroupContent`, `403` sinon) et emporte programme et commentaires en cascade.
@@ -272,6 +275,12 @@ C'est `findCommentThread` qui le dit (`anchorable`). La vérification de droit e
 actif, via `findCommentThread` (`src/lib/server/comments.ts`). Ne jamais rejoindre
 `recordings` à la main pour retrouver le groupe d'un commentaire : un commentaire de
 setlist n'a pas de prise.
+
+Le **programme de travail** d'un événement de groupe s'écrit par `song_ids` (entiers, dans
+l'ordre, 50 au plus), facultatif sur `POST /api/agenda` et `PATCH /api/agenda/[id]`, où il
+réécrit toute la liste (`[]` = plus de programme, absent = inchangé). `400` si un morceau
+n'est pas du groupe actif, ou s'il est `abandonne` sans figurer déjà au programme. Ignoré
+sur une indisponibilité. Passer par `src/lib/server/event-program.ts`.
 
 Les **présences** (`api/agenda/[id]/attendance`) portent sur un événement de groupe du
 groupe actif (une indisponibilité répond `404`). `POST /api/agenda` et `PATCH /api/agenda/[id]`

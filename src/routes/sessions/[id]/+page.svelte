@@ -7,6 +7,7 @@
 	import RecordingRow from '$lib/components/RecordingRow.svelte'
 	import SongCover from '$lib/components/SongCover.svelte'
 	import PlayAllButton from '$lib/components/PlayAllButton.svelte'
+	import EventProgram from '$lib/components/EventProgram.svelte'
 	import type { PlayerTrack } from '$lib/player.svelte'
 	import { canDeleteGroupContent, canSharePublicly, formatDurationLong } from '$lib/types'
 	import type { RecordingListItem, SessionType } from '$lib/types'
@@ -334,6 +335,14 @@
 		</div>
 	{/if}
 
+	{#if data.program.length > 0}
+		<div class="session-program">
+			<EventProgram songs={data.program}>
+				<a class="btn-link btn-link-muted" href="/agenda?date={session.date}">Modifier dans l’agenda</a>
+			</EventProgram>
+		</div>
+	{/if}
+
 	<!-- Morceaux & prises -->
 	{#if groups.length > 1}
 		<nav class="song-toc" aria-label="Morceaux de la session">
@@ -477,6 +486,9 @@
 		font-size: var(--text-2xs);
 		color: var(--color-text-muted);
 	}
+
+	.session-program { margin-bottom: 1.25rem; }
+	.session-program .btn-link { font-size: var(--text-xs); }
 
 	.list-actions { margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; gap: 0.6rem; }
 

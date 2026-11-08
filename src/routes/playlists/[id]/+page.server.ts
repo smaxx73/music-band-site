@@ -34,6 +34,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 			r.file_path,
 			s.id         AS song_id,
 			s.title      AS song_title,
+			s.status     AS song_status,
 			s.composer   AS song_composer,
 			s.lyrics     AS song_lyrics,
 			s.music_notes AS song_music_notes,
@@ -49,7 +50,7 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 	`, sql`
 		SELECT
 			r.id AS recording_id, r.take, r.duration_s, r.status AS recording_status, r.file_path,
-			s.id AS song_id, s.title AS song_title, s.composer AS song_composer,
+			s.id AS song_id, s.title AS song_title, s.status AS song_status, s.composer AS song_composer,
 			s.lyrics AS song_lyrics, s.music_notes AS song_music_notes,
 			ses.id AS session_id, ses.date AS session_date, ses.location AS session_location,
 			EXISTS (

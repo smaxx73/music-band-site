@@ -5,6 +5,7 @@ import { listRecentGroupComments } from '$lib/server/comments'
 import { listRecentImports } from '$lib/server/imports'
 import { PLACEHOLDER_SONG_PREFIX } from '$lib/songs'
 import { listAttendance, pendingAttendance } from '$lib/server/attendance'
+import { listEventPrograms } from '$lib/server/event-program'
 
 // L'accueil n'est qu'un aperçu de l'activité : trois lignes, le fil montre le reste.
 // Trois par source suffisent pour les trois dernières toutes sources confondues.
@@ -216,10 +217,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	// Présences des dates à venir. Un « absent » répondu rejoint les indisponibles du jour :
 	// la carte ne dit qu'une fois qui manque, quelle que soit la façon dont il l'a dit.
-	const attendanceByEvent = await listAttendance(
-		groupId,
-		upcomingItems.flatMap((i) => (i.event_id ? [i.event_id] : []))
-	)
+	const upcomingEventIds = upcomingItems.flatMap((i) => (i.event_id ? [i.event_id] : []))
+	const [attendanceByEvent, programByEvent] = await Promise.all([
+		listAttendance(groupId, upcomingEventIds),
+		listEventPrograms(groupId, upcomingEventIds)
+	])
 	function upcomingAttendance(item: (typeof upcomingItems)[number]) {
 		const unavailable = absentsByDate.get(item.date) ?? []
 		const attendance = item.event_id ? attendanceByEvent.get(item.event_id) : undefined
@@ -243,7 +245,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 	return {
 		lastSession: lastSession ?? null,
 		lastTracks,
-		upcomingItems: upcomingItems.map((i) => ({ ...i, ...upcomingAttendance(i) })),
+		upcomingItems: upcomingItems.map((i) => ({
+			...i,
+			...upcomingAttendance(i),
+			program: (i.event_id ? programByEvent.get(i.event_id) ?? [] : []).map((s) => s.song_title),
+		})),
 		otherUnavailabilities,
 		playlists,
 		setlists,

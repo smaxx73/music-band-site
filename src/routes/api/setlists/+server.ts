@@ -41,8 +41,17 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	}
 	const selectedSongId = songId === undefined ? null : songId as number
 
-	// La création depuis le sélecteur d'un morceau est atomique : une erreur ne laisse
-	// pas derrière elle une setlist vide que l'utilisateur n'avait pas demandée.
+	const playlistId: unknown = body.playlist_id
+	if (playlistId !== undefined && (typeof playlistId !== 'number' || !Number.isInteger(playlistId) || playlistId < 1)) {
+		return json({ error: 'playlist_id invalide.' }, { status: 400 })
+	}
+	if (playlistId !== undefined && selectedSongId !== null) {
+		return json({ error: 'song_id et playlist_id ne vont pas ensemble.' }, { status: 400 })
+	}
+	const selectedPlaylistId = playlistId === undefined ? null : playlistId as number
+
+	// La création depuis le sélecteur d'un morceau ou depuis une playlist est atomique : une
+	// erreur ne laisse pas derrière elle une setlist vide que l'utilisateur n'avait pas demandée.
 	const created = await sql.begin(async (tx) => {
 		const [setlist] = await tx`
 			INSERT INTO setlists (group_id, name, description, created_by, created_by_user_id)
@@ -55,6 +64,34 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 			)
 			RETURNING *
 		`
+
+		if (selectedPlaylistId !== null) {
+			const [playlist] = await tx`
+				SELECT id FROM playlists
+				WHERE id = ${selectedPlaylistId} AND group_id = ${locals.user!.current_group_id}
+			`
+			if (!playlist) throw Object.assign(new Error(), { code: 'playlist_not_found' })
+
+			// Une playlist vise des prises, une setlist des morceaux : plusieurs prises d'un même
+			// morceau n'en font qu'un, à la place de la première. Rien ne relie ensuite les deux.
+			const items = await tx`
+				INSERT INTO setlist_items (setlist_id, song_id, position)
+				SELECT ${setlist.id}::int, t.song_id, ROW_NUMBER() OVER (ORDER BY t.first_position)
+				FROM (
+					SELECT r.song_id, MIN(pi.position) AS first_position
+					FROM playlist_items pi
+					JOIN recordings r ON r.id = pi.recording_id
+					JOIN songs so ON so.id = r.song_id
+					WHERE pi.playlist_id = ${selectedPlaylistId}
+					  AND so.group_id = ${locals.user!.current_group_id}
+					  AND so.status IS DISTINCT FROM 'abandonne'
+					GROUP BY r.song_id
+				) t
+				RETURNING id
+			`
+			if (items.length === 0) throw Object.assign(new Error(), { code: 'nothing_to_program' })
+			return { setlist, item: null }
+		}
 
 		if (selectedSongId === null) return { setlist, item: null }
 
@@ -74,11 +111,15 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 		return { setlist, item }
 	}).catch((err: unknown) => {
 		const code = (err as { code?: string }).code
-		if (code === 'song_not_found' || code === 'abandoned') return code
+		if (code === 'song_not_found' || code === 'abandoned' || code === 'playlist_not_found' || code === 'nothing_to_program') return code
 		throw err
 	})
 
 	if (created === 'song_not_found') return json({ error: 'Morceau introuvable.' }, { status: 404 })
+	if (created === 'playlist_not_found') return json({ error: 'Playlist introuvable.' }, { status: 404 })
+	if (created === 'nothing_to_program') {
+		return json({ error: 'Cette playlist ne contient aucun morceau à programmer.' }, { status: 400 })
+	}
 	if (created === 'abandoned') {
 		return json({ error: 'Ce morceau est abandonné : il ne peut pas être programmé.' }, { status: 400 })
 	}

@@ -13,6 +13,14 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+Migration à appliquer : `055_event_program.sql`.
+
+- **Agenda** : une date peut porter un programme de travail, la liste des morceaux à travailler,
+  à la création ou après coup, choisis un par un ou repris d'une setlist. Il se lit dans
+  l'agenda, sur la page de la session et sur la carte de la prochaine date.
+- **Playlists** : « Créer une setlist » fait d'une playlist un programme, un morceau par morceau,
+  dans le même ordre. La playlist ne change pas.
+
 ## [1.19.0] — 2026-11-08
 
 Aucune migration.

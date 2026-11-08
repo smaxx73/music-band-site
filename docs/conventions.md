@@ -39,6 +39,7 @@ src/
 │   │   ├── avatars.ts     # photo de profil : dépôt (recadrage ffmpeg), retrait, lecture selon
 │   │   │                  #   le partage d'un groupe, versions d'un lot de comptes (fil)
 │   │   ├── attendance.ts  # présences à un événement de groupe : question, réponses, relance, date déplacée
+│   │   ├── event-program.ts # programme de travail d'un événement : lecture, validation, réécriture
 │   │   ├── places.ts      # lieux du groupe (/group) : liste, ajout, modification (renommage propagé), retrait
 │   │   ├── addresses.ts   # Base Adresse Nationale : recherche d'une adresse pour un lieu
 │   │   ├── images.ts      # images déposées : format lu dans les octets, taille de requête
@@ -83,6 +84,8 @@ src/
 │       ├── NotificationsMenu.svelte # cloche + menu des notifications (barre du haut)
 │       ├── AttendanceButtons.svelte # Présent / Peut-être / Absent : cloche, tableau de bord, agenda
 │       ├── EventAttendance.svelte # présences d'un événement dans le panneau du jour (/agenda)
+│       ├── EventProgram.svelte    # programme de travail d'un événement, en lecture (agenda, session)
+│       ├── EventProgramField.svelte # programme de travail en saisie : ajout, ordre, retrait
 │       ├── GroupSwitcher.svelte   # groupe actif (logo, nom), changement de groupe, entrée « Mon espace perso »
 │       ├── AddMenu.svelte         # « + Ajouter » : enregistrer, envoyer, session, publier
 │       ├── PlaylistQueue.svelte   # mode édition d'une playlist : ordre (glisser), retrait

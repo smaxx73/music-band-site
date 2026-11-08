@@ -2,6 +2,7 @@ import type { RequestHandler } from './$types'
 import { json } from '@sveltejs/kit'
 import sql from '$lib/server/db'
 import { parseEventTime } from '$lib/event-time'
+import { parseProgramSongIds, programSongsError, writeEventProgram } from '$lib/server/event-program'
 
 async function getAccessibleEvent(id: number, locals: App.Locals) {
 	if (!locals.user || !locals.user.current_group_id) return null
@@ -61,13 +62,28 @@ export const PATCH: RequestHandler = async ({ locals, params, request }) => {
 		}
 	}
 
-	const [updated] = await sql`
-		UPDATE calendar_events
-		SET title = ${title}, notes = ${notes}, session_id = ${sessionId},
-		    start_time = ${startTime}, duration_min = ${durationMin}
-		WHERE id = ${id}
-		RETURNING *
-	`
+	// Le programme se réécrit en entier, seulement s'il est envoyé. Pas de notification,
+	// comme pour l'heure : il se lit sur la date.
+	let songIds: number[] | null = null
+	if (event.type !== 'indisponibilite' && 'song_ids' in body) {
+		songIds = parseProgramSongIds(body.song_ids)
+		if (!songIds) return json({ error: 'song_ids invalide.' }, { status: 400 })
+		const programError = await programSongsError(locals.user.current_group_id, songIds, id)
+		if (programError) return json({ error: programError }, { status: 400 })
+	}
+
+	const updated = await sql.begin(async (tx) => {
+		// L'UPDATE d'abord : le verrou de la ligne fait attendre une seconde écriture du programme.
+		const [row] = await tx`
+			UPDATE calendar_events
+			SET title = ${title}, notes = ${notes}, session_id = ${sessionId},
+			    start_time = ${startTime}, duration_min = ${durationMin}
+			WHERE id = ${id}
+			RETURNING *
+		`
+		if (songIds) await writeEventProgram(tx, id, songIds)
+		return row
+	})
 	return json(updated)
 }
 

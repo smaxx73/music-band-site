@@ -5,6 +5,8 @@ import { loginRedirect } from '$lib/redirect'
 import { listGroupPlaces } from '$lib/server/places'
 import { listAttendance } from '$lib/server/attendance'
 import type { EventAttendance } from '$lib/attendance'
+import { listEventPrograms, programmableSongs, programSetlists } from '$lib/server/event-program'
+import type { EventProgramSong } from '$lib/types'
 
 function currentMonth(): string {
 	const now = new Date()
@@ -26,7 +28,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 
 	const groupId = locals.user.current_group_id
 	if (!groupId) {
-		return { events: [], sessions: [], places: [], attendance: {}, month, openDay, openForm, userName: locals.user.display_name }
+		return { events: [], sessions: [], places: [], attendance: {}, programs: {}, songs: [], setlists: [], month, openDay, openForm, userName: locals.user.display_name }
 	}
 
 	const [y, m] = month.split('-').map(Number)
@@ -35,7 +37,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	const nextM = m === 12 ? 1 : m + 1
 	const end = `${nextY}-${String(nextM).padStart(2, '0')}-01`
 
-	const [events, sessions, places] = await Promise.all([
+	const [events, sessions, places, songs, setlists] = await Promise.all([
 		sql`
 			SELECT
 				e.id, e.group_id, e.user_id, e.type, COALESCE(u.display_name, e.author) AS author, e.title, e.notes, e.location, e.session_id, e.created_at,
@@ -66,14 +68,19 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 			LIMIT 50
 		`,
 		// Pour relire l'adresse d'un lieu d'événement, désigné par son étiquette.
-		listGroupPlaces(groupId)
+		listGroupPlaces(groupId),
+		programmableSongs(groupId),
+		programSetlists(groupId)
 	])
 
 	// Présences des événements du groupe : qui vient, qui n'a pas répondu.
 	const groupEventIds = events.filter((e) => e.type !== 'indisponibilite').map((e) => e.id as number)
-	const attendance: Record<number, EventAttendance> = Object.fromEntries(
-		await listAttendance(groupId, groupEventIds)
-	)
+	const [attendanceByEvent, programByEvent] = await Promise.all([
+		listAttendance(groupId, groupEventIds),
+		listEventPrograms(groupId, groupEventIds)
+	])
+	const attendance: Record<number, EventAttendance> = Object.fromEntries(attendanceByEvent)
+	const programs: Record<number, EventProgramSong[]> = Object.fromEntries(programByEvent)
 
-	return { events, sessions, places, attendance, month, openDay, openForm, userName: locals.user.display_name, userId: locals.user.id }
+	return { events, sessions, places, attendance, programs, songs, setlists, month, openDay, openForm, userName: locals.user.display_name, userId: locals.user.id }
 }

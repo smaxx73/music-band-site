@@ -9,12 +9,17 @@
 		surface = 'page',
 		error = null,
 		busy = false,
+		removeLabel = 'de la setlist',
+		showDuration = true,
 		onReorder = () => {},
 		onRemove = () => {}
 	}: {
-		items: SetlistItemView[]
+		items: Omit<SetlistItemView, 'setlist_id' | 'position'>[]
 		/** Les actions sur le programme ne sont disponibles qu'en mode édition. */
 		editable?: boolean
+		/** Complète « Retirer … » : la liste sert aussi au programme de travail d'une date. */
+		removeLabel?: string
+		showDuration?: boolean
 		/**
 		 * Où la liste est posée : à plat sur la page, ou sur le plateau creusé d'une
 		 * boîte d'édition. Sur le plateau, une ligne transparente prendrait le fond du
@@ -91,9 +96,11 @@
 					{/if}
 				</span>
 			</span>
-			<span class="duration" class:unknown={item.reference_duration_s === null}>
-				{item.reference_duration_s === null ? '—:—' : formatTimecode(item.reference_duration_s)}
-			</span>
+			{#if showDuration}
+				<span class="duration" class:unknown={item.reference_duration_s === null}>
+					{item.reference_duration_s === null ? '—:—' : formatTimecode(item.reference_duration_s)}
+				</span>
+			{/if}
 			{#if editable}
 				<!-- Les flèches ne doublent pas le glisser-déposer, elles le remplacent au doigt :
 				     le drag HTML5 ne fonctionne pas sur écran tactile, et une setlist se réordonne
@@ -120,8 +127,8 @@
 					type="button"
 					class="remove-btn"
 					disabled={busy}
-					title="Retirer de la setlist"
-					aria-label="Retirer {item.song_title} de la setlist"
+					title="Retirer {removeLabel}"
+					aria-label="Retirer {item.song_title} {removeLabel}"
 					onclick={() => onRemove(item.id, i)}
 				><Icon name="close" size="0.85rem" /></button>
 			{/if}

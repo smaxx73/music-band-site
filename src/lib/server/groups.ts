@@ -563,6 +563,7 @@ export type GroupArchive = {
 	/** Publications : les enregistrements perso qu'elles montrent n'appartiennent pas au groupe. */
 	posts: Record<string, unknown>[]
 	calendar_events: Record<string, unknown>[]
+	event_program_songs: Record<string, unknown>[]
 	// Contrairement aux mp3, le logo est assez petit (2 Mo max) pour voyager dans l'archive.
 	logo: { mime_type: string; updated_at: Date; base64: string } | null
 	// Les mp3 eux-mêmes ne sont pas embarqués (plusieurs Go) : le manifeste permet
@@ -593,7 +594,7 @@ export async function exportGroup(
 
 	const [
 		members, songs, sessions, recordings, comments,
-		playlists, playlistItems, setlists, setlistItems, posts, calendarEvents, logos
+		playlists, playlistItems, setlists, setlistItems, posts, calendarEvents, eventProgramSongs, logos
 	] =
 		await Promise.all([
 			// Jamais password_hash : l'archive peut circuler hors de l'application.
@@ -634,6 +635,11 @@ export async function exportGroup(
 			`,
 			sql`SELECT * FROM posts WHERE group_id = ${groupId} ORDER BY id`,
 			sql`SELECT * FROM calendar_events WHERE group_id = ${groupId} ORDER BY id`,
+			sql`
+				SELECT p.* FROM event_program_songs p
+				JOIN calendar_events e ON e.id = p.event_id
+				WHERE e.group_id = ${groupId} ORDER BY p.event_id, p.position
+			`,
 			sql<{ mime_type: string; updated_at: Date; data: Buffer }[]>`
 				SELECT mime_type, updated_at, data FROM group_logos WHERE group_id = ${groupId}
 			`
@@ -683,6 +689,7 @@ export async function exportGroup(
 				setlist_items: setlistItems as unknown as Record<string, unknown>[],
 				posts: posts as unknown as Record<string, unknown>[],
 				calendar_events: calendarEvents as unknown as Record<string, unknown>[],
+				event_program_songs: eventProgramSongs as unknown as Record<string, unknown>[],
 				logo: logo
 					? { mime_type: logo.mime_type, updated_at: logo.updated_at, base64: logo.data.toString('base64') }
 					: null,

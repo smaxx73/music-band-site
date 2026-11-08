@@ -21,7 +21,7 @@
 		id: number; position: number; note: string | null
 		recording_id: number; take: number; duration_s: number | null
 		recording_status: string | null; file_path: string
-		song_id: number; song_title: string; song_composer: string | null
+		song_id: number; song_title: string; song_status: string | null; song_composer: string | null
 		song_lyrics: string | null; song_music_notes: string | null
 		session_id: number; session_date: string; session_location: string | null
 	}
@@ -32,7 +32,7 @@
 	type AvailableRecording = {
 		recording_id: number; take: number; duration_s: number | null
 		recording_status: string | null; file_path: string
-		song_id: number; song_title: string; song_composer: string | null
+		song_id: number; song_title: string; song_status: string | null; song_composer: string | null
 		song_lyrics: string | null; song_music_notes: string | null
 		session_id: number; session_date: string; session_location: string | null
 		in_playlist: boolean
@@ -122,6 +122,7 @@
 				file_path: recording.file_path,
 				song_id: recording.song_id,
 				song_title: recording.song_title,
+				song_status: recording.song_status,
 				song_composer: recording.song_composer,
 				song_lyrics: recording.song_lyrics,
 				song_music_notes: recording.song_music_notes,
@@ -223,6 +224,45 @@
 		}
 	}
 
+	// Une setlist depuis cette playlist : une prise de moins, ou un morceau de moins, ne se
+	// devine pas à l'arrivée — la confirmation dit ce que la setlist contiendra.
+	let confirmSetlistOpen = $state(false)
+	let creatingSetlist = $state(false)
+	let setlistError = $state<string | null>(null)
+
+	const programmableItems = $derived(items.filter((i) => i.song_status !== 'abandonne'))
+	const setlistSongCount = $derived(new Set(programmableItems.map((i) => i.song_id)).size)
+
+	const setlistMessage = $derived.by(() => {
+		const n = setlistSongCount
+		const merged = programmableItems.length > n ? ' Plusieurs prises d’un même morceau n’en font qu’un.' : ''
+		const skipped = programmableItems.length < items.length ? ' Les morceaux abandonnés ne sont pas repris.' : ''
+		return `Une setlist « ${playlist.name} » de ${n} morceau${n > 1 ? 'x' : ''} sera créée, dans l’ordre de la playlist.${merged}${skipped} La playlist reste telle quelle.`
+	})
+
+	async function createSetlist() {
+		creatingSetlist = true
+		setlistError = null
+		try {
+			const res = await fetch('/api/setlists', {
+				method: 'POST',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ name: playlist.name, description: playlist.description, playlist_id: playlist.id })
+			})
+			const body = await res.json().catch(() => ({}))
+			if (!res.ok) {
+				setlistError = (body as { error?: string }).error ?? `Erreur ${res.status}`
+				return
+			}
+			await goto(`/setlists/${(body as { id: number }).id}`)
+		} catch {
+			setlistError = 'Erreur réseau : la setlist n’a pas été créée.'
+		} finally {
+			creatingSetlist = false
+			confirmSetlistOpen = false
+		}
+	}
+
 	const playlistStats = $derived.by(() => {
 		const totalS = items.reduce((n, i) => n + (i.duration_s ?? 0), 0)
 		return [
@@ -253,6 +293,16 @@
 		{#if playlist.description}<p class="desc">{playlist.description}</p>{/if}
 		{#snippet actions()}
 			{#if items.length > 0}
+				{#if !editMode && setlistSongCount > 0}
+					<button
+						class="btn btn-ghost mh-secondary"
+						title="Créer une setlist depuis cette playlist"
+						onclick={() => (confirmSetlistOpen = true)}
+					>
+						<Icon name="list" size="0.9rem" />
+						<span class="mh-label">Créer une setlist</span>
+					</button>
+				{/if}
 				<!-- En édition, « Terminer » prend le ton principal : c'est l'état dont on sort. -->
 				<button
 					class="btn {editMode ? 'btn-primary' : 'btn-ghost mh-secondary'}"
@@ -266,6 +316,8 @@
 			{/if}
 		{/snippet}
 	</MediaHeader>
+
+	{#if setlistError}<p class="message-error">{setlistError}</p>{/if}
 
 	{#if items.length === 0}
 		<div class="empty-state">
@@ -360,6 +412,17 @@
 		busy={deleting}
 		onConfirm={deletePlaylist}
 		onCancel={() => (confirmDeleteOpen = false)}
+	/>
+
+	<ConfirmDialog
+		open={confirmSetlistOpen}
+		level="info"
+		title="Créer une setlist ?"
+		message={setlistMessage}
+		confirmLabel="Créer la setlist"
+		busy={creatingSetlist}
+		onConfirm={createSetlist}
+		onCancel={() => (confirmSetlistOpen = false)}
 	/>
 
 	<ConfirmDialog

@@ -7,6 +7,7 @@ import { sessionTypeLabel } from '$lib/types'
 import { parseCoords } from '$lib/places'
 import { parseEventTime } from '$lib/event-time'
 import { askAttendance } from '$lib/server/attendance'
+import { parseProgramSongIds, programSongsError, writeEventProgram } from '$lib/server/event-program'
 
 export const GET: RequestHandler = async ({ locals, url }) => {
 	if (!locals.user) return json({ error: 'Non autorisé' }, { status: 401 })
@@ -103,6 +104,12 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	const time = parseEventTime(body.start_time, body.end_time)
 	if (!time) return json({ error: 'Heure invalide (HH:MM, fin seulement avec un début).' }, { status: 400 })
 
+	// Programme de travail, facultatif : un événement de groupe seulement.
+	const songIds = parseProgramSongIds(body.song_ids ?? [])
+	if (!songIds) return json({ error: 'song_ids invalide.' }, { status: 400 })
+	const programError = await programSongsError(locals.user.current_group_id, songIds, null)
+	if (programError) return json({ error: programError }, { status: 400 })
+
 	let resolvedSessionId: number | null = null
 	if (typeof session_id === 'number') {
 		const [session] = await sql`
@@ -124,29 +131,35 @@ export const POST: RequestHandler = async ({ locals, request }) => {
 	// Une date posée dans l'agenda se prépare : même ajoutée le jour même (« ce soir »),
 	// elle demande qui vient. Une session créée le jour même, elle, l'est presque toujours
 	// pendant la répétition — voir POST /api/sessions.
-	const [event] = await sql`
-		INSERT INTO calendar_events (
-			group_id, user_id, date, type, author, title, notes, location, location_lat, location_lon, session_id,
-			start_time, duration_min, attendance_requested
-		)
-		VALUES (
-			${locals.user.current_group_id},
-			${locals.user.id},
-			${date}::date,
-			${type},
-			${locals.user.display_name},
-			${typeof title === 'string' && title.trim() ? title.trim() : null},
-			${typeof notes === 'string' && notes.trim() ? notes.trim() : null},
-			${resolvedLocation},
-			${resolvedCoords?.lat ?? null},
-			${resolvedCoords?.lon ?? null},
-			${resolvedSessionId},
-			${time.start_time},
-			${time.duration_min},
-			${date}::date >= CURRENT_DATE
-		)
-		RETURNING *
-	`
+	const author = locals.user
+	const groupId = locals.user.current_group_id
+	const event = await sql.begin(async (tx) => {
+		const [created] = await tx`
+			INSERT INTO calendar_events (
+				group_id, user_id, date, type, author, title, notes, location, location_lat, location_lon, session_id,
+				start_time, duration_min, attendance_requested
+			)
+			VALUES (
+				${groupId},
+				${author.id},
+				${date}::date,
+				${type},
+				${author.display_name},
+				${typeof title === 'string' && title.trim() ? title.trim() : null},
+				${typeof notes === 'string' && notes.trim() ? notes.trim() : null},
+				${resolvedLocation},
+				${resolvedCoords?.lat ?? null},
+				${resolvedCoords?.lon ?? null},
+				${resolvedSessionId},
+				${time.start_time},
+				${time.duration_min},
+				${date}::date >= CURRENT_DATE
+			)
+			RETURNING *
+		`
+		await writeEventProgram(tx, created.id, songIds)
+		return created
+	})
 
 	// La demande de présence annonce la date et demande en plus : elle remplace la
 	// notification de l'événement, pas en plus. Les sessions créent déjà la leur : ne

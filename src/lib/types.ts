@@ -405,6 +405,16 @@ export type SetlistItemView = SetlistItem & {
 }
 
 /**
+ * Un morceau du programme de travail d'un événement d'agenda, sous la forme d'une ligne de
+ * setlist. `id` est celui du morceau : le programme se réécrit en entier, ses lignes n'ont
+ * pas d'identité propre.
+ */
+export type EventProgramSong = Omit<SetlistItemView, 'setlist_id' | 'position'>
+
+/** Une setlist qu'un programme de travail peut reprendre : ses morceaux, dans l'ordre. */
+export type ProgramSetlist = { id: number; name: string; song_ids: number[] }
+
+/**
  * Temps total d'une setlist : la somme des durées de référence connues. Les morceaux
  * qui n'en ont pas sont comptés à part plutôt que pour zéro — un total muet sur ce
  * qu'il ignore se lirait comme un total exact.

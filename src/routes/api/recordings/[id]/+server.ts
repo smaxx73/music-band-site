@@ -129,7 +129,7 @@ async function moveToSong(id: number, songId: number, groupId: number) {
 
 		// Un morceau « à nommer » n'existait que pour porter cette prise : vidé, il
 		// encombrerait le référentiel sans rien désigner. Un morceau nommé, lui, reste —
-		// quelqu'un l'a choisi. Programmé dans une setlist, il a pris un sens : il reste aussi.
+		// quelqu'un l'a choisi. Programmé dans une setlist ou à une date, il a pris un sens : il reste aussi.
 		// De même s'il porte ce qu'on y a écrit ou déposé (paroles, notes, pochette, feuille,
 		// suggestion d'origine) : la suppression partirait sans un mot avec ce travail.
 		const [removed] = await tx<{ id: number }[]>`
@@ -140,6 +140,7 @@ async function moveToSong(id: number, songId: number, groupId: number) {
 			  AND NULLIF(btrim(s.music_notes), '') IS NULL
 			  AND NOT EXISTS (SELECT 1 FROM recordings WHERE song_id = s.id)
 			  AND NOT EXISTS (SELECT 1 FROM setlist_items WHERE song_id = s.id)
+			  AND NOT EXISTS (SELECT 1 FROM event_program_songs WHERE song_id = s.id)
 			  AND NOT EXISTS (SELECT 1 FROM song_covers WHERE song_id = s.id)
 			  AND NOT EXISTS (SELECT 1 FROM score_documents WHERE song_id = s.id)
 			  AND NOT EXISTS (SELECT 1 FROM posts WHERE song_id = s.id)

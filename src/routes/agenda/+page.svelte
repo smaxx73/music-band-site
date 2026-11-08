@@ -11,6 +11,9 @@
 	import EventAttendance from '$lib/components/EventAttendance.svelte'
 	import type { EventAttendance as EventAttendanceData } from '$lib/attendance'
 	import { eventEndTime, formatEventTime } from '$lib/event-time'
+	import EventProgram from '$lib/components/EventProgram.svelte'
+	import EventProgramField from '$lib/components/EventProgramField.svelte'
+	import type { EventProgramSong, ProgramSetlist } from '$lib/types'
 
 	let { data }: { data: PageData } = $props()
 
@@ -75,6 +78,10 @@
 	function updateAttendance(updated: EventAttendanceData) {
 		attendance = { ...attendance, [updated.event_id]: updated }
 	}
+
+	const programs = $derived(data.programs as Record<number, EventProgramSong[]>)
+	const programSongs = $derived(data.songs as EventProgramSong[])
+	const programSetlists = $derived(data.setlists as ProgramSetlist[])
 
 	const calYear = $derived(Number(data.month.split('-')[0]))
 	const calMonth = $derived(Number(data.month.split('-')[1]))
@@ -170,6 +177,7 @@
 	let formSessionId = $state('')
 	let formStart = $state('')
 	let formEnd = $state('')
+	let formProgram = $state<EventProgramSong[]>([])
 	let submitting = $state(false)
 	let formError = $state('')
 	// Au téléphone, le formulaire d'ajout est replié derrière un bouton : on ouvre un jour
@@ -184,6 +192,7 @@
 			formSessionId = ''
 			formStart = ''
 			formEnd = ''
+			formProgram = []
 		}
 	})
 
@@ -240,8 +249,10 @@
 		formSessionId = ''
 		formStart = ''
 		formEnd = ''
+		formProgram = []
 		formError = ''
 		editingTimeId = null
+		editingProgramId = null
 	}
 
 	// Jour demandé par l'URL (`?date=`) : panneau ouvert d'emblée, et amené à l'écran —
@@ -275,7 +286,8 @@
 					location_coords: location ? formCoords : null,
 					session_id: formSessionId ? parseInt(formSessionId) : null,
 					start_time: formStart || null,
-					end_time: formStart ? formEnd || null : null
+					end_time: formStart ? formEnd || null : null,
+					song_ids: formProgram.map((song) => song.id)
 				})
 			})
 			if (!res.ok) {
@@ -289,6 +301,7 @@
 				formSessionId = ''
 				formStart = ''
 				formEnd = ''
+				formProgram = []
 				// Replié, le formulaire laisse voir l'événement qu'on vient d'ajouter.
 				formOpen = false
 				await invalidateAll()
@@ -333,6 +346,40 @@
 			timeError = 'Erreur réseau.'
 		} finally {
 			timeSaving = false
+		}
+	}
+
+	// Programme de travail d'un événement déjà posé. Rien n'est appliqué avant « Enregistrer ».
+	let editingProgramId = $state<number | null>(null)
+	let editProgram = $state<EventProgramSong[]>([])
+	let programSaving = $state(false)
+	let programError = $state('')
+
+	function startProgramEdit(event: CalendarEventRow) {
+		editingProgramId = event.id
+		editProgram = [...(programs[event.id] ?? [])]
+		programError = ''
+	}
+
+	async function saveProgram(event: CalendarEventRow) {
+		programSaving = true
+		programError = ''
+		try {
+			const res = await fetch(`/api/agenda/${event.id}`, {
+				method: 'PATCH',
+				headers: { 'content-type': 'application/json' },
+				body: JSON.stringify({ song_ids: editProgram.map((song) => song.id) })
+			})
+			if (!res.ok) {
+				programError = (await res.json().catch(() => ({}))).error ?? 'Programme non enregistré.'
+				return
+			}
+			editingProgramId = null
+			await invalidateAll()
+		} catch {
+			programError = 'Erreur réseau.'
+		} finally {
+			programSaving = false
 		}
 	}
 
@@ -487,6 +534,7 @@
 					<div class="panel-section">
 						<span class="panel-section-label">Événements du groupe</span>
 						{#each dayGroupEvents as event}
+							{@const program = programs[event.id] ?? []}
 							<div class="panel-event">
 								<span class="event-badge session-type-{event.type} panel-event-type">
 									{TYPE_LABELS[event.type]}
@@ -543,6 +591,24 @@
 									{#if event.notes}
 										<span class="panel-event-notes">{event.notes}</span>
 									{/if}
+									{#if editingProgramId !== event.id}
+										{#if program.length > 0}
+											<div class="panel-event-program">
+												<EventProgram songs={program}>
+													<button class="btn-link btn-link-muted" onclick={() => startProgramEdit(event)}>
+														Modifier le programme
+													</button>
+												</EventProgram>
+											</div>
+										{:else if event.date >= today}
+											<!-- Une date passée n'a plus de travail à prévoir. -->
+											<span class="panel-event-time">
+												<button class="btn-link btn-link-muted" onclick={() => startProgramEdit(event)}>
+													<Icon name="list" size="0.8rem" /> Ajouter un programme de travail
+												</button>
+											</span>
+										{/if}
+									{/if}
 									<span class="panel-event-meta">par {event.author}</span>
 									<EventAttendance
 										attendance={attendanceFor(event)}
@@ -562,6 +628,21 @@
 									</button>
 								{/if}
 							</div>
+							{#if editingProgramId === event.id}
+								<!-- Sous la ligne, pas dans sa colonne : au téléphone, le badge et la
+								     corbeille ne laisseraient pas la place aux titres et aux flèches. -->
+								<div class="program-edit">
+									<span class="panel-section-label">Programme de travail</span>
+									<EventProgramField songs={programSongs} setlists={programSetlists} bind:value={editProgram} />
+									{#if programError}<p class="message-error">{programError}</p>{/if}
+									<div class="form-actions">
+										<button class="btn btn-primary btn-sm" onclick={() => saveProgram(event)} disabled={programSaving}>
+											Enregistrer
+										</button>
+										<button class="btn btn-secondary btn-sm" onclick={() => (editingProgramId = null)}>Annuler</button>
+									</div>
+								</div>
+							{/if}
 						{/each}
 					</div>
 				{/if}
@@ -651,6 +732,14 @@
 									</option>
 								{/each}
 							</select>
+						</div>
+						<div class="form-row">
+							<EventProgramField
+								songs={programSongs}
+								setlists={programSetlists}
+								bind:value={formProgram}
+								placeholder="Programme de travail : ajouter un morceau (optionnel)"
+							/>
 						</div>
 					{/if}
 
@@ -978,6 +1067,23 @@
 	.panel-event-meta {
 		font-size: var(--text-xs);
 		color: var(--color-text-muted);
+	}
+
+	.panel-event-program {
+		margin: 0.25rem 0;
+	}
+
+	.panel-event-program .btn-link {
+		font-size: var(--text-xs);
+	}
+
+	.program-edit {
+		display: flex;
+		flex-direction: column;
+		gap: 0.4rem;
+		padding: 0.6rem;
+		border-radius: var(--radius-lg);
+		background: var(--color-bg-subtle);
 	}
 
 	.delete-btn {

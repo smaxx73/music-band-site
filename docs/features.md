@@ -265,7 +265,7 @@ fait perdre le fil, surtout au téléphone en répétition.
   morceau visé, calculé dans la transaction comme à l'upload ; l'ancien morceau garde un
   trou, comme à la suppression d'une prise — on ne renumérote pas
 - Un morceau « À nommer » vidé de sa dernière prise **disparaît** avec le déplacement :
-  il n'existait que pour la porter. Pas s'il est programmé dans une setlist, ni un morceau
+  il n'existait que pour la porter. Pas s'il est programmé dans une setlist ou à une date, ni un morceau
   nommé — quelqu'un l'a choisi —, ni s'il porte ce qu'on y a mis : paroles, notes
   musicales, pochette, feuille de répétition, ou la suggestion dont il est issu
 - `/songs` marque ces morceaux d'une étiquette « à nommer » et propose un filtre dédié,
@@ -1583,6 +1583,13 @@ que personne n'écoute plus — c'est le préalable à tout rangement pour gagne
 - Toucher une piste lance la lecture ; « × » la retire de la playlist en mode édition. Le
   retrait est immédiat, sauf si la piste porte une note de playlist : une confirmation
   `warning` la cite, puisqu'elle serait perdue
+- **« Créer une setlist »** dans l'en-tête, en lecture, pour tout membre : le même nom, la même
+  description, et un morceau par morceau de la playlist, dans son ordre. Une confirmation `info`
+  dit ce que la setlist contiendra : plusieurs prises d'un même morceau n'en font qu'un, à la
+  place de la première, et les morceaux abandonnés ne sont pas repris. Une copie, sans lien
+  gardé : la playlist reste telle quelle, ses notes n'entrent pas dans la setlist, et le groupe
+  est notifié comme pour toute setlist. Pas d'opération inverse : un morceau ne dit pas quelle
+  prise écouter
 - **Suppression** réservée à son auteur et aux admins du groupe (`canDeleteGroupContent`),
   comme une setlist : le bouton n'apparaît pas aux autres et l'API répond `403`. Elle se
   propose en mode édition (ou sur une playlist vide), avec une confirmation `danger` qui
@@ -1938,6 +1945,39 @@ reste la vue d'ensemble, et y renvoie par « Tout le fil d'actualité → ».
   les lignes « À venir » du tableau de bord, et la demande de présence
 - Changer l'heure garde les réponses et ne notifie personne
 
+### Programme de travail
+
+Ce qu'on prévoit de travailler à une date : pour arriver à la répétition en ayant réécouté
+les bons morceaux.
+
+- **Facultatif**, sur tout événement de groupe — répétition surtout, mais aussi concert,
+  studio, autre. Une indisponibilité n'en a pas. C'est l'**événement d'agenda** qui le porte
+  (`event_program_songs`, migration 055), comme les présences : toute session a le sien, et un
+  événement transformé en session garde son programme. Passer par
+  `src/lib/server/event-program.ts`
+- **Une liste ordonnée de morceaux** du référentiel, chacun une seule fois. Pas de note par
+  morceau : les notes de l'événement portent ce qui s'écrit. Pas une setlist non plus, objet
+  durable, nommé et commenté : un programme ne vaut que pour sa date, et n'a pas à remplir
+  `/setlists`
+- **Se choisit à l'ajout** dans le panneau du jour, ou après coup par « Ajouter un programme
+  de travail » / « Modifier le programme » (ajouter, retirer, ↑ ↓ et glisser, comme une
+  setlist) — tout membre, comme le reste de l'événement. Rien n'est appliqué avant
+  « Enregistrer ». Sur une date passée, un programme existant reste modifiable, mais on ne
+  propose plus d'en ajouter un
+- **« Reprendre une setlist »**, à côté du choix d'un morceau : ses morceaux s'ajoutent au
+  programme, dans son ordre, à la suite de ceux déjà choisis — sans doublon, sans les morceaux
+  abandonnés. Une copie faite à l'écran, sans lien gardé : changer la setlist ensuite ne change
+  pas le programme. Une setlist déjà tout entière au programme ne se propose plus
+- Un morceau `abandonne` ne se programme pas (`400`). Abandonné après coup, il reste au
+  programme, qui peut encore être réordonné. Supprimé du référentiel, il en sort
+- **Où il se lit** : panneau du jour, page de la session liée (avec un renvoi vers l'agenda
+  pour le modifier) et carte de la prochaine date au tableau de bord (« Au programme », 5
+  titres au plus)
+- Pas de notification, comme pour l'heure : il se lit sur la date. Une date créée avec un
+  programme notifie comme toute date, sans le détailler
+- Un morceau « À nommer » au programme d'une date n'est pas supprimé quand sa dernière prise
+  le quitte
+
 ### Présences (« tu viens ? »)
 
 Savoir avant la répétition qui sera là, sans un fil de messages à côté.
@@ -2208,9 +2248,9 @@ la prochaine date, puis seulement l'activité.
   prise ou vidéo seule n'a rien à jouer : c'est la précédente qui s'affiche
 - **« À venir »** : la **prochaine date** en carte, teintée comme son type — le temps qui
   reste (« Dans 3 jours »), le titre, la date, l'heure, le lieu, les présences (voir
-  « Présences ») et **les absents ce jour-là** : une indisponibilité, comme une réponse
+  « Présences »), **les absents ce jour-là** — une indisponibilité, comme une réponse
   « Absent », compte sur la carte de la répétition qu'elle touche, pas sur une ligne à
-  part. Un événement d'agenda sans session est en pointillé, avec « Créer la
+  part — et le programme de travail s'il y en a un. Un événement d'agenda sans session est en pointillé, avec « Créer la
   session → ». Les deux dates suivantes en lignes, avec le nombre d'absents. Les autres
   indisponibilités à venir restent en une ligne. La session affichée dans « À réécouter »
   n'y figure pas, même datée du jour. Toujours affichée, même vide (« Rien de prévu », avec
