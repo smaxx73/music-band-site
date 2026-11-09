@@ -4,8 +4,9 @@
 	import { afterNavigate, goto, invalidateAll } from '$app/navigation'
 	import { backLinkFrom, type BackLink } from '$lib/back-link'
 	import Icon from '$lib/components/Icon.svelte'
-	import { formatDateOnly, localDateOnly, sessionOfDay } from '$lib/date'
+	import { formatDateOnly, localDateOnly, nearDayLabel, sessionOfDay } from '$lib/date'
 	import AudioRecorder from '$lib/components/AudioRecorder.svelte'
+	import SessionCover from '$lib/components/SessionCover.svelte'
 	import TrimNotice from '$lib/components/TrimNotice.svelte'
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
 	import SongSelect from '$lib/components/SongSelect.svelte'
@@ -13,7 +14,7 @@
 	import UploadBatch from '$lib/components/UploadBatch.svelte'
 	import LocationInput from '$lib/components/LocationInput.svelte'
 	import type { Coords } from '$lib/places'
-	import { SESSION_TYPES, sessionTypeLabel, type AudioTrim } from '$lib/types'
+	import { SESSION_TYPES, sessionTypeLabel, type AudioTrim, type SessionType } from '$lib/types'
 	import { sortedWithSong } from '$lib/songs'
 	import { deleteTakes, takeIdOf, type RecordedTake } from '$lib/recording-store'
 	import {
@@ -42,7 +43,7 @@
 	})
 
 	type SessionRow = { id: number; date: string | Date; type: string; title: string | null; location: string | null }
-	type SongRow = { id: number; title: string }
+	type SongRow = { id: number; title: string; cover_version?: number | null }
 
 	const sessions = $derived(data.sessions as unknown as SessionRow[])
 	// $derived inscriptible : un morceau créé depuis le sélecteur s'y ajoute sur place.
@@ -58,8 +59,13 @@
 	// qui aide à la reconnaître plus tard, pas celle du classement.
 	let recordedAt = $state<Date | null>(null)
 	let recording = $state(false)
+	// L'enregistreur est replié sur une ligne : on classe. Avant, l'écran de fin ne porte
+	// que des décisions, et le formulaire ne les noie pas.
+	let classifying = $state(false)
 
 	let selectedSession = $state('')
+	// La session proposée est presque toujours la bonne : elle se résume, et se change à la demande.
+	let sessionEditing = $state(false)
 	let newDate = $state(localDateOnly())
 	let newType = $state('repetition')
 	let newTitle = $state('')
@@ -267,13 +273,31 @@
 		const daySession = sessionOfDay(sessions, at)
 		selectedSession = daySession ? String(daySession.id) : 'new'
 		newDate = localDateOnly(at)
+		sessionEditing = false
 	}
 
 	function sessionLabel(s: SessionRow): string {
-		const date = formatDateOnly(s.date, { day: '2-digit', month: 'short', year: 'numeric' })
+		const date = nearDayLabel(s.date) ?? formatDateOnly(s.date, { day: '2-digit', month: 'short', year: 'numeric' })
 		const detail = s.title || s.location || sessionTypeLabel(s.type)
 		return detail ? `${date} — ${detail}` : date
 	}
+
+	const sessionSummary = $derived.by(() => {
+		if (selectedSession === 'new') {
+			const near = nearDayLabel(newDate)
+			const day = near ? near.toLowerCase() : `le ${formatDateOnly(newDate, { day: 'numeric', month: 'long' })}`
+			return `Nouvelle session — ${sessionTypeLabel(newType)}, ${day}`
+		}
+		const session = sessions.find((s) => String(s.id) === selectedSession)
+		return session ? sessionLabel(session) : ''
+	})
+
+	// Le feuillet de la session : à côté de la pochette du morceau, on ne confond pas les deux champs.
+	const sessionVisual = $derived.by(() => {
+		if (selectedSession === 'new') return newDate ? { date: newDate, type: newType as SessionType } : null
+		const session = sessions.find((s) => String(s.id) === selectedSession)
+		return session ? { date: session.date, type: session.type as SessionType } : null
+	})
 
 	async function resolveSessionId(): Promise<number> {
 		if (selectedSession !== 'new') {
@@ -377,7 +401,7 @@
 		...(multiTake && !series.length ? ['Découper'] : []),
 		'Réécouter'
 	])
-	const journeyStep = $derived(series.length || (file && !recording) ? 1 : 0)
+	const journeyStep = $derived(classifying || uploading || seriesSent ? 1 : 0)
 </script>
 
 <svelte:head>
@@ -389,15 +413,11 @@
 		<a href={back.href} onclick={(e) => { if (back.fromHistory) { e.preventDefault(); history.back() } }}>{back.label}</a> /
 		<span>Enregistrer</span>
 	</nav>
-	<div class="page-header">
+	<div class="page-header title">
 		<h1>Enregistrer</h1>
 	</div>
 
 	<JourneySteps steps={journeySteps} current={journeyStep} />
-
-	<a href="/upload" class="upload-link">
-		<Icon name="upload" /> Un fichier déjà prêt ? <strong>Envoyer un fichier</strong>
-	</a>
 
 	<section class="panel">
 		<AudioRecorder
@@ -407,18 +427,50 @@
 			ontrimchange={onTrimChange}
 			onbusychange={(busy) => (recording = busy)}
 			onkeep={data.currentGroup && (destination === 'group' || series.length) ? keepTake : undefined}
+			finishLabel="Classer et envoyer"
+			bind:collapsed={classifying}
+			autoArm
 		/>
 	</section>
 
+	{#if !file && !recording && !series.length}
+		<a href="/upload" class="upload-link">
+			<Icon name="upload" /> Un fichier déjà prêt ? <strong>Envoyer un fichier</strong>
+		</a>
+	{/if}
+
+	{#snippet sessionTile()}
+		{#if sessionVisual}
+			<span class="session-tile"><SessionCover date={sessionVisual.date} type={sessionVisual.type} /></span>
+		{:else}
+			<span class="session-tile empty" aria-hidden="true"><Icon name="calendar" size="1.4rem" /></span>
+		{/if}
+	{/snippet}
+
 	{#snippet sessionFields(locked: boolean)}
+		{#if sessionSummary && (!sessionEditing || locked)}
+			<div class="session-summary">
+				{@render sessionTile()}
+				<div class="session-text">
+					<span class="form-label">Session</span>
+					<span class="session-value">{sessionSummary}</span>
+				</div>
+				{#if !locked}
+					<button type="button" class="btn btn-secondary btn-sm" onclick={() => (sessionEditing = true)} disabled={uploading}>Modifier</button>
+				{/if}
+			</div>
+		{:else}
 		<label class="form-label">
 			Session
-			<select class="form-input" bind:value={selectedSession} disabled={uploading || locked} required>
-				<option value="new">+ Nouvelle session</option>
-				{#each sessions as s}
-					<option value={String(s.id)}>{sessionLabel(s)}</option>
-				{/each}
-			</select>
+			<span class="session-picked">
+				{@render sessionTile()}
+				<select class="form-input" bind:value={selectedSession} disabled={uploading || locked} required>
+					<option value="new">+ Nouvelle session</option>
+					{#each sessions as s}
+						<option value={String(s.id)}>{sessionLabel(s)}</option>
+					{/each}
+				</select>
+			</span>
 		</label>
 
 		{#if selectedSession === 'new'}
@@ -444,6 +496,7 @@
 				</div>
 			</div>
 		{/if}
+		{/if}
 	{/snippet}
 
 	{#if series.length}
@@ -468,6 +521,7 @@
 				oncreate={(song) => (songs = sortedWithSong(songs, song))}
 				onremove={requestRemove}
 				disabled={uploading || naming}
+				covers
 			/>
 
 			{#if seriesUnassigned > 0}
@@ -492,28 +546,31 @@
 				</p>
 			{/if}
 
-			{#if seriesPending.length}
-				{#if recording}
-					<p class="hint">Termine la prise en cours pour envoyer la série.</p>
-				{/if}
-				<button
-					type="submit"
-					class="btn btn-primary btn-lg submit-btn"
-					disabled={uploading || naming || recording || !selectedSession || seriesUnassigned > 0}
-				>
-					{#if uploading}
-						Envoi {Math.min(seriesRun.done + 1, seriesRun.total)} / {seriesRun.total}…
-					{:else if seriesFailed > 0}
-						Réessayer {seriesPending.length} prise{seriesPending.length > 1 ? 's' : ''}
-					{:else}
-						Envoyer {seriesPending.length} prise{seriesPending.length > 1 ? 's' : ''}
-					{/if}
-				</button>
-			{:else if seriesSessionId}
+			{#if recording && seriesPending.length}
+				<p class="hint">Termine la prise en cours pour envoyer la série.</p>
+			{:else if seriesPending.length && (classifying || !file)}
+				<!-- Tant que l'écran de fin est déplié, c'est « Classer et envoyer » qui conclut :
+				     deux actions principales côte à côte diraient moins bien laquelle suivre. -->
+				<div class="send-bar">
+					<button
+						type="submit"
+						class="btn btn-primary btn-lg submit-btn"
+						disabled={uploading || naming || !selectedSession || seriesUnassigned > 0}
+					>
+						{#if uploading}
+							Envoi {Math.min(seriesRun.done + 1, seriesRun.total)} / {seriesRun.total}…
+						{:else if seriesFailed > 0}
+							Réessayer {seriesPending.length} prise{seriesPending.length > 1 ? 's' : ''}
+						{:else}
+							Envoyer {seriesPending.length} prise{seriesPending.length > 1 ? 's' : ''}
+						{/if}
+					</button>
+				</div>
+			{:else if !seriesPending.length && seriesSessionId}
 				<a class="btn btn-primary btn-lg submit-btn" href="/sessions/{seriesSessionId}">Voir la session</a>
 			{/if}
 		</form>
-	{:else if file && !recording}
+	{:else if file && !recording && classifying}
 		<form onsubmit={handleSubmit}>
 			<h2>Classer l'enregistrement</h2>
 
@@ -528,45 +585,45 @@
 				<p class="message-error">{error}</p>
 			{/if}
 
-			<fieldset class="content-choice">
+			<fieldset class="choice">
 				<legend class="form-label">Destination</legend>
-				<label class="check-label">
-					<input type="radio" name="destination" value="group" bind:group={destination} disabled={uploading || !data.currentGroup} />
-					<span>
-						{data.currentGroup ? `Dans « ${data.currentGroup.name} »` : 'Dans le groupe'}
-						<span class="hint block">Une prise de session, écoutable par tout le groupe.</span>
-					</span>
-				</label>
-				<label class="check-label">
-					<input type="radio" name="destination" value="perso" bind:group={destination} disabled={uploading} />
-					<span>
-						Dans mon espace perso
-						<span class="hint block">
-							Pour toi seul, sans session ni morceau à choisir. Se classe en prise plus tard.
-							Une prise à la fois, ou à découper : pas de « Prise suivante », réservée au groupe.
-						</span>
-					</span>
-				</label>
+				<div class="segmented">
+					<label>
+						<input type="radio" name="destination" value="group" bind:group={destination} disabled={uploading || !data.currentGroup} />
+						<span>{data.currentGroup?.name ?? 'Groupe'}</span>
+					</label>
+					<label>
+						<input type="radio" name="destination" value="perso" bind:group={destination} disabled={uploading} />
+						<span>Espace perso</span>
+					</label>
+				</div>
+				<p class="hint">
+					{destination === 'perso'
+						? 'Pour toi seul, sans session ni morceau à choisir. Se classe en prise plus tard.'
+						: 'Une prise de session, écoutable par tout le groupe.'}
+				</p>
 			</fieldset>
 
 			{#snippet contentChoice()}
-				<fieldset class="content-choice">
+				<fieldset class="choice">
 					<legend class="form-label">Contenu</legend>
-					<label class="check-label">
-						<input type="radio" name="content" value={true} bind:group={multiTake} disabled={uploading} />
-						<span>
-							À découper sur les blancs
-							<span class="hint block">
-								{destination === 'perso'
-									? 'Les blancs sont repérés et chaque passage devient un enregistrement de ton espace perso.'
-									: 'Les blancs sont repérés et chaque passage devient une prise.'}
-							</span>
-						</span>
-					</label>
-					<label class="check-label">
-						<input type="radio" name="content" value={false} bind:group={multiTake} disabled={uploading} />
-						<span>D'un seul tenant</span>
-					</label>
+					<div class="segmented">
+						<label>
+							<input type="radio" name="content" value={false} bind:group={multiTake} disabled={uploading} />
+							<span>D'un seul tenant</span>
+						</label>
+						<label>
+							<input type="radio" name="content" value={true} bind:group={multiTake} disabled={uploading} />
+							<span>À découper sur les blancs</span>
+						</label>
+					</div>
+					{#if multiTake}
+						<p class="hint">
+							{destination === 'perso'
+								? 'Les blancs sont repérés et chaque passage devient un enregistrement de ton espace perso.'
+								: 'Les blancs sont repérés et chaque passage devient une prise.'}
+						</p>
+					{/if}
 				</fieldset>
 			{/snippet}
 
@@ -588,8 +645,7 @@
 			{:else}
 			{@render sessionFields(false)}
 
-			{@render contentChoice()}
-
+			<!-- Avant « Contenu » : c'est le seul champ à remplir, il doit se voir sans défiler. -->
 			{#if !multiTake}
 				<SongSelect
 					{songs}
@@ -599,8 +655,11 @@
 					placeholderAt={recordedAt}
 					required
 					disabled={uploading}
+					cover
 				/>
 			{/if}
+
+			{@render contentChoice()}
 
 			{/if}
 
@@ -619,34 +678,31 @@
 				</p>
 			{/if}
 
-			<!-- Un bouton grisé sans motif laisse chercher ce qui manque. -->
-			{#if !uploading && destination === 'group' && !selectedSession}
-				<p class="hint" role="status">Choisis une session pour envoyer.</p>
-			{:else if !uploading && destination === 'group' && !multiTake && !selectedSong}
-				<p class="hint" role="status">Choisis le morceau de cette prise pour envoyer.</p>
-			{/if}
-
-			<TrimNotice trim={audioTrim} durationS={recordedDurationS} fate={multiTake ? 'split' : 'kept'} />
-
-			<div class="submit-row">
-			<button
-				type="submit"
-				class="btn btn-primary btn-lg submit-btn"
-				disabled={uploading ||
-					(destination === 'group' && (!selectedSession || (!multiTake && !selectedSong)))}
-			>
-				{#if uploading}
-					Envoi en cours…
-				{:else if multiTake}
-					Envoyer et découper
-				{:else if destination === 'perso'}
-					Ajouter à mon espace perso
-				{:else}
-					Envoyer la prise
+			<div class="send-bar">
+				<!-- Un bouton grisé sans motif laisse chercher ce qui manque. -->
+				{#if !uploading && destination === 'group' && !selectedSession}
+					<p class="hint" role="status">Choisis une session pour envoyer.</p>
+				{:else if !uploading && destination === 'group' && !multiTake && !selectedSong}
+					<p class="hint" role="status">Choisis le morceau de cette prise pour envoyer.</p>
 				{/if}
-			</button>
-				<button type="button" class="btn btn-secondary btn-lg" onclick={() => recorderRef?.requestDiscard()} disabled={uploading}>
-					Annuler
+
+				<TrimNotice trim={audioTrim} durationS={recordedDurationS} fate={multiTake ? 'split' : 'kept'} />
+
+				<button
+					type="submit"
+					class="btn btn-primary btn-lg submit-btn"
+					disabled={uploading ||
+						(destination === 'group' && (!selectedSession || (!multiTake && !selectedSong)))}
+				>
+					{#if uploading}
+						Envoi en cours…
+					{:else if multiTake}
+						Envoyer et découper
+					{:else if destination === 'perso'}
+						Ajouter à mon espace perso
+					{:else}
+						Envoyer la prise
+					{/if}
 				</button>
 			</div>
 		</form>
@@ -682,11 +738,23 @@
 		margin: 0;
 	}
 
+	/* Au téléphone, le fil d'Ariane et les étapes nomment déjà la page : le titre ne ferait
+	   que repousser le bouton d'enregistrement. */
+	@media (max-width: 640px) {
+		.title {
+			position: absolute;
+			width: 1px;
+			height: 1px;
+			overflow: hidden;
+			clip-path: inset(50%);
+		}
+	}
+
 	.upload-link {
 		display: inline-flex;
 		align-items: center;
 		gap: 0.45rem;
-		margin: 0 0 1.25rem;
+		margin: 0.75rem 0 0;
 		font-size: var(--text-sm);
 		color: var(--color-text-secondary);
 		text-decoration: none;
@@ -719,26 +787,74 @@
 
 	.new-session .wide { grid-column: 1 / -1; }
 
-	.content-choice {
+	.session-summary {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 0.75rem;
+	}
+
+	.session-text { flex: 1; min-width: 0; }
+
+	.session-picked { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+	.session-picked select { flex: 1; min-width: 0; }
+
+	.session-tile {
+		flex: none;
+		display: block;
+		width: 48px;
+		height: 48px;
+		overflow: hidden;
+		border-radius: var(--radius-lg);
+	}
+
+	.session-tile.empty {
+		display: grid;
+		place-items: center;
+		border: 1px dashed var(--color-border-input);
+		color: var(--color-text-muted);
+	}
+
+	.session-value { display: block; margin-top: 0.15rem; font-size: var(--text-sm); }
+
+	.choice {
 		border: 0;
 		padding: 0;
 		margin: 0;
 		display: flex;
 		flex-direction: column;
-		gap: 0.5rem;
+		gap: 0.35rem;
 	}
 
-	.content-choice legend { padding: 0; margin-bottom: 0.25rem; }
+	.choice legend { padding: 0; margin-bottom: 0.25rem; }
 
-	.check-label {
+	.segmented {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		border: 1px solid var(--color-border-input);
+		border-radius: var(--radius-md);
+		overflow: hidden;
+	}
+
+	.segmented label {
+		position: relative;
 		display: flex;
-		align-items: flex-start;
-		gap: 0.5rem;
+		align-items: center;
+		justify-content: center;
+		min-height: 44px;
+		min-width: 0;
+		padding: 0.3rem 0.5rem;
 		font-size: var(--text-sm);
+		text-align: center;
 		cursor: pointer;
 	}
 
-	.check-label input { margin-top: 0.15rem; }
+	.segmented label + label { border-left: 1px solid var(--color-border-input); }
+	.segmented span { overflow-wrap: anywhere; }
+	.segmented input { position: absolute; inset: 0; margin: 0; opacity: 0; cursor: inherit; }
+	.segmented label:has(input:checked) { background: var(--color-ink); color: #fff; font-weight: 600; }
+	.segmented label:has(input:disabled) { opacity: var(--disabled-opacity); cursor: not-allowed; }
+	.segmented label:has(input:focus-visible) { outline: 2px solid var(--color-accent); outline-offset: -2px; }
 
 	.hint {
 		font-size: var(--text-xs);
@@ -747,7 +863,6 @@
 		margin: 0;
 	}
 
-	.hint.block { display: block; margin-top: 0.15rem; }
 	.hint.center { text-align: center; }
 
 	.progress-bar {
@@ -764,7 +879,21 @@
 	}
 
 	.submit-btn { align-self: flex-start; }
-	.submit-row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+
+	/* Le formulaire est plus haut qu'un écran de téléphone : l'envoi reste à portée. */
+	.send-bar {
+		position: sticky;
+		bottom: calc(var(--footer-actions-h) + var(--mini-player-h));
+		z-index: 5;
+		display: flex;
+		flex-direction: column;
+		gap: 0.5rem;
+		margin: 0 -1rem -1rem;
+		padding: 0.6rem 1rem;
+		background: var(--color-bg);
+		border-top: 1px solid var(--color-border-light);
+		border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+	}
 
 	.series-unassigned {
 		display: flex;
@@ -772,5 +901,10 @@
 		justify-content: space-between;
 		flex-wrap: wrap;
 		gap: 0.5rem;
+	}
+
+	@media (max-width: 640px) {
+		.submit-btn { align-self: stretch; }
+		.series-unassigned .btn, .session-summary .btn { min-height: 44px; }
 	}
 </style>

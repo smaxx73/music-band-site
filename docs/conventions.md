@@ -251,7 +251,7 @@ n'écrit dans son `<style>` que ce qui lui est propre.
   sous le titre faute de place sans s'étirer), `.page-actions` s'il y a plusieurs boutons.
   Ne pas le redéfinir dans la page
 - **Boutons** : `.btn` + une variante (`btn-primary`, `btn-secondary`, `btn-ghost`,
-  `btn-danger`) + une taille (`btn-sm`, `btn-lg`, `btn-icon`). Une action dans une phrase
+  `btn-danger`, `btn-record` pour lancer une captation, rien d'autre) + une taille (`btn-sm`, `btn-lg`, `btn-icon`). Une action dans une phrase
   est un `.btn-link` (orange), `.btn-link-muted` quand elle renonce (« Retirer »).
   Pas de `.btn-delete` / `.remove-btn` local
 - **Créer** (nouvelle session, publier, ajouter une prise…) : `<Icon name="plus" />` suivi

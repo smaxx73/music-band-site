@@ -1,4 +1,4 @@
-<script lang="ts" generics="T extends { id: number; title: string }">
+<script lang="ts" generics="T extends { id: number; title: string; cover_version?: number | null }">
 	import SongSelect from '$lib/components/SongSelect.svelte'
 	import { formatDateOnly } from '$lib/date'
 	import type { CreatedSong } from '$lib/songs'
@@ -14,13 +14,16 @@
 		songs,
 		oncreate,
 		onremove,
-		disabled = false
+		disabled = false,
+		covers = false
 	}: {
 		items: BatchItem[]
 		songs: T[]
 		oncreate: (song: CreatedSong) => void
 		onremove: (key: number) => void
 		disabled?: boolean
+		/** Pochette du morceau choisi sur chaque ligne. */
+		covers?: boolean
 	} = $props()
 
 	function recordedAt(file: File) {
@@ -59,7 +62,7 @@
 				{#if !batchItemSettled(item)}
 					<button
 						type="button"
-						class="btn-link btn-link-muted"
+						class="btn-link btn-link-muted batch-remove"
 						onclick={() => onremove(item.key)}
 						disabled={disabled}
 						aria-label="Retirer {item.label ?? item.file.name}"
@@ -92,6 +95,7 @@
 					placeholderAt={new Date(item.file.lastModified)}
 					required
 					disabled={disabled}
+					cover={covers}
 				/>
 				{#if item.status === 'sending' || item.status === 'converting'}
 					<div class="progress-bar" aria-hidden="true">
@@ -168,6 +172,8 @@
 
 	.batch-audio { width: 100%; height: 36px; }
 
+	.batch-remove { font-size: var(--text-sm); }
+
 	.batch-duplicate {
 		margin: 0;
 		font-size: var(--text-sm);
@@ -196,5 +202,6 @@
 	@media (max-width: 640px) {
 		.batch-head { flex-wrap: wrap; }
 		.batch-meta { order: 3; flex-basis: 100%; padding-left: 1.1rem; }
+		.batch-remove { min-height: 44px; padding-inline: 0.5rem; }
 	}
 </style>

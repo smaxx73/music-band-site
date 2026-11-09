@@ -324,10 +324,11 @@ au milieu de la salle, ou l'interface audio branchée au PC.
   ne ferait qu'ajouter un risque de clic de travers. « Jeter et recommencer » jette un
   enregistrement terminé, la copie de secours effacée, et le micro reste ouvert pour
   repartir — jeter n'est pas quitter l'écran. Au-delà de 5 s, une confirmation `warning`
-  nomme la durée perdue. Le bouton est sous le résumé « Enregistrement prêt » (avant le
-  recadrage), doublé d'un « Annuler » à côté de l'envoi dans le formulaire de classement.
+  nomme la durée perdue. Le bouton vient en dernier sur l'écran de fin, à l'écart : c'est le
+  seul geste qui perd la prise. Le formulaire de classement n'a pas d'« Annuler », qui se
+  serait lu comme « fermer » ; « Retour » rouvre l'écran de fin.
   L'écran dit que la prise est jetée (« Enregistrement jeté. Le micro reste ouvert »)
-- **Recadrer l'audio** avant l'envoi : « Recadrer… », sous le résumé « Enregistrement prêt »,
+- **Recadrer l'audio** avant l'envoi : « Recadrer », sous le résumé « Enregistrement prêt »,
   déplie une frise avec deux poignées (souris, doigt ou flèches du clavier) qui garde le
   passage qui compte et écarte le début et la fin. **Un enregistrement part entier par
   défaut**, et l'outil ne coupe rien sans qu'on le veuille : la frise est repliée d'office,
@@ -354,8 +355,23 @@ au milieu de la salle, ou l'interface audio branchée au PC.
   bord le signale (« À toi »). Chaque copie n'est effacée qu'une fois **son** fichier
   accepté par le serveur, ou jeté : les autres prises d'une série attendent encore le leur.
   Indisponible en navigation privée, et l'écran le dit
-- Quitter la page pendant l'enregistrement demande confirmation ; le formulaire de
-  classement n'apparaît qu'une fois l'enregistrement terminé
+- Quitter la page pendant l'enregistrement demande confirmation, onglet fermé comme
+  navigation dans l'application (`beforeNavigate`) : confirmée, la prise s'arrête et se
+  récupère ensuite par la copie de secours. Au téléphone, la barre d'onglets disparaît le
+  temps de la captation
+- **Un état, un écran** : prêt, en cours et en pause s'écrivent en toutes lettres au-dessus du
+  chrono, sur un plateau teinté (`--color-record` en capture). Le rouge est réservé à la
+  capture, le noir à l'action qui conclut l'écran. Le bouton principal reste au même endroit
+  d'un état à l'autre. L'accès au micro déjà accordé, `/record` l'ouvre à l'arrivée (rien
+  n'est enregistré avant « Enregistrer ») ; ailleurs, ou quand il reste à l'autoriser,
+  « Activer le micro » le demande
+- **Écran de fin** : réécouter et recadrer, puis deux décisions de même taille, « Prise
+  suivante » et « Classer et envoyer », celle-ci en action principale. Elle replie
+  l'enregistreur sur une ligne (« Retour » le rouvre, recadrage intact) et ouvre le formulaire
+  de classement : session proposée résumée (« Modifier » pour la changer), envoi collé en bas.
+  Chaque champ porte le visuel de ce qu'il désigne, le même que partout ailleurs : le feuillet
+  d'éphéméride pour la session, la pochette pour le morceau, y compris sur les lignes d'une série
+  Un second toucher dans les 400 ms suivant « Terminer » ne décide rien
 - Un **fil d'étapes** en tête (Enregistrer · Classer · Réécouter, avec Découper quand on l'a
   choisi) dit où l'on en est. Le bouton d'envoi grisé dit ce qui manque (session, morceau)
 - « Enregistrer » est la première entrée du menu **+ Ajouter** (voir « Navigation ») :
@@ -415,11 +431,11 @@ En répétition, on enregistre souvent plusieurs prises d'affilée en s'arrêtan
 on discute, on s'accorde, on refait le pont. Sortir de `/record` après chaque prise,
 rouvrir le micro, rechoisir l'entrée et attendre la conversion cassait le rythme.
 
-- Une prise terminée propose **« Prise suivante »**, avant le recadrage : elle rejoint la
+- Une prise terminée propose **« Prise suivante »**, à côté de « Classer et envoyer » : elle rejoint la
   série et le micro reste ouvert, **prêt** : l'enregistrement de la suivante ne démarre qu'au
   toucher de « Enregistrer », le temps de se placer et de s'accorder. Dans le groupe seulement (`onkeep` d'`AudioRecorder.svelte`, passé seulement
   avec un groupe actif **et** la destination « groupe ») : choisir l'espace perso masque
-  « Prise suivante », et le formulaire le dit — une idée jouée seul va dans l'espace perso
+  « Prise suivante » — une idée jouée seul va dans l'espace perso
   une à une, ou se découpe
 - **Le micro reste ouvert** entre les prises, avec l'entrée choisie — sans série, il se
   ferme à la fin d'un enregistrement, comme avant. S'il tombe entre-temps (écran verrouillé,
@@ -434,7 +450,7 @@ rouvrir le micro, rechoisir l'entrée et attendre la conversion cassait le rythm
 - La dernière prise terminée fait partie de la série dès qu'elle s'affiche : on l'envoie
   avec les autres sans en enregistrer une de plus. Son recadrage suit la série ; celui
   des précédentes est figé quand on passe à la suivante
-- **Rien ne part avant « Envoyer »**, désactivé tant qu'une prise s'enregistre : tout va
+- **Rien ne part avant « Envoyer »**, absent tant qu'une prise s'enregistre, ou que l'écran de fin n'a pas été conclu par « Classer et envoyer » : tout va
   dans la même session, une prise après l'autre par `POST /api/upload`, comme un envoi par
   lots — échecs à réessayer, doublons signalés, session verrouillée dès qu'une prise y est,
   puis direction la session. **Rien de neuf côté serveur.** Envoyer au fil de l'eau a été

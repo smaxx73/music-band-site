@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { onDestroy, onMount } from 'svelte'
+	import { onDestroy, onMount, tick } from 'svelte'
+	import { beforeNavigate, goto } from '$app/navigation'
 	import Icon from './Icon.svelte'
 	import ConfirmDialog from './ConfirmDialog.svelte'
 	import type { AudioTrim } from '$lib/types'
@@ -24,7 +25,10 @@
 		onchange,
 		ontrimchange,
 		onbusychange,
-		onkeep
+		onkeep,
+		finishLabel,
+		collapsed = $bindable(false),
+		autoArm = false
 	}: {
 		disabled?: boolean
 		/** Enregistrement prêt à envoyer (et sa durée), ou `null` quand il est écarté. */
@@ -39,6 +43,15 @@
 		 * prise à la fois.
 		 */
 		onkeep?: (take: RecordedTake) => void
+		/**
+		 * Libellé de l'action qui conclut l'écran de fin : elle replie l'enregistreur
+		 * (`collapsed`) pour laisser la place au formulaire de la page. Absent, ce
+		 * formulaire suit directement l'enregistreur.
+		 */
+		finishLabel?: string
+		collapsed?: boolean
+		/** Ouvre le micro dès l'arrivée quand l'accès est déjà accordé : la page n'est faite que pour ça. */
+		autoArm?: boolean
 	} = $props()
 
 	// Aligné sur MAX_UPLOAD_SIZE (src/lib/server/upload-stream.ts) : au-delà, le serveur
@@ -55,9 +68,24 @@
 	const MIN_TRIM_S = 0.5
 	// En deçà, le doigt a juste tremblé en se posant sur la poignée : rien n'est coupé.
 	const DRAG_THRESHOLD_PX = 6
+	// « Terminer » et les actions de fin peuvent tomber au même endroit : le second toucher
+	// d'un double toucher ne doit rien décider.
+	const DOUBLE_TAP_MS = 400
 
 	type Phase = 'idle' | 'arming' | 'armed' | 'starting' | 'recording' | 'paused' | 'stopping' | 'done'
 	let phase = $state<Phase>('idle')
+	// Prêt et en cours se ressemblent trop pour qu'un chrono à 0:00 ou un point rouge suffisent :
+	// se croire en train d'enregistrer, c'est perdre la prise.
+	const STATUS: Record<Phase, string> = {
+		idle: 'Micro fermé',
+		arming: 'Ouverture du micro…',
+		armed: 'Prêt à enregistrer',
+		starting: 'Préparation de l’enregistrement…',
+		recording: 'Enregistrement en cours',
+		paused: 'En pause',
+		stopping: 'Finalisation de l’enregistrement…',
+		done: ''
+	}
 	let error = $state<string | null>(null)
 	let warning = $state<string | null>(null)
 	// Dit qu'une annulation a bien eu lieu : l'écran revient sinon au point de départ sans un mot.
@@ -121,7 +149,12 @@
 	let destroyed = false
 	// Ce que la confirmation en cours abandonnerait : l'enregistrement qui vient de se
 	// terminer, ou les prises non envoyées retrouvées.
-	let confirming = $state<'result' | 'pending' | null>(null)
+	let confirming = $state<'result' | 'pending' | 'leave' | null>(null)
+	let leaveTo: URL | null = null
+	let leaving = false
+	let resultAt = 0
+	let finishEl = $state<HTMLButtonElement | null>(null)
+	let backEl = $state<HTMLButtonElement | null>(null)
 
 	const supported =
 		typeof navigator !== 'undefined' &&
@@ -139,7 +172,26 @@
 		} finally {
 			pendingLoaded = true
 		}
+		if (autoArm && supported && !pending.length && (await micAlreadyAllowed()) && !destroyed && phase === 'idle') arm()
 	})
+
+	/**
+	 * Une navigation dans l'application démonte l'enregistreur, donc coupe la prise, sans
+	 * passer par `beforeunload` : au téléphone, un onglet touché par mégarde y suffirait.
+	 */
+	beforeNavigate((navigation) => {
+		if (!busy || leaving || navigation.willUnload || !navigation.to) return
+		navigation.cancel()
+		leaveTo = navigation.to.url
+		confirming = 'leave'
+	})
+
+	function leaveAnyway() {
+		confirming = null
+		if (!leaveTo) return
+		leaving = true
+		goto(leaveTo)
+	}
 
 	onDestroy(() => {
 		destroyed = true
@@ -157,6 +209,15 @@
 	})
 
 	// ─── Entrée audio ──────────────────────────────────────────────────────
+
+	async function micAlreadyAllowed(): Promise<boolean> {
+		try {
+			const status = await navigator.permissions.query({ name: 'microphone' as PermissionName })
+			return status.state === 'granted'
+		} catch {
+			return false
+		}
+	}
 
 	/**
 	 * Les traitements pensés pour la visio (annulation d'écho, réduction de bruit,
@@ -317,6 +378,8 @@
 		error = null
 		warning = null
 		discardResult()
+		// Micro ouvert à l'arrivée, hors de tout geste : iOS a laissé le vumètre suspendu.
+		audioCtx?.resume().catch(() => {})
 
 		const mimeType = pickMimeType()
 		backupOk = true
@@ -450,6 +513,9 @@
 	}
 
 	function onRecorderStop() {
+		// Page quittée en pleine prise : le dernier bloc est dans la copie de secours, et il
+		// n'y a plus d'écran à qui remettre le résultat.
+		if (destroyed) return
 		if ((phase === 'recording' || phase === 'paused') && !error) {
 			error = "L'enregistrement s'est arrêté de façon inattendue. Vérifie la prise avant de l'envoyer."
 		}
@@ -504,6 +570,7 @@
 		ontrimchange?.(null)
 		sizeBytes = blob.size
 		elapsedS = durationS
+		resultAt = performance.now()
 		phase = 'done'
 		// Le micro n'a plus à rester ouvert, et le voyant d'enregistrement du système
 		// s'éteint — sauf en série, où la prise suivante doit partir d'un toucher.
@@ -518,6 +585,7 @@
 		resultFile = null
 		resultTake = null
 		trimOpen = false
+		collapsed = false
 		ontrimchange?.(null)
 		onchange(null, 0)
 	}
@@ -540,7 +608,7 @@
 	 * copie de secours de la prise confiée reste, jusqu'à son envoi.
 	 */
 	async function keepAndNext() {
-		if (phase !== 'done' || !resultFile || !resultTake || !onkeep) return
+		if (phase !== 'done' || !resultFile || !resultTake || !onkeep || isDoubleTap()) return
 		stopPreview()
 		onkeep({
 			id: resultTake.id,
@@ -558,6 +626,25 @@
 			// `arm()` a changé la phase pendant l'attente : TypeScript ne le voit pas.
 			if ((phase as Phase) !== 'armed') return
 		}
+	}
+
+	function isDoubleTap(): boolean {
+		return performance.now() - resultAt < DOUBLE_TAP_MS
+	}
+
+	async function finish() {
+		if (phase !== 'done' || isDoubleTap()) return
+		stopPreview()
+		collapsed = true
+		// Le bouton touché disparaît : le focus suit, juste avant le formulaire qui s'ouvre.
+		await tick()
+		backEl?.focus()
+	}
+
+	async function expand() {
+		collapsed = false
+		await tick()
+		finishEl?.focus()
 	}
 
 	/** Pour la page : retirer la prise affichée passe par la même confirmation que « Recommencer ». */
@@ -893,7 +980,7 @@
 	}
 </script>
 
-<div class="recorder">
+<div class="recorder" data-capturing={busy || undefined}>
 	{#if !supported}
 		<p class="message-error">
 			Ce navigateur ne permet pas d'enregistrer. Utilise un navigateur récent (Chrome, Firefox,
@@ -920,11 +1007,11 @@
 				{/if}
 				<div class="row">
 					{#if pending.length === 1 || onkeep}
-						<button type="button" class="btn btn-secondary btn-sm" onclick={recoverPending} disabled={disabled || pendingBusy}>
+						<button type="button" class="btn btn-primary btn-sm" onclick={recoverPending} disabled={disabled || pendingBusy}>
 							{pending.length > 1 ? 'Les récupérer' : 'Récupérer'}
 						</button>
 					{/if}
-					<button type="button" class="btn btn-ghost btn-sm" onclick={requestDropPending} disabled={disabled || pendingBusy}>
+					<button type="button" class="btn btn-danger btn-sm" onclick={requestDropPending} disabled={disabled || pendingBusy}>
 						Supprimer
 					</button>
 				</div>
@@ -935,109 +1022,165 @@
 			<p class="message-error">{error}</p>
 		{/if}
 
-		{#if phase === 'idle' || phase === 'arming'}
-			<button
-				type="button"
-				class="btn btn-primary start-btn"
-				onclick={() => arm()}
-				disabled={disabled || phase === 'arming' || !pendingLoaded || pending.length > 0}
-			>
-				<Icon name="mic" />
-				{phase === 'arming' ? 'Ouverture du micro…' : 'Activer le micro'}
-			</button>
-			<p class="hint">
-				Micro de l'appareil, casque ou interface audio branchée. Le son est capté tel quel,
-				sans les corrections automatiques des appels vidéo.
-			</p>
-		{:else if phase === 'starting' || phase === 'stopping'}
-			<p class="hint" role="status">
-				{phase === 'starting' ? 'Préparation de l’enregistrement…' : 'Finalisation de l’enregistrement…'}
-			</p>
-		{:else if phase === 'done'}
+		{#if phase === 'done'}
 			<div class="result">
-				<p class="summary">
-					<Icon name="check" />
-					Enregistrement prêt — {formatElapsed(elapsedS)} · {formatSize(sizeBytes)}
-				</p>
-				<!-- Près du résumé, pas après le recadrage : c'est ici qu'on décide de garder ou non. -->
-				<button type="button" class="btn btn-secondary btn-sm discard-btn" onclick={() => requestCancel()} {disabled}>
-					Jeter et recommencer
-				</button>
-				{#if onkeep}
-					<!-- Entre deux morceaux, le geste attendu : il passe avant le recadrage. -->
-					<button type="button" class="btn btn-primary start-btn" onclick={keepAndNext} {disabled}>
-						Prise suivante
-					</button>
-					<p class="hint">
-						Celle-ci rejoint la série, et le micro reste ouvert : lance la suivante avec « Enregistrer ».
-						Les morceaux se choisissent quand tu veux, tout part à la fin.
+				<div class="result-head">
+					<p class="summary">
+						<Icon name="check" />
+						Enregistrement prêt — {formatElapsed(elapsedS)}{collapsed ? '' : ` · ${formatSize(sizeBytes)}`}
 					</p>
-				{/if}
-				{#if previewUrl}
-					<!-- Pas de contrôles natifs : leur ▶ rejouait tout le fichier, sélection ignorée,
-					     sur une barre de progression sans rapport avec les poignées. -->
-					<audio bind:this={audioEl} src={previewUrl} preload="metadata" onloadedmetadata={onAudioMetadata} onpause={endPreview} onended={endPreview}></audio>
-					<div class="trim-area" class:trim-editor={trimOpen}>
-						{#if trimOpen}
-							<div class="trim-heading">
-								<strong>Recadrer l'audio</strong>
-								<span>Glisse une poignée pour écarter le début ou la fin : seul le passage entre les deux sera envoyé.</span>
-							</div>
-							<!-- svelte-ignore a11y_no_static_element_interactions -->
-							<div
-								class="trim-timeline"
-								bind:this={timelineEl}
-								onpointerdown={startDrag}
-								onpointermove={moveDrag}
-								onpointerup={endDrag}
-								onpointercancel={cancelDrag}
-							>
-								<div class="waveform" aria-hidden="true">
-									{#if waveBars.length}
-										{#each waveBars as bar}
-											<span style:height={`${bar}%`}></span>
-										{/each}
-									{:else}
-										<div class="waveform-fallback"></div>
-									{/if}
-								</div>
-								<div class="trim-shade left" style:width={`${trimDuration ? trimStart / trimDuration * 100 : 0}%`}></div>
-								<div class="trim-shade right" style:width={`${trimDuration ? (trimDuration - trimEnd) / trimDuration * 100 : 0}%`}></div>
-								{#if playheadS !== null && trimDuration}
-									<div class="trim-playhead" style:left={`${Math.min(100, playheadS / trimDuration * 100)}%`}></div>
-								{/if}
-								<button type="button" class="trim-handle" data-edge="start" style:left={`${trimDuration ? trimStart / trimDuration * 100 : 0}%`} aria-label={`Début de la sélection : ${formatTrimTime(trimStart)}`} title="Début de la sélection" onkeydown={(e) => moveByKey(e, 'start')} {disabled}></button>
-								<button type="button" class="trim-handle" data-edge="end" style:left={`${trimDuration ? trimEnd / trimDuration * 100 : 100}%`} aria-label={`Fin de la sélection : ${formatTrimTime(trimEnd)}`} title="Fin de la sélection" onkeydown={(e) => moveByKey(e, 'end')} {disabled}></button>
-							</div>
-							<div class="trim-times">
-								<span>Début <strong>{formatTrimTime(trimStart)}</strong></span>
-								<span>{formatTrimTime(selectedDuration)} conservées</span>
-								<span>Fin <strong>{formatTrimTime(trimEnd)}</strong></span>
-							</div>
-							<TrimNotice trim={hasTrim ? { startS: trimStart, endS: trimEnd } : null} durationS={trimDuration} />
-						{/if}
-						<div class="trim-actions">
-							<button type="button" class="btn btn-secondary btn-sm" onclick={playSelection} disabled={disabled || revealing}>
-								{#if previewing}Arrêter · {formatTrimTime(playheadS ?? trimStart)}{:else if hasTrim}Écouter la sélection{:else}Écouter{/if}
-							</button>
+					{#if collapsed}
+						<button type="button" class="btn btn-ghost btn-sm" bind:this={backEl} onclick={expand} {disabled}>Retour</button>
+					{/if}
+				</div>
+				<!-- Masqué et non retiré : le recadrage en cours et son lecteur doivent survivre au repli. -->
+				<div class="result-body" hidden={collapsed}>
+					{#if previewUrl}
+						<!-- Pas de contrôles natifs : leur ▶ rejouait tout le fichier, sélection ignorée,
+						     sur une barre de progression sans rapport avec les poignées. -->
+						<audio bind:this={audioEl} src={previewUrl} preload="metadata" onloadedmetadata={onAudioMetadata} onpause={endPreview} onended={endPreview}></audio>
+						<div class="trim-area" class:trim-editor={trimOpen}>
 							{#if trimOpen}
-								<button type="button" class="btn btn-ghost btn-sm" onclick={closeTrim} {disabled}>{hasTrim ? 'Tout garder' : 'Fermer'}</button>
-							{:else}
-								<button type="button" class="btn btn-ghost btn-sm" onclick={() => (trimOpen = true)} {disabled}>Recadrer…</button>
+								<div class="trim-heading">
+									<strong>Recadrer l'audio</strong>
+									<span>Glisse une poignée pour écarter le début ou la fin : seul le passage entre les deux sera envoyé.</span>
+								</div>
+								<!-- svelte-ignore a11y_no_static_element_interactions -->
+								<div
+									class="trim-timeline"
+									bind:this={timelineEl}
+									onpointerdown={startDrag}
+									onpointermove={moveDrag}
+									onpointerup={endDrag}
+									onpointercancel={cancelDrag}
+								>
+									<div class="waveform" aria-hidden="true">
+										{#if waveBars.length}
+											{#each waveBars as bar}
+												<span style:height={`${bar}%`}></span>
+											{/each}
+										{:else}
+											<div class="waveform-fallback"></div>
+										{/if}
+									</div>
+									<div class="trim-shade left" style:width={`${trimDuration ? trimStart / trimDuration * 100 : 0}%`}></div>
+									<div class="trim-shade right" style:width={`${trimDuration ? (trimDuration - trimEnd) / trimDuration * 100 : 0}%`}></div>
+									{#if playheadS !== null && trimDuration}
+										<div class="trim-playhead" style:left={`${Math.min(100, playheadS / trimDuration * 100)}%`}></div>
+									{/if}
+									<button type="button" class="trim-handle" data-edge="start" style:left={`${trimDuration ? trimStart / trimDuration * 100 : 0}%`} aria-label={`Début de la sélection : ${formatTrimTime(trimStart)}`} title="Début de la sélection" onkeydown={(e) => moveByKey(e, 'start')} {disabled}></button>
+									<button type="button" class="trim-handle" data-edge="end" style:left={`${trimDuration ? trimEnd / trimDuration * 100 : 100}%`} aria-label={`Fin de la sélection : ${formatTrimTime(trimEnd)}`} title="Fin de la sélection" onkeydown={(e) => moveByKey(e, 'end')} {disabled}></button>
+								</div>
+								<div class="trim-times">
+									<span>Début <strong>{formatTrimTime(trimStart)}</strong></span>
+									<span>{formatTrimTime(selectedDuration)} conservées</span>
+									<span>Fin <strong>{formatTrimTime(trimEnd)}</strong></span>
+								</div>
+								<TrimNotice trim={hasTrim ? { startS: trimStart, endS: trimEnd } : null} durationS={trimDuration} />
+							{/if}
+							<div class="trim-actions">
+								<button type="button" class="btn btn-secondary btn-sm" onclick={playSelection} disabled={disabled || revealing}>
+									<Icon name={previewing ? 'stop' : 'play'} />
+									{#if previewing}Arrêter · {formatTrimTime(playheadS ?? trimStart)}{:else if hasTrim}Écouter la sélection{:else}Écouter{/if}
+								</button>
+								{#if trimOpen}
+									<button type="button" class="btn btn-secondary btn-sm" onclick={closeTrim} {disabled}>{hasTrim ? 'Tout garder' : 'Fermer'}</button>
+								{:else}
+									<button type="button" class="btn btn-secondary btn-sm" onclick={() => (trimOpen = true)} {disabled}>
+										<Icon name="scissors" /> Recadrer
+									</button>
+								{/if}
+							</div>
+						</div>
+					{/if}
+
+					{#if onkeep || finishLabel}
+						<div class="result-actions">
+							{#if onkeep}
+								<!-- Entre deux morceaux, le geste attendu, à égalité avec celui qui conclut. -->
+								<button type="button" class="btn btn-secondary" onclick={keepAndNext} {disabled}>
+									<span class="rec-dot"></span> Prise suivante
+								</button>
+							{/if}
+							{#if finishLabel}
+								<button type="button" class="btn btn-primary" bind:this={finishEl} onclick={finish} {disabled}>{finishLabel}</button>
 							{/if}
 						</div>
-					</div>
-				{/if}
+					{/if}
+					{#if onkeep}
+						<p class="hint">Prise suivante : celle-ci attend dans la série, et le micro reste ouvert.</p>
+					{/if}
+
+					<!-- En dernier et à l'écart : c'est le seul geste qui perd la prise. -->
+					<button type="button" class="btn btn-danger btn-sm discard-btn" onclick={() => requestCancel()} {disabled}>
+						Jeter et recommencer
+					</button>
+				</div>
 			</div>
 		{:else}
-			{#if devices.length > 1}
+			<!-- Une seule ossature pour tous les états : le bouton principal reste sous le pouce. -->
+			<div class="stage" class:live={phase === 'recording'} class:paused={phase === 'paused'}>
+				<p class="status" role="status">
+					{#if phase === 'recording'}<span class="dot"></span>{:else if phase === 'paused'}<Icon name="pause" />{/if}
+					{STATUS[phase]}
+				</p>
+				<span class="clock">{formatElapsed(elapsedS)}</span>
+
+				<div class="meter" aria-hidden="true">
+					<div class="meter-fill" class:hot={meterPercent(level) > 80} class:clip={clipping} style="width: {meterPercent(level)}%"></div>
+				</div>
+				<p class="meter-legend" aria-live="polite">
+					{#if clipping}
+						<span class="clip-text">Saturation — éloigne le micro ou baisse le gain</span>
+					{:else}
+						<span>Niveau d'entrée</span>
+					{/if}
+					{#if busy}<span class="size">{formatSize(sizeBytes)}</span>{/if}
+				</p>
+
+				<div class="buttons">
+					{#if phase === 'idle' || phase === 'arming'}
+						{#if pending.length}
+							<p class="hint">Récupère ou supprime d'abord l'enregistrement ci-dessus pour en lancer un nouveau.</p>
+						{:else}
+							<button
+								type="button"
+								class="btn btn-primary"
+								onclick={() => arm()}
+								disabled={disabled || phase === 'arming' || !pendingLoaded}
+							>
+								<Icon name="mic" /> Activer le micro
+							</button>
+						{/if}
+					{:else if phase === 'armed' || phase === 'starting'}
+						<button type="button" class="btn btn-record" onclick={start} disabled={disabled || phase === 'starting'}>
+							<span class="rec-dot"></span> Enregistrer
+						</button>
+					{:else}
+						{#if phase === 'paused'}
+							<button type="button" class="btn btn-secondary" onclick={resume} {disabled}>
+								<span class="rec-dot"></span> Reprendre
+							</button>
+						{:else}
+							<button type="button" class="btn btn-secondary" onclick={pause} disabled={disabled || phase === 'stopping'}>
+								<Icon name="pause" /> Pause
+							</button>
+						{/if}
+						<button type="button" class="btn btn-primary" onclick={stop} disabled={disabled || phase === 'stopping'}>
+							<Icon name="stop" /> Terminer
+						</button>
+					{/if}
+				</div>
+			</div>
+
+			{#if devices.length > 1 && (phase === 'armed' || phase === 'arming')}
 				<label class="form-label">
 					Entrée audio
 					<select
 						class="form-input"
 						bind:value={deviceId}
 						onchange={() => arm(deviceId)}
-						disabled={disabled || busy}
+						disabled={disabled || phase === 'arming'}
 					>
 						{#each devices as d, i}
 							<option value={d.deviceId}>{d.label || `Entrée ${i + 1}`}</option>
@@ -1046,48 +1189,12 @@
 				</label>
 			{/if}
 
-			<div class="meter" aria-hidden="true">
-				<div class="meter-fill" class:hot={meterPercent(level) > 80} class:clip={clipping} style="width: {meterPercent(level)}%"></div>
-			</div>
-			<p class="meter-legend" aria-live="polite">
-				{#if clipping}
-					<span class="clip-text">Saturation — éloigne le micro ou baisse le gain</span>
-				{:else}
-					Niveau d'entrée
-				{/if}
-			</p>
-
-			<div class="controls">
-				<span class="clock" class:live={phase === 'recording'}>
-					{#if phase === 'recording'}<span class="dot"></span>{/if}
-					{formatElapsed(elapsedS)}
-				</span>
-				{#if busy}
-					<span class="size">{formatSize(sizeBytes)}</span>
-				{/if}
-
-				<div class="buttons">
-					{#if phase === 'armed'}
-						<button type="button" class="btn btn-primary start-btn" onclick={start} {disabled}>
-							<span class="rec-dot"></span> Enregistrer
-						</button>
-					{:else}
-						{#if phase === 'recording'}
-							<button type="button" class="btn btn-secondary" onclick={pause} {disabled}>
-								<Icon name="pause" /> Pause
-							</button>
-						{:else}
-							<button type="button" class="btn btn-secondary" onclick={resume} {disabled}>
-								<span class="rec-dot"></span> Reprendre
-							</button>
-						{/if}
-						<button type="button" class="btn btn-primary" onclick={stop} {disabled}>
-							<Icon name="stop" /> Terminer
-						</button>
-					{/if}
-				</div>
-			</div>
-
+			{#if (phase === 'idle' || phase === 'arming') && !pending.length}
+				<p class="hint">
+					Micro de l'appareil, casque ou interface audio branchée. Le son est capté tel quel,
+					sans les corrections automatiques des appels vidéo.
+				</p>
+			{/if}
 			{#if warning}
 				<p class="message-error">{warning}</p>
 			{/if}
@@ -1113,15 +1220,19 @@
 <ConfirmDialog
 	open={confirming !== null}
 	level="warning"
-	title={confirming === 'result' ? 'Jeter et recommencer ?' : 'Supprimer ?'}
+	title={confirming === 'result' ? 'Jeter et recommencer ?' : confirming === 'leave' ? 'Arrêter l’enregistrement ?' : 'Supprimer ?'}
 	message={confirming === 'result'
 		? `L'enregistrement de ${formatElapsed(elapsedS)} sera perdu, et le micro rouvert pour un nouveau.`
-		: pending.length > 1
-			? `Les ${pending.length} prises non envoyées (${formatElapsed(pendingDurationS)}) seront perdues.`
-			: `L'enregistrement non envoyé de ${formatElapsed(pendingDurationS)} sera perdu.`}
-	confirmLabel={confirming === 'result' ? 'Jeter' : 'Supprimer'}
-	cancelLabel="Garder"
-	onConfirm={() => (confirming === 'result' ? restart() : dropPending())}
+		: confirming === 'leave'
+			? backupOk
+				? `Quitter cette page arrête l'enregistrement de ${formatElapsed(elapsedS)}. Il restera à récupérer depuis « Enregistrer ».`
+				: `Quitter cette page arrête l'enregistrement de ${formatElapsed(elapsedS)}, et il sera perdu : pas de copie de secours sur cet appareil.`
+			: pending.length > 1
+				? `Les ${pending.length} prises non envoyées (${formatElapsed(pendingDurationS)}) seront perdues.`
+				: `L'enregistrement non envoyé de ${formatElapsed(pendingDurationS)} sera perdu.`}
+	confirmLabel={confirming === 'result' ? 'Jeter' : confirming === 'leave' ? 'Arrêter et quitter' : 'Supprimer'}
+	cancelLabel={confirming === 'leave' ? 'Continuer' : 'Garder'}
+	onConfirm={() => (confirming === 'result' ? restart() : confirming === 'leave' ? leaveAnyway() : dropPending())}
 	onCancel={() => (confirming = null)}
 />
 
@@ -1131,8 +1242,6 @@
 		flex-direction: column;
 		gap: 0.75rem;
 	}
-
-	.recorder > .btn { align-self: flex-start; display: inline-flex; align-items: center; gap: 0.4rem; }
 
 	.hint {
 		font-size: var(--text-xs);
@@ -1154,12 +1263,50 @@
 
 	.row { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
+	.stage {
+		display: flex;
+		flex-direction: column;
+		gap: 0.6rem;
+		padding: 0.9rem;
+		border: 1px solid transparent;
+		border-radius: var(--radius-md);
+		background: var(--color-bg-subtle);
+	}
+
+	.stage.live { background: var(--color-danger-bg); border-color: var(--color-record); }
+	.stage.paused { background: var(--color-warning-bg); border-color: var(--color-warning-border); }
+
+	.status {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 0.4rem;
+		margin: 0;
+		font-size: var(--text-sm);
+		font-weight: 700;
+		color: var(--color-text-secondary);
+	}
+
+	.live .status { color: var(--color-record); }
+	.paused .status { color: var(--color-warning-text); }
+
+	.clock {
+		text-align: center;
+		font-variant-numeric: tabular-nums;
+		font-size: var(--text-clock);
+		font-weight: 600;
+		line-height: 1.1;
+	}
+
 	.meter {
 		height: 10px;
 		background: var(--color-bg-muted);
 		border-radius: var(--radius-md);
 		overflow: hidden;
 	}
+
+	/* Le niveau reste lisible pour se replacer, sans laisser croire qu'on capte encore. */
+	.paused .meter { opacity: var(--disabled-opacity); }
 
 	.meter-fill {
 		height: 100%;
@@ -1173,36 +1320,23 @@
 	.meter-fill.clip { background: var(--color-error); }
 
 	.meter-legend {
+		display: flex;
+		justify-content: space-between;
+		gap: 0.5rem;
 		font-size: var(--text-xs);
 		color: var(--color-text-muted);
-		margin: -0.4rem 0 0;
+		margin: -0.3rem 0 0;
 	}
 
 	.clip-text { color: var(--color-error); font-weight: 600; }
 
-	.controls {
-		display: flex;
-		align-items: center;
-		flex-wrap: wrap;
-		gap: 0.5rem 1rem;
-	}
-
-	.clock {
-		font-variant-numeric: tabular-nums;
-		font-size: var(--text-xl);
-		font-weight: 600;
-		display: inline-flex;
-		align-items: center;
-		gap: 0.45rem;
-	}
-
-	.size { font-size: var(--text-sm); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+	.size { flex: none; font-variant-numeric: tabular-nums; }
 
 	.dot {
 		width: 10px;
 		height: 10px;
 		border-radius: 50%;
-		background: var(--color-error);
+		background: var(--color-record);
 		animation: blink 1.2s ease-in-out infinite;
 	}
 
@@ -1212,43 +1346,38 @@
 		.dot { animation: none; }
 	}
 
-	.buttons { display: flex; gap: 0.5rem; margin-left: auto; }
-	.buttons .btn { display: inline-flex; align-items: center; gap: 0.4rem; min-height: 40px; }
-
-	.discard-btn { align-self: flex-start; }
-
 	.rec-dot {
 		width: 0.7em;
 		height: 0.7em;
 		border-radius: 50%;
-		background: var(--color-error);
+		background: var(--color-record);
 		flex-shrink: 0;
 	}
 
-	/* Lancer l'enregistrement est LE geste de la page, souvent au doigt en répétition :
-	   il doit se trouver sans chercher. */
-	.btn.start-btn {
+	.btn-record .rec-dot { background: #fff; }
+
+	.buttons, .result-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; }
+
+	/* Les gestes de la page, souvent au doigt en répétition : ils se trouvent sans chercher. */
+	.buttons .btn, .result-actions .btn {
+		flex: 1 1 8rem;
+		max-width: 22rem;
 		min-height: 48px;
-		padding: 0.6rem 1.5rem;
 		font-size: var(--text-base);
 		font-weight: 600;
-		gap: 0.5rem;
 	}
 
-	/* Point rouge sur fond primaire : un liseré blanc le détache. */
-	.start-btn .rec-dot { box-shadow: 0 0 0 2px #fff; }
+	/* Assez larges pour tenir côte à côte à l'ordinateur, l'une sous l'autre au téléphone. */
+	.result-actions .btn { flex-basis: 13rem; }
 
-	@media (max-width: 640px) {
-		.recorder > .start-btn,
-		.result .start-btn { align-self: stretch; justify-content: center; }
-		/* Les commandes passent sous le chrono et se partagent la largeur. */
-		.buttons { flex-basis: 100%; margin-left: 0; }
-		.buttons .btn { flex: 1; justify-content: center; min-height: 48px; }
-	}
+	.buttons .hint { text-align: center; }
 
-	.result { display: flex; flex-direction: column; gap: 0.5rem; }
-	.result .btn { align-self: flex-start; }
+	.result, .result-body { display: flex; flex-direction: column; gap: 0.6rem; }
+	.result-body[hidden] { display: none; }
+	.result-head { display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; }
 	.result audio { width: 100%; }
+	.discard-btn { align-self: center; margin-top: 0.25rem; }
+
 	.trim-area { display: flex; flex-direction: column; gap: 0.45rem; }
 	.trim-editor { padding: 0.75rem; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 	.trim-heading { display: flex; flex-direction: column; gap: 0.1rem; font-size: var(--text-sm); }
@@ -1262,10 +1391,17 @@
 	.trim-shade.right { right: 0; }
 	.trim-playhead { position: absolute; z-index: 2; top: 0; bottom: 0; width: 2px; transform: translateX(-50%); background: var(--color-text); pointer-events: none; }
 	.trim-handle { position: absolute; z-index: 1; top: 0; bottom: 0; width: 24px; transform: translateX(-50%); border: 0; border-left: 3px solid var(--color-accent); border-right: 3px solid var(--color-accent); border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.22); cursor: ew-resize; touch-action: pan-y; }
+	.trim-handle::before { content: ''; position: absolute; inset: 0 -10px; }
 	.trim-handle:focus-visible { outline: 3px solid var(--color-accent); outline-offset: 2px; }
 	.trim-times { display: flex; justify-content: space-between; gap: 0.5rem; font-size: var(--text-xs); font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
 	.trim-times strong { color: var(--color-text); }
 	.trim-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+	.trim-actions .btn { flex: 1 1 8rem; }
+
+	@media (max-width: 640px) {
+		.pending .btn, .result .btn-sm { min-height: 44px; }
+		.discard-btn { padding-inline: 1rem; }
+	}
 
 	.summary {
 		display: flex;

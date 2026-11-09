@@ -1,5 +1,7 @@
-<script lang="ts" generics="T extends { id: number; title: string }">
+<script lang="ts" generics="T extends { id: number; title: string; cover_version?: number | null }">
 	import { tick } from 'svelte'
+	import Icon from '$lib/components/Icon.svelte'
+	import SongCover from '$lib/components/SongCover.svelte'
 	import { createSong, placeholderSongTitle, type CreatedSong } from '$lib/songs'
 
 	/**
@@ -18,6 +20,7 @@
 		placeholderAt = null,
 		required = false,
 		disabled = false,
+		cover = false,
 		class: className = ''
 	}: {
 		songs: T[]
@@ -31,8 +34,12 @@
 		placeholderAt?: Date | null
 		required?: boolean
 		disabled?: boolean
+		/** Pochette du morceau choisi devant le champ : là où il voisine un choix de session. */
+		cover?: boolean
 		class?: string
 	} = $props()
+
+	const picked = $derived(cover ? songs.find((s) => String(s.id) === value) : undefined)
 
 	// Valeur d'option qu'aucun id ne peut prendre.
 	const NEW = '__new__'
@@ -108,14 +115,29 @@
 	</select>
 {/snippet}
 
+{#snippet field()}
+	{#if cover}
+		<span class="picked">
+			{#if picked}
+				<SongCover songId={picked.id} title={picked.title} size={48} coverVersion={picked.cover_version ?? null} />
+			{:else}
+				<span class="no-cover" aria-hidden="true"><Icon name="music" size="1.4rem" /></span>
+			{/if}
+			{@render select()}
+		</span>
+	{:else}
+		{@render select()}
+	{/if}
+{/snippet}
+
 <div class="song-select {className}">
 	{#if label}
 		<label class="form-label">
 			{label}
-			{@render select()}
+			{@render field()}
 		</label>
 	{:else}
-		{@render select()}
+		{@render field()}
 	{/if}
 
 	{#if draft !== null}
@@ -150,6 +172,20 @@
 
 <style>
 	.song-select { display: flex; flex-direction: column; gap: 0.4rem; min-width: 0; }
+
+	.picked { display: flex; align-items: center; gap: 0.6rem; min-width: 0; }
+	.picked select { flex: 1; min-width: 0; }
+
+	.no-cover {
+		flex: none;
+		display: grid;
+		place-items: center;
+		width: 48px;
+		height: 48px;
+		border: 1px dashed var(--color-border-input);
+		border-radius: var(--radius-lg);
+		color: var(--color-text-muted);
+	}
 
 	.new-song {
 		display: flex;

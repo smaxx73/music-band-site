@@ -818,5 +818,9 @@
 		}
 
 		.tab-add { display: flex; justify-content: center; }
+
+		/* Pendant une captation, plus d'onglet à portée du pouce : la prise passe avant. */
+		.app-shell:has(:global([data-capturing])) { --footer-actions-h: 0px; }
+		.app-shell:has(:global([data-capturing])) .tab-bar { display: none; }
 	}
 </style>

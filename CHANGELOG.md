@@ -15,6 +15,12 @@ en montant de version (voir `deploy.md`).
 
 - **Agenda** : au téléphone, il s'ouvre d'un toucher depuis l'icône de la barre du haut, à côté
   de la cloche, et n'est plus dans « Plus ».
+- **Enregistrer** : au téléphone, l'écran dit en toutes lettres si le micro est prêt, si
+  l'enregistrement tourne ou s'il est en pause, avec un grand chrono. La barre d'onglets
+  s'efface pendant la prise, et quitter la page demande confirmation.
+- **Enregistrer** : une fois la prise terminée, deux choix clairs, « Prise suivante » ou
+  « Classer et envoyer », puis un formulaire plus court, avec le bouton d'envoi toujours visible.
+  La session se reconnaît à son feuillet de calendrier, le morceau à sa pochette.
 
 ## [1.21.0] — 2026-11-08
 
