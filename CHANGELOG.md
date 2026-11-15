@@ -13,6 +13,10 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.22.0] — 2026-11-15
+
+Aucune migration.
+
 - **Améliorer le son** : un « Mode expert » dans la fenêtre d'amélioration. Il ajoute un
   débruitage, pour le souffle d'une prise faible, et un curseur pour chaque réglage :
   coupe-bas, grave, chaque bande de l'égalisation, taux et seuil de la compression, volume
