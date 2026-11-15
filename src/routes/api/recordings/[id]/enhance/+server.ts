@@ -29,11 +29,15 @@ async function resolve(locals: App.Locals, rawId: string): Promise<Resolved> {
 	return { ok: true, target }
 }
 
-/** Mesures de l'original, diagnostic, réglages de la chaîne et état de la prise. */
-export const GET: RequestHandler = async ({ locals, params }) => {
+/**
+ * Mesures de l'original, diagnostic, réglages de la chaîne et état de la prise.
+ * `?profile=1` (mode expert) y ajoute le profil du fichier — spectre, bruit de fond,
+ * répartition des niveaux —, mesuré à la première demande puis gardé avec la mesure.
+ */
+export const GET: RequestHandler = async ({ locals, params, url }) => {
 	const resolved = await resolve(locals, params.id)
 	if (!resolved.ok) return resolved.response
-	return json(await enhanceState(resolved.target))
+	return json(await enhanceState(resolved.target, { profile: url.searchParams.has('profile') }))
 }
 
 /** Garde la version améliorée avec les réglages choisis (aperçu refait au besoin). */

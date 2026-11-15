@@ -1,5 +1,7 @@
 import { spawn, type ChildProcess } from 'child_process'
 import { setPriority } from 'os'
+import { createProfiler } from './audio-profile'
+import type { AudioProfile } from '$lib/audio-enhance'
 
 /**
  * Débit des mp3 stockés (prises, enregistrements perso, extraits de découpe). Constant et
@@ -493,6 +495,46 @@ export function measureBandLevels(
 			resolve(levels.length === bands.length ? levels : null)
 		})
 
+		ff.on('error', () => resolve(null))
+	})
+}
+
+/** Fréquence à laquelle un fichier est décodé pour son profil : celle du stockage. */
+const PROFILE_SAMPLE_RATE = 44100
+
+/**
+ * Profil d'un fichier (spectre par tiers d'octave, bruit de fond, répartition des
+ * niveaux), pour le mode expert de l'amélioration du son. ffmpeg décode en mono, et les
+ * échantillons sont analysés au fil de l'eau (`audio-profile.ts`) : le fichier ne passe
+ * jamais entier en mémoire. `null` si ffmpeg échoue ou si le fichier est muet.
+ */
+export function measureProfile(filePath: string): Promise<AudioProfile | null> {
+	return new Promise((resolve) => {
+		const ff = spawn('ffmpeg', [
+			'-hide_banner',
+			'-nostats',
+			'-v', 'error',
+			'-i', filePath,
+			'-map', '0:a:0',
+			'-ac', '1',
+			'-ar', String(PROFILE_SAMPLE_RATE),
+			'-f', 'f32le',
+			'-'
+		], { stdio: ['ignore', 'pipe', 'ignore'] })
+
+		const profiler = createProfiler(PROFILE_SAMPLE_RATE)
+		// Un bloc ne finit pas forcément sur un échantillon entier : le reste attend le suivant.
+		let rest: Buffer = Buffer.alloc(0)
+		ff.stdout.on('data', (chunk: Buffer) => {
+			const data = rest.length > 0 ? Buffer.concat([rest, chunk]) : chunk
+			const usable = data.length - (data.length % 4)
+			// Copie alignée : un Buffer de flux commence rarement sur un multiple de 4 octets.
+			const samples = new Float32Array(data.buffer.slice(data.byteOffset, data.byteOffset + usable))
+			profiler.push(samples)
+			rest = usable < data.length ? data.subarray(usable) : Buffer.alloc(0)
+		})
+
+		ff.on('close', (code) => resolve(code === 0 ? profiler.finish() : null))
 		ff.on('error', () => resolve(null))
 	})
 }

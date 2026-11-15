@@ -2,20 +2,25 @@
 	import { onDestroy, onMount, untrack } from 'svelte'
 	import Modal from '$lib/components/Modal.svelte'
 	import Icon from '$lib/components/Icon.svelte'
+	import EnhanceExpertPanel from '$lib/components/EnhanceExpertPanel.svelte'
 	import { player } from '$lib/player.svelte'
 	import { formatDateTime } from '$lib/date'
 	import {
 		BASS_CHOICES,
 		BASS_CHOICE_LABELS,
+		EXPERT_PARAM_NAMES,
 		ENHANCE_TARGET_LUFS,
 		formatLevel,
 		EQ_LEVELS,
 		EQ_LEVEL_LABELS,
 		enhancePlan,
 		formatDb,
+		hasExpertSettings,
+		normalizeSettings,
 		sameSettings,
 		settingsKey,
 		type EnhanceSettings,
+		type ExpertParam,
 		type EnhanceState,
 		type EnhanceVersion
 	} from '$lib/audio-enhance'
@@ -25,6 +30,10 @@
 	 * tire — modifiables à l'oreille —, la chaîne qui en découle, et l'écoute comparée avant
 	 * de décider. Rien ne change pour le groupe tant qu'on n'a pas gardé la version
 	 * améliorée, et l'original se rétablit d'un geste ensuite.
+	 *
+	 * Le mode expert (`EnhanceExpertPanel`) y ajoute le réglage fin de chaque étage, le
+	 * débruitage, et les graphiques. Il ne change pas le parcours : on prépare, on compare,
+	 * on garde.
 	 */
 	let {
 		recordingId,
@@ -69,8 +78,64 @@
 	function describeSettings(value: EnhanceSettings) {
 		const eq = value.eq === 'none' ? 'sans égalisation' : `égalisation ${EQ_LEVEL_LABELS[value.eq].toLowerCase()}`
 		const bass = value.bass === 'none' ? '' : `grave ${BASS_CHOICE_LABELS[value.bass].toLowerCase()}, `
-		return `${eq}, ${bass}${value.compression ? 'avec' : 'sans'} compression`
+		const expert = hasExpertSettings(value) ? ', et les réglages fins du mode expert' : ''
+		return `${eq}, ${bass}${value.compression ? 'avec' : 'sans'} compression${expert}`
 	}
+
+	// --- Mode expert ---
+	//
+	// Un choix d'affichage, gardé dans ce navigateur. Des réglages qui portent un réglage
+	// fin l'ouvrent d'office : ce qu'on voit doit être ce qui sera rendu. Le quitter retire
+	// donc les réglages fins — sauf sur une prise déjà améliorée, où rien ne se change.
+	const EXPERT_KEY = 'band_enhance_expert'
+	// svelte-ignore state_referenced_locally
+	let expertMode = $state(hasExpertSettings(settings))
+	let profileState = $state<'loading' | 'failed' | 'ready'>('ready')
+
+	function toggleExpert(on: boolean) {
+		expertMode = on
+		try {
+			localStorage.setItem(EXPERT_KEY, on ? '1' : '0')
+		} catch {
+			// Stockage indisponible (navigation privée) : le choix vaut pour cette fenêtre.
+		}
+		if (!on && settings && !locked) settings = normalizeSettings({ ...settings, expert: undefined })
+	}
+
+	// Le profil (spectre, bruit de fond) ne sert qu'ici : il se mesure à la première
+	// ouverture du mode expert sur la prise, puis le serveur le garde avec la mesure.
+	$effect(() => {
+		if (!expertMode || !enhance?.analysis || enhance.analysis.profile || profileState !== 'ready') return
+		untrack(() => void loadProfile())
+	})
+
+	async function loadProfile() {
+		profileState = 'loading'
+		try {
+			const res = await fetch(`/api/recordings/${recordingId}/enhance?profile=1`)
+			const fresh = res.ok ? ((await res.json()) as EnhanceState) : null
+			if (enhance && fresh?.analysis?.profile) {
+				enhance = { ...enhance, analysis: fresh.analysis }
+				profileState = 'ready'
+			} else {
+				profileState = 'failed'
+			}
+		} catch {
+			profileState = 'failed'
+		}
+	}
+
+	/** Choisir un palier remet à sa valeur ce qu'il règle : les curseurs repartent de lui. */
+	function choose(patch: Partial<EnhanceSettings>, cleared: ExpertParam[]) {
+		if (!settings) return
+		const expert = { ...settings.expert }
+		for (const name of cleared) delete expert[name]
+		settings = normalizeSettings({ ...settings, ...patch, expert })
+	}
+
+	const EQ_PARAMS: ExpertParam[] = ['mud_db', 'presence_db', 'air_db']
+	const COMPRESSOR_PARAMS: ExpertParam[] = ['ratio', 'threshold_db', 'attack_ms', 'release_ms']
+	const adjusted = (names: ExpertParam[]) => names.some((name) => settings?.expert?.[name] !== undefined)
 
 	// --- Le reste de la session ---
 	//
@@ -158,6 +223,11 @@
 	}
 
 	onMount(() => {
+		try {
+			if (localStorage.getItem(EXPERT_KEY) === '1') expertMode = true
+		} catch {
+			// Stockage indisponible : le mode expert s'ouvre à la main.
+		}
 		if (!enhance) void load()
 	})
 
@@ -171,6 +241,7 @@
 			if (!res.ok) { error = await readError(res, 'Analyse impossible.'); return }
 			enhance = (await res.json()) as EnhanceState
 			settings = settingsOf(enhance)
+			if (hasExpertSettings(settings)) expertMode = true
 		} catch {
 			error = 'Erreur réseau.'
 		} finally {
@@ -286,7 +357,7 @@
 	}
 </script>
 
-<Modal title="Améliorer le son" onClose={closeDialog}>
+<Modal title="Améliorer le son" size={expertMode ? 'lg' : 'md'} onClose={closeDialog}>
 	<div class="modal-body enhance">
 		{#if loading}
 			<p class="muted">Analyse du son… quelques secondes.</p>
@@ -346,9 +417,22 @@
 
 			{#if enhance.diagnosis.enhanceable}
 				<section>
-					<h3>Réglages</h3>
+					<div class="section-head">
+						<h3>Réglages</h3>
+						<label class="expert-toggle">
+							<input
+								type="checkbox"
+								checked={expertMode}
+								disabled={busy !== null || (!!enhance.enhanced && hasExpertSettings(settings))}
+								onchange={(e) => toggleExpert(e.currentTarget.checked)}
+							/>
+							Mode expert
+						</label>
+					</div>
 					<div class="setting">
-						<span class="setting-label" id="enhance-eq-label">Égalisation</span>
+						<span class="setting-label" id="enhance-eq-label">
+							Égalisation{#if adjusted(EQ_PARAMS)}<span class="adjusted">ajustée</span>{/if}
+						</span>
 						<div class="choice" role="radiogroup" aria-labelledby="enhance-eq-label">
 							{#each EQ_LEVELS as level (level)}
 								<label class="choice-option" class:active={settings.eq === level} class:locked>
@@ -357,7 +441,7 @@
 										name="enhance-eq"
 										checked={settings.eq === level}
 										disabled={locked}
-										onchange={() => (settings = { ...settings!, eq: level })}
+										onchange={() => choose({ eq: level }, EQ_PARAMS)}
 									/>
 									{EQ_LEVEL_LABELS[level]}
 									{#if enhance.proposed?.eq === level}<span class="proposed">proposé</span>{/if}
@@ -366,7 +450,9 @@
 						</div>
 					</div>
 					<div class="setting">
-						<span class="setting-label" id="enhance-bass-label">Grave</span>
+						<span class="setting-label" id="enhance-bass-label">
+							Grave{#if adjusted(['bass_db'])}<span class="adjusted">ajusté</span>{/if}
+						</span>
 						<div class="choice" role="radiogroup" aria-labelledby="enhance-bass-label">
 							{#each BASS_CHOICES as choice (choice)}
 								<label class="choice-option" class:active={settings.bass === choice} class:locked>
@@ -375,7 +461,7 @@
 										name="enhance-bass"
 										checked={settings.bass === choice}
 										disabled={locked}
-										onchange={() => (settings = { ...settings!, bass: choice })}
+										onchange={() => choose({ bass: choice }, ['bass_db'])}
 									/>
 									{BASS_CHOICE_LABELS[choice]}
 									{#if enhance.proposed?.bass === choice}<span class="proposed">proposé</span>{/if}
@@ -384,7 +470,9 @@
 						</div>
 					</div>
 					<div class="setting">
-						<span class="setting-label" id="enhance-comp-label">Compression</span>
+						<span class="setting-label" id="enhance-comp-label">
+							Compression{#if adjusted(COMPRESSOR_PARAMS)}<span class="adjusted">ajustée</span>{/if}
+						</span>
 						<div class="choice" role="radiogroup" aria-labelledby="enhance-comp-label">
 							{#each [true, false] as on (on)}
 								<label class="choice-option" class:active={settings.compression === on} class:locked>
@@ -393,7 +481,7 @@
 										name="enhance-compression"
 										checked={settings.compression === on}
 										disabled={locked}
-										onchange={() => (settings = { ...settings!, compression: on })}
+										onchange={() => choose({ compression: on }, COMPRESSOR_PARAMS)}
 									/>
 									{on ? 'Oui' : 'Non'}
 									{#if enhance.proposed?.compression === on}<span class="proposed">proposé</span>{/if}
@@ -416,11 +504,42 @@
 					{/if}
 				</section>
 
+				{#if expertMode}
+					<section>
+						<h3>Réglages fins</h3>
+						<p class="muted hint">
+							Chaque curseur part de la valeur que donnent les choix ci-dessus et la mesure de la
+							prise. Les graphiques suivent les curseurs ; le son, lui, s'écoute après « Préparer ».
+							{#if hasExpertSettings(settings) && !locked}
+								<button class="btn-link" onclick={() => choose({}, EXPERT_PARAM_NAMES)}>
+									Tout rétablir
+								</button>
+							{/if}
+						</p>
+						<EnhanceExpertPanel
+							analysis={a}
+							{settings}
+							{plan}
+							{locked}
+							{profileState}
+							onChange={(next) => (settings = next)}
+						/>
+					</section>
+				{/if}
+
 				<section>
 					<h3>Traitement</h3>
 					<ol class="chain">
+						{#if plan.denoise}
+							<li>
+								<strong>Débruitage</strong> {formatDb(-plan.denoise.reduction_db, 'dB')} sous
+								{formatDb(plan.denoise.floor_db, 'dB')}{plan.denoise.track ? ', bruit réévalué au fil du morceau' : ''}
+							</li>
+						{/if}
 						<li><strong>Gain d'entrée</strong> {formatDb(plan.pre_gain_db, 'dB')}</li>
-						<li><strong>Coupe-bas léger</strong> sous {plan.highpass_hz} Hz, le grondement de la salle</li>
+						{#if plan.highpass_hz}
+							<li><strong>Coupe-bas{plan.highpass_hz <= 40 ? ' léger' : ''}</strong> sous {plan.highpass_hz} Hz, le grondement de la salle</li>
+						{/if}
 						{#if plan.bass_boost}
 							<li><strong>Grave renforcé</strong> {formatDb(plan.bass_boost.gain_db, 'dB')} à {formatHz(plan.bass_boost.freq_hz)}</li>
 						{/if}
@@ -433,7 +552,7 @@
 							{/if}
 						</li>
 						<li>
-							<strong>Compression douce</strong>
+							<strong>Compression{plan.compressor && plan.compressor.ratio > 2.5 ? '' : ' douce'}</strong>
 							{#if plan.compressor}
 								{plan.compressor.ratio.toLocaleString('fr-FR')}:1 au-dessus de {formatDb(plan.compressor.threshold_db, 'dB')}
 							{:else}
@@ -608,6 +727,16 @@
 	.compare { display: flex; flex-direction: column; gap: 0.6rem; }
 	.setting { display: flex; align-items: center; gap: 0.4rem 0.8rem; flex-wrap: wrap; }
 	.setting-label { font-size: var(--text-sm); min-width: 6.5rem; }
+	.adjusted {
+		display: block; font-size: var(--text-2xs); color: var(--color-accent-dark);
+		text-transform: uppercase; letter-spacing: 0.03em;
+	}
+	.section-head { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
+	.expert-toggle {
+		display: inline-flex; align-items: center; gap: 0.4rem;
+		font-size: var(--text-sm); cursor: pointer;
+	}
+	.expert-toggle input { accent-color: var(--color-accent); }
 	.choice { display: flex; flex-wrap: wrap; gap: 0.4rem; }
 	.choice-option {
 		position: relative;

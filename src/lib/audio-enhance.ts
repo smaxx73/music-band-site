@@ -2,11 +2,16 @@
  * Amélioration du son d'une prise : ce que l'écran et le serveur partagent — les mesures,
  * le diagnostic qui décide de proposer l'amélioration, et le réglage de la chaîne.
  *
- * La chaîne, dans l'ordre : gain d'entrée → coupe-bas léger → égalisation →
- * compression douce → normalisation loudness → limiteur. Rien n'y décale le temps (filtres
- * IIR, compresseur sans anticipation, limiteur au retard compensé) : un commentaire ancré
- * à 1:23 reste sur la même note après amélioration. Les filtres ffmpeg eux-mêmes sont
- * écrits côté serveur (`src/lib/server/audio-enhance.ts`).
+ * La chaîne, dans l'ordre : débruitage (mode expert seulement) → gain d'entrée →
+ * coupe-bas léger → égalisation → compression douce → normalisation loudness → limiteur.
+ * Rien n'y décale le temps (filtres IIR, compresseur sans anticipation, limiteur et
+ * débruiteur au retard compensé) : un commentaire ancré à 1:23 reste sur la même note
+ * après amélioration. Les filtres ffmpeg eux-mêmes sont écrits côté serveur
+ * (`src/lib/server/audio-enhance.ts`).
+ *
+ * Deux niveaux de réglage : trois choix par paliers, que le module propose et que tout le
+ * monde règle, et un **mode expert** (`ExpertSettings`) qui rend chaque valeur de la
+ * chaîne réglable à la main — voir `EXPERT_PARAMS`.
  *
  * Trois réglages suivent la mesure : le gain d'entrée, le taux de compression et le dosage
  * de l'égalisation. Ce dernier est calibré à l'oreille sur des prises réelles — voir
@@ -40,6 +45,62 @@ export type AudioAnalysis = {
 	bass_db: number | null
 	/** Taille du fichier mesuré : une autre taille, et la mesure est à refaire. */
 	source_bytes: number
+	/**
+	 * Spectre, bruit de fond et répartition des niveaux : ce que le mode expert dessine et
+	 * ce dont le débruitage tire son seuil. Mesuré à la demande, à la première ouverture du
+	 * mode expert — absent tant que personne ne l'a ouvert sur cette prise.
+	 */
+	profile?: AudioProfile
+}
+
+/**
+ * Profil d'un fichier (`src/lib/server/audio-profile.ts`). Les niveaux sont des dBFS RMS,
+ * sur l'échelle du fichier mesuré : la somme des bandes redonne le niveau du signal.
+ */
+export type AudioProfile = {
+	/** Centre de chaque bande d'un tiers d'octave, en Hz, de 20 Hz à 20 kHz. */
+	freqs_hz: number[]
+	/** Niveau moyen de chaque bande sur tout le fichier. */
+	mean_db: number[]
+	/**
+	 * Niveau de chaque bande dans ses moments les plus calmes (10ᵉ centile) : le bruit de
+	 * fond, si le morceau a des respirations — sinon, la musique la plus douce.
+	 */
+	noise_db: number[]
+	/** Niveau d'ensemble des passages les plus calmes (5ᵉ centile). */
+	quiet_db: number
+	/** Niveau d'ensemble des passages forts (95ᵉ centile). */
+	loud_db: number
+	/** Part du temps passée à chaque niveau, par pas de 1 dB à partir de `levels_from_db`. */
+	levels: number[]
+	levels_from_db: number
+}
+
+/**
+ * Le bruit de fond ne se mesure que s'il y a des blancs : il faut que les passages calmes
+ * soient nettement sous les passages forts. Un groupe qui joue sans pause ne descend que
+ * de 5 à 15 dB, et ses passages calmes sont encore de la musique ; un enregistrement au
+ * téléphone avec des respirations, d'une trentaine.
+ */
+const NOISE_MEASURABLE_GAP_DB = 25
+
+export function noiseMeasurable(p: AudioProfile): boolean {
+	return p.loud_db - p.quiet_db >= NOISE_MEASURABLE_GAP_DB
+}
+
+/** Seuil du débruiteur faute de profil : celui des variantes écoutées au calibrage. */
+const DENOISE_FLOOR_FALLBACK_DB = -50
+
+/**
+ * Seuil proposé au débruiteur : 5 dB au-dessus du bruit mesuré — en deçà, la réduction
+ * demandée n'est pas atteinte (mesuré sur un bruit blanc : 10 dB obtenus pour 12 demandés
+ * avec le seuil au niveau du bruit, 12 avec 5 dB de marge). Jamais à moins de 30 dB sous
+ * les passages forts : sur une prise sans blanc, les « passages calmes » sont de la
+ * musique, et un seuil posé sur eux la rongerait.
+ */
+export function autoDenoiseFloor(p: AudioProfile | undefined): number {
+	if (!p) return DENOISE_FLOOR_FALLBACK_DB
+	return clamp(Math.round(Math.min(p.quiet_db + 5, p.loud_db - 30)), -80, -20)
 }
 
 /**
@@ -89,7 +150,7 @@ const TILT_MUFFLED_DB = -11
 /** Au-dessus, les aigus sont là : le son n'est pas étouffé, quelle que soit la présence. */
 const AIR_MUFFLED_DB = -21
 
-type EqBand = { type: 'peak' | 'highshelf' | 'lowshelf'; freq_hz: number; q: number; gain_db: number }
+export type EqBand = { type: 'peak' | 'highshelf' | 'lowshelf'; freq_hz: number; q: number; gain_db: number }
 
 /**
  * Grave trop présent. Calibré sur un morceau de groupe masterisé (grave −2,2 dB face au
@@ -142,7 +203,59 @@ export function eqAmount(a: Pick<AudioAnalysis, 'tilt_db' | 'air_db'>): number {
  */
 export type EqLevel = 'none' | 'soft' | 'full'
 export type BassChoice = 'cut' | 'none' | 'boost'
-export type EnhanceSettings = { eq: EqLevel; bass: BassChoice; compression: boolean }
+export type EnhanceSettings = { eq: EqLevel; bass: BassChoice; compression: boolean; expert?: ExpertSettings }
+
+/**
+ * Mode expert : chaque valeur de la chaîne, réglable à la main. Un réglage absent garde
+ * la valeur que les trois choix par paliers (et la mesure) lui donnent — seuls les écarts
+ * sont gardés, pour que des réglages repris sur une autre prise de la session continuent
+ * de suivre sa mesure là où l'on n'a rien touché.
+ *
+ * Rien ici n'est proposé par le module ni calibré à l'oreille : les paliers le sont, le
+ * mode expert sert justement aux prises qui les déjouent.
+ */
+export type ExpertParam =
+	| 'denoise_db' | 'denoise_floor_db'
+	| 'highpass_hz' | 'mud_db' | 'presence_db' | 'air_db' | 'bass_db'
+	| 'ratio' | 'threshold_db' | 'attack_ms' | 'release_ms'
+	| 'target_lufs' | 'limit_db'
+
+export type ExpertSettings = Partial<Record<ExpertParam, number>> & {
+	/** Le débruiteur réévalue le bruit au fil du morceau, à partir de son seuil. */
+	denoise_track?: true
+}
+
+/**
+ * Bornes et pas de chaque réglage expert, et son code dans la clé d'un aperçu
+ * (`settingsKey`). Les bornes sont celles au-delà desquelles le réglage n'a plus de sens
+ * pour une prise de répétition, pas celles du filtre.
+ */
+export const EXPERT_PARAMS: Record<ExpertParam, { code: string; min: number; max: number; step: number }> = {
+	// Réduction du bruit de fond, en dB ; 0 = pas de débruitage.
+	denoise_db: { code: 'dn', min: 0, max: 24, step: 1 },
+	// Niveau sous lequel le débruiteur tient un son pour du bruit (défaut : `autoDenoiseFloor`).
+	denoise_floor_db: { code: 'df', min: -80, max: -20, step: 1 },
+	// 0 = pas de coupe-bas.
+	highpass_hz: { code: 'hp', min: 0, max: 150, step: 5 },
+	// Les trois bandes de l'égalisation : carton (280 Hz), présence (3 kHz), air (7 kHz).
+	mud_db: { code: 'mu', min: -9, max: 6, step: 0.5 },
+	presence_db: { code: 'pr', min: -6, max: 6, step: 0.5 },
+	air_db: { code: 'ai', min: -6, max: 6, step: 0.5 },
+	// Négatif : grave allégé sous 100 Hz, après le compresseur. Positif : renforcé à 90 Hz, avant.
+	bass_db: { code: 'ba', min: -6, max: 6, step: 0.5 },
+	ratio: { code: 'ra', min: 1.2, max: 6, step: 0.1 },
+	// Seuil du compresseur, pour un son amené à −20 LUFS par le gain d'entrée.
+	threshold_db: { code: 'th', min: -40, max: -10, step: 1 },
+	attack_ms: { code: 'at', min: 1, max: 100, step: 1 },
+	release_ms: { code: 're', min: 50, max: 1000, step: 10 },
+	target_lufs: { code: 'tl', min: -20, max: -10, step: 0.5 },
+	limit_db: { code: 'li', min: -3, max: -0.3, step: 0.1 }
+}
+
+export const EXPERT_PARAM_NAMES = Object.keys(EXPERT_PARAMS) as ExpertParam[]
+const COMPRESSOR_PARAMS: ExpertParam[] = ['ratio', 'threshold_db', 'attack_ms', 'release_ms']
+/** Le suivi du bruit est un oui / non : son code figure seul dans la clé, sans valeur. */
+const DENOISE_TRACK_CODE = 'dt'
 
 export const EQ_LEVELS: EqLevel[] = ['none', 'soft', 'full']
 export const EQ_LEVEL_LABELS: Record<EqLevel, string> = { none: 'Aucune', soft: 'Douce', full: 'Franche' }
@@ -164,41 +277,152 @@ export function proposedSettings(a: AudioAnalysis): EnhanceSettings {
 	}
 }
 
-/** Réglages reçus du navigateur, ou relus d'un fichier : `null` s'ils sont mal formés. */
-export function parseEnhanceSettings(raw: unknown): EnhanceSettings | null {
-	if (typeof raw !== 'object' || raw === null) return null
-	const { eq, bass, compression } = raw as Record<string, unknown>
-	if (!EQ_LEVELS.includes(eq as EqLevel) || typeof compression !== 'boolean') return null
-	if (bass === undefined) {
-		// Réglages gardés avant le choix du grave : le renfort faisait partie de l'égalisation.
-		return { eq: eq as EqLevel, bass: eq === 'none' ? 'none' : 'boost', compression }
+/**
+ * Valeur de chaque réglage expert quand on n'y a pas touché, pour ces choix par paliers.
+ * Le taux de compression et le seuil du débruiteur suivent en plus la mesure de la prise :
+ * ils n'y figurent pas, voir `expertValues`.
+ */
+function presetValues(s: Pick<EnhanceSettings, 'eq' | 'bass'>): Partial<Record<ExpertParam, number>> {
+	const amount = EQ_LEVEL_AMOUNT[s.eq]
+	const [mud, presence, air] = EQ_FULL.map((band) => round1(band.gain_db * amount))
+	return {
+		denoise_db: 0,
+		highpass_hz: HIGHPASS_HZ,
+		mud_db: mud,
+		presence_db: presence,
+		air_db: air,
+		bass_db: s.bass === 'cut' ? BASS_CUT.gain_db : s.bass === 'boost' ? BASS_BOOST.gain_db : 0,
+		threshold_db: WORKING_LUFS - 4,
+		attack_ms: 15,
+		release_ms: 200,
+		target_lufs: ENHANCE_TARGET_LUFS,
+		limit_db: ENHANCE_LIMIT_DB
 	}
-	if (!BASS_CHOICES.includes(bass as BassChoice)) return null
-	return { eq: eq as EqLevel, bass: bass as BassChoice, compression }
-}
-
-export function sameSettings(a: EnhanceSettings | null, b: EnhanceSettings | null): boolean {
-	return !!a && !!b && a.eq === b.eq && a.bass === b.bass && a.compression === b.compression
 }
 
 /**
- * Les réglages en un mot (`full-boost-comp`) : le nom de leur aperçu sur disque, et ce que
- * l'écran demande à écouter. Chaque réglage essayé garde le sien — y revenir ne coûte rien.
+ * Ramène des réglages à leur forme la plus courte : un réglage expert qui vaut ce que les
+ * paliers donnent déjà, ou qui ne s'applique pas (seuil d'un débruitage coupé, taux d'une
+ * compression coupée), n'est pas gardé. Deux façons d'obtenir le même son ont ainsi la
+ * même clé, donc le même aperçu.
  */
-export function settingsKey(s: EnhanceSettings): string {
-	return `${s.eq}-${s.bass}-${s.compression ? 'comp' : 'flat'}`
+export function normalizeSettings(s: EnhanceSettings): EnhanceSettings {
+	const base: EnhanceSettings = { eq: s.eq, bass: s.bass, compression: s.compression }
+	if (!s.expert) return base
+	const preset = presetValues(s)
+	const expert: ExpertSettings = {}
+	for (const name of EXPERT_PARAM_NAMES) {
+		const value = s.expert[name]
+		if (value === undefined || value === preset[name]) continue
+		if (!s.compression && COMPRESSOR_PARAMS.includes(name)) continue
+		expert[name] = value
+	}
+	if (expert.denoise_db === undefined) delete expert.denoise_floor_db
+	else if (s.expert.denoise_track) expert.denoise_track = true
+	return Object.keys(expert).length > 0 ? { ...base, expert } : base
+}
+
+/** Vrai si des réglages portent au moins un réglage expert. */
+export function hasExpertSettings(s: EnhanceSettings | null): boolean {
+	return !!s?.expert && Object.keys(s.expert).length > 0
+}
+
+/** Réglages experts reçus : `null` s'ils sont mal formés ou hors bornes. */
+function parseExpertSettings(raw: unknown): ExpertSettings | null {
+	if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return null
+	const expert: ExpertSettings = {}
+	for (const [name, value] of Object.entries(raw)) {
+		if (name === 'denoise_track') {
+			if (typeof value !== 'boolean') return null
+			if (value) expert.denoise_track = true
+			continue
+		}
+		const spec = EXPERT_PARAMS[name as ExpertParam]
+		if (!spec || typeof value !== 'number' || !Number.isFinite(value)) return null
+		if (value < spec.min || value > spec.max) return null
+		expert[name as ExpertParam] = snapExpertValue(name as ExpertParam, value)
+	}
+	return expert
+}
+
+/** Une valeur ramenée au pas de son réglage, dans ses bornes. */
+export function snapExpertValue(name: ExpertParam, value: number): number {
+	const { min, max, step } = EXPERT_PARAMS[name]
+	return clamp(round1(Math.round(value / step) * step), min, max)
+}
+
+/** Réglages reçus du navigateur, ou relus d'un fichier : `null` s'ils sont mal formés. */
+export function parseEnhanceSettings(raw: unknown): EnhanceSettings | null {
+	if (typeof raw !== 'object' || raw === null) return null
+	const { eq, bass, compression, expert: rawExpert } = raw as Record<string, unknown>
+	if (!EQ_LEVELS.includes(eq as EqLevel) || typeof compression !== 'boolean') return null
+	let expert: ExpertSettings | undefined
+	if (rawExpert !== undefined && rawExpert !== null) {
+		const parsed = parseExpertSettings(rawExpert)
+		if (!parsed) return null
+		expert = parsed
+	}
+	if (bass === undefined) {
+		// Réglages gardés avant le choix du grave : le renfort faisait partie de l'égalisation.
+		return normalizeSettings({ eq: eq as EqLevel, bass: eq === 'none' ? 'none' : 'boost', compression, expert })
+	}
+	if (!BASS_CHOICES.includes(bass as BassChoice)) return null
+	return normalizeSettings({ eq: eq as EqLevel, bass: bass as BassChoice, compression, expert })
+}
+
+export function sameSettings(a: EnhanceSettings | null, b: EnhanceSettings | null): boolean {
+	return !!a && !!b && settingsKey(a) === settingsKey(b)
+}
+
+/**
+ * Les réglages en un mot (`full-boost-comp`, `soft-none-comp~dn12~pr2.5`) : le nom de leur
+ * aperçu sur disque, et ce que l'écran demande à écouter. Chaque réglage essayé garde le
+ * sien — y revenir ne coûte rien. Les réglages experts suivent, dans un ordre fixe, chacun
+ * par son code et sa valeur.
+ */
+export function settingsKey(settings: EnhanceSettings): string {
+	const s = normalizeSettings(settings)
+	const parts = [`${s.eq}-${s.bass}-${s.compression ? 'comp' : 'flat'}`]
+	for (const name of EXPERT_PARAM_NAMES) {
+		const value = s.expert?.[name]
+		if (value !== undefined) parts.push(`${EXPERT_PARAMS[name].code}${value}`)
+	}
+	if (s.expert?.denoise_track) parts.push(DENOISE_TRACK_CODE)
+	return parts.join('~')
 }
 
 export function parseSettingsKey(key: string | null): EnhanceSettings | null {
-	const [eq, bass, compression, ...rest] = (key ?? '').split('-')
+	const [base, ...tokens] = (key ?? '').split('~')
+	const [eq, bass, compression, ...rest] = base.split('-')
 	if (rest.length > 0 || (compression !== 'comp' && compression !== 'flat')) return null
-	return parseEnhanceSettings({ eq, bass: bass ?? null, compression: compression === 'comp' })
+	const expert: Record<string, number | boolean> = {}
+	for (const token of tokens) {
+		if (token === DENOISE_TRACK_CODE) { expert.denoise_track = true; continue }
+		// Un code et un nombre à une décimale au plus : rien d'autre n'entre dans un nom de fichier.
+		const match = /^([a-z]{2})(-?\d+(?:\.\d)?)$/.exec(token)
+		const name = match && EXPERT_PARAM_NAMES.find((n) => EXPERT_PARAMS[n].code === match[1])
+		if (!match || !name || name in expert) return null
+		expert[name] = Number(match[2])
+	}
+	const settings = parseEnhanceSettings({
+		eq, bass: bass ?? null, compression: compression === 'comp',
+		...(tokens.length > 0 ? { expert } : {})
+	})
+	// Une clé ne se relit que sous sa forme canonique : un seul nom de fichier par réglage.
+	return settings && settingsKey(settings) === key ? settings : null
 }
 
 /** Niveau de travail du compresseur : son seuil n'a de sens que pour un niveau connu. */
 const WORKING_LUFS = -20
 const MAX_PRE_GAIN_DB = 24
 const MAX_CUT_DB = -20
+/**
+ * Le grondement (manipulation, ventilation, trafic) vit sous 35 Hz. Plus haut, la coupe
+ * mordrait sur le mi grave d'une basse (41 Hz) : « léger » est ici une contrainte. Les
+ * toutes premières notes d'un piano (la 0, 27,5 Hz) y perdent leur fondamentale, qu'une
+ * prise de salle ne capte guère : l'oreille les entend par leurs harmoniques.
+ */
+const HIGHPASS_HZ = 35
 
 export type EnhanceIssue = {
 	kind: 'quiet' | 'loud' | 'dynamics' | 'muffled' | 'boomy' | 'saturated'
@@ -256,9 +480,15 @@ export function diagnose(a: AudioAnalysis): EnhanceDiagnosis {
 }
 
 export type EnhancePlan = {
+	/**
+	 * Débruitage, en tête de chaîne : le seuil est sur l'échelle du fichier d'origine,
+	 * avant tout gain. `null` sans — c'est le cas hors du mode expert.
+	 */
+	denoise: { reduction_db: number; floor_db: number; track: boolean } | null
 	/** Gain d'entrée, qui amène le son au niveau de travail du compresseur. */
 	pre_gain_db: number
-	highpass_hz: number
+	/** `null` sans coupe-bas. */
+	highpass_hz: number | null
 	/** Vide sans égalisation. */
 	eq: EqBand[]
 	/** `null` sans compression. */
@@ -271,27 +501,48 @@ export type EnhancePlan = {
 	limit_db: number
 }
 
-export function enhancePlan(a: AudioAnalysis, settings: EnhanceSettings = proposedSettings(a)): EnhancePlan {
+/**
+ * La valeur de chaque réglage expert pour cette prise : celle qu'on a réglée à la main,
+ * sinon celle que donnent les paliers et la mesure. C'est ce que montrent les curseurs,
+ * et ce dont la chaîne est faite.
+ */
+export function expertValues(a: AudioAnalysis, settings: EnhanceSettings): Record<ExpertParam, number> {
 	return {
+		...presetValues(settings),
+		denoise_floor_db: autoDenoiseFloor(a.profile),
+		// Un son déjà tenu n'a pas à l'être davantage ; un son aux grands écarts, un peu plus.
+		ratio: a.lra_lu <= 8 ? 1.5 : a.lra_lu <= 14 ? 2 : 2.5,
+		...numericExpert(settings.expert)
+	} as Record<ExpertParam, number>
+}
+
+function numericExpert(expert: ExpertSettings | undefined): Partial<Record<ExpertParam, number>> {
+	const values: Partial<Record<ExpertParam, number>> = {}
+	for (const name of EXPERT_PARAM_NAMES) {
+		const value = expert?.[name]
+		if (value !== undefined) values[name] = value
+	}
+	return values
+}
+
+export function enhancePlan(a: AudioAnalysis, settings: EnhanceSettings = proposedSettings(a)): EnhancePlan {
+	const v = expertValues(a, settings)
+	const gains = [v.mud_db, v.presence_db, v.air_db]
+	return {
+		denoise: v.denoise_db > 0
+			? { reduction_db: v.denoise_db, floor_db: v.denoise_floor_db, track: settings.expert?.denoise_track === true }
+			: null,
 		pre_gain_db: round1(clamp(WORKING_LUFS - a.integrated_lufs, MAX_CUT_DB, MAX_PRE_GAIN_DB)),
-		// Le grondement (manipulation, ventilation, trafic) vit sous 35 Hz. Plus haut, la
-		// coupe mordrait sur le mi grave d'une basse (41 Hz) : « léger » est ici une contrainte.
-		// Les toutes premières notes d'un piano (la 0, 27,5 Hz) y perdent leur fondamentale,
-		// qu'une prise de salle ne capte guère : l'oreille les entend par leurs harmoniques.
-		highpass_hz: 35,
-		eq: eqBands(settings.eq),
-		compressor: settings.compression ? {
-			// Quelques dB sous le niveau de travail : seuls les passages forts sont tenus.
-			threshold_db: WORKING_LUFS - 4,
-			// Un son déjà tenu n'a pas à l'être davantage ; un son aux grands écarts, un peu plus.
-			ratio: a.lra_lu <= 8 ? 1.5 : a.lra_lu <= 14 ? 2 : 2.5,
-			attack_ms: 15,
-			release_ms: 200
-		} : null,
-		bass_boost: settings.bass === 'boost' ? BASS_BOOST : null,
-		bass_cut: settings.bass === 'cut' ? BASS_CUT : null,
-		target_lufs: ENHANCE_TARGET_LUFS,
-		limit_db: ENHANCE_LIMIT_DB
+		highpass_hz: v.highpass_hz > 0 ? v.highpass_hz : null,
+		eq: EQ_FULL.map((band, i) => ({ ...band, gain_db: gains[i] })).filter((band) => band.gain_db !== 0),
+		// Seuil par défaut quelques dB sous le niveau de travail : seuls les passages forts sont tenus.
+		compressor: settings.compression
+			? { threshold_db: v.threshold_db, ratio: v.ratio, attack_ms: v.attack_ms, release_ms: v.release_ms }
+			: null,
+		bass_boost: v.bass_db > 0 ? { ...BASS_BOOST, gain_db: v.bass_db } : null,
+		bass_cut: v.bass_db < 0 ? { ...BASS_CUT, gain_db: v.bass_db } : null,
+		target_lufs: v.target_lufs,
+		limit_db: v.limit_db
 	}
 }
 
@@ -327,12 +578,6 @@ export type SessionTake = { id: number; take: number; song_title: string; enhanc
 
 /** Les deux versions comparées à l'écran, quel que soit l'état de la prise. */
 export type EnhanceVersion = 'original' | 'enhanced'
-
-function eqBands(level: EqLevel): EqBand[] {
-	const amount = EQ_LEVEL_AMOUNT[level]
-	if (amount === 0) return []
-	return EQ_FULL.map((band) => ({ ...band, gain_db: round1(band.gain_db * amount) }))
-}
 
 /** Une grandeur sans signe — une plage, pas un gain : « 14,1 LU ». */
 export function formatLevel(value: number, unit: string): string {

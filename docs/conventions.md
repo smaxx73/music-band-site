@@ -12,6 +12,9 @@ src/
 │   │   │                  #   miniature du logo de groupe, recadrage des images déposées
 │   │   ├── audio-enhance.ts # amélioration du son d'une prise : mesure, aperçu, application,
 │   │   │                  #   retour à l'original (réglages partagés : src/lib/audio-enhance.ts)
+│   │   ├── audio-profile.ts # profil d'un fichier pour le mode expert : spectre par tiers
+│   │   │                  #   d'octave, bruit de fond, répartition des niveaux, au fil de l'eau
+│   │   │                  #   (courbes des graphiques : src/lib/audio-enhance-curves.ts)
 │   │   ├── audio-trim.ts  # recadrage d'un enregistrement (bornes début/fin) : validation avant
 │   │   │                  #   ffmpeg, empreinte propre à chaque coupe, contrôle du rendu
 │   │   │                  #   coupe à l'envoi, retour au fichier entier (recadrage défait)
@@ -101,6 +104,9 @@ src/
 │       ├── PublishDialog.svelte   # publier dans le groupe actif : enregistrement perso, vidéo, suggestion
 │       ├── ClassifyDialog.svelte  # classer un enregistrement perso en prise (session + morceau)
 │       ├── AudioEnhanceDialog.svelte # améliorer le son d'une prise : mesure, chaîne, écoute comparée
+│       ├── EnhanceExpertPanel.svelte # mode expert de l'amélioration : un curseur par valeur, par étage
+│       ├── EnhanceSpectrumChart.svelte # graphique du timbre : spectre, bruit de fond, correction
+│       ├── EnhanceDynamicsChart.svelte # graphique de la compression : courbe, temps à chaque niveau
 │       ├── JourneySteps.svelte    # fil d'étapes d'un parcours (/record, /decoupe) : repère, non cliquable
 │       ├── PendingImports.svelte  # fichiers encore en transit : reprendre ou refaire une découpe
 │       ├── UploadBatch.svelte     # envoi par lots (/upload) et prises en série (/record) :

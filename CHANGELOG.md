@@ -13,6 +13,12 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+- **Améliorer le son** : un « Mode expert » dans la fenêtre d'amélioration. Il ajoute un
+  débruitage, pour le souffle d'une prise faible, et un curseur pour chaque réglage :
+  coupe-bas, grave, chaque bande de l'égalisation, taux et seuil de la compression, volume
+  visé. Deux graphiques montrent l'effet des curseurs avant d'écouter : le spectre de la
+  prise avec la correction appliquée, et la courbe de la compression. Sans le mode expert,
+  rien ne change.
 - **Agenda** : au téléphone, il s'ouvre d'un toucher depuis l'icône de la barre du haut, à côté
   de la cloche, et n'est plus dans « Plus ».
 - **Enregistrer** : au téléphone, l'écran dit en toutes lettres si le micro est prêt, si

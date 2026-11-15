@@ -693,6 +693,11 @@ textarea:focus-visible {
   width: 360px;
 }
 
+/* Contenu qui se lit en largeur : les graphiques du mode expert de l'amélioration du son. */
+.modal-lg {
+  width: 820px;
+}
+
 .modal-header {
   display: flex;
   align-items: center;

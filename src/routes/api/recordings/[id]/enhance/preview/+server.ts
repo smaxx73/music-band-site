@@ -5,7 +5,8 @@ import { parseEnhanceSettings } from '$lib/audio-enhance'
 
 /**
  * Prépare la version améliorée, à écouter avant de la garder, avec les réglages choisis
- * (`{ eq: 'none' | 'soft' | 'full', bass: 'cut' | 'none' | 'boost', compression: boolean }`). Quelques secondes pour un
+ * (`{ eq: 'none' | 'soft' | 'full', bass: 'cut' | 'none' | 'boost', compression: boolean, expert? }`,
+ * `expert` portant les réglages fins du mode expert — `EXPERT_PARAMS`). Quelques secondes pour un
  * morceau : la requête attend le rendu plutôt que d'inventer un suivi de tâche.
  */
 export const POST: RequestHandler = async ({ locals, params, request }) => {

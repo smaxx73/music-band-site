@@ -15,7 +15,7 @@
 		children
 	}: {
 		title: string
-		size?: 'sm' | 'md'
+		size?: 'sm' | 'md' | 'lg'
 		onClose: () => void
 		children: Snippet
 	} = $props()
@@ -36,7 +36,7 @@
 <div class="modal-backdrop">
 	<!-- Bouton plein écran derrière la modale : fermeture au clic hors modale -->
 	<button type="button" class="modal-backdrop-close" aria-label="Fermer" onclick={onClose}></button>
-	<div class="modal" class:modal-sm={size === 'sm'} role="dialog" aria-modal="true" aria-label={title}>
+	<div class="modal" class:modal-sm={size === 'sm'} class:modal-lg={size === 'lg'} role="dialog" aria-modal="true" aria-label={title}>
 		<div class="modal-header">
 			<h2>{title}</h2>
 			<button class="modal-close" aria-label="Fermer" onclick={onClose}><Icon name="close" size="0.95rem" /></button>

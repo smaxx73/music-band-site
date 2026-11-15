@@ -239,23 +239,30 @@ dans docs/features.md.
 - Pagination (à faire quand > 50 éléments) — seul le fil d'actualité (`/fil`) est paginé,
   par curseur : voir « Fil d'actualité » dans docs/features.md
 - Tests automatisés couvrant l'application : seuls quelques modules purs sont testés
-  (`tests/` : éditeur ABC, ChordPro, chaîne d'amélioration du son, reconnexion audio, coupe
+  (`tests/` : éditeur ABC, ChordPro, chaîne d'amélioration du son, courbes et profil de son
+  mode expert, reconnexion audio, coupe
   d'un mp3, segments d'un fichier recadré, seuil d'une écoute),
   lancés par `pnpm test`. Ni routes, ni composants, ni SQL
-- Autres outils d'amélioration audio (fondus, réduction de bruit, déclippage, correction
-  d'un son trop brillant) : seules la découpe sur les blancs, la recopie d'un canal muet et
-  l'amélioration du son d'une prise (loudness, égalisation dosée sur l'équilibre aigus /
-  grave, grave allégé) existent — voir
-  docs/features.md. Pas d'amélioration sur un enregistrement perso
-- Curseur continu pour l'égalisation ou la compression de l'amélioration du son : écarté
-  pour l'instant. Les paliers (égalisation aucune / douce / franche, grave allégé / tel quel /
-  renforcé, compression oui / non) suivent ce
-  que l'oreille distingue, et sans écoute en direct (Web Audio) chaque position coûterait
-  un rendu. À reconsidérer si l'on hésite souvent entre « douce » et « franche »
-- Égalisation séparée par zone (médium creusé / aigus éclaircis) : écartée après écoute.
-  À volume égal, creuser le carton ou éclaircir donnaient presque le même résultat — la
-  compensation de volume remonte les aigus dans les deux cas. Un seul réglage d'égalisation
-  suffit ; seul le grave, qui s'entendait, a son choix à part
+- Autres outils d'amélioration audio (fondus, déclippage) : seules la découpe sur les
+  blancs, la recopie d'un canal muet et l'amélioration du son d'une prise (loudness,
+  égalisation dosée sur l'équilibre aigus / grave, grave allégé, et en mode expert le
+  débruitage et le réglage fin de chaque étage) existent — voir docs/features.md. Pas
+  d'amélioration sur un enregistrement perso
+- Débruitage **proposé** par le module, ou réglé hors du mode expert : non. Il n'existe
+  qu'en mode expert, jamais d'office — le bruit de fond ne se mesure que sur une prise qui
+  a des blancs, et aucun réglage n'a encore été retenu à l'oreille. Un son trop brillant
+  n'est pas détecté non plus : il se corrige à la main, en mode expert
+- Écoute en direct des réglages de l'amélioration du son (Web Audio) : non. Les curseurs du
+  mode expert montrent leur effet par des graphiques, mais le son s'écoute après un rendu
+  (« Préparer ») : un aperçu dans le navigateur ne sonnerait pas comme le rendu de ffmpeg,
+  et le débruitage ne s'y ferait pas. Hors du mode expert, les paliers (égalisation aucune /
+  douce / franche, grave allégé / tel quel / renforcé, compression oui / non) restent ce que
+  l'oreille distingue
+- Égalisation séparée par zone (médium creusé / aigus éclaircis) **dans les paliers** :
+  écartée après écoute. À volume égal, creuser le carton ou éclaircir donnaient presque le
+  même résultat — la compensation de volume remonte les aigus dans les deux cas. Un seul
+  réglage d'égalisation suffit ; seul le grave, qui s'entendait, a son choix à part. Le mode
+  expert, lui, règle chaque bande
 - Score de confiance par coupure, et seuil de silence déduit du bruit de fond : différés
   volontairement, ils se règlent sur des fichiers réels et non a priori
 - Waveform zoomable avec marqueurs déplaçables : la retouche des bornes se fait au clavier

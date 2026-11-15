@@ -155,8 +155,15 @@ session avec piste audio, et la dernière améliorée avec ses réglages, que l'
 et peut appliquer aux autres, une requête `POST .../enhance` par prise. Les réglages sont
 `{ eq: 'none' | 'soft' | 'full', bass: 'cut' | 'none' | 'boost', compression: boolean }`
 (`bass` absent — réglages gardés avant ce choix — vaut `boost` avec une égalisation,
-`none` sans), validés par
-`parseEnhanceSettings` (`400` sinon). `POST .../enhance/preview` (réglages en corps)
+`none` sans), avec en plus `expert` (facultatif) : les réglages fins du mode expert,
+`{ denoise_db?, denoise_floor_db?, denoise_track?, highpass_hz?, mud_db?, presence_db?,
+air_db?, bass_db?, ratio?, threshold_db?, attack_ms?, release_ms?, target_lufs?, limit_db? }`,
+chacun dans les bornes d'`EXPERT_PARAMS` (`src/lib/audio-enhance.ts`) et ramené à son pas.
+Le tout est validé par `parseEnhanceSettings` (`400` sinon — réglage inconnu ou hors bornes
+compris), qui ne garde que les écarts aux paliers. `GET .../enhance?profile=1` ajoute à la
+mesure le profil du fichier (`analysis.profile` : spectre, bruit de fond, répartition des
+niveaux), calculé à la première demande puis gardé avec elle ; un débruitage sans seuil
+donné le calcule aussi, pour en tirer le sien. `POST .../enhance/preview` (réglages en corps)
 prépare la version améliorée hors d'`AUDIO_DIR` (`201`) — un aperçu par réglage, rien
 n'est rendu deux fois —, `DELETE` les écarte tous ;
 `GET .../enhance/audio?version=original|enhanced` sert l'une ou l'autre pour les comparer,

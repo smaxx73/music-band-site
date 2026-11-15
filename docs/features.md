@@ -231,6 +231,75 @@ plus forte que les autres, étouffée par le grave de la pièce, avec du grondem
   détection de doublon n'est pas affectée
 - Pas sur une prise vidéo seule, ni sur un enregistrement perso (pour l'instant)
 
+### Mode expert
+
+Les paliers conviennent à la plupart des prises ; quelques-unes les déjouent — un souffle
+qui monte avec le gain, un son trop brillant, un compresseur qu'on voudrait plus ferme.
+Le mode expert rend chaque valeur de la chaîne réglable, graphiques à l'appui.
+
+- **Une case « Mode expert »** dans la fenêtre d'amélioration, gardée dans le navigateur.
+  Elle ne change pas le parcours — on prépare, on compare, on garde — ni les droits : tout
+  membre. La fenêtre s'élargit pour ses graphiques
+- **Un curseur par valeur**, rangés par étage (`EXPERT_PARAMS`, `src/lib/audio-enhance.ts`) :
+  - *Débruitage* : réduction du bruit (0 à 24 dB, 0 = aucun), seuil du bruit, et
+    « Réévaluer le bruit au fil du morceau »
+  - *Timbre* : coupe-bas (aucun, ou jusqu'à 150 Hz), grave (−6 à +6 dB : négatif, il
+    s'allège sous 100 Hz après le compresseur ; positif, il se renforce à 90 Hz avant,
+    comme les paliers), et les trois bandes de l'égalisation — carton (280 Hz), présence
+    (3 kHz), air (dès 7 kHz) — chacune à part, en plus comme en moins : c'est par là qu'un
+    son trop brillant se corrige
+  - *Compression* : taux, seuil, attaque, relâchement
+  - *Volume* : volume visé (−20 à −10 LUFS), plafond des crêtes
+- **Les paliers restent le point de départ** : chaque curseur part de la valeur que les
+  trois choix et la mesure lui donnent, et « rétablir » l'y ramène. Choisir un palier remet
+  à sa valeur ce qu'il règle ; un palier dont un curseur s'écarte est marqué « ajusté ».
+  Seuls les **écarts** sont gardés (`EnhanceSettings.expert`) : repris sur une autre prise
+  de la session, des réglages continuent de suivre sa mesure là où l'on n'a rien touché
+- **Rien n'est proposé ni calibré** en mode expert : le module ne propose que des paliers,
+  et quitter le mode expert retire les réglages fins — ce qu'on voit est ce qui sera rendu.
+  Des réglages qui en portent (aperçu, prise gardée, prise voisine de la session) ouvrent
+  le mode expert d'office
+- **Le profil de la prise** (`AudioProfile`) se mesure à la première ouverture du mode
+  expert, en une lecture de plus du fichier, puis reste avec la mesure
+  (`recordings.audio_analysis.profile`) : spectre par tiers d'octave de 20 Hz à 20 kHz,
+  niveau de chaque bande dans ses **moments les plus calmes** (10ᵉ centile, par blocs de
+  0,74 s), niveau d'ensemble des passages calmes et forts, et temps passé à chaque niveau.
+  Calculé au fil de l'eau (`src/lib/server/audio-profile.ts`), sans dépendance : ffmpeg
+  décode, une transformée de Fourier par fenêtre, et seuls des cumuls restent en mémoire
+- **Deux graphiques**, qui suivent les curseurs sans rien rendre
+  (`src/lib/audio-enhance-curves.ts`) :
+  - *Timbre* : le spectre de la prise, le niveau de ses passages les plus calmes, le seuil
+    du débruitage s'il est en service, et dessous la **correction appliquée** sur sa propre
+    échelle — 3 dB ne se lisent pas sur les 80 dB d'un spectre
+  - *Compression* : la courbe du compresseur (sortie selon l'entrée, tracé carré), et
+    dessous le temps que la prise passe à chaque niveau une fois le gain d'entrée appliqué,
+    avec la part au-dessus du seuil en toutes lettres
+  - Les courbes sont celles des filtres ffmpeg, vérifiées contre eux sur des sinus (moins
+    de 0,01 dB pour les égaliseurs et le coupe-bas). Au survol ou au doigt, les valeurs
+- **Le son s'écoute après « Préparer »**, comme hors du mode expert : un aperçu par
+  réglage essayé, 6 au plus par prise. Pas d'écoute en direct
+- **Le débruitage** (`afftdn`, modèle de bruit blanc) vient en tête de chaîne, sur le son
+  tel qu'il est stocké : ce qui passe sous le seuil est atténué de la réduction choisie.
+  C'est le souffle qu'il vise, celui que le gain d'entrée fait monter sur une prise faible
+  - **Seuil proposé** (`autoDenoiseFloor`) : 5 dB au-dessus du niveau des passages calmes —
+    en deçà, la réduction demandée n'est pas atteinte (10 dB obtenus pour 12 demandés sur
+    un bruit blanc) —, et jamais à moins de 30 dB sous les passages forts
+  - **Le bruit ne se mesure que s'il y a des blancs** (passages calmes au moins 25 dB sous
+    les forts, `noiseMeasurable`) : un téléphone avec des respirations, oui ; un groupe qui
+    joue sans pause, non — ses passages calmes sont de la musique. L'écran le dit, et le
+    seuil reste alors prudent
+  - **Il retarde le son de 25 ms** (1102 échantillons à 44,1 kHz, mesuré sur des
+    impulsions) : ces échantillons sont retirés en tête et rendus en silence à la fin.
+    Rien ne se décale, la durée ne change pas — vérifié à l'échantillon près à travers un
+    mp3
+  - Écouté sur quatre extraits (téléphone, live, répétition, master) en variantes 6 dB,
+    12 dB et 12 dB réévalué, seuil à −50 dB : la différence s'entend sur l'enregistrement
+    au téléphone. Aucune variante n'a encore été retenue : d'où un réglage à la main, non
+    proposé. Trop fort, il ternit les cymbales et laisse un son métallique sur les fins de
+    notes
+- **Sans réglage expert, la chaîne est inchangée** : le même fichier, à l'octet près,
+  qu'avant le mode expert
+
 ## Morceau absent du référentiel, et morceaux « À nommer »
 
 Ce qu'on vient d'enregistrer ne correspond pas toujours à un morceau déjà créé — une

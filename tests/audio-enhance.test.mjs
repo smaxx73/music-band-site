@@ -1,14 +1,20 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
+	autoDenoiseFloor,
 	diagnose,
 	enhancePlan,
 	eqAmount,
+	expertValues,
 	formatDb,
 	formatLevel,
+	hasExpertSettings,
+	noiseMeasurable,
+	normalizeSettings,
 	parseEnhanceSettings,
 	parseSettingsKey,
 	proposedSettings,
+	sameSettings,
 	settingsKey
 } from '../src/lib/audio-enhance.ts'
 
@@ -148,4 +154,92 @@ test('la clé d’un réglage nomme son aperçu et se relit à l’identique', (
 	for (const bad of [null, '', 'full', 'full-boost', 'full-boost-yes', 'loud-boost-comp', 'full-boost-comp-x', '../x-boost-comp']) {
 		assert.equal(parseSettingsKey(bad), null, String(bad))
 	}
+})
+
+// --- Mode expert ---
+
+test('sans réglage expert, la chaîne est celle des paliers', () => {
+	const a = measure(-29, 8, -13, -14.5)
+	const plan = enhancePlan(a, { eq: 'full', bass: 'boost', compression: true })
+	assert.equal(plan.denoise, null)
+	assert.equal(plan.highpass_hz, 35)
+	assert.deepEqual(plan.compressor, { threshold_db: -24, ratio: 1.5, attack_ms: 15, release_ms: 200 })
+	assert.equal(plan.target_lufs, -14)
+	assert.equal(plan.limit_db, -1.5)
+})
+
+test('un réglage expert remplace la valeur du palier, et lui seul', () => {
+	const a = measure(-29, 8, -13, -14.5)
+	const plan = enhancePlan(a, {
+		eq: 'full', bass: 'boost', compression: true,
+		expert: { presence_db: 1.5, bass_db: -4, ratio: 3, highpass_hz: 0, target_lufs: -16, denoise_db: 12, denoise_floor_db: -45 }
+	})
+	assert.deepEqual(plan.eq.map((b) => [b.freq_hz, b.gain_db]), [[280, -4], [3000, 1.5], [7000, 3]])
+	// Grave négatif : coupe après le compresseur, plus de renfort
+	assert.equal(plan.bass_boost, null)
+	assert.deepEqual(plan.bass_cut, { type: 'lowshelf', freq_hz: 100, q: 0.7, gain_db: -4 })
+	assert.deepEqual(plan.compressor, { threshold_db: -24, ratio: 3, attack_ms: 15, release_ms: 200 })
+	assert.equal(plan.highpass_hz, null)
+	assert.equal(plan.target_lufs, -16)
+	assert.deepEqual(plan.denoise, { reduction_db: 12, floor_db: -45, track: false })
+	// Une bande ramenée à zéro disparaît de la chaîne
+	const flat = enhancePlan(a, { eq: 'full', bass: 'none', compression: false, expert: { mud_db: 0, presence_db: 0, air_db: 0 } })
+	assert.deepEqual(flat.eq, [])
+})
+
+test('les réglages experts se ramènent à leur forme la plus courte', () => {
+	// Une valeur qui vaut celle du palier n'est pas un réglage
+	assert.deepEqual(
+		normalizeSettings({ eq: 'full', bass: 'cut', compression: true, expert: { mud_db: -4, bass_db: -2.5, highpass_hz: 35, target_lufs: -14 } }),
+		{ eq: 'full', bass: 'cut', compression: true }
+	)
+	// Seuil et suivi d'un débruitage coupé, réglages d'une compression coupée : sans objet
+	assert.deepEqual(
+		normalizeSettings({ eq: 'none', bass: 'none', compression: false, expert: { denoise_db: 0, denoise_floor_db: -40, denoise_track: true, ratio: 3, air_db: 2 } }),
+		{ eq: 'none', bass: 'none', compression: false, expert: { air_db: 2 } }
+	)
+	assert.equal(hasExpertSettings({ eq: 'none', bass: 'none', compression: true }), false)
+	assert.equal(hasExpertSettings({ eq: 'none', bass: 'none', compression: true, expert: { denoise_db: 6 } }), true)
+})
+
+test('des réglages experts hors bornes ou inconnus sont refusés', () => {
+	const base = { eq: 'soft', bass: 'none', compression: true }
+	assert.deepEqual(
+		parseEnhanceSettings({ ...base, expert: { denoise_db: 12, denoise_track: true, presence_db: 2.26 } }),
+		{ ...base, expert: { denoise_db: 12, presence_db: 2.5, denoise_track: true } }
+	)
+	for (const expert of [{ denoise_db: 40 }, { ratio: 1 }, { limit_db: 0 }, { foo: 1 }, { ratio: '2' }, { air_db: NaN }, { denoise_track: 1 }, [], 'x']) {
+		assert.equal(parseEnhanceSettings({ ...base, expert }), null, JSON.stringify(expert))
+	}
+})
+
+test('la clé d’un réglage expert se relit à l’identique, sous sa seule forme canonique', () => {
+	const settings = {
+		eq: 'soft', bass: 'none', compression: true,
+		expert: { denoise_db: 12, denoise_floor_db: -52, presence_db: 2.5, bass_db: -1.5, ratio: 3.2, limit_db: -0.5, denoise_track: true }
+	}
+	const key = settingsKey(settings)
+	assert.equal(key, 'soft-none-comp~dn12~df-52~pr2.5~ba-1.5~ra3.2~li-0.5~dt')
+	assert.deepEqual(parseSettingsKey(key), settings)
+	assert.equal(sameSettings(settings, { ...settings, expert: { ...settings.expert, mud_db: -2 } }), true)
+	assert.equal(sameSettings(settings, { ...settings, expert: { ...settings.expert, ratio: 3 } }), false)
+	for (const bad of ['soft-none-comp~', 'soft-none-comp~dn', 'soft-none-comp~dn99', 'soft-none-comp~zz1', 'soft-none-comp~dn12~dn12', 'soft-none-comp~pr2.55', 'soft-none-comp~pr1e1', 'soft-none-comp~mu-2', 'soft-none-comp~dt', 'soft-none-comp~dn12/..']) {
+		assert.equal(parseSettingsKey(bad), null, bad)
+	}
+})
+
+test('le seuil du débruiteur se cale sur le bruit mesuré, sans jamais mordre sur la musique', () => {
+	const profile = (quiet_db, loud_db) => ({ freqs_hz: [], mean_db: [], noise_db: [], levels: [], levels_from_db: -70, quiet_db, loud_db })
+	// Téléphone avec des respirations : 5 dB au-dessus du bruit
+	assert.equal(noiseMeasurable(profile(-59, -22)), true)
+	assert.equal(autoDenoiseFloor(profile(-59, -22)), -54)
+	// Bruit plus proche de la musique : jamais à moins de 30 dB des passages forts
+	assert.equal(autoDenoiseFloor(profile(-47, -20)), -50)
+	// Groupe qui joue sans pause : les passages calmes sont de la musique
+	assert.equal(noiseMeasurable(profile(-17, -11)), false)
+	assert.equal(autoDenoiseFloor(profile(-17, -11)), -41)
+	assert.equal(autoDenoiseFloor(undefined), -50)
+	const a = { ...measure(-26), profile: profile(-59, -22) }
+	assert.equal(expertValues(a, { eq: 'none', bass: 'none', compression: true }).denoise_floor_db, -54)
+	assert.equal(enhancePlan(a, { eq: 'none', bass: 'none', compression: true, expert: { denoise_db: 6 } }).denoise.floor_db, -54)
 })

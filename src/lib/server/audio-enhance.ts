@@ -3,7 +3,7 @@ import { join } from 'path'
 import { tmpdir } from 'os'
 import { randomUUID } from 'crypto'
 import sql from './db'
-import { measureBandLevels, measureLoudness, renderFiltered } from './ffmpeg'
+import { measureBandLevels, measureLoudness, measureProfile, renderFiltered } from './ffmpeg'
 import { audioPath, originalAudioPath } from './storage'
 import { forgetPeaks } from './peaks'
 import {
@@ -15,6 +15,7 @@ import {
 	sameSettings,
 	settingsKey,
 	type AudioAnalysis,
+	type AudioProfile,
 	type EnhancePlan,
 	type EnhanceSettings,
 	type EnhanceState,
@@ -80,6 +81,16 @@ const BASS_BAND: [number, number] = [40, 150]
 /** Le limiteur ne travaille que sur les crêtes : une attaque courte, un relâchement bref. */
 const LIMITER = 'attack=5:release=50:level=false:latency=true'
 
+/**
+ * Le débruiteur (`afftdn`) retarde le son de 25 ms — 1102 échantillons à 44,1 kHz,
+ * mesuré sur des impulsions, quels que soient ses réglages — et ne rend pas la fin. Ces
+ * échantillons sont retirés en tête et rendus en silence à la fin : rien ne se décale, et
+ * la durée ne change pas. Le retard suit la fréquence d'échantillonnage (1200 à 48 kHz),
+ * d'où celle qu'on impose avant lui.
+ */
+const DENOISE_SAMPLE_RATE = 44100
+const DENOISE_DELAY_SAMPLES = 1102
+
 export type EnhanceTarget = {
 	id: number
 	session_id: number
@@ -144,6 +155,36 @@ export async function analyzeTarget(
 
 const measuring = new Map<number, Promise<AudioAnalysis | null>>()
 
+/**
+ * La mesure, avec le profil du fichier (spectre, bruit de fond, répartition des niveaux).
+ * Le profil ne sert qu'au mode expert : il se calcule à sa première ouverture sur la
+ * prise — une lecture de plus du fichier —, puis reste avec la mesure. Elle est refaite
+ * sans lui quand le fichier change, et il se recalcule alors à la demande.
+ */
+export async function analyzeWithProfile(target: EnhanceTarget): Promise<AudioAnalysis | null> {
+	const analysis = await analyzeTarget(target)
+	if (!analysis || analysis.profile) return analysis
+
+	let pending = profiling.get(target.id)
+	if (!pending) {
+		pending = measureProfile(originalFile(target)).finally(() => profiling.delete(target.id))
+		profiling.set(target.id, pending)
+	}
+	const profile = await pending
+	if (!profile) return analysis
+	// Fusion en base : une mesure refaite entre-temps par un autre membre n'est pas écrasée.
+	await sql`
+		UPDATE recordings
+		SET audio_analysis = audio_analysis || ${sql.json({ profile })}::jsonb
+		WHERE id = ${target.id} AND audio_analysis IS NOT NULL
+	`
+	const complete = { ...analysis, profile }
+	target.audio_analysis = complete
+	return complete
+}
+
+const profiling = new Map<number, Promise<AudioProfile | null>>()
+
 /** Entre deux prises du rattrapage : le serveur garde de quoi répondre pendant qu'il mesure. */
 const BACKFILL_PAUSE_MS = 1000
 
@@ -199,8 +240,11 @@ async function measure(recordingId: number, path: string, size: number, backgrou
 	return analysis
 }
 
-export async function enhanceState(target: EnhanceTarget): Promise<EnhanceState> {
-	const analysis = await analyzeTarget(target)
+export async function enhanceState(
+	target: EnhanceTarget,
+	{ profile = false }: { profile?: boolean } = {}
+): Promise<EnhanceState> {
+	const analysis = profile ? await analyzeWithProfile(target) : await analyzeTarget(target)
 	return {
 		analysis,
 		diagnosis: analysis ? diagnose(analysis) : null,
@@ -287,12 +331,16 @@ function fixed(value: number): string {
 	return value.toFixed(2)
 }
 
-/** Gain d'entrée, coupe-bas, égalisation, compression, grave : tout ce qui précède la mesure. */
+/**
+ * Débruitage, gain d'entrée, coupe-bas, égalisation, compression, grave : tout ce qui
+ * précède la mesure. Sans réglage expert, la chaîne est celle du calibrage, au caractère près.
+ */
 function shapingFilters(plan: EnhancePlan): string[] {
 	const c = plan.compressor
 	const filters = [
+		...(plan.denoise ? denoiseFilters(plan.denoise) : []),
 		`volume=${fixed(plan.pre_gain_db)}dB`,
-		`highpass=f=${plan.highpass_hz}:poles=2`,
+		...(plan.highpass_hz ? [`highpass=f=${plan.highpass_hz}:poles=2`] : []),
 		...(plan.bass_boost ? [bandFilter(plan.bass_boost)] : []),
 		...plan.eq.map(bandFilter)
 	]
@@ -300,6 +348,20 @@ function shapingFilters(plan: EnhancePlan): string[] {
 	// Après le compresseur : avant, il rendrait au grave une part de ce qu'on lui retire.
 	if (plan.bass_cut) filters.push(bandFilter(plan.bass_cut))
 	return filters
+}
+
+/**
+ * En tête de chaîne, sur le son tel qu'il est stocké : le seuil est sur son échelle.
+ * Modèle de bruit blanc — le souffle, qui est ce qu'on entend monter avec le gain.
+ */
+function denoiseFilters(denoise: NonNullable<EnhancePlan['denoise']>): string[] {
+	return [
+		`aresample=${DENOISE_SAMPLE_RATE}`,
+		`afftdn=nr=${denoise.reduction_db}:nf=${denoise.floor_db}${denoise.track ? ':tn=1' : ''}`,
+		`atrim=start_sample=${DENOISE_DELAY_SAMPLES}`,
+		'asetpts=PTS-STARTPTS',
+		`apad=pad_len=${DENOISE_DELAY_SAMPLES}`
+	]
 }
 
 function bandFilter(band: EnhancePlan['eq'][number]): string {
@@ -359,7 +421,9 @@ export async function preparePreview(target: EnhanceTarget, settings: EnhanceSet
 		return { ok: true }
 	}
 
-	const analysis = await analyzeTarget(target)
+	// Le seuil du débruiteur se tire du bruit de fond mesuré : il faut le profil.
+	const needsProfile = settings.expert?.denoise_db !== undefined && settings.expert.denoise_floor_db === undefined
+	const analysis = needsProfile ? await analyzeWithProfile(target) : await analyzeTarget(target)
 	if (!analysis) return { ok: false, status: 500, error: 'Impossible d’analyser le fichier audio.' }
 	if (!diagnose(analysis).enhanceable) {
 		return { ok: false, status: 400, error: 'Cette prise est presque muette : il n’y a rien à améliorer.' }
