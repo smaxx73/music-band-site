@@ -6,7 +6,7 @@
 	import { page } from '$app/state'
 	import Icon from '$lib/components/Icon.svelte'
 	import LegalLinks from '$lib/components/LegalLinks.svelte'
-	import { groupLogoUrl, isAdmin } from '$lib/types'
+	import { groupLogoThumbnailUrl, isAdmin } from '$lib/types'
 	import { switchActiveGroup } from '$lib/group-switch'
 	import { APP_VERSION } from '$lib/version'
 	import type { IconName } from '$lib/icons'
@@ -97,7 +97,7 @@
 							onclick={() => choose(group.id)}
 						>
 							{#if group.logo_version}
-								<img src={groupLogoUrl(group.id, group.logo_version)} alt="" class="badge" />
+								<img src={groupLogoThumbnailUrl(group.id, group.logo_version)} alt="" class="badge" />
 							{:else}
 								<span class="badge initials" aria-hidden="true">{initials(group.name)}</span>
 							{/if}

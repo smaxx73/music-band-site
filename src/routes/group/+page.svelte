@@ -6,6 +6,7 @@
 		formatBytes,
 		GROUP_LINK_LABELS,
 		groupLogoUrl,
+		groupLogoThumbnailUrl,
 		isAdmin,
 		type GroupLinkField
 	} from '$lib/types'
@@ -106,7 +107,7 @@
 			<h1 class="group-title">
 				{#if data.group.logo_version}
 					<img
-						src={groupLogoUrl(data.group.id, data.group.logo_version)}
+						src={groupLogoThumbnailUrl(data.group.id, data.group.logo_version)}
 						alt="Logo de {data.group.name}"
 						class="group-logo"
 					/>

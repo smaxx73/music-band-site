@@ -11,7 +11,7 @@
 	import Menu from '$lib/components/Menu.svelte'
 	import Icon from '$lib/components/Icon.svelte'
 	import Avatar from '$lib/components/Avatar.svelte'
-	import { groupLogoUrl } from '$lib/types'
+	import { groupLogoThumbnailUrl } from '$lib/types'
 	import { switchActiveGroup } from '$lib/group-switch'
 
 	type Group = { id: number; name: string; logo_version: number | null }
@@ -80,7 +80,7 @@
 
 {#snippet badge(group: Group)}
 	{#if group.logo_version}
-		<img src={groupLogoUrl(group.id, group.logo_version)} alt="" class="gs-badge" />
+		<img src={groupLogoThumbnailUrl(group.id, group.logo_version)} alt="" class="gs-badge" />
 	{:else}
 		<span class="gs-badge gs-initials" aria-hidden="true">{initials(group.name)}</span>
 	{/if}
