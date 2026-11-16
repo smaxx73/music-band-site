@@ -2,9 +2,9 @@
 	import type { PageData } from './$types'
 	import { onMount, tick, untrack } from 'svelte'
 	import { page } from '$app/state'
-	import { afterNavigate, invalidateAll } from '$app/navigation'
+	import { afterNavigate, goto, invalidateAll } from '$app/navigation'
 	import { audioUrl, player } from '$lib/player.svelte'
-	import { formatDateOnly } from '$lib/date'
+	import { formatDateOnly, formatDateTime } from '$lib/date'
 	import AudioPlayer from '$lib/components/AudioPlayer.svelte'
 	import CommentsPanel from '$lib/components/CommentsPanel.svelte'
 	import SongDetails from '$lib/components/SongDetails.svelte'
@@ -16,7 +16,9 @@
 	import SongSelect from '$lib/components/SongSelect.svelte'
 	import ShareLinkDialog from '$lib/components/ShareLinkDialog.svelte'
 	import ShareMenu from '$lib/components/ShareMenu.svelte'
-	import { canRestoreTrimmedAudio, canSharePublicly } from '$lib/types'
+	import { canDeleteGroupContent, canRestoreTrimmedAudio, canSharePublicly } from '$lib/types'
+	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
+	import DeletionRequestDialog from '$lib/components/DeletionRequestDialog.svelte'
 	import TrimRestore from '$lib/components/TrimRestore.svelte'
 	import { isPlaceholderSongTitle, sortedWithSong } from '$lib/songs'
 	import AudioEnhanceDialog from '$lib/components/AudioEnhanceDialog.svelte'
@@ -363,6 +365,57 @@
 		playerHeight > 0 && innerHeight > 0 && playerHeight <= innerHeight * 0.45
 	)
 
+	// --- Suppression ---
+	//
+	// Réservée au déposant et aux admins du groupe ; les autres la demandent, et la
+	// demande leur arrive en notification, qui mène ici (`#supprimer`). En bas de page,
+	// après les commentaires : rien de destructeur à portée du lecteur.
+	type ReceivedDeletionRequest = { actor_name: string; reason: string | null; created_at: string }
+	const canDelete = $derived(
+		canDeleteGroupContent(data.user, data.user?.current_group_id, recording.uploaded_by_user_id)
+	)
+	const deletionRequests = $derived(data.deletionRequests as ReceivedDeletionRequest[])
+	let deletionRequestedAt = $derived(data.deletionRequestedAt as string | null)
+	let deleteConfirmOpen = $state(false)
+	let deletingRecording = $state(false)
+	let deleteError = $state<string | null>(null)
+	let requestOpen = $state(false)
+	let requestSent = $state(false)
+
+	// Ce qui cesse de marcher hors du groupe se dit : qui a reçu le lien ne sera pas prévenu.
+	const deleteMessage = $derived(
+		`La prise ${recording.take} de « ${recording.song_title} » sera supprimée avec son fichier audio, ses commentaires et sa place dans les playlists.` +
+			(shareCount > 1
+				? ` Les ${shareCount} liens d'écoute publics cesseront de fonctionner.`
+				: shareCount === 1
+					? " Le lien d'écoute public cessera de fonctionner."
+					: '') +
+			' Les autres prises du morceau gardent leur numéro. Cette action est irréversible.'
+	)
+
+	async function deleteThisRecording() {
+		deletingRecording = true
+		deleteError = null
+		try {
+			const res = await fetch(`/api/recordings/${recording.id}`, { method: 'DELETE' })
+			const body = await res.json()
+			if (!res.ok) {
+				deleteError = body.error ?? 'Erreur.'
+				deleteConfirmOpen = false
+				return
+			}
+			// Le fichier n'existe plus : la barre du bas ne doit pas continuer à le réclamer.
+			if (player.isRecording(recording.id)) player.close()
+			deleteConfirmOpen = false
+			await goto(`/sessions/${recording.session_id}`, { replaceState: true })
+		} catch {
+			deleteError = 'Erreur réseau.'
+			deleteConfirmOpen = false
+		} finally {
+			deletingRecording = false
+		}
+	}
+
 	// Repère du commentaire en cours d'écriture, montré sur le lecteur avant l'envoi.
 	let draftAnchor = $state<number | null>(null)
 
@@ -648,6 +701,57 @@
 		}}
 	/>
 
+	<section class="delete-zone" id="supprimer">
+		{#if canDelete}
+			{#each deletionRequests as request, i (i)}
+				<p class="deletion-request">
+					<Icon name="trash" size="0.85rem" />
+					<span>
+						<strong>{request.actor_name}</strong> demande sa suppression
+						<span class="muted">· {formatDateTime(request.created_at)}</span>
+						{#if request.reason}<span class="reason">« {request.reason} »</span>{/if}
+					</span>
+				</p>
+			{/each}
+			<button class="btn-link-muted delete-link" onclick={() => (deleteConfirmOpen = true)} disabled={deletingRecording}>
+				<Icon name="trash" size="0.85rem" /> Supprimer la prise
+			</button>
+		{:else}
+			{#if requestSent}
+				<p class="muted">Demande envoyée. Ceux qui peuvent supprimer la prise ont été prévenus.</p>
+			{:else if deletionRequestedAt}
+				<p class="muted">Tu as demandé sa suppression ({formatDateTime(deletionRequestedAt)}).</p>
+			{/if}
+			<button class="btn-link-muted delete-link" onclick={() => (requestOpen = true)}>
+				<Icon name="trash" size="0.85rem" /> {deletionRequestedAt ? 'Redemander la suppression' : 'Demander la suppression'}
+			</button>
+		{/if}
+		{#if deleteError}<p class="notes-error">{deleteError}</p>{/if}
+	</section>
+
+	<ConfirmDialog
+		open={deleteConfirmOpen}
+		level="danger"
+		title="Supprimer cette prise ?"
+		message={deleteMessage}
+		confirmLabel="Supprimer la prise"
+		busy={deletingRecording}
+		onConfirm={deleteThisRecording}
+		onCancel={() => (deleteConfirmOpen = false)}
+	/>
+
+	{#if requestOpen}
+		<DeletionRequestDialog
+			recordingId={recording.id}
+			label="{recording.song_title} — prise {recording.take}"
+			onClose={() => (requestOpen = false)}
+			onSent={(at) => {
+				deletionRequestedAt = at
+				requestSent = true
+			}}
+		/>
+	{/if}
+
 	{#if enhanceOpen}
 		<AudioEnhanceDialog
 			recordingId={recording.id}
@@ -805,6 +909,25 @@
 
 	.notes-hint { font-size: var(--text-xs); color: var(--color-text-muted); }
 	.notes-error { margin: 0.3rem 0 0; font-size: var(--text-xs); color: var(--color-error); }
+
+	/* Suppression : en bas de page, discrète. Les demandes reçues, elles, se voient. */
+	.delete-zone {
+		display: flex; flex-direction: column; align-items: flex-start; gap: 0.5rem;
+		margin-top: 2.5rem; padding-top: 1rem; border-top: 1px solid var(--color-border-light);
+		font-size: var(--text-sm);
+		scroll-margin-top: var(--comment-scroll-margin);
+	}
+	.delete-zone p { margin: 0; }
+	.delete-zone .muted { color: var(--color-text-muted); }
+	.delete-link { display: inline-flex; align-items: center; gap: 0.35rem; font-size: var(--text-sm); }
+	.deletion-request {
+		display: flex; align-items: flex-start; gap: 0.45rem; align-self: stretch;
+		padding: 0.55rem 0.8rem;
+		background: var(--color-warning-bg); border: 1px solid var(--color-warning-border);
+		border-radius: var(--radius-lg); color: var(--color-warning-text);
+	}
+	.deletion-request :global(svg) { margin-top: 0.2rem; }
+	.deletion-request .reason { display: block; overflow-wrap: anywhere; }
 
 	/* Prise audio + vidéo : un seul lecteur à l'écran à la fois */
 	.view-tabs { display: flex; gap: 0.35rem; margin-bottom: 0.8rem; }

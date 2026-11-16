@@ -7,6 +7,8 @@ import { commentsWithReactions } from '$lib/server/comments'
 import { loginRedirect } from '$lib/redirect'
 import { activeShareCount } from '$lib/server/share-links'
 import { listenerCount as countListeners } from '$lib/server/listens'
+import { deletionRequestsReceived, myDeletionRequestAt } from '$lib/server/deletion-requests'
+import { canDeleteGroupContent } from '$lib/types'
 
 export const load: PageServerLoad = async ({ locals, params, cookies, url, isDataRequest }) => {
 	if (!locals.user) redirect(302, loginRedirect(url))
@@ -40,7 +42,10 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 		error(404, 'Prise introuvable')
 	}
 
-	const [comments, peaksData, siblings, groupMembers, songs, shareCount, listenerCount] = await Promise.all([
+	// Qui peut la supprimer voit les demandes qu'il a reçues ; les autres, la leur.
+	const canDelete = canDeleteGroupContent(locals.user, locals.user.current_group_id, recording.uploaded_by_user_id)
+
+	const [comments, peaksData, siblings, groupMembers, songs, shareCount, listenerCount, deletionRequests, deletionRequestedAt] = await Promise.all([
 		commentsWithReactions({ kind: 'recording', id }, locals.user.id),
 		// Une prise vidéo seule n'a pas de fichier, donc pas de forme d'onde.
 		recording.file_path
@@ -68,7 +73,9 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 		`,
 		// Écoutable hors du groupe : tous les membres doivent le voir, pas seulement qui a créé le lien.
 		recording.file_path ? activeShareCount({ kind: 'recording', id }) : Promise.resolve(0),
-		countListeners(id)
+		countListeners(id),
+		canDelete ? deletionRequestsReceived(id, locals.user.id) : Promise.resolve([]),
+		canDelete ? Promise.resolve(null) : myDeletionRequestAt(id, locals.user.id)
 	])
 
 	const siblingList = siblings as unknown as { id: number; take: number }[]
@@ -90,6 +97,8 @@ export const load: PageServerLoad = async ({ locals, params, cookies, url, isDat
 		prevRecording,
 		nextRecording,
 		shareCount,
-		listenerCount
+		listenerCount,
+		deletionRequests,
+		deletionRequestedAt
 	}
 }

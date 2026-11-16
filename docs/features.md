@@ -967,7 +967,8 @@ note, 💬 s'il y a des commentaires — plus l'écoute, et un menu ⋮ recueill
   d'« Annuler », comme « Supprimer le morceau » sur la page d'un morceau : hors édition,
   rien de destructeur sur la page
 - Suppression d'une prise : réservée à celui qui l'a uploadée et aux admins du groupe.
-  Le bouton n'apparaît pas aux autres membres, et l'API répond `403`
+  Le bouton n'apparaît pas aux autres membres, et l'API répond `403`. À sa place, en mode
+  édition, ils ont « Demander la suppression » — voir « Demande de suppression d'une prise »
 - Suppression d'une session : réservée à son créateur et aux admins du groupe.
   Supprime la session, ses prises en cascade et les fichiers audio associés
 - Une prise ou une session dont l'auteur n'a pas pu être relié à un compte (contenu antérieur
@@ -1525,6 +1526,34 @@ tiers de l'écran en l'attendant.
 - Pendant l'écriture d'un commentaire ancré, un **repère en pointillé** (pastille cerclée)
   apparaît sur la forme d'onde ou la barre de la vidéo, là où il se posera
   (`onDraftAnchorChange`) : il se voit avant d'exister
+
+## Demande de suppression d'une prise
+
+Supprimer une prise est réservé à son déposant et aux admins du groupe. Les autres membres
+tombent pourtant sur le doublon, l'essai raté, la conversation enregistrée par mégarde :
+ils peuvent **demander** qu'on la supprime.
+
+- **Où** : en bas de `/recording/[id]`, sous les commentaires, « Demander la suppression » ;
+  et en mode édition de la session, à la place du bouton « Supprimer » de chaque prise
+  qu'on ne peut pas supprimer. Ceux qui en ont le droit trouvent au même endroit de la page
+  de la prise **« Supprimer la prise »** (confirmation `danger`, puis retour à la session) :
+  la demande y mène, il fallait que la suppression y soit
+- **Une simple notification** (`deletion_request`, migration 056), rien d'autre en base :
+  « Julie demande la suppression de Sunny — prise 3 », avec le **motif** facultatif
+  (200 caractères) en extrait. Elle mène à `/recording/[id]#supprimer`, où les demandes
+  reçues s'affichent au-dessus de « Supprimer la prise », motif compris
+- **Destinataires** : ceux qui peuvent supprimer la prise et sont membres actifs du groupe —
+  son déposant, les admins du groupe, les admins globaux qui en sont membres (la règle de
+  `canDeleteGroupContent`). La fenêtre les nomme avant l'envoi. S'il n'y en a aucun (déposant
+  parti, groupe sans admin), elle le dit et n'envoie rien (`409`)
+- **Non désactivable**, comme une mention : elle attend une décision de qui la reçoit
+- **Redemander remplace** la demande précédente du même membre sur la même prise : motif du
+  jour, de nouveau non lue, pas d'empilement dans la cloche. La page dit à qui l'a fait
+  qu'il l'a déjà demandé, et quand
+- **Pas de suivi** : le demandeur n'est pas prévenu d'un refus — garder la prise, c'est ne
+  rien faire. Supprimée, la prise emporte ses demandes (`ON DELETE CASCADE`)
+- Qui peut supprimer n'a rien à demander : l'API répond `400`. Passer par
+  `src/lib/server/deletion-requests.ts`
 
 ## Note d'une prise
 
@@ -2306,6 +2335,8 @@ Qui est qui, et qui a fait quoi, dans le groupe actif.
 - **Demande de présence** (`attendance`) : à la création d'une date à venir et à la relance,
   non désactivable, avec les boutons de réponse sur la ligne — voir « Présences » dans
   « Agenda partagé »
+- **Demande de suppression** (`deletion_request`) : au déposant et aux admins du groupe
+  seulement, non désactivable — voir « Demande de suppression d'une prise »
 - Sept déclencheurs, un par création : prise uploadée (`recording`), commentaire (`comment`),
   session (`session`), playlist (`playlist`), setlist (`setlist`), publication (`post`),
   événement d'agenda (`agenda`, indisponibilité comprise). Une session crée déjà sa notification : l'événement

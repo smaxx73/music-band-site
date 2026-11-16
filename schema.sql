@@ -433,9 +433,11 @@ CREATE TABLE notifications (
     id            SERIAL PRIMARY KEY,
     user_id       INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,   -- destinataire
     group_id      INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
-    type          TEXT NOT NULL CHECK (type IN ('recording', 'comment', 'mention', 'session', 'playlist', 'agenda', 'setlist', 'post', 'attendance')),
+    type          TEXT NOT NULL CHECK (type IN ('recording', 'comment', 'mention', 'session', 'playlist', 'agenda', 'setlist', 'post', 'attendance', 'deletion_request')),
                                                  -- 'mention' : membre cité (@pseudo) dans un commentaire
                                                  -- 'attendance' : « tu viens ? », on y répond depuis la cloche
+                                                 -- 'deletion_request' : demande de supprimer une prise, adressée
+                                                 -- à ceux qui le peuvent (migration 056) ; excerpt = le motif
     actor_user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
                                                  -- auteur de l'action ; jamais destinataire de la sienne
     actor_name    TEXT NOT NULL,                 -- repli si le compte a disparu

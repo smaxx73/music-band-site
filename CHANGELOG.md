@@ -13,6 +13,14 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+Migration à appliquer : `056_deletion_request.sql`.
+
+- **Prises** : un membre qui ne peut pas supprimer une prise peut demander qu'on la supprime,
+  avec un motif s'il le veut. La personne qui l'a déposée et les admins du groupe sont prévenus
+  dans leurs notifications.
+- **Prises** : « Supprimer la prise » se trouve aussi en bas de la page de la prise, pour qui en
+  a le droit, avec les demandes reçues juste au-dessus.
+
 ## [1.22.0] — 2026-11-15
 
 Aucune migration.

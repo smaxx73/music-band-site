@@ -4,6 +4,7 @@
 	import { formatDateOnly } from '$lib/date'
 	import SessionEditor from '$lib/components/SessionEditor.svelte'
 	import ConfirmDialog from '$lib/components/ConfirmDialog.svelte'
+	import DeletionRequestDialog from '$lib/components/DeletionRequestDialog.svelte'
 	import RecordingRow from '$lib/components/RecordingRow.svelte'
 	import SongCover from '$lib/components/SongCover.svelte'
 	import PlayAllButton from '$lib/components/PlayAllButton.svelte'
@@ -204,6 +205,9 @@
 		| null
 	>(null)
 
+	// Une prise qu'on ne peut pas supprimer se demande à qui le peut (déposant, admins).
+	let deletionRequest = $state<{ id: number; label: string } | null>(null)
+
 	// Ce qui cesse de marcher hors du groupe se dit : qui a reçu le lien ne sera pas prévenu.
 	function publicLinksNotice(count: number): string {
 		if (count === 0) return ''
@@ -399,6 +403,7 @@
 							deleting={deletingRecordingId === r.id}
 							onQualityChange={(status) => applyQuality(r.id, status)}
 							onDelete={() => (pendingDelete = { kind: 'recording', id: r.id, songTitle: group.song.title, take: r.take, shareCount: r.share_count })}
+							onRequestDelete={() => (deletionRequest = { id: r.id, label: `${group.song.title} — prise ${r.take}` })}
 						/>
 					{/each}
 				</div>
@@ -419,6 +424,14 @@
 		onConfirm={confirmDelete}
 		onCancel={() => (pendingDelete = null)}
 	/>
+
+	{#if deletionRequest}
+		<DeletionRequestDialog
+			recordingId={deletionRequest.id}
+			label={deletionRequest.label}
+			onClose={() => (deletionRequest = null)}
+		/>
+	{/if}
 </main>
 
 <style>

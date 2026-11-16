@@ -21,6 +21,8 @@ src/
 │   │   ├── mp3-cut.ts     # coupe d'un mp3 sur ses octets, aux frontières de trames, et recollage
 │   │   ├── trim-segments.ts # découpe d'un fichier recadré : ce qui sort du passage part écarté
 │   │   ├── peaks.ts       # forme d'onde d'une prise : extraction ffmpeg, cache à côté du mp3
+│   │   ├── deletion-requests.ts # demande de suppression d'une prise : destinataires, envoi
+│   │   │                  #   (notification `deletion_request`), demandes faites et reçues
 │   │   ├── listens.ts     # écoutes d'une prise : enregistrement (une par membre et par jour),
 │   │   │                  #   nombre d'auditeurs, détail pour /group/listens (seuil : src/lib/listen-meter.ts)
 │   │   ├── upload-stream.ts # réception multipart d'un fichier audio (prise ou import)
@@ -111,6 +113,7 @@ src/
 │       ├── PendingImports.svelte  # fichiers encore en transit : reprendre ou refaire une découpe
 │       ├── UploadBatch.svelte     # envoi par lots (/upload) et prises en série (/record) :
 │       │                          #   un fichier par ligne, son morceau, son état
+│       ├── DeletionRequestDialog.svelte # demander la suppression d'une prise : destinataires, motif
 │       ├── ShareLinkDialog.svelte # liens d'écoute publics d'un enregistrement : créer, révoquer
 │       ├── ShareMenu.svelte       # bouton « Partager » d'une prise : lien pour le groupe, lien public
 │       ├── PostReactions.svelte   # pouces 👍/👎 d'une publication (fil et page de la publication)

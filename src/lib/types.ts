@@ -469,7 +469,7 @@ export type CalendarEvent = {
 
 export type NotificationType =
 	| 'recording' | 'comment' | 'mention' | 'session' | 'playlist' | 'agenda' | 'setlist' | 'post'
-	| 'attendance'
+	| 'attendance' | 'deletion_request'
 
 // Une notification appartient à un destinataire précis : il n'y a pas de droit à
 // vérifier au-delà de `user_id`, mais l'affichage reste filtré par groupe actif.
@@ -506,6 +506,7 @@ export function notificationLabel(type: NotificationType): string {
 		case 'setlist': return 'a créé la setlist'
 		case 'post': return 'a publié'
 		case 'attendance': return 'demande si tu viens'
+		case 'deletion_request': return 'demande la suppression de'
 	}
 }
 
@@ -520,6 +521,7 @@ export function notificationIcon(type: NotificationType): IconName {
 		case 'setlist': return 'list'
 		case 'post': return 'send'
 		case 'attendance': return 'users'
+		case 'deletion_request': return 'trash'
 	}
 }
 

@@ -27,6 +27,7 @@
 		deleting = false,
 		onQualityChange = null,
 		onDelete = null,
+		onRequestDelete = null,
 		session = null
 	}: {
 		recording: RecordingListItem
@@ -42,6 +43,8 @@
 		/** Prévient la page pour qu'elle mette sa copie locale à jour. */
 		onQualityChange?: ((status: string | null) => void) | null
 		onDelete?: (() => void) | null
+		/** Sans droit de suppression : la demander à ceux qui l'ont (mode édition). */
+		onRequestDelete?: (() => void) | null
 		/**
 		 * Vue morceau : la prise se situe par sa session, qui devient son titre (en lien),
 		 * comme une piste de playlist se titre par son morceau. Sans elle, vue session :
@@ -436,6 +439,10 @@
 		{#if editMode && canDelete}
 			<button class="btn btn-danger btn-sm" disabled={deleting} onclick={() => onDelete?.()}>
 				{deleting ? '…' : 'Supprimer'}
+			</button>
+		{:else if editMode && onRequestDelete}
+			<button class="btn btn-secondary btn-sm" onclick={() => onRequestDelete?.()}>
+				Demander la suppression
 			</button>
 		{/if}
 

@@ -126,6 +126,10 @@ NODE_ENV=production
   `readNotificationPrefs` (`src/lib/notification-prefs.ts`) : une clé absente vaut « tout ».
   Elles filtrent le fan-out de `notifyGroup`, jamais les mentions. Seul le membre les écrit,
   via `setMemberNotificationPrefs`
+- Un membre qui ne peut pas supprimer une prise la **demande** : une notification
+  `deletion_request` au déposant et aux admins du groupe, rien d'autre en base. Passer par
+  `src/lib/server/deletion-requests.ts`. Voir « Demande de suppression d'une prise » dans
+  docs/features.md
 - `/members/[id]` n'a pas de groupe propriétaire unique : sa bascule de groupe passe par
   `retargetActiveGroupToMember`, pas par `retargetActiveGroup`
 - Les présences (« tu viens ? ») sont portées par l'événement d'agenda (`calendar_events`),

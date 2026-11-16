@@ -45,6 +45,7 @@ api/recordings/[id]/enhance/preview/+server.ts
 api/recordings/[id]/enhance/audio/+server.ts
 api/recordings/[id]/trim/+server.ts
 api/recordings/[id]/listens/+server.ts
+api/recordings/[id]/deletion-request/+server.ts
 api/youtube/+server.ts
 api/comments/+server.ts
 api/comments/[id]/+server.ts
@@ -188,6 +189,14 @@ partagé quand 30 s d'une prise ont été lues (`src/lib/listen-meter.ts`). Tout
 prise avec piste audio du groupe actif (`404` sinon) ; une ligne par membre, prise et jour,
 un second envoi le même jour ne change rien (`201` quand même). Passer par
 `src/lib/server/listens.ts`.
+
+Une **demande de suppression** (`api/recordings/[id]/deletion-request`) est faite par un membre
+qui ne peut pas supprimer la prise lui-même (`400` sinon, via `canDeleteGroupContent`) ; prise
+hors du groupe actif : `404`. `GET` rend `{ recipients: [{ id, display_name, is_uploader }],
+requested_at }` (sa dernière demande, `null` sinon) ; `POST` (`{ reason? }`, 200 caractères au
+plus, `400` au-delà) notifie `deletion_request` le déposant et les admins membres du groupe, en
+remplaçant sa demande précédente, et répond `201` avec `{ recipients, requested_at }` — `409`
+s'il n'y a personne pour la recevoir. Passer par `src/lib/server/deletion-requests.ts`.
 
 La **pochette** d'un morceau (`api/songs/[id]/cover`) est groupe-scopée : tout membre du
 groupe actif la dépose (`POST`, multipart, champ `cover`, 8 Mo au plus) ou la retire
