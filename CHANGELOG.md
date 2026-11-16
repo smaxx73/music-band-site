@@ -13,6 +13,8 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.23.0] — 2026-11-16
+
 Migration à appliquer : `056_deletion_request.sql`.
 
 - **Prises** : un membre qui ne peut pas supprimer une prise peut demander qu'on la supprime,
