@@ -13,6 +13,15 @@ en montant de version (voir `deploy.md`).
 
 ## [Non publié]
 
+## [1.23.1] — 2026-11-18
+
+Aucune migration.
+
+- **Prises au téléphone** : une prise annotée prend moins de hauteur dans les listes. La note
+  se lit sur sa ligne, marquée d'un trait à gauche, et se déplie en la touchant ; le crayon
+  qui la doublait a disparu. Les pastilles des commentaires sont plus petites, sans être plus
+  difficiles à toucher.
+
 ## [1.23.0] — 2026-11-16
 
 Migration à appliquer : `056_deletion_request.sql`.
