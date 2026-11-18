@@ -328,16 +328,9 @@
 		{#if qualityError}<span class="row-error">{qualityError}</span>{/if}
 
 		<!-- Ce qu'il y a à lire sur la prise : une pastille ne paraît que s'il y a
-		     quelque chose, et elle le déplie sur place. -->
-		{#if recording.notes}
-			<button
-				class="chip"
-				class:open={noteOpen}
-				aria-expanded={noteOpen}
-				onclick={() => (noteOpen = !noteOpen)}
-				title={noteOpen ? 'Masquer la note' : 'Lire la note'}
-			><Icon name="pencil" size="0.85rem" /></button>
-		{/if}
+		     quelque chose, et elle le déplie sur place. La note n'en a pas : sa ligne,
+		     toujours affichée sous la prise, est déjà le bouton qui la déplie, et une
+		     pastille de plus coûtait une rangée entière au téléphone. -->
 		{#if recording.comment_count > 0}
 			<button
 				class="chip"
@@ -509,11 +502,17 @@
 {#snippet note()}
 	<!-- Repliée, la note tient sur une ligne : trois mots de contexte ne valent pas
 	     un clic. Dépliée, elle s'étale — et se modifie dans le lecteur, comme un
-	     commentaire. -->
+	     commentaire. Pas d'icône : le filet la distingue de la provenance, et le
+	     chevron dit qu'elle se déplie, sans prendre de hauteur. -->
 	<div class="row-note" class:open={noteOpen}>
-		<button class="note-toggle" aria-expanded={noteOpen} onclick={() => (noteOpen = !noteOpen)}>
-			<Icon name="pencil" class="note-icon" size="0.85rem" />
+		<button
+			class="note-toggle"
+			aria-expanded={noteOpen}
+			title={noteOpen ? 'Replier la note' : 'Lire toute la note'}
+			onclick={() => (noteOpen = !noteOpen)}
+		>
 			<span class="note-text">{recording.notes}</span>
+			<Icon name="chevron-down" class="note-chevron" size="0.85rem" />
 		</button>
 		{#if noteOpen}
 			<a href="/recording/{recording.id}#notes" class="btn btn-secondary btn-sm drawer-action">
@@ -695,9 +694,15 @@
 	.row-menu-url { margin: 0.1rem 0.25rem 0.3rem; width: auto; min-width: 0; font-size: var(--text-xs); }
 
 	@media (max-width: 640px) {
-		/* Les pastilles sont des commandes, pas seulement des décorations : elles
-		   gardent donc une cible confortable à toucher. */
-		.chip, .btn-mini { min-width: 44px; min-height: 44px; }
+		/* Les pastilles sont des commandes : elles gardent une cible confortable à
+		   toucher, mais par une zone invisible qui déborde (`::after`) plutôt que par
+		   leur taille dessinée — une pastille de 44 px de haut imposait sa hauteur à
+		   toute la rangée, pour un badge de 20 px à côté. Le débord s'arrête avant la
+		   ligne du dessus et la note du dessous, cliquables elles aussi : ~38 px. */
+		.chip { min-width: 44px; position: relative; }
+		.chip::after { content: ''; position: absolute; inset: -0.25rem 0 -0.5rem; }
+		.row-note { margin-top: 0.3rem; }
+		.btn-mini { min-width: 44px; min-height: 44px; }
 		.row-actions :global(.btn) { min-height: 44px; }
 
 		.chip { font-size: var(--text-sm); }
@@ -717,28 +722,40 @@
 	.file-name.fallback { color: var(--color-text-muted); font-style: italic; }
 	.listeners { white-space: nowrap; }
 
+	/* La note se lit comme une citation : un filet à gauche, orange quand elle est
+	   dépliée ou survolée. */
 	.note-toggle {
 		display: flex;
-		align-items: baseline;
-		gap: 0.35rem;
+		align-items: flex-start;
+		gap: 0.5rem;
 		width: 100%;
 		background: none;
-		border: 1px solid transparent;
-		border-radius: var(--radius-sm);
-		padding: 0.15rem 0.3rem;
-		margin-left: -0.3rem;
+		border: none;
+		border-left: 2px solid var(--color-border);
+		border-radius: 0;
+		padding: 0.1rem 0 0.1rem 0.55rem;
 		font-family: inherit;
 		font-size: var(--text-sm);
+		line-height: 1.45;
 		color: var(--color-text-secondary);
 		text-align: left;
 		cursor: pointer;
 	}
 
-	.note-toggle:hover { border-color: var(--color-border-light); background: var(--color-bg-subtle); }
+	.note-toggle:hover,
+	.row-note.open .note-toggle { border-left-color: var(--color-accent); color: var(--color-text); }
 
-	.note-toggle :global(.note-icon) { color: var(--color-text-muted); }
+	.note-toggle :global(.note-chevron) {
+		flex-shrink: 0;
+		margin-top: 0.2rem;
+		color: var(--color-text-muted);
+		transition: transform 0.12s;
+	}
+
+	.row-note.open .note-toggle :global(.note-chevron) { transform: rotate(180deg); }
 
 	.note-text {
+		flex: 1;
 		min-width: 0;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -746,6 +763,9 @@
 	}
 
 	.row-note.open .note-text { white-space: pre-wrap; overflow: visible; }
+
+	/* Aligné sur le texte de la note, pas sur son filet. */
+	.row-note .drawer-action { margin-left: calc(0.55rem + 2px); }
 
 	/* Ce qui clôt un tiroir est une action, pas une note de bas de page : sous une liste
 	   de commentaires, commenter est la suite naturelle et doit se voir comme telle. */

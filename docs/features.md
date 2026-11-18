@@ -915,8 +915,9 @@ une photo — la salle, la scène, le groupe en répétition —, comme il modif
 
 ### Commandes d'une prise, et menu ⋮ sous 640 px
 
-**Au-dessus de 640 px, toutes les commandes sont sur la ligne** : pastille 📝 (ou « + 📝 »
-en pointillés s'il n'y a pas de note), 💬 (ou « + 💬 »), écouter ▶, ouvrir le lecteur
+**Au-dessus de 640 px, toutes les commandes sont sur la ligne** : « + 📝 » en pointillés
+s'il n'y a pas de note (une note se lit sur sa propre ligne, voir « Note d'une prise »),
+💬 (ou « + 💬 »), écouter ▶, ouvrir le lecteur
 complet, ajouter à une playlist, partager (🔗, voir « Partager une prise »). La place ne
 manque pas, rien n'a à être caché.
 
@@ -931,8 +932,13 @@ dernier contre la durée, et « Prise n » y mène aussi, comme le titre du mini
 numéro et le ▶ un vrai bouton, à toutes les largeurs — tablette en paysage comprise.
 
 **Sous 640 px**, les mêmes commandes demandent 242 px de cibles tactiles là où la carte en
-offre 274 au plus : la ligne ne garde alors que ce qu'il y a **à lire** — 📝 s'il y a une
-note, 💬 s'il y a des commentaires — plus l'écoute, et un menu ⋮ recueille le reste.
+offre 274 au plus : la ligne ne garde alors que ce qu'il y a **à lire** — la note sur sa
+ligne, 💬 s'il y a des commentaires — plus l'écoute, et un menu ⋮ recueille le reste.
+
+- **Les pastilles gardent leur taille dessinée** (≈ 26 px) : leur cible tactile est une
+  zone invisible qui déborde (`::after`, ≈ 38 px), jusqu'aux lignes voisines sans les
+  chevaucher. Dessinée à 44 px, une pastille imposait sa hauteur à toute la rangée, à
+  côté d'un badge de qualité de 20 px
 
 - **Composition stable** du menu, indépendante de ce que la prise contient déjà : ouvrir le
   lecteur complet, ajouter à une playlist, donner ou changer la qualité (vue session
@@ -1571,8 +1577,11 @@ distincte des commentaires, qui sont datés et signés.
 - Modifiable par tout membre du groupe : c'est une annotation de travail sur la prise,
   pas une parole attribuée à quelqu'un
 - Dans les listes, la note tient sur une ligne tronquée sous la prise et se déplie au clic
-  (pastille 📝 ou la note elle-même). Trois mots de contexte ne valent pas un clic ; une
-  note longue, elle, ne doit pas déformer la ligne. Sans note, « + 📝 » prend sa place, et
+  sur elle-même. Trois mots de contexte ne valent pas un clic ; une
+  note longue, elle, ne doit pas déformer la ligne. **Ni pastille ni icône** : un filet à
+  gauche la distingue de la provenance (orange une fois dépliée), un chevron en bout de
+  ligne dit qu'elle se déplie. La pastille 📝 qui la doublait coûtait au téléphone une
+  rangée de 44 px de haut pour un geste que la ligne faisait déjà Sans note, « + 📝 » prend sa place, et
   sous 640 px c'est l'entrée du menu ⋮ qui la propose
 - Pas de notification : une note n'annonce pas de nouveau contenu au groupe
 
